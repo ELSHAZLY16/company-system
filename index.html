@@ -339,58 +339,44 @@ scrollbar-width: none; /* Firefox */
 display: none; /* Chrome و Safari */
 }
       
-        /* =========================
+/* =========================
    LIGHT MODE
 ========================= */
 
 body.light-mode{
-
 background:#f3f4f6;
 color:#111827;
-
 }
 
 body.light-mode .glass-card{
-
-background:white;
+background:#ffffff;
 color:#111827;
 border:1px solid #e5e7eb;
-
 }
 
 body.light-mode table{
-
-background:white;
+background:#ffffff;
 color:#111827;
-
 }
 
 body.light-mode input,
 body.light-mode select,
 body.light-mode textarea{
-
 background:#ffffff;
 color:#111827;
 border:1px solid #d1d5db;
-
 }
 
 body.light-mode .btn-primary{
-
 background:#2563eb;
-
 }
 
 body.light-mode .sidebar{
-
 background:#ffffff;
-
 }
 
 body.light-mode .tab-btn{
-
 color:#111827;
-
 }
 
 /* ===== Header Fix ===== */
@@ -398,11 +384,9 @@ color:#111827;
 body.light-mode header,
 body.light-mode .top-bar,
 body.light-mode .app-header{
-
 background:#ffffff !important;
 color:#111827 !important;
 border-bottom:1px solid #e5e7eb;
-
 }
 
 /* ===== Tabs Fix ===== */
@@ -410,46 +394,128 @@ border-bottom:1px solid #e5e7eb;
 body.light-mode .tabs,
 body.light-mode .tab-container,
 body.light-mode .nav-tabs{
-
 background:#f1f5f9 !important;
 border:1px solid #e5e7eb;
-
 }
 
 body.light-mode .tab-btn{
-
 color:#111827 !important;
-
 }
 
 body.light-mode .tab-btn.active{
-
 background:#6366f1 !important;
 color:#fff !important;
-
 }
 
 /* ===== Dashboard Cards ===== */
 
 body.light-mode .stat-card{
-
 background:#ffffff !important;
 border:1px solid #e5e7eb;
 color:#111827;
+}
+
+/* =========================
+   SEARCH LIST FIX
+========================= */
+
+/* الوضع الداكن */
+
+#employeeSuggestions,
+.employeeSuggestions,
+.autocomplete-items,
+.employee-results{
+
+position:absolute;
+z-index:9999;
+width:100%;
+
+background:#0f172a;
+color:#ffffff;
+
+border-radius:10px;
+border:1px solid rgba(255,255,255,.08);
+overflow:hidden;
 
 }
+
+/* عناصر القائمة */
+
+#employeeSuggestions div,
+.employeeSuggestions div,
+.autocomplete-items div,
+.employee-results div{
+
+padding:12px 14px;
+border-bottom:1px solid rgba(255,255,255,.05);
+cursor:pointer;
+
+}
+
+/* hover */
+
+#employeeSuggestions div:hover,
+.employeeSuggestions div:hover,
+.autocomplete-items div:hover,
+.employee-results div:hover{
+
+background:#1e293b;
+
+}
+
+/* =========================
+   LIGHT MODE SEARCH LIST
+========================= */
+
+body.light-mode #employeeSuggestions,
+body.light-mode .employeeSuggestions,
+body.light-mode .autocomplete-items,
+body.light-mode .employee-results{
+
+background:#ffffff !important;
+color:#111827 !important;
+
+border:1px solid #e5e7eb !important;
+box-shadow:0 8px 20px rgba(0,0,0,0.08) !important;
+
+}
+
+/* عناصر النتائج */
+
+body.light-mode #employeeSuggestions div,
+body.light-mode .employeeSuggestions div,
+body.light-mode .autocomplete-items div,
+body.light-mode .employee-results div{
+
+color:#111827 !important;
+padding:12px 14px;
+border-bottom:1px solid #f1f5f9;
+
+}
+
+/* hover */
+
+body.light-mode #employeeSuggestions div:hover,
+body.light-mode .employeeSuggestions div:hover,
+body.light-mode .autocomplete-items div:hover,
+body.light-mode .employee-results div:hover{
+
+background:#f3f4f6;
+
+}
+
+/* =========================
+   SMOOTH TRANSITION
+========================= */
 
 body,
 header,
 .glass-card,
 .tab-container{
 
-transition: all .25s ease;
+transition:all .25s ease;
 
 }
-
-
-        
     </style>
 </head>
 <body>
@@ -663,12 +729,45 @@ style="width:100%;margin-top:8px">
                     <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="BreakService.register()">تسجيل الحركة</button></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>☕ سجل الاستئذانات</h3><button class="btn-success btn-primary" onclick="BreakService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+
+<select id="breakFilterType" style="flex:1;padding:10px;border-radius:12px;background:#0b132b;color:white;border:none">
+<option value="">اختر النوع</option>
+<option value="صلاة">صلاة</option>
+<option value="أكل">أكل</option>
+<option value="أخرى">أخرى</option>
+</select>
+
+<input id="breakHistorySearch" placeholder="بحث بالاسم أو الكود" oninput="UI.renderBreaks()">
+
+<input 
+type="date"
+id="breakDate"
+style="padding:10px;border-radius:12px;background:#0b132b;color:white;border:none"
+onchange="UI.renderBreaks()"
+/>
+
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:15px">
+
+<button class="filter-btn active" onclick="setBreakFilter(this,'day')">اليوم</button>
+
+<button class="filter-btn" onclick="setBreakFilter(this,'week')">أسبوع</button>
+
+<button class="filter-btn" onclick="setBreakFilter(this,'month')">شهر</button>
+
+<button class="filter-btn" onclick="setBreakFilter(this,'all')">كل السجلات</button>
+
+</div>
+                
                 <div class="table-container" style="margin-top:20px"><table><thead><tr><th>الموظف</th><th>الكود</th><th>نوع الاستئذان</th><th>وقت الاستئذان</th><th>وقت الرجوع</th><th>مدة الاستئذان</th><th>التاريخ</th><th>المستخدم</th></tr></thead><tbody id="breaksBody"></tbody></table></div>
             </div>
             <div class="glass-card" style="padding:20px; margin-top:20px">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>🚨 30 دقيقة استئذان</h3><button class="btn-success btn-primary" onclick="BreakService.exportOver30Excel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
                 
-          <div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
+<div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
 
 <input id="break30Search"
 placeholder="بحث بالاسم أو الكود"
@@ -705,6 +804,7 @@ onclick="setBreakFilter(this,'all')">
 </div>
 
 </div>      
+ 
                 
                 <div class="table-container" style="max-height:250px; overflow-y:auto;"><table><thead><tr><th>الموظف</th><th>الكود</th><th>إجمالي الاستئذان</th><th>التاريخ</th></tr></thead><tbody id="breaksOver30Body"></tbody></table></div>
             </div>
@@ -717,7 +817,7 @@ onclick="setBreakFilter(this,'all')">
                     <div><label>رقم اللوحة</label><div style="display:flex; align-items:center; gap:10px"><input id="plateLetters" placeholder="أ ب ج" maxlength="5"
 oninput="formatPlateLetters(this)"
 style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spacing:10px;"><span style="font-size:28px; font-weight:bold">|</span><input id="plateNumbers" placeholder="1234" maxlength="4" inputmode="numeric" style="width:120px; text-align:center; font-size:22px; font-weight:bold;"></div></div>
-                    <div><label>نوع العربية</label><select id="vehicleType"><option>ربع نقل</option><option>ميكروباص</option><option>تريلا</option></select></div>
+                    <div><label>نوع العربية</label><select id="vehicleType"><option>ربع نقل</option><option>ميكروباص</option><option>نص نقل</option></select></div>
                     <div><label>اسم الشركة</label><input id="vehicleCompany" placeholder="مثال: عربية شركة علوش"></div>
                     <div><label>ملاحظات</label><textarea id="vehicleNotes" placeholder="مثال: اسم السواق - لون العربية - أمر توريد - تحصيل"></textarea></div>
                     <div><label>&nbsp;</label><button class="btn-success btn-primary" style="width:100%" onclick="VehicleService.register()">🚪 تسجيل دخول</button></div>
@@ -1184,6 +1284,8 @@ document.querySelectorAll(".filter-btn")
 
 State.reportRange="all"
 
+breakRange:"all",
+
 UI.renderAttendance()
 
 }
@@ -1268,6 +1370,7 @@ State.serverOffset = snapshot.val() || 0
         leaves: [],
         users: [],
         serverOffset: 0,
+        breakRange:"all",
         currentUser: null,
         reportRange: "day",
         companyRange: "day",
@@ -2243,53 +2346,82 @@ SystemLog.add("DeleteUser", user.username, "👤 مستخدم");
             body.innerHTML = html;
         },
         renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
-        renderBreaks() {
-            document.getElementById("breakCount").innerText = State.breaks.length; let body = document.getElementById("breaksBody"); if (!body) return;
-            let html = "", over30 = {};
-            State.breaks.sort((a, b) => b.breakTimestamp - a.breakTimestamp).forEach(b => {
-                let duration = b.duration ? TimeUtils.format(b.duration) : "-";
-                let today = new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
-                if (b.date === today && b.duration) { if (!over30[b.code]) over30[b.code] = { name: b.name, code: b.code, total: 0, date: b.date }; over30[b.code].total += b.duration; }
-                html += `<tr><td>${b.name}</td><td>${b.code}</td><td>${b.type || "-"}</td><td>${b.breakTime || "-"}</td><td>${b.returnTime || "-"}</td><td>${duration}</td><td>${b.date}</td><td>${b.user}</td></tr>`;
-            });
-            body.innerHTML = html;
-        let search =
-document.getElementById("break30Search")?.value?.toLowerCase() || ""
+renderBreaks(){
+
+let body = document.getElementById("breaksBody")
+if(!body) return
+
+/* البحث */
+
+let search =
+document.getElementById("breakHistorySearch")?.value?.toLowerCase() || ""
+
+/* التاريخ */
 
 let selectedDate =
 document.getElementById("break30Date")?.value
 
 let now = new Date(TimeUtils.now())
 
+let html = ""
 let totals = {}
 
-State.breaks.forEach(b=>{
+/* فلترة البيانات */
+
+let filtered = State.breaks.filter(b=>{
 
 let date = new Date(b.breakTimestamp)
 
+/* فلتر التاريخ */
+
 if(selectedDate){
-if(date.toISOString().slice(0,10) !== selectedDate) return
+if(date.toISOString().slice(0,10) !== selectedDate) return false
 }
 
+/* فلتر اليوم */
+
 if(State.breakRange === "day"){
-if(date.toDateString() !== now.toDateString()) return
+if(date.toDateString() !== now.toDateString()) return false
 }
+
+/* فلتر الأسبوع */
 
 if(State.breakRange === "week"){
 let weekAgo = new Date(TimeUtils.now())
-weekAgo.setDate(weekAgo.getDate()-7)
-if(date < weekAgo) return
+weekAgo.setDate(now.getDate()-7)
+if(date < weekAgo) return false
 }
+
+/* فلتر الشهر */
 
 if(State.breakRange === "month"){
 let monthAgo = new Date(TimeUtils.now())
 monthAgo.setMonth(now.getMonth()-1)
-if(date < monthAgo) return
+if(date < monthAgo) return false
 }
 
-if(search &&
-!b.name.toLowerCase().includes(search) &&
-!b.code.toString().includes(search)) return
+/* البحث بالاسم أو الكود */
+
+if(search){
+
+if(
+!(b.name && b.name.toLowerCase().includes(search)) &&
+!(b.code && b.code.toString().includes(search))
+) return false
+
+}
+
+return true
+
+})
+
+/* ترتيب الأحدث */
+
+filtered.sort((a,b)=>b.breakTimestamp-a.breakTimestamp)
+
+/* رسم جدول الاستئذانات */
+
+filtered.forEach(b=>{
 
 let duration = b.duration
 
@@ -2297,10 +2429,31 @@ if(!duration && b.breakTimestamp){
 duration = TimeUtils.now() - b.breakTimestamp
 }
 
+let durationText = duration ? TimeUtils.format(duration) : "-"
+
+let rowStyle = !b.returnTimestamp
+? 'style="color:#ef4444;font-weight:bold"'
+: ""
+
+html += `
+<tr ${rowStyle}>
+<td>${b.name}</td>
+<td>${b.code}</td>
+<td>${b.type || "-"}</td>
+<td>${b.breakTime || "-"}</td>
+<td>${b.returnTime || "-"}</td>
+<td>${durationText}</td>
+<td>${b.date}</td>
+<td>${b.user}</td>
+</tr>
+`
+
+/* حساب مجموع الاستئذان */
+
 if(duration){
 
 if(!totals[b.code]){
-totals[b.code]={
+totals[b.code] = {
 name:b.name,
 code:b.code,
 total:0,
@@ -2314,9 +2467,15 @@ totals[b.code].total += duration
 
 })
 
+body.innerHTML = html
+
+/* جدول تأخير 30 دقيقة */
+
 let overHtml = ""
 
-Object.values(totals).forEach(e=>{
+Object.values(totals)
+.sort((a,b)=>b.total-a.total)
+.forEach(e=>{
 
 if(e.total < 1800000) return
 
@@ -2331,10 +2490,20 @@ overHtml += `
 
 })
 
-document.getElementById("breaksOver30Body").innerHTML = overHtml
-            let openBreaks = State.breaks.filter(b => !b.returnTimestamp); let box = document.getElementById("breakCount"); if (box) box.innerText = openBreaks.length;
-        },
-        renderVehicles() {
+let overBody = document.getElementById("breaksOver30Body")
+
+if(overBody) overBody.innerHTML = overHtml
+
+/* العداد */
+
+let openBreaks = filtered.filter(b=>!b.returnTimestamp)
+
+let box = document.getElementById("breakCount")
+
+if(box) box.innerText = openBreaks.length
+
+},
+renderVehicles() {
             document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
             let body = document.getElementById("activeVehiclesBody"); if (!body) return;
             let search = document.getElementById("vehicleSearch")?.value || "", q = search.replace(/\s/g, "").replace(/\|/g, "").toLowerCase();
