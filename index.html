@@ -340,236 +340,341 @@ display: none; /* Chrome و Safari */
 }
       
 /* =========================
-   COLOR SYSTEM
+   COLOR SYSTEM (Dark/Light Mode)
+   متوافق مع ملف علوش البازار
 ========================= */
 
-:root{
+/* ---------- الوضع الداكن (الافتراضي) ---------- */
+:root {
+    /* الخلفيات */
+    --bg-main: #0f172a;
+    --bg-card: rgba(255, 255, 255, 0.05);
+    --bg-table: #0b1220;
+    --bg-input: rgba(0, 0, 0, 0.4);
+    --bg-suggestions: #0f172a;
 
-/* الخلفيات */
+    /* النصوص */
+    --text-main: #e5e7eb;
+    --text-soft: #9ca3af;
+    --text-muted: #64748b;
 
---bg-main:#0f172a;
---bg-card:rgba(255,255,255,.05);
---bg-table:#0b1220;
+    /* الحدود */
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-light: rgba(255, 255, 255, 0.1);
+    --border-focus: #6366f1;
 
-/* النص */
+    /* الأزرار */
+    --btn-primary: #6366f1;
+    --btn-primary-hover: #4f46e5;
+    --btn-success: #10b981;
+    --btn-success-hover: #059669;
+    --btn-danger: #ef4444;
+    --btn-danger-hover: #dc2626;
+    --btn-warning: #f59e0b;
+    --btn-warning-hover: #d97706;
 
---text-main:#e5e7eb;
---text-soft:#9ca3af;
+    /* التبويبات */
+    --tab-active: linear-gradient(135deg, #6366f1, #8b5cf6);
+    --tab-inactive: #94a3b8;
 
-/* الحدود */
+    /* الإشعارات */
+    --toast-bg: rgba(15, 23, 42, 0.9);
+    --toast-border: rgba(99, 102, 241, 0.3);
+}
 
---border-color:rgba(255,255,255,.08);
+/* ---------- الوضع الفاتح ---------- */
+body.light-mode {
+    --bg-main: #f3f4f6;
+    --bg-card: #ffffff;
+    --bg-table: #ffffff;
+    --bg-input: #f9fafb;
+    --bg-suggestions: #ffffff;
 
-/* الأزرار */
+    --text-main: #111827;
+    --text-soft: #4b5563;
+    --text-muted: #6b7280;
 
---btn-primary:#6366f1;
---btn-danger:#ef4444;
---btn-warning:#f59e0b;
+    --border-color: #e5e7eb;
+    --border-light: #d1d5db;
+    --border-focus: #3b82f6;
 
+    --btn-primary: #2563eb;
+    --btn-primary-hover: #1d4ed8;
+    --btn-success: #059669;
+    --btn-success-hover: #047857;
+    --btn-danger: #ef4444;
+    --btn-danger-hover: #dc2626;
+    --btn-warning: #f59e0b;
+    --btn-warning-hover: #d97706;
+
+    --tab-active: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    --tab-inactive: #4b5563;
+
+    --toast-bg: rgba(255, 255, 255, 0.95);
+    --toast-border: #cbd5e1;
 }
 
 /* =========================
-   LIGHT MODE
+   العناصر العامة
 ========================= */
-
-body.light-mode{
-
---bg-main:#f3f4f6;
---bg-card:#ffffff;
---bg-table:#ffffff;
-
---text-main:#111827;
---text-soft:#4b5563;
-
---border-color:#e5e7eb;
-
---btn-primary:#2563eb;
---btn-danger:#ef4444;
---btn-warning:#f59e0b;
-
+body {
+    background: var(--bg-main);
+    color: var(--text-main);
+    transition: background 0.25s ease, color 0.25s ease;
 }
 
 /* =========================
-   GLOBAL
+   البطاقات (Glass Card)
 ========================= */
+.glass-card {
+    background: var(--bg-card);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    transition: all 0.25s ease;
+}
 
-body{
-background:var(--bg-main);
-color:var(--text-main);
+.glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.6);
 }
 
 /* =========================
-   CARDS
+   الجداول
 ========================= */
+.table-container {
+    background: transparent;
+}
 
-.glass-card{
+table {
+    background: var(--bg-table);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
 
-background:var(--bg-card);
-color:var(--text-main);
-border:1px solid var(--border-color);
+thead {
+    border-bottom: 1px solid var(--border-color);
+}
 
+th {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a78bfa;
+}
+
+tr:hover {
+    background: rgba(99, 102, 241, 0.1);
 }
 
 /* =========================
-   TABLES
+   حقول الإدخال
 ========================= */
-
-table{
-
-background:var(--bg-table);
-color:var(--text-main);
-border-color:var(--border-color);
-
-}
-
-thead{
-
-border-bottom:1px solid var(--border-color);
-
-}
-
-/* =========================
-   INPUTS
-========================= */
-
 input,
 select,
-textarea{
+textarea {
+    background: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    transition: border 0.2s ease;
+}
 
-background:var(--bg-card);
-color:var(--text-main);
-border:1px solid var(--border-color);
-
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--border-focus);
 }
 
 /* =========================
-   BUTTONS
+   الأزرار
 ========================= */
-
-.btn-primary{
-background:var(--btn-primary);
+.btn-primary {
+    background: var(--btn-primary);
+    transition: background 0.2s ease;
+}
+.btn-primary:hover {
+    background: var(--btn-primary-hover);
 }
 
-.btn-danger{
-background:var(--btn-danger);
+.btn-success {
+    background: var(--btn-success);
+}
+.btn-success:hover {
+    background: var(--btn-success-hover);
 }
 
-.btn-warning{
-background:var(--btn-warning);
+.btn-danger {
+    background: var(--btn-danger);
+}
+.btn-danger:hover {
+    background: var(--btn-danger-hover);
+}
+
+.btn-warning {
+    background: var(--btn-warning);
+}
+.btn-warning:hover {
+    background: var(--btn-warning-hover);
 }
 
 /* =========================
-   SIDEBAR
+   التبويبات (Tabs)
 ========================= */
+.tabs-wrapper {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
 
-.sidebar{
-background:var(--bg-card);
+.tab-btn {
+    color: var(--tab-inactive);
+}
+.tab-btn.active {
+    background: var(--tab-active);
+    color: white;
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+.tab-btn:hover {
+    background: rgba(99, 102, 241, 0.2);
 }
 
 /* =========================
-   TABS
+   بطاقات الإحصائيات
 ========================= */
-
-.tabs,
-.tab-container,
-.nav-tabs{
-
-background:var(--bg-card);
-border:1px solid var(--border-color);
-
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
 }
-
-.tab-btn{
-color:var(--text-main);
+.stat-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 15px 40px rgba(99, 102, 241, 0.3);
 }
-
-.tab-btn.active{
-background:var(--btn-primary);
-color:#ffffff;
+.stat-value {
+    background: linear-gradient(135deg, #60a5fa, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 /* =========================
-   HEADER
+   قوائم الاقتراحات (AutoComplete)
 ========================= */
-
-header,
-.top-bar,
-.app-header{
-
-background:var(--bg-card);
-color:var(--text-main);
-border-bottom:1px solid var(--border-color);
-
-}
-
-/* =========================
-   DASHBOARD CARDS
-========================= */
-
-.stat-card{
-
-background:var(--bg-card);
-border:1px solid var(--border-color);
-color:var(--text-main);
-
-}
-
-/* =========================
-   SEARCH LIST
-========================= */
-
 #employeeSuggestions,
 .employeeSuggestions,
 .autocomplete-items,
-.employee-results{
-
-position:absolute;
-z-index:9999;
-width:100%;
-
-background:var(--bg-card);
-color:var(--text-main);
-
-border-radius:10px;
-border:1px solid var(--border-color);
-overflow:hidden;
-
+.employee-results,
+#breakSuggestions,
+#penaltySuggestions,
+#leaveSuggestions {
+    position: absolute;
+    z-index: 9999;
+    width: 100%;
+    background: var(--bg-suggestions);
+    color: var(--text-main);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 #employeeSuggestions div,
 .employeeSuggestions div,
 .autocomplete-items div,
-.employee-results div{
-
-padding:12px 14px;
-border-bottom:1px solid var(--border-color);
-cursor:pointer;
-
+.employee-results div,
+#breakSuggestions div,
+#penaltySuggestions div,
+#leaveSuggestions div {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: background 0.2s;
 }
 
 #employeeSuggestions div:hover,
 .employeeSuggestions div:hover,
 .autocomplete-items div:hover,
-.employee-results div:hover{
-
-background:rgba(255,255,255,.05);
-
+.employee-results div:hover,
+#breakSuggestions div:hover,
+#penaltySuggestions div:hover,
+#leaveSuggestions div:hover {
+    background: rgba(99, 102, 241, 0.2);
 }
 
 /* =========================
-   SMOOTH TRANSITION
+   إشعارات التوست (Toast)
 ========================= */
+.toast {
+    background: var(--toast-bg);
+    border: 1px solid var(--toast-border);
+    color: white;
+    backdrop-filter: blur(10px);
+}
 
+.toast.success {
+    border-color: #10b981;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+.toast.error {
+    border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+.toast.warning {
+    border-color: #f59e0b;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+/* =========================
+   رأس الصفحة (Header)
+========================= */
+.dashboard-header {
+    background: rgba(15, 23, 42, 0.7);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+}
+body.light-mode .dashboard-header {
+    background: rgba(255, 255, 255, 0.8);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.user-badge {
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid #6366f1;
+}
+
+/* =========================
+   أزرار الفلاتر
+========================= */
+.filter-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5f5;
+}
+.filter-btn.active {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border-color: #6366f1;
+}
+body.light-mode .filter-btn {
+    background: #f3f4f6;
+    border-color: #d1d5db;
+    color: #374151;
+}
+body.light-mode .filter-btn.active {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    border-color: #3b82f6;
+}
+
+/* =========================
+   الانتقالات السلسة
+========================= */
 body,
 header,
 .glass-card,
 .tab-container,
-table{
-
-transition:all .25s ease;
-
+table,
+input,
+select,
+textarea,
+button,
+.toast {
+    transition: all 0.25s ease;
 }
-
 
     </style>
 </head>
