@@ -340,185 +340,6 @@ display: none; /* Chrome و Safari */
 }
       
 /* =========================
-   LIGHT MODE
-========================= */
-
-body.light-mode{
-background:#f3f4f6;
-color:#111827;
-}
-
-body.light-mode .glass-card{
-background:#ffffff;
-color:#111827;
-border:1px solid #e5e7eb;
-}
-
-body.light-mode table{
-background:#ffffff;
-color:#111827;
-}
-
-body.light-mode input,
-body.light-mode select,
-body.light-mode textarea{
-background:#ffffff;
-color:#111827;
-border:1px solid #d1d5db;
-}
-
-body.light-mode .btn-primary{
-background:#2563eb;
-}
-
-body.light-mode .sidebar{
-background:#ffffff;
-}
-
-body.light-mode .tab-btn{
-color:#111827;
-}
-
-/* ===== Header Fix ===== */
-
-body.light-mode header,
-body.light-mode .top-bar,
-body.light-mode .app-header{
-background:#ffffff !important;
-color:#111827 !important;
-border-bottom:1px solid #e5e7eb;
-}
-
-/* ===== Tabs Fix ===== */
-
-body.light-mode .tabs,
-body.light-mode .tab-container,
-body.light-mode .nav-tabs{
-background:#f1f5f9 !important;
-border:1px solid #e5e7eb;
-}
-
-body.light-mode .tab-btn{
-color:#111827 !important;
-}
-
-body.light-mode .tab-btn.active{
-background:#6366f1 !important;
-color:#fff !important;
-}
-
-/* ===== Dashboard Cards ===== */
-
-body.light-mode .stat-card{
-background:#ffffff !important;
-border:1px solid #e5e7eb;
-color:#111827;
-}
-
-/* =========================
-   SEARCH LIST FIX
-========================= */
-
-/* الوضع الداكن */
-
-#employeeSuggestions,
-.employeeSuggestions,
-.autocomplete-items,
-.employee-results{
-
-position:absolute;
-z-index:9999;
-width:100%;
-
-background:#0f172a;
-color:#ffffff;
-
-border-radius:10px;
-border:1px solid rgba(255,255,255,.08);
-overflow:hidden;
-
-}
-
-/* عناصر القائمة */
-
-#employeeSuggestions div,
-.employeeSuggestions div,
-.autocomplete-items div,
-.employee-results div{
-
-padding:12px 14px;
-border-bottom:1px solid rgba(255,255,255,.05);
-cursor:pointer;
-
-}
-
-/* hover */
-
-#employeeSuggestions div:hover,
-.employeeSuggestions div:hover,
-.autocomplete-items div:hover,
-.employee-results div:hover{
-
-background:#1e293b;
-
-}
-
-/* =========================
-   LIGHT MODE SEARCH LIST
-========================= */
-
-body.light-mode #employeeSuggestions,
-body.light-mode .employeeSuggestions,
-body.light-mode .autocomplete-items,
-body.light-mode .employee-results{
-
-background:#ffffff !important;
-color:#111827 !important;
-
-border:1px solid #e5e7eb !important;
-box-shadow:0 8px 20px rgba(0,0,0,0.08) !important;
-
-}
-
-/* عناصر النتائج */
-
-body.light-mode #employeeSuggestions div,
-body.light-mode .employeeSuggestions div,
-body.light-mode .autocomplete-items div,
-body.light-mode .employee-results div{
-
-color:#111827 !important;
-padding:12px 14px;
-border-bottom:1px solid #f1f5f9;
-
-}
-
-/* hover */
-
-body.light-mode #employeeSuggestions div:hover,
-body.light-mode .employeeSuggestions div:hover,
-body.light-mode .autocomplete-items div:hover,
-body.light-mode .employee-results div:hover{
-
-background:#f3f4f6;
-
-}
-
-/* =========================
-   SMOOTH TRANSITION
-========================= */
-
-body,
-header,
-.glass-card,
-.tab-container{
-
-transition:all .25s ease;
-
-}
-
-
-/* =========================
    COLOR SYSTEM
 ========================= */
 
@@ -547,7 +368,6 @@ transition:all .25s ease;
 
 }
 
-
 /* =========================
    LIGHT MODE
 ========================= */
@@ -566,6 +386,187 @@ body.light-mode{
 --btn-primary:#2563eb;
 --btn-danger:#ef4444;
 --btn-warning:#f59e0b;
+
+}
+
+/* =========================
+   GLOBAL
+========================= */
+
+body{
+background:var(--bg-main);
+color:var(--text-main);
+}
+
+/* =========================
+   CARDS
+========================= */
+
+.glass-card{
+
+background:var(--bg-card);
+color:var(--text-main);
+border:1px solid var(--border-color);
+
+}
+
+/* =========================
+   TABLES
+========================= */
+
+table{
+
+background:var(--bg-table);
+color:var(--text-main);
+border-color:var(--border-color);
+
+}
+
+thead{
+
+border-bottom:1px solid var(--border-color);
+
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+input,
+select,
+textarea{
+
+background:var(--bg-card);
+color:var(--text-main);
+border:1px solid var(--border-color);
+
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.btn-primary{
+background:var(--btn-primary);
+}
+
+.btn-danger{
+background:var(--btn-danger);
+}
+
+.btn-warning{
+background:var(--btn-warning);
+}
+
+/* =========================
+   SIDEBAR
+========================= */
+
+.sidebar{
+background:var(--bg-card);
+}
+
+/* =========================
+   TABS
+========================= */
+
+.tabs,
+.tab-container,
+.nav-tabs{
+
+background:var(--bg-card);
+border:1px solid var(--border-color);
+
+}
+
+.tab-btn{
+color:var(--text-main);
+}
+
+.tab-btn.active{
+background:var(--btn-primary);
+color:#ffffff;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+header,
+.top-bar,
+.app-header{
+
+background:var(--bg-card);
+color:var(--text-main);
+border-bottom:1px solid var(--border-color);
+
+}
+
+/* =========================
+   DASHBOARD CARDS
+========================= */
+
+.stat-card{
+
+background:var(--bg-card);
+border:1px solid var(--border-color);
+color:var(--text-main);
+
+}
+
+/* =========================
+   SEARCH LIST
+========================= */
+
+#employeeSuggestions,
+.employeeSuggestions,
+.autocomplete-items,
+.employee-results{
+
+position:absolute;
+z-index:9999;
+width:100%;
+
+background:var(--bg-card);
+color:var(--text-main);
+
+border-radius:10px;
+border:1px solid var(--border-color);
+overflow:hidden;
+
+}
+
+#employeeSuggestions div,
+.employeeSuggestions div,
+.autocomplete-items div,
+.employee-results div{
+
+padding:12px 14px;
+border-bottom:1px solid var(--border-color);
+cursor:pointer;
+
+}
+
+#employeeSuggestions div:hover,
+.employeeSuggestions div:hover,
+.autocomplete-items div:hover,
+.employee-results div:hover{
+
+background:rgba(255,255,255,.05);
+
+}
+
+/* =========================
+   SMOOTH TRANSITION
+========================= */
+
+body,
+header,
+.glass-card,
+.tab-container,
+table{
+
+transition:all .25s ease;
 
 }
 
