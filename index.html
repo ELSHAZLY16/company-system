@@ -676,6 +676,20 @@ button,
     transition: all 0.25s ease;
 }
 
+/* تعديل لون خط التبويبات في الوضع الفاتح */
+body.light-mode .tab-btn {
+    color: #1f2937 !important; /* لون غامق للوضع الفاتح */
+}
+
+body.light-mode .tab-btn.active {
+    background: var(--tab-active, linear-gradient(135deg, #3b82f6, #8b5cf6));
+    color: white !important; /* النشط يبقى أبيض */
+}
+
+body.light-mode .tab-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+}
+
     </style>
 </head>
 <body>
