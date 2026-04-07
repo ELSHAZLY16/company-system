@@ -516,6 +516,60 @@ header,
 transition:all .25s ease;
 
 }
+
+
+/* =========================
+   COLOR SYSTEM
+========================= */
+
+:root{
+
+/* الخلفيات */
+
+--bg-main:#0f172a;
+--bg-card:rgba(255,255,255,.05);
+--bg-table:#0b1220;
+
+/* النص */
+
+--text-main:#e5e7eb;
+--text-soft:#9ca3af;
+
+/* الحدود */
+
+--border-color:rgba(255,255,255,.08);
+
+/* الأزرار */
+
+--btn-primary:#6366f1;
+--btn-danger:#ef4444;
+--btn-warning:#f59e0b;
+
+}
+
+
+/* =========================
+   LIGHT MODE
+========================= */
+
+body.light-mode{
+
+--bg-main:#f3f4f6;
+--bg-card:#ffffff;
+--bg-table:#ffffff;
+
+--text-main:#111827;
+--text-soft:#4b5563;
+
+--border-color:#e5e7eb;
+
+--btn-primary:#2563eb;
+--btn-danger:#ef4444;
+--btn-warning:#f59e0b;
+
+}
+
+
     </style>
 </head>
 <body>
@@ -731,13 +785,6 @@ style="width:100%;margin-top:8px">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>☕ سجل الاستئذانات</h3><button class="btn-success btn-primary" onclick="BreakService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
                 
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-
-<select id="breakFilterType" style="flex:1;padding:10px;border-radius:12px;background:#0b132b;color:white;border:none">
-<option value="">اختر النوع</option>
-<option value="صلاة">صلاة</option>
-<option value="أكل">أكل</option>
-<option value="أخرى">أخرى</option>
-</select>
 
 <input id="breakHistorySearch" placeholder="بحث بالاسم أو الكود" oninput="UI.renderBreaks()">
 
