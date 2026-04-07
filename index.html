@@ -1,0 +1,2651 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> 
+    
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>علوش البازار - نظام إدارة الحضور</title>
+
+    <!-- ========================= الخطوط والأيقونات ========================= -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- ========================= مكتبات خارجية ========================= -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- ========================= الأنماط (CSS) ========================= -->
+    <style>
+        /* ---------- إعدادات عامة ---------- */
+      
+      html,body{
+touch-action: manipulation;
+}
+      
+        
+      /* فلتر الحضور */
+
+.attendance-filters{
+display:flex;
+gap:8px;
+flex-wrap:wrap;
+margin-top:10px;
+}
+
+.filter-btn{
+
+background:rgba(255,255,255,0.05);
+border:1px solid rgba(255,255,255,0.15);
+color:#cbd5f5;
+
+padding:8px 16px;
+
+border-radius:20px;
+
+cursor:pointer;
+
+font-weight:600;
+
+transition:.3s;
+
+}
+
+.filter-btn:hover{
+
+background:rgba(99,102,241,.2);
+
+}
+
+.filter-btn.active{
+
+background:linear-gradient(135deg,#6366f1,#8b5cf6);
+
+color:white;
+
+border-color:#6366f1;
+
+box-shadow:0 0 10px rgba(99,102,241,.4);
+
+}  
+        
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a, #1e1b4b, #0c0a2a);
+            color: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        /* ---------- مكون الزجاج (Glass Card) ---------- */
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: 0.3s;
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.6);
+        }
+
+        /* ---------- رأس لوحة التحكم ---------- */
+        .dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 15px;
+            gap: 10px;
+            flex-wrap: nowrap;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-left, .header-right { display: flex; align-items: center; min-width: 0; }
+        .header-center { flex: 1; text-align: center; font-size: clamp(18px, 4vw, 26px); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-badge { background: rgba(99, 102, 241, 0.2); padding: 6px 12px; border-radius: 14px; border: 1px solid #6366f1; font-weight: 600; max-width: 120px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+
+        /* ---------- بطاقات الإحصائيات ---------- */
+.stats-grid {
+
+display:flex;
+gap:12px;
+padding:15px;
+
+overflow-x:auto;
+overflow-y:hidden;
+
+scroll-snap-type:x mandatory;
+
+}
+
+.stat-card{
+
+min-width:160px;
+flex-shrink:0;
+
+scroll-snap-align:start;
+
+}
+.stat-card{
+padding:20px;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+text-align:center;
+position:relative;
+overflow:hidden;
+min-height:120px;
+transition:.3s;
+}
+
+.stat-card:hover{
+transform:translateY(-8px) scale(1.02);
+box-shadow:0 15px 40px rgba(99,102,241,.3);
+}
+
+        .stat-card i {
+
+    position:absolute;
+
+    font-size:40px;
+
+    opacity:.15;
+
+    bottom:10px;
+    left:10px;
+
+}
+     .stat-value{
+
+font-size:28px;
+
+font-weight:900;
+
+margin-top:8px;
+
+background:linear-gradient(135deg,#60a5fa,#c084fc);
+
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+
+}
+        /* ---------- علامات التبويب (Tabs) ---------- */
+        .tabs-wrapper {
+            background: rgba(15, 23, 42, 0.75);
+            padding: 10px;
+            border-radius: 40px;
+            display: flex;
+            gap: 8px;
+            margin: 20px;
+            overflow-x: auto;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 10px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+        .tab-btn.active {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+        }
+        .tab-btn:hover { background: rgba(99, 102, 241, 0.2); }
+
+        /* ---------- الأزرار ---------- */
+        .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; color: white; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .btn-success { background: linear-gradient(135deg, #10b981, #059669); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+
+        /* ---------- حقول الإدخال ---------- */
+        input, select, textarea { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 12px; color: white; width: 100%; }
+        input:focus, select:focus { outline: none; border-color: #6366f1; }
+
+        /* ---------- الجداول ---------- */
+        .table-container { border-radius: 20px; overflow-x: auto; overflow-y: auto; margin-top: 15px; max-height: 420px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: rgba(99, 102, 241, 0.2); padding: 14px; text-align: center; color: #a78bfa; font-weight: 600; position: sticky; top: 0; }
+        td { padding: 8px 10px; text-align: center; font-size: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
+        tr:hover { background: rgba(99, 102, 241, 0.1); }
+
+        /* ---------- الشارات (Badges) ---------- */
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; }
+        .badge-success { background: #10b981; }
+        .badge-danger { background: #ef4444; }
+        .badge-warning { background: #f59e0b; }
+        .badge-info { background: #3b82f6; }
+
+
+
+        /* ---------- صلاحيات المستخدم ---------- */
+        
+        
+        
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .permission-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .permission-card:hover { border-color: #6366f1; }
+        .permission-card.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+
+        /* ---------- إشعارات توست (Toast) ---------- */
+        .toast {
+            position: fixed;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            min-width: 220px;
+            max-width: 90%;
+            padding: 14px 22px;
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            backdrop-filter: blur(10px);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transition: 0.35s;
+            z-index: 9999;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) scale(1); }
+        .toast.success { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+        .toast.error { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+        .toast.warning { border-color: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+
+        /* ---------- مودال الصلاحيات ---------- */
+        .perm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .perm-box {
+            background: #0f172a;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 350px;
+            color: white;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .perm-box label { display: flex; gap: 10px; align-items: center; font-size: 15px; }
+        .perm-actions { display: flex; gap: 10px; margin-top: 10px; grid-column: span 2; }
+        .perm-actions button { flex: 1; padding: 10px; border: none; border-radius: 8px; background: #6366f1; color: white; }
+        
+        /* منع النسخ */
+body{
+user-select:none;
+-webkit-user-select:none;
+-moz-user-select:none;
+-ms-user-select:none;
+}
+      
+      /* إخفاء جميع شرائط التمرير */
+* {
+scrollbar-width: none; /* Firefox */
+-ms-overflow-style: none; /* IE و Edge القديم */
+}
+
+*::-webkit-scrollbar {
+display: none; /* Chrome و Safari */
+}
+      
+        /* =========================
+   LIGHT MODE
+========================= */
+
+body.light-mode{
+
+background:#f3f4f6;
+color:#111827;
+
+}
+
+body.light-mode .glass-card{
+
+background:white;
+color:#111827;
+border:1px solid #e5e7eb;
+
+}
+
+body.light-mode table{
+
+background:white;
+color:#111827;
+
+}
+
+body.light-mode input,
+body.light-mode select,
+body.light-mode textarea{
+
+background:#ffffff;
+color:#111827;
+border:1px solid #d1d5db;
+
+}
+
+body.light-mode .btn-primary{
+
+background:#2563eb;
+
+}
+
+body.light-mode .sidebar{
+
+background:#ffffff;
+
+}
+
+body.light-mode .tab-btn{
+
+color:#111827;
+
+}
+
+/* ===== Header Fix ===== */
+
+body.light-mode header,
+body.light-mode .top-bar,
+body.light-mode .app-header{
+
+background:#ffffff !important;
+color:#111827 !important;
+border-bottom:1px solid #e5e7eb;
+
+}
+
+/* ===== Tabs Fix ===== */
+
+body.light-mode .tabs,
+body.light-mode .tab-container,
+body.light-mode .nav-tabs{
+
+background:#f1f5f9 !important;
+border:1px solid #e5e7eb;
+
+}
+
+body.light-mode .tab-btn{
+
+color:#111827 !important;
+
+}
+
+body.light-mode .tab-btn.active{
+
+background:#6366f1 !important;
+color:#fff !important;
+
+}
+
+/* ===== Dashboard Cards ===== */
+
+body.light-mode .stat-card{
+
+background:#ffffff !important;
+border:1px solid #e5e7eb;
+color:#111827;
+
+}
+
+body,
+header,
+.glass-card,
+.tab-container{
+
+transition: all .25s ease;
+
+}
+
+
+        
+    </style>
+</head>
+<body>
+
+<!-- ========================= شاشة الترحيب والتحميل ========================= -->
+<div id="welcomeOverlay" style="position:fixed; inset:0; background:linear-gradient(135deg,#0f172a,#1e1b4b); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999;">
+    <div style="width:80px; height:80px; border:3px solid rgba(99,102,241,0.3); border-top-color:#6366f1; border-radius:50%; animation:spin 1s linear infinite"></div>
+    <h1 style="margin-top:25px;">🏢 علوش البازار</h1>
+    <p style="color:#a78bfa">نظام إدارة الحضور</p>
+</div>
+
+<!-- ========================= صفحة تسجيل الدخول ========================= -->
+<div id="loginPage" style="display:flex; align-items:center; justify-content:center; min-height:100vh;">
+    <div class="glass-card" style="padding:40px; width:90%; max-width:420px;">
+        <div style="text-align:center; margin-bottom:30px;">
+            <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6); width:70px; height:70px; border-radius:20px; display:flex; align-items:center; justify-content:center; margin:0 auto 15px;">
+                <i class="fas fa-shield-halved fa-2x"></i>
+            </div>
+            <h2>تسجيل الدخول</h2>
+            <p style="color:#94a3b8">نظام علوش البازار</p>
+        </div>
+        <input id="username" placeholder="اسم المستخدم" style="margin-bottom:15px;">
+        <div style="position:relative; margin-bottom:25px;">
+            <input type="password" id="password" placeholder="كلمة المرور" style="width:100%; padding-left:45px;">
+            <i class="fas fa-eye" id="togglePassword" style="position:absolute; left:15px; top:50%; transform:translateY(-50%); cursor:pointer; color:#94a3b8;"></i>
+        </div>
+        <button class="btn-primary" style="width:100%" onclick="AuthService.login()">دخول النظام <i class="fas fa-arrow-left"></i></button>
+
+
+ 
+    </div>
+</div>
+
+<!-- ========================= لوحة التحكم الرئيسية ========================= -->
+<div id="dashboard" style="display:none;">
+    <!-- رأس الصفحة -->
+    <div class="dashboard-header">
+        <div class="header-left"><button onclick="AuthService.logout()" class="btn-danger btn-primary">خروج</button></div>
+        <div class="header-center"><h2>علوش البازار</h2></div>
+        <div class="header-right"><div id="userRoleBadge" class="user-badge"></div></div>
+        
+       <button id="themeToggle"
+style="
+margin-right:10px;
+padding:6px 10px;
+border:none;
+border-radius:8px;
+cursor:pointer;
+font-size:14px
+">
+🌙
+</button>
+        
+    </div>
+
+    <!-- بطاقات الإحصائيات -->
+    <div class="stats-grid">
+        <div class="glass-card stat-card"><i class="fas fa-coffee"></i><h3>الاستئذانات</h3><p class="stat-value" id="breakCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-fingerprint"></i><h3>الحضور</h3><p class="stat-value" id="attCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-box"></i><h3>الأصناف</h3><p class="stat-value" id="productsCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-users"></i><h3>الموظفين</h3><p class="stat-value" id="empCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-file-signature"></i><h3>الإجازات</h3><p class="stat-value" id="leavesCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-gavel"></i><h3>الجزاءات</h3><p class="stat-value" id="penaltiesCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-truck-fast"></i><h3>عربيات داخل</h3><p class="stat-value" id="vehiclesInsideCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-user-gear"></i><h3>المستخدمين</h3><p class="stat-value" id="usersCount">0</p></div>
+    </div>
+
+    <!-- أزرار التبويب -->
+    <div style="text-align:center;">
+        <div class="tabs-wrapper">
+            <button class="tab-btn active" data-tab="attendance"><i class="fas fa-fingerprint"></i> الحضور</button>
+            <button class="tab-btn" data-tab="breaks"><i class="fas fa-coffee"></i> الاستئذانات</button>
+            <button class="tab-btn" data-tab="products"><i class="fas fa-box"></i> الأصناف</button>
+            <button class="tab-btn" data-tab="vehicles"><i class="fas fa-truck"></i> العربيات</button>
+   
+      <button class="tab-btn" data-tab="companies">
+<i class="fas fa-building"></i>
+الشركات
+</button>
+      
+      
+            <button class="tab-btn" data-tab="penalties"><i class="fas fa-balance-scale"></i> الجزاءات</button>
+            <button class="tab-btn" data-tab="leaves"><i class="fas fa-calendar-alt"></i> الإجازات</button>
+            <button class="tab-btn" data-tab="employees"><i class="fas fa-address-book"></i> الموظفين</button>
+            <button class="tab-btn" data-tab="users"><i class="fas fa-users-cog"></i> الإدارة</button>
+            <button class="tab-btn" data-tab="system"><i class="fas fa-clipboard-list"></i> النظام</button>
+        </div>
+    </div>
+
+    <!-- المحتوى الأساسي للتبويبات -->
+    <main style="padding:0 15px 50px;">
+        
+        <!-- ========================= تبويب الأصناف (Products) ========================= -->
+        <div id="tab-products" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <h3><i class="fas fa-box"></i> إدارة الأصناف</h3>
+                <div class="stats-grid" style="margin-top:20px">
+                    <div class="glass-card stat-card"><i class="fas fa-exclamation-triangle"></i><h3>قليل</h3><p class="stat-value" id="productsLow">0</p></div>
+                    <div class="glass-card stat-card"><i class="fas fa-calendar-times"></i><h3>منتهي</h3><p class="stat-value" id="productsExpired">0</p></div>
+                    <div class="glass-card stat-card"><i class="fas fa-clock"></i><h3>قريب الانتهاء</h3><p class="stat-value" id="productsExpireSoon">0</p></div>
+                </div>
+                <!-- نموذج إضافة صنف -->
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin:20px 0;">
+                    <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
+                    <div><label>اسم الصنف</label><input id="productName" placeholder="اسم المنتج"></div>
+                    <div><label>القسم</label><input id="productCategory" placeholder="مثال: مواد غذائية"></div>
+                    <div><label>الكمية</label><input id="productQuantity" type="number" placeholder="مثال: كمية الصنف 100"></div>
+                    <div><label>تاريخ الانتهاء</label><input id="productExpire" type="date"></div>
+                    <div><label>&nbsp;</label><button class="btn-success btn-primary" style="width:100%" onclick="ProductService.add()">➕ تسجيل الصنف</button></div>
+                </div>
+                <!-- بحث وتصدير -->
+                <div style="display:flex; gap:10px; margin:10px 0">
+                    <input id="productSearch" placeholder="بحث بالباركود أو الاسم" style="flex:1" oninput="UI.renderProducts()">
+                    <button class="btn-success btn-primary" onclick="ProductService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+                </div>
+                <!-- جدول الأصناف -->
+                <div class="table-container">
+                    <table><thead><tr><th>الباركود</th><th>الصنف</th><th>القسم</th><th>الكمية</th><th>الانتهاء</th><th>الحالة</th><th>حركة</th></tr></thead><tbody id="productsBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ماسح الباركود -->
+        <div id="barcodeScanner" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#000; z-index:9999;">
+            <div id="reader" style="width:100%"></div>
+            <button style="position:absolute; top:20px; left:20px; padding:10px; background:red; color:white; border:none; border-radius:10px" onclick="ProductService.closeScanner()">✖ اغلاق</button>
+        </div>
+
+        <!-- ========================= تبويب الحضور (Attendance) ========================= -->
+        <div id="tab-attendance" class="tab-content active">
+            <!-- تسجيل حركة جديدة -->
+            <div class="glass-card" style="padding:25px; margin-bottom:20px;">
+                <h3 style="margin-bottom:20px;"><i class="fas fa-plus-circle"></i> تسجيل الحضور والانصراف</h3>
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+                    <div style="position:relative;"><label>كود الموظف</label><input id="attCode" placeholder="ابحث بالكود أو الاسم"><div id="empSuggestions" class="employee-suggestions" style="display:none"></div></div>
+                    <div><label>نوع الحركة</label><select id="attAction"><option value="CheckIn">✅ حضور</option><option value="CheckOut">❌ انصراف</option></select></div>
+                    <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="AttendanceService.register()">📝 تسجيل الحركة</button></div>
+                </div>
+            </div>
+            <!-- سجل الحضور والتقارير -->
+            <div class="glass-card" style="padding:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px; margin-bottom:20px;">
+                    <h3><i class="fas fa-chart-line"></i> سجل الحضور والانصراف</h3>
+                    <div style="margin:10px 0">
+                        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px; flex-wrap:nowrap;">
+                            <input id="attendanceSearch" placeholder="بحث بالاسم أو الكود" style="flex:1; padding:8px; border-radius:8px; border:none; min-width:0;">
+                            <div style="display:flex; align-items:center; gap:6px"><input type="date" id="attendanceDate"
+onchange="clearFilters()" placeholder="تحديد اليوم" style="width:120px; padding:8px; border-radius:8px; border:none;"></div>
+                        </div>
+                        <div class="attendance-filters">
+
+<button class="filter-btn active"
+onclick="setFilter(this,'day')">
+اليوم
+</button>
+
+<button class="filter-btn"
+onclick="setFilter(this,'week')">
+أسبوع
+</button>
+
+<button class="filter-btn"
+onclick="setFilter(this,'month')">
+شهر
+</button>
+
+<button class="filter-btn"
+onclick="setFilter(this,'all')">
+كل السجلات
+</button>
+
+<button class="btn-success btn-primary"
+onclick="ReportService.exportExcel()"
+style="width:100%;margin-top:8px">
+
+<i class="fas fa-file-excel"></i>
+تصدير Excel
+
+</button>
+
+</div>
+       
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table><thead><tr><th>الموظف</th><th>الكود</th><th>التاريخ</th><th>الدخول</th><th>الخروج</th><th>ساعات العمل</th><th>المستخدم</th></tr></thead><tbody id="attendanceReportBody"></tbody></table>
+                    <div id="totalHoursBox" style="margin-top:20px; font-size:16px"></div>
+                </div>
+            </div>
+            <!-- الموظفين داخل العمل الآن -->
+            <div class="glass-card" style="padding:20px; margin-top:20px;">
+                <h3>👷 داخل العمل الان (<span id="insideCount">0</span>)</h3>
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:10px 0;">
+                    <input id="insideSearch" placeholder="بحث بالاسم أو الكود" style="flex:1; padding:8px; border-radius:8px; border:none; min-width:150px;">
+                    <button class="btn-success btn-primary" onclick="exportInsideExcel()" style="display:flex; align-items:center; gap:6px;"><i class="fas fa-file-excel"></i> تصدير Excel</button>
+                </div>
+                <div class="table-container">
+                    <table><thead><tr><th>الموظف</th><th>الكود</th><th>وقت الدخول</th><th>مدة العمل</th></tr></thead><tbody id="insideEmployeesBody"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================= تبويب الاستئذانات (Breaks) ========================= -->
+        <div id="tab-breaks" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <h3 style="margin-bottom:20px">☕ تسجيل استئذان</h3>
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+                    <div><label>كود الموظف</label><div style="position:relative"><input id="breakCode" placeholder="اكتب الكود أو اسم الموظف"><div id="breakSuggestions" style="position:absolute; background:#0f172a; width:100%; border:1px solid rgba(255,255,255,0.1); display:none; max-height:200px; overflow:auto; z-index:10;"></div></div></div>
+                    <div><label>نوع الاستئذان</label><select id="breakType"><option value="">اختر نوع الاستئذان</option><option value="صلاة">🕌 صلاة</option><option value="حمام">🚻 حمام</option><option value="أكل">🍔 أكل</option><option value="مكالمة">📞 مكالمة</option><option value="أخرى">📌 أخرى</option></select></div>
+                    <div><label>نوع الحركة</label><select id="breakAction"><option value="Break">☕ استئذان</option><option value="Return">🔄 رجوع</option></select></div>
+                    <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="BreakService.register()">تسجيل الحركة</button></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>☕ سجل الاستئذانات</h3><button class="btn-success btn-primary" onclick="BreakService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                <div class="table-container" style="margin-top:20px"><table><thead><tr><th>الموظف</th><th>الكود</th><th>نوع الاستئذان</th><th>وقت الاستئذان</th><th>وقت الرجوع</th><th>مدة الاستئذان</th><th>التاريخ</th><th>المستخدم</th></tr></thead><tbody id="breaksBody"></tbody></table></div>
+            </div>
+            <div class="glass-card" style="padding:20px; margin-top:20px">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>🚨 30 دقيقة استئذان</h3><button class="btn-success btn-primary" onclick="BreakService.exportOver30Excel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                
+          <div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
+
+<input id="break30Search"
+placeholder="بحث بالاسم أو الكود"
+style="flex:1;padding:8px;border-radius:8px;border:none"
+oninput="UI.renderBreaks()">
+
+<input type="date"
+id="break30Date"
+style="width:130px;padding:8px;border-radius:8px;border:none"
+onchange="UI.renderBreaks()">
+
+<div class="attendance-filters">
+
+<button class="filter-btn active"
+onclick="setBreakFilter(this,'day')">
+اليوم
+</button>
+
+<button class="filter-btn"
+onclick="setBreakFilter(this,'week')">
+أسبوع
+</button>
+
+<button class="filter-btn"
+onclick="setBreakFilter(this,'month')">
+شهر
+</button>
+
+<button class="filter-btn"
+onclick="setBreakFilter(this,'all')">
+كل السجلات
+</button>
+
+</div>
+
+</div>      
+                
+                <div class="table-container" style="max-height:250px; overflow-y:auto;"><table><thead><tr><th>الموظف</th><th>الكود</th><th>إجمالي الاستئذان</th><th>التاريخ</th></tr></thead><tbody id="breaksOver30Body"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- ========================= تبويب العربيات (Vehicles) ========================= -->
+        <div id="tab-vehicles" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+                    <div><label>رقم اللوحة</label><div style="display:flex; align-items:center; gap:10px"><input id="plateLetters" placeholder="أ ب ج" maxlength="5"
+oninput="formatPlateLetters(this)"
+style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spacing:10px;"><span style="font-size:28px; font-weight:bold">|</span><input id="plateNumbers" placeholder="1234" maxlength="4" inputmode="numeric" style="width:120px; text-align:center; font-size:22px; font-weight:bold;"></div></div>
+                    <div><label>نوع العربية</label><select id="vehicleType"><option>ربع نقل</option><option>ميكروباص</option><option>تريلا</option></select></div>
+                    <div><label>اسم الشركة</label><input id="vehicleCompany" placeholder="مثال: عربية شركة علوش"></div>
+                    <div><label>ملاحظات</label><textarea id="vehicleNotes" placeholder="مثال: اسم السواق - لون العربية - أمر توريد - تحصيل"></textarea></div>
+                    <div><label>&nbsp;</label><button class="btn-success btn-primary" style="width:100%" onclick="VehicleService.register()">🚪 تسجيل دخول</button></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3>🚚 سجل العربيات</h3><button class="btn-success btn-primary" onclick="VehicleService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                <input id="vehicleSearch" placeholder="بحث عن رقم لوحة" style="margin:10px 0">
+                <div class="table-container"><table><thead>
+<tr>
+<th>اللوحة</th>
+<th>النوع</th>
+<th>الشركة</th>
+<th>الدخول</th>
+<th>الخروج</th>
+<th>المدة</th>
+<th>المستخدم</th>
+<th></th>
+</tr>
+</thead><tbody id="activeVehiclesBody"></tbody></table></div>
+            </div>
+        </div>
+
+<!-- ========================= تبويب الشركات (Companies) ========================= -->
+
+<div id="tab-companies" class="tab-content" style="display:none;">
+
+<div class="glass-card" style="padding:25px;">
+
+<h3 style="margin-bottom:20px">
+<i class="fas fa-building"></i>
+تسجيل زيارة شركة
+</h3>
+
+<div class="form-grid" id="companyForm"
+style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
+
+<div>
+<label>اسم الشركة</label>
+<input id="companyName" placeholder="مثال: شركة كوكاكولا">
+</div>
+
+<div>
+<label>اسم المندوب</label>
+<input id="companyPerson" placeholder="اسم الشخص">
+</div>
+
+<div>
+<label>رقم الهوية</label>
+
+<input 
+id="companyNationalId"
+oninput="this.value=this.value.replace(/[^0-9]/g,'');CompanyService.autoFill()"
+type="text"
+maxlength="14"
+inputmode="numeric"
+placeholder="رقم الهوية (14 رقم)"
+oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+
+</div>
+
+<div>
+<label>سبب الزيارة</label>
+
+<select id="companyReason">
+
+<option value="">اختر السبب</option>
+
+<option>توريد</option>
+<option>تحصيل</option>
+<option>تنسيق</option>
+<option>مندوب</option>
+<option>مقابلة</option>
+<option>أخرى</option>
+
+</select>
+
+</div>
+
+<div>
+
+<label>نوع الحركة</label>
+
+<select id="companyAction" onchange="CompanyService.toggleFields()">
+<option value="in">دخول</option>
+<option value="out">خروج</option>
+</select>
+
+</div>
+
+<div>
+
+<label>&nbsp;</label>
+
+<button class="btn-success btn-primary"
+style="width:100%"
+onclick="CompanyService.register()">
+
+تسجيل الحركة
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<div class="glass-card"
+style="padding:25px;margin-top:20px;">
+
+<div style="
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:15px;
+flex-wrap:wrap;
+gap:10px;
+">
+
+<h3>
+🏢 سجل الشركات
+</h3>
+
+<button class="btn-success btn-primary"
+onclick="CompanyService.exportExcel()">
+
+<i class="fas fa-file-excel"></i>
+تصدير Excel
+
+</button>
+
+</div>
+
+
+<div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
+
+<input id="companySearch"
+placeholder="بحث باسم الشركة أو المندوب"
+style="flex:1;padding:8px;border-radius:8px;border:none"
+oninput="UI.renderCompanies()">
+
+<input type="date"
+id="companyDate"
+style="width:130px;padding:8px;border-radius:8px;border:none"
+onchange="UI.renderCompanies()">
+
+<div class="attendance-filters">
+
+<button class="filter-btn active"
+onclick="setCompanyFilter(this,'day')">
+اليوم
+</button>
+
+<button class="filter-btn"
+onclick="setCompanyFilter(this,'week')">
+أسبوع
+</button>
+
+<button class="filter-btn"
+onclick="setCompanyFilter(this,'month')">
+شهر
+</button>
+
+<button class="filter-btn"
+onclick="setCompanyFilter(this,'all')">
+كل السجلات
+</button>
+
+</div>
+
+</div>
+
+
+<div class="table-container">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>الشركة</th>
+<th>المندوب</th>
+<th>رقم الهوية</th>
+<th>السبب</th>
+<th>الدخول</th>
+<th>الخروج</th>
+<th>التاريخ</th>
+<th>المستخدم</th>
+
+</tr>
+
+</thead>
+
+<tbody id="companiesBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+
+        <!-- ========================= تبويب الجزاءات (Penalties) ========================= -->
+        <div id="tab-penalties" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+                    <div><label>كود الموظف</label><div style="position:relative;"><input id="penaltyCode" placeholder="اكتب الكود أو اسم الموظف"><div id="penaltySuggestions" style="position:absolute; background:#0f172a; width:100%; border:1px solid rgba(255,255,255,0.1); display:none; max-height:200px; overflow:auto; z-index:10;"></div></div></div>
+                    <div><label>ساعات الخصم</label><input type="number" id="penaltyHours" placeholder="مثال: يخصم 8 ساعات"></div>
+                    <div><label>المدير</label><input id="penaltyManager" placeholder="مثال: اسم مدير الفرع"></div>
+                    <div><label>سبب الجزاء</label><textarea id="penaltyReason" placeholder="مثال: إهمال - عدم اتباع التعليمات - تأخير - سلوك"></textarea></div>
+                    <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="PenaltyService.add()">تسجيل جزاء</button></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-gavel"></i> سجل الجزاءات</h3><button class="btn-success btn-primary" onclick="PenaltyService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                <div class="table-container"><table><thead><tr><th>الموظف</th><th>الكود</th><th>الساعات</th><th>السبب</th><th>المدير</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th></tr></thead><tbody id="penaltiesBody"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- ========================= تبويب الإجازات (Leaves) ========================= -->
+        <div id="tab-leaves" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+                    <div><label>كود الموظف</label><div style="position:relative;"><input id="leaveCode" placeholder="اكتب الكود أو اسم الموظف"><div id="leaveSuggestions" style="position:absolute; background:#0f172a; width:100%; border:1px solid rgba(255,255,255,0.1); display:none; max-height:200px; overflow:auto; z-index:10;"></div></div></div>
+                    <div><label>تاريخ الإجازة</label><input type="date" id="leaveDate"></div>
+                    <div><label>المدير الموافق</label><input id="leaveManager" placeholder="اكتب اسم مدير الفرع"></div>
+                    <div><label>ملاحظات</label><textarea id="leaveNotes" placeholder="مثال: اكتب نوع الإجازة (سنوية - مرضية - عارضة - اخري)"></textarea></div>
+                    <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="LeaveService.add()">تقديم الطلب</button></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-calendar-alt"></i> سجل طلبات الإجازات</h3><button class="btn-success btn-primary" onclick="LeaveService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                <div class="table-container"><table><thead><tr><th>الموظف</th><th>الكود</th><th>تاريخ الإجازة</th><th>تاريخ الطلب</th><th>الوقت</th><th>مقدم الطلب</th><th>الحالة</th><th>اسم المسؤول</th><th>الإجراء</th></tr></thead><tbody id="leavesBody"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- ========================= تبويب الموظفين (Employees) ========================= -->
+<div id="tab-employees" class="tab-content" style="display:none;">
+
+<!-- كارت إضافة موظف -->
+<div class="glass-card" style="padding:25px;margin-bottom:20px;">
+
+<h3 style="margin-bottom:20px">
+<i class="fas fa-user-plus"></i>
+إضافة موظف جديد
+</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px">
+
+<div>
+<label>كود الموظف</label>
+<input id="empCode" type="number" placeholder="كود الموظف">
+</div>
+
+<div>
+<label>اسم الموظف</label>
+<input id="empName" placeholder="اسم الموظف">
+</div>
+
+</div>
+
+<div style="margin-bottom:20px">
+<label>الوظيفة</label>
+<input id="empJob" placeholder="الوظيفة">
+</div>
+
+<button class="btn-success btn-primary"
+style="width:100%;height:55px;font-size:18px"
+onclick="EmployeeService.add()">
+
+<i class="fas fa-plus"></i>
+إضافة موظف
+
+</button>
+
+</div>
+
+
+<!-- قائمة الموظفين -->
+<div class="glass-card" style="padding:25px">
+
+<h3 style="margin-bottom:15px">
+
+<i class="fas fa-users"></i>
+قائمة الموظفين
+
+</h3>
+
+<input id="employeeSearch"
+placeholder="ابحث عن موظف..."
+style="margin-bottom:15px"
+oninput="UI.renderEmployees()">
+
+
+<div class="table-container">
+
+<table>
+
+<thead>
+<tr>
+
+<th>الكود</th>
+<th>الاسم</th>
+<th>الوظيفة</th>
+<th>الفرع</th>
+<th>الحالة</th>
+<th>تعديل</th>
+<th>حذف</th>
+
+</tr>
+</thead>
+
+<tbody id="employeesBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
+        <!-- ========================= تبويب سجل النظام (System Logs) ========================= -->
+        <div id="tab-system" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-clipboard-list"></i> سجل النظام</h3><button class="btn-success btn-primary" onclick="SystemLogService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                <div class="table-container"><table><thead><tr><th>الحركة</th><th>الاسم</th><th>الكود</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th></tr></thead><tbody id="systemLogsBody"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- ========================= تبويب إدارة المستخدمين (Users) ========================= -->
+        <div id="tab-users" class="tab-content" style="display:none;">
+            <div class="glass-card" style="padding:25px;">
+                <h3>👥 إدارة المستخدمين</h3>
+                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+                    <div><label>اسم المستخدم</label><input id="newUsername" placeholder="مثال: admin"></div>
+                    <div><label>كلمة المرور</label><input type="password" id="newPassword" placeholder="أدخل كلمة المرور"></div>
+                </div>
+                <div class="permissions-grid" id="permissionsGrid">
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="attendance" hidden><i class="fas fa-fingerprint"></i><span>الحضور</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><i class="fas fa-box"></i><span>الأصناف</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="vehicles" hidden><i class="fas fa-truck"></i><span>العربيات</span></label>
+       
+       
+       <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="companies" hidden>
+<i class="fas fa-building"></i>
+<span>الشركات</span>
+</label>
+       
+       
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="penalties" hidden><i class="fas fa-balance-scale"></i><span>الجزاءات</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="leaves" hidden><i class="fas fa-calendar-alt"></i><span>الإجازات</span></label>
+                    
+       <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="leaveApprove" hidden>
+<i class="fas fa-check-circle"></i>
+<span>طلبات الإجازة</span>
+</label>
+                    
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="employees" hidden><i class="fas fa-id-badge"></i><span>الموظفين</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><i class="fas fa-coffee"></i><span>الاستئذانات</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><i class="fas fa-users-cog"></i><span>المستخدمين</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="system" hidden><i class="fas fa-clipboard-list"></i><span>النظام</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="excel" hidden><i class="fas fa-file-excel"></i><span>تصدير Excel</span></label>
+                    <label class="permission-card"><input type="checkbox" id="selectAllPerms" value="all" hidden><i class="fas fa-crown"></i><span>كل الصلاحيات</span></label>
+                </div>
+                <button class="btn-success btn-primary" style="width:100%" onclick="UserService.add()">➕ إضافة مستخدم</button>
+                <div class="table-container"><table><thead><tr><th>اسم المستخدم</th><th>الصلاحيات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- ========================= مودال التأكيد ========================= -->
+<div id="confirmModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:99999;">
+    <div class="glass-card" style="padding:25px; width:90%; max-width:320px; text-align:center;">
+        <h3 id="confirmText">هل أنت متأكد؟</h3>
+        <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
+            <button id="confirmYes" class="btn-danger btn-primary">نعم</button>
+            <button onclick="closeConfirm()" class="btn-primary">إلغاء</button>
+        </div>
+    </div>
+</div>
+
+<!-- ========================= مودال تعديل الصلاحيات ========================= -->
+<div id="permModal" class="perm-modal">
+    <div class="perm-box">
+        <h3 style="grid-column:span 2">تعديل الصلاحيات</h3>
+        <label><input type="checkbox" value="products"> الأصناف</label>
+        <label><input type="checkbox" value="attendance"> الحضور</label>
+        <label><input type="checkbox" value="system"> النظام</label>
+        <label><input type="checkbox" value="excel"> تصدير Excel</label>
+        <label><input type="checkbox" value="breaks"> الاستئذانات</label>
+        <label><input type="checkbox" value="vehicles"> العربيات</label>
+        <label><input type="checkbox" value="penalties"> الجزاءات</label>
+        <label><input type="checkbox" value="leaves"> الإجازات</label>
+        
+        <label><input type="checkbox" value="leaveApprove"> طلبات الإجازة</label>
+        
+        <label>
+<input type="checkbox" value="companies">
+الشركات
+</label>
+        
+        
+        <label><input type="checkbox" value="employees"> الموظفين</label>
+        <label><input type="checkbox" value="users"> المستخدمين</label>
+        <div class="perm-actions"><button onclick="UserService.closePerms()">إلغاء</button><button onclick="UserService.savePerms()">حفظ</button></div>
+    </div>
+</div>
+
+<!-- ========================= كود JavaScript الكامل ========================= -->
+<script>
+    
+    
+    // منع الزوم
+document.addEventListener('gesturestart', function (e) {
+e.preventDefault();
+});
+
+document.addEventListener('dblclick', function (e) {
+e.preventDefault();
+});
+
+
+   
+   // تحويل الأرقام العربية إلى إنجليزية تلقائياً
+function convertArabicNumbers(str){
+
+let map = {
+'٠':'0','١':'1','٢':'2','٣':'3','٤':'4',
+'٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'
+}
+
+return str.replace(/[٠-٩]/g,d=>map[d])
+
+}
+
+// تطبيق التحويل على كل الحقول
+document.addEventListener("input",function(e){
+
+if(e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA"){
+
+e.target.value = convertArabicNumbers(e.target.value)
+
+}
+
+})
+   
+    
+    function formatPlateLetters(input){
+
+let value = input.value.replace(/\s/g,"")
+
+value = value.substring(0,3)
+
+input.value = value.split("").join(" ")
+
+}
+    
+    
+    function clearFilters(){
+
+document.querySelectorAll(".filter-btn")
+.forEach(b=>b.classList.remove("active"))
+
+State.reportRange="all"
+
+UI.renderAttendance()
+
+}
+    
+    function setFilter(btn,range){
+
+document.querySelectorAll(".attendance-filters .filter-btn")
+.forEach(b=>b.classList.remove("active"))
+
+btn.classList.add("active")
+
+// مسح التاريخ
+document.getElementById("attendanceDate").value=""
+
+State.reportRange = range
+
+UI.renderAttendance()
+
+}
+
+function setCompanyFilter(btn,range){
+
+document.querySelectorAll("#tab-companies .filter-btn")
+.forEach(b=>b.classList.remove("active"))
+
+btn.classList.add("active")
+
+document.getElementById("companyDate").value=""
+
+State.companyRange = range
+
+UI.renderCompanies()
+
+}
+
+
+function setBreakFilter(btn,range){
+
+document.querySelectorAll("#tab-breaks .filter-btn")
+.forEach(b=>b.classList.remove("active"))
+
+btn.classList.add("active")
+
+// مسح التاريخ
+document.getElementById("break30Date").value=""
+
+State.breakRange = range
+
+UI.renderBreaks()
+
+}
+    
+    // ========================= إعدادات Firebase =========================
+    const firebaseConfig = {
+        apiKey: "AIzaSyBXfsQ_rLekcATTyEZ2G77aHyb6NDDeKyM",
+        authDomain: "securityallosh.firebaseapp.com",
+        databaseURL: "https://securityallosh-default-rtdb.firebaseio.com/",
+        projectId: "securityallosh",
+        storageBucket: "securityallosh.appspot.com",
+        messagingSenderId: "907162116715",
+        appId: "1:907162116715:web:e5a7c786d3ffa7ae56872e"
+    };
+    firebase.initializeApp(firebaseConfig);
+    // مزامنة وقت السيرفر
+firebase.database().ref(".info/serverTimeOffset").on("value", function(snapshot){
+
+State.serverOffset = snapshot.val() || 0
+
+})
+    const db = firebase.database();
+
+    // ========================= الحالة العامة (State) =========================
+    const State = {
+        products: [],
+        companies: [],
+        systemLogs: [],
+        breaks: [],
+        employees: [],
+        attendance: [],
+        vehicles: [],
+        penalties: [],
+        leaves: [],
+        users: [],
+        serverOffset: 0,
+        currentUser: null,
+        reportRange: "day",
+        companyRange: "day",
+        breakRange: "day",
+        processingAttendance: false,
+        securePermissions: [],
+        isFirebaseLoaded: false,
+        sessionRestored: false
+    };
+
+    function hasPermission(permission) {
+        if (!State.currentUser) return false;
+        let perms = [...State.securePermissions];
+        return perms.includes(permission) || perms.includes("all");
+    }
+
+    Object.seal(State);
+    // ========================= دوال مساعدة عامة =========================
+    let confirmAction = null;
+    function showConfirm(message, callback) { confirmAction = callback; document.getElementById("confirmText").innerText = message; document.getElementById("confirmModal").style.display = "flex"; }
+    function closeConfirm() { document.getElementById("confirmModal").style.display = "none"; }
+    function checkExcelPermission() {
+        if (!State.currentUser) return false;
+        if (!hasPermission("excel") && !hasPermission("all")) {
+            UI.toast("ليس لديك صلاحية تصدير Excel", "error");
+            return false;
+        }
+        return true;
+    }
+    function updateAttendanceCounter() {
+        let inside = {};
+        State.attendance.forEach(a => {
+            let last = State.attendance.filter(x => x.code === a.code).sort((a, b) => b.timestamp - a.timestamp)[0];
+            if (last && last.action === "CheckIn") inside[a.code] = true;
+        });
+        document.getElementById("attCount").innerText = Object.keys(inside).length;
+    }
+
+    // ========================= دوال اختيار الموظفين (لوحة الاقتراحات) =========================
+    function selectBreakEmp(code, name) { document.getElementById("breakCode").value = code; document.getElementById("breakSuggestions").style.display = "none"; }
+    function selectLeaveEmp(code, name) { document.getElementById("leaveCode").value = code; document.getElementById("leaveSuggestions").style.display = "none"; }
+    function selectPenaltyEmp(code, name) { document.getElementById("penaltyCode").value = code; document.getElementById("penaltySuggestions").style.display = "none"; }
+    function selectEmployee(code) { document.getElementById("attCode").value = code; document.getElementById("empSuggestions").style.display = "none"; }
+
+    // ========================= خدمة الوقت والتنسيق =========================
+    const TimeUtils = {
+
+format(ms) {
+    let h = Math.floor(ms / 3600000);
+    let m = Math.floor((ms % 3600000) / 60000);
+    let s = Math.floor((ms % 60000) / 1000);
+
+    return `${h}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+},
+
+now(){
+    return Date.now() + State.serverOffset
+}
+
+};
+    // ========================= وقت السيرفر =========================
+const ServerTime = {
+
+now(){
+return firebase.database.ServerValue.TIMESTAMP
+}
+
+}
+    
+  const DeviceUtils = {
+
+getDevice(){
+
+let ua = navigator.userAgent
+
+if(ua.includes("Android")) return "Android Phone"
+if(ua.includes("iPhone")) return "iPhone"
+if(ua.includes("Windows")) return "Windows PC"
+if(ua.includes("Mac")) return "Mac"
+
+return ua
+
+}
+
+}  
+
+    // ========================= خدمة سجل النظام (System Logs) =========================
+    const SystemLog = {
+        add(action, code, name) {
+            let now = new Date(TimeUtils.now());
+            let data = {
+                code: code, name: name, action: action,
+                date: now.toLocaleDateString("ar-EG"), timeDisplay: now.toLocaleTimeString("ar-EG"),
+                timestamp: firebase.database.ServerValue.TIMESTAMP, user: State.currentUser?.username || "system"
+            };
+            db.ref("systemLogs").push(data);
+        }
+    };
+    const SystemLogService = {
+        translate(action) {
+            let map = { 
+                
+                CompanyIn: "🏢 دخول شركة",
+CompanyOut: "🏢 خروج شركة",
+                
+VehicleIn: "🚚 دخول عربية",
+VehicleOut: "🚚 خروج عربية",
+Penalty: "⚖️ تسجيل جزاء",
+Leave: "📅 طلب إجازة",
+
+LeaveApproved: "✅ قبول إجازة",
+LeaveRejected: "❌ رفض إجازة",
+
+AddUser: "👤 إضافة مستخدم",
+DeleteUser: "🗑 حذف مستخدم",
+Break: "☕ تسجيل استئذان",
+Return: "↩ رجوع من الاستئذان",
+CheckIn: "🟢 حضور",
+CheckOut: "🔴 انصراف"
+};
+
+
+
+            return map[action] || action;
+        },
+        exportExcel() { if (!checkExcelPermission()) return; let rows = State.systemLogs.map(l => ({ الحركة: this.translate(l.action), الاسم: l.name, الكود: l.code, التاريخ: l.date, الوقت: l.timeDisplay, المستخدم: l.user })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "logs"); XLSX.writeFile(wb, "system_logs.xlsx"); }
+    };
+
+    // ========================= خدمة الموظفين (Employees) =========================
+    const EmployeeService = {
+        add() {
+            let code = document.getElementById("empCode").value, name = document.getElementById("empName").value, job = document.getElementById("empJob").value;
+            if (!code || !name) { UI.toast("ادخل بيانات الموظف", "warning"); return; }
+            if (State.employees.find(e => e.code === code)) { UI.toast("كود الموظف موجود بالفعل", "error"); return; }
+            db.ref("employees").push({ code, name, job, branch: "الفرع الرئيسي", status: "خارج العمل" });
+            UI.toast("تم إضافة الموظف", "success");
+            
+            UI.clearInputs("#tab-employees")
+        },
+    
+        delete(id) { showConfirm("حذف الموظف؟", () => { db.ref("employees/" + id).remove(); UI.toast("تم حذف الموظف", "warning"); }); },
+        edit(id) {
+            let emp = State.employees.find(e => e.id === id);
+            let name = prompt("اسم الموظف", emp.name), job = prompt("الوظيفة", emp.job);
+            if (!name) return;
+            db.ref("employees/" + id).update({ name, job });
+            UI.toast("تم تعديل الموظف", "success");
+        }
+    };
+// ========================= خدمة الحضور (Attendance) =========================
+const AttendanceService = {
+    register(){
+
+        let code = document.getElementById("attCode").value.trim()
+
+        // التحقق من إدخال الكود
+        if(!code){
+            UI.toast("اكتب كود الموظف أو اسمه أولا","error")
+            return
+        }
+
+        let action = document.getElementById("attAction").value
+
+        // البحث عن الموظف
+        let emp = State.employees.find(e => 
+            e.code.toString() === code || e.name.includes(code)
+        )
+
+        // آخر حركة للموظف
+        let lastAction = State.attendance
+        .filter(a => a.code === code)
+        .sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0))[0]
+
+        // منع دخول مزدوج
+        if (action === "CheckIn" && lastAction && lastAction.action === "CheckIn") {
+            UI.toast("الموظف داخل العمل بالفعل", "warning")
+            return
+        }
+
+        // منع خروج بدون دخول
+        if (action === "CheckOut" && (!lastAction || lastAction.action !== "CheckIn")) {
+            UI.toast("لا يمكن تسجيل خروج قبل دخول", "error")
+            return
+        }
+
+        if (!emp) {
+            UI.toast("الموظف غير موجود", "error")
+            return
+        }
+
+        let now = new Date(TimeUtils.now())
+
+        let data = {
+            code: emp.code,
+            name: emp.name,
+            action: action,
+            date: now.toLocaleDateString("ar-EG"),
+            timeDisplay: now.toLocaleTimeString("ar-EG"),
+            timestamp: firebase.database.ServerValue.TIMESTAMP,
+            user: State.currentUser.username
+        }
+
+        // تسجيل الحركة
+        db.ref("attendance").push(data)
+
+        // تسجيل في سجل النظام
+        SystemLog.add(action, code, emp.name)
+
+        // تحديث حالة الموظف
+        let employee = State.employees.find(e => e.code === code)
+
+        if (employee){
+
+            if (action === "CheckIn"){
+                employee.status = "داخل العمل"
+                employee.checkInTime = TimeUtils.now()
+            }
+
+            if (action === "CheckOut"){
+
+                employee.status = "خارج العمل"
+                employee.checkInTime = null
+
+                let openBreak = State.breaks
+                .filter(b => b.code === code && !b.returnTimestamp)
+                .sort((a,b)=> b.breakTimestamp - a.breakTimestamp)[0]
+
+                if(openBreak){
+
+                    let duration = TimeUtils.now() - openBreak.breakTimestamp
+
+                    db.ref("breaks/" + openBreak.id).update({
+                        returnTime: new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"),
+                        returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
+                        duration: duration
+                    })
+
+                }
+
+            }
+
+        }
+
+        // تحديث الواجهة
+        UI.renderEmployees()
+        UI.renderAttendance()
+        UI.renderInsideEmployees()
+        try{
+
+updateAttendanceCounter();
+
+}catch(e){
+console.log("counter error",e)
+}
+
+UI.toast("تم تسجيل الحركة", "success");
+
+document.getElementById("attCode").value = "";
+
+document.getElementById("attCode").focus();
+
+    }
+};
+    // ========================= خدمة التقارير (Reports) =========================
+    const ReportService = {
+        setRange(range) { State.reportRange = range; UI.renderAttendance(); },
+        exportExcel() {
+            if (!checkExcelPermission()) return;
+            let rowsData = [];
+            State.attendance.sort((a, b) => a.timestamp - b.timestamp).forEach(a => {
+                if (a.action === "CheckIn") rowsData.push({ code: a.code, name: a.name, date: a.date, checkIn: a, checkOut: null });
+                if (a.action === "CheckOut") { let open = rowsData.slice().reverse().find(r => r.code === a.code && !r.checkOut); if (open) open.checkOut = a; }
+            });
+            let rows = rowsData.map(r => ({ الموظف: r.name, الكود: r.code, التاريخ: r.date, الدخول: r.checkIn?.timeDisplay || "-", الخروج: r.checkOut?.timeDisplay || "-", ساعات_العمل: (r.checkIn && r.checkOut) ? TimeUtils.format(r.checkOut.timestamp - r.checkIn.timestamp) : "-" }));
+            let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "attendance"); XLSX.writeFile(wb, "attendance_report.xlsx");
+        },
+        render() {
+            let search = document.getElementById("attendanceSearch")?.value?.toLowerCase() || "", selectedDate = document.getElementById("attendanceDate")?.value, now = new Date(TimeUtils.now());
+            let filtered = State.attendance.filter(a => {
+
+let date = new Date(a.timestamp)
+
+// اذا المستخدم اختار تاريخ
+if(selectedDate){
+return date.toISOString().slice(0,10) === selectedDate &&
+(
+a.name?.toLowerCase().includes(search) ||
+a.code?.toString().includes(search)
+)
+}
+
+// الفلاتر العادية
+if (State.reportRange === "day" && date.toDateString() !== now.toDateString()) return false
+
+if (State.reportRange === "week") {
+let weekAgo = new Date(TimeUtils.now())
+weekAgo.setDate(now.getDate()-7)
+if(date < weekAgo) return false
+}
+
+if (State.reportRange === "month") {
+let monthAgo = new Date(TimeUtils.now())
+monthAgo.setMonth(now.getMonth()-1)
+if(date < monthAgo) return false
+}
+
+return (
+a.name?.toLowerCase().includes(search) ||
+a.code?.toString().includes(search)
+)
+
+})
+            let stack = {}, rows = [];
+            filtered.sort((a, b) => a.timestamp - b.timestamp).forEach(a => {
+                if (a.action === "CheckIn") { if (!stack[a.code]) stack[a.code] = []; stack[a.code].push({ code: a.code, name: a.name, date: a.date, checkIn: a, checkOut: null }); }
+                if (a.action === "CheckOut") { let arr = stack[a.code]; if (arr && arr.length) { let last = arr[arr.length - 1]; if (!last.checkOut) { last.checkOut = a; rows.push(last); arr.pop(); } } }
+            });
+            Object.values(stack).forEach(list => { let last = list[list.length - 1]; if (last) rows.push(last); });
+            let html = "", totals = {};
+            rows.sort((a, b) => (b.checkIn?.timestamp || 0) - (a.checkIn?.timestamp || 0)).forEach(r => {
+                let work = "-";
+                if (r.checkIn && r.checkOut) { let duration = r.checkOut.timestamp - r.checkIn.timestamp; work = TimeUtils.format(duration); if (!totals[r.name]) totals[r.name] = 0; totals[r.name] += duration; }
+                html += `<tr><td>${r.name}</td><td>${r.code}</td><td>${r.date}</td><td>${r.checkIn?.timeDisplay || "-"}</td><td>${r.checkOut?.timeDisplay || "-"}</td><td>${work}</td><td>${r.checkIn?.user || r.checkOut?.user || "-"}</td></tr>`;
+            });
+            document.getElementById("attendanceReportBody").innerHTML = html;
+            let totalHtml = "<h3>إجمالي ساعات الموظفين</h3>";
+            Object.keys(totals).forEach(name => totalHtml += `<div style="margin-top:8px">${name} : ${TimeUtils.format(totals[name])}</div>`);
+            document.getElementById("totalHoursBox").innerHTML = totalHtml;
+        }
+    };
+
+    // ========================= خدمة العربيات (Vehicles) =========================
+    const VehicleService = {
+        register() {
+            if (!State.currentUser || (!hasPermission("vehicles") && !hasPermission("all"))) { UI.toast("ليس لديك صلاحية تسجيل العربيات", "error"); return; }
+            let letters = document.getElementById("plateLetters").value.trim(), numbers = document.getElementById("plateNumbers").value.trim();
+            if (!letters || !numbers) { UI.toast("ادخل رقم اللوحة كامل", "warning"); return; }
+            let plate = letters + " | " + numbers;
+           let vehicle = {
+plate,
+type: document.getElementById("vehicleType").value,
+company: document.getElementById("vehicleCompany").value,
+notes: document.getElementById("vehicleNotes").value,
+timeIn: ServerTime.now(),
+timeOut: null,
+user: State.currentUser.username
+};
+            if (State.vehicles.find(v => v.plate === plate && !v.timeOut)) { UI.toast("العربية موجودة بالفعل داخل الموقع", "error"); return; }
+            db.ref("vehicles").push(vehicle).then(() => UI.renderVehicles());
+            document.getElementById("plateLetters").value = ""; document.getElementById("plateNumbers").value = ""; document.getElementById("vehicleCompany").value = ""; document.getElementById("vehicleNotes").value = "";
+            UI.toast("تم تسجيل دخول العربية", "success");
+            SystemLog.add("VehicleIn", plate, "🚚 عربية");
+        },
+        exit(id) {
+            let vehicle = State.vehicles.find(v => v.id === id);
+            showConfirm("تسجيل خروج العربية؟", () => { db.ref("vehicles/" + id).update({ timeOut: firebase.database.ServerValue.TIMESTAMP }); UI.toast("تم خروج العربية", "warning"); SystemLog.add("VehicleOut", vehicle.plate, "🚚 عربية"); });
+        },
+        exportExcel() { if (!checkExcelPermission()) return; let rows = State.vehicles.map(v => ({ اللوحة: v.plate, الشركة: v.company, النوع: v.type, الدخول: new Date(v.timeIn).toLocaleString("ar-EG"), الخروج: v.timeOut ? new Date(v.timeOut).toLocaleString("ar-EG") : "داخل الموقع" })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "vehicles"); XLSX.writeFile(wb, "vehicles_report.xlsx"); }
+    };
+
+db.ref("companies").on("value",snap=>{
+
+let data = snap.val() || {}
+
+State.companies = Object.keys(data).map(id=>({
+
+id,
+...data[id]
+
+}))
+
+UI.renderCompanies()
+
+})
+
+
+    // ========================= خدمة الاستئذانات (Breaks) =========================
+    const BreakService = {
+        register() {
+            if (State.processingAttendance) return;
+            State.processingAttendance = true; setTimeout(() => { State.processingAttendance = false; }, 1000);
+            let code = document.getElementById("breakCode").value.trim(), action = document.getElementById("breakAction").value, type = document.getElementById("breakType").value;
+            if (!code) { UI.toast("يجب إدخال كود الموظف", "error"); return; }
+            if (action === "Break" && (!type || type === "اختر نوع الاستئذان")) { UI.toast("يجب اختيار نوع الاستئذان أولاً", "error"); return; }
+            let emp = State.employees.find(e => e.code === code || e.name.includes(code));
+            let lastAttendance = State.attendance.filter(a => a.code === code).sort((a, b) => b.timestamp - a.timestamp)[0];
+            if (!lastAttendance || lastAttendance.action !== "CheckIn") { UI.toast("لا يمكن تسجيل استئذان قبل تسجيل حضور", "error"); return; }
+            if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
+            let now = new Date(TimeUtils.now());
+            let openBreak = State.breaks.find(b => b.code === code && !b.returnTimestamp);
+            if (action === "Break" && openBreak) { UI.toast("الموظف في استئذان بالفعل", "warning"); return; }
+            if (action === "Break") {
+                let data = { code, name: emp.name, type, breakTime: now.toLocaleTimeString("ar-EG"), breakTimestamp: firebase.database.ServerValue.TIMESTAMP, returnTime: null, returnTimestamp: null, date: now.toLocaleDateString("ar-EG"), duration: null, user: State.currentUser.username };
+                db.ref("breaks").push(data).then(() => UI.renderBreaks());
+                SystemLog.add("Break", code, emp.name);
+                UI.toast("تم تسجيل الاستئذان", "warning");
+                
+                UI.clearInputs("#tab-breaks")
+                
+                document.getElementById("breakCode").value = ""; document.getElementById("breakType").value = ""; document.getElementById("breakAction").value = "Break"; document.getElementById("breakSuggestions").style.display = "none";
+            }
+            if (action === "Return") {
+                let openBreakObj = State.breaks.filter(b => b.code === code && !b.returnTimestamp).sort((a, b) => b.breakTimestamp - a.breakTimestamp)[0];
+                if (!openBreakObj) { UI.toast("لا يوجد استئذان مفتوح", "error"); return; }
+                let duration = TimeUtils.now() - openBreakObj.breakTimestamp
+
+// حفظ مجموع الاستئذان في Firebase
+let today = new Date(TimeUtils.now()).toISOString().slice(0,10)
+
+let totalRef = db.ref("breakTotals/"+code+"/"+today)
+
+totalRef.once("value").then(snap=>{
+
+let current = snap.val() || {
+name:emp.name,
+code:code,
+total:0
+}
+
+current.total += duration
+
+totalRef.set(current)
+
+})
+
+	// حساب مجموع اليوم
+	let todayDisplay = new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+	
+	let total = 0;
+
+State.breaks.forEach(b=>{
+if(b.code === code && b.date === todayDisplay && b.duration)
+total += b.duration;
+});
+
+total += duration;
+if (total >= 1800000) UI.toast("⚠ هذا الموظف تجاوز 30 دقيقة استئذان اليوم", "warning");
+
+	db.ref("breaks/" + openBreakObj.id).update({
+	returnTime: now.toLocaleTimeString("ar-EG"),
+	returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
+	duration: duration
+	}).then(() => UI.renderBreaks());
+
+UI.toast("تم تسجيل الرجوع", "success");
+
+SystemLog.add("Return", code, emp.name);
+
+// مسح الحقول بعد تسجيل الحركة
+document.getElementById("breakCode").value = "";
+document.getElementById("breakType").value = "";
+document.getElementById("breakAction").value = "Break";
+document.getElementById("breakSuggestions").style.display = "none";
+
+}
+        },
+        exportExcel() { 
+if (!checkExcelPermission()) return;
+
+let rows = State.breaks.map(b => ({
+الموظف: b.name,
+الكود: b.code,
+نوع_الاستئذان: b.type || "-",
+وقت_الاستئذان: b.breakTime || "-",
+وقت_الرجوع: b.returnTime || "-",
+مدة_الاستئذان: b.duration ? TimeUtils.format(b.duration) : "-",
+التاريخ: b.date,
+المستخدم: b.user
+}));
+
+let ws = XLSX.utils.json_to_sheet(rows);
+let wb = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb, ws, "breaks");
+XLSX.writeFile(wb, "breaks_report.xlsx");
+},
+
+exportOver30Excel(){
+
+if(!checkExcelPermission()) return
+
+let totals = {}
+
+State.breaks.forEach(b=>{
+
+let duration = b.duration
+
+if(!duration && b.breakTimestamp){
+duration = TimeUtils.now() - b.breakTimestamp
+}
+
+if(duration){
+
+if(!totals[b.code]){
+totals[b.code] = {
+name:b.name,
+code:b.code,
+total:0,
+date:b.date
+}
+}
+
+totals[b.code].total += duration
+
+}
+
+})
+
+let rows = Object.values(totals)
+.filter(e => e.total >= 1800000)
+.map(e => ({
+الموظف: e.name,
+الكود: e.code,
+اجمالي_الاستئذان: TimeUtils.format(e.total),
+التاريخ: e.date
+}))
+
+let ws = XLSX.utils.json_to_sheet(rows)
+let wb = XLSX.utils.book_new()
+
+XLSX.utils.book_append_sheet(wb, ws, "Breaks Over 30")
+
+XLSX.writeFile(wb, "breaks_over_30_minutes.xlsx")
+
+}
+
+};
+
+/* ========================= خدمة الشركات (Companies) ========================= */
+
+const CompanyService = {
+
+toggleFields(){
+
+let action = document.getElementById("companyAction").value
+
+let name = document.getElementById("companyName").parentElement
+let person = document.getElementById("companyPerson").parentElement
+let reason = document.getElementById("companyReason").parentElement
+
+if(action === "out"){
+
+name.style.display="none"
+person.style.display="none"
+reason.style.display="none"
+
+}else{
+
+name.style.display="block"
+person.style.display="block"
+reason.style.display="block"
+
+}
+
+},
+
+register(){
+
+let name = document.getElementById("companyName").value.trim()
+let person = document.getElementById("companyPerson").value.trim()
+let nationalId = document.getElementById("companyNationalId").value.trim()
+let reason = document.getElementById("companyReason").value
+let action = document.getElementById("companyAction").value
+
+let now = new Date(TimeUtils.now())
+
+if(nationalId.length !== 14){
+
+UI.toast("رقم الهوية يجب أن يكون 14 رقم","error")
+return
+
+}
+
+if(action === "in"){
+
+if(!name || !person){
+
+UI.toast("ادخل اسم الشركة والمندوب","warning")
+return
+
+}
+
+let data = {
+
+company:name,
+person:person,
+nationalId:nationalId,
+reason:reason,
+
+timeIn: now.toLocaleTimeString("ar-EG"),
+timeOut:null,
+
+date: now.toLocaleDateString("ar-EG"),
+timestamp: firebase.database.ServerValue.TIMESTAMP,
+
+user: State.currentUser.username
+
+}
+
+db.ref("companies").push(data)
+
+SystemLog.add("CompanyIn", nationalId, name)
+
+UI.toast("تم تسجيل دخول الشركة","success")
+
+}
+
+if(action === "out"){
+
+let open = State.companies
+.filter(c=>c.nationalId === nationalId && !c.timeOut)
+.sort((a,b)=>b.timestamp-a.timestamp)[0]
+
+if(!open){
+
+UI.toast("لا يوجد دخول مسجل لهذا الشخص","error")
+return
+
+}
+
+db.ref("companies/"+open.id).update({
+
+timeOut: now.toLocaleTimeString("ar-EG")
+
+})
+
+SystemLog.add("CompanyOut", nationalId, open.company)
+
+UI.toast("تم تسجيل خروج الشركة","warning")
+
+}
+
+document.getElementById("companyName").value=""
+document.getElementById("companyPerson").value=""
+document.getElementById("companyNationalId").value=""
+document.getElementById("companyReason").value=""
+
+},
+
+autoFill(){
+
+let nationalId = document.getElementById("companyNationalId").value
+
+if(nationalId.length !== 14) return
+
+let last = State.companies
+.filter(c=>c.nationalId === nationalId)
+.sort((a,b)=>b.timestamp-a.timestamp)[0]
+
+if(last){
+
+document.getElementById("companyName").value = last.company
+document.getElementById("companyPerson").value = last.person
+document.getElementById("companyReason").value = last.reason
+
+}
+
+}
+
+}
+
+
+    // ========================= خدمة الجزاءات (Penalties) =========================
+    const PenaltyService = {
+        add() {
+            let code = document.getElementById("penaltyCode").value.trim(), hours = document.getElementById("penaltyHours").value, manager = document.getElementById("penaltyManager").value, reason = document.getElementById("penaltyReason").value;
+            let emp = State.employees.find(e => e.code === code);
+            if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
+            let now = new Date(TimeUtils.now());
+            let penalty = { code, name: emp.name, hours, manager, reason, date: now.toLocaleDateString("ar-EG"), time: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
+            db.ref("penalties").push(penalty).then(() => UI.renderPenalties());
+            UI.toast("تم تسجيل الجزاء", "warning");
+            
+            UI.clearInputs("#tab-penalties")
+            
+            SystemLog.add("Penalty", code, emp.name);
+        },
+        exportExcel() { if (!checkExcelPermission()) return; let rows = State.penalties.map(p => ({ الموظف: p.name, الكود: p.code, الساعات: p.hours, السبب: p.reason, المدير: p.manager, التاريخ: p.date })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "penalties"); XLSX.writeFile(wb, "penalties_report.xlsx"); }
+    };
+
+    // ========================= خدمة الإجازات (Leaves) =========================
+    const LeaveService = {
+        add() {
+            let code = document.getElementById("leaveCode").value.trim(), date = document.getElementById("leaveDate").value, manager = document.getElementById("leaveManager").value, notes = document.getElementById("leaveNotes").value;
+            let emp = State.employees.find(e => e.code === code);
+            if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
+            let now = new Date(TimeUtils.now());
+            let leave = { code, name: emp.name, leaveDate: date, requestDate: now.toLocaleDateString("ar-EG"), requestTime: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, requestedBy: State.currentUser.username, manager, notes, status: "قيد المراجعة" };
+            let ref = db.ref("leaves").push(); leave.id = ref.key; ref.set(leave).then(() => UI.toast("تم تقديم طلب الإجازة", "success"));
+            
+            UI.clearInputs("#tab-leaves")
+            
+            SystemLog.add("Leave", code, emp.name);
+        },
+        approve(id){
+
+let leave = State.leaves.find(l=>l.id===id)
+
+db.ref("leaves/" + id).update({
+status:"موافق",
+approvedBy:State.currentUser.username
+}).then(()=>{
+
+SystemLog.add("LeaveApproved",leave.code,leave.name)
+
+UI.toast("تمت الموافقة على الإجازة","success")
+
+})
+
+},
+
+reject(id){
+
+let leave = State.leaves.find(l=>l.id===id)
+
+db.ref("leaves/" + id).update({
+status:"مرفوض",
+approvedBy:State.currentUser.username
+}).then(()=>{
+
+SystemLog.add("LeaveRejected",leave.code,leave.name)
+
+UI.toast("تم رفض الإجازة","warning")
+
+})
+
+},
+        exportExcel() { if (!checkExcelPermission()) return; let rows = State.leaves.map(l => ({ الموظف: l.name, الكود: l.code, تاريخ_الإجازة: l.leaveDate, تاريخ_الطلب: l.requestDate, الوقت: l.requestTime, مقدم_الطلب: l.requestedBy, الحالة: l.status, المسؤول: l.approvedBy || "-" })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "leaves"); XLSX.writeFile(wb, "leaves_report.xlsx"); }
+    };
+
+    // ========================= خدمة الأصناف (Products) =========================
+    const ProductService = {
+        add() {
+            let barcode = document.getElementById("productBarcode").value.trim(), name = document.getElementById("productName").value.trim(), category = document.getElementById("productCategory").value.trim(), qty = Number(document.getElementById("productQuantity").value), expire = document.getElementById("productExpire").value;
+            if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
+            if (!qty) qty = 1;
+            let existing = State.products.find(p => p.barcode === barcode);
+            if (existing) { let newQty = (existing.quantity || 0) + qty; db.ref("products/" + barcode).update({ quantity: newQty }); UI.toast("تم زيادة الكمية", "success"); }
+            else { if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; } let product = { barcode, name, category, quantity: qty, expire: expire || "", created: firebase.database.ServerValue.TIMESTAMP }; db.ref("products/" + barcode).set(product); UI.toast("تم تسجيل صنف جديد", "success"); }
+            document.getElementById("productBarcode").value = ""; document.getElementById("productName").value = ""; document.getElementById("productCategory").value = ""; document.getElementById("productQuantity").value = ""; document.getElementById("productExpire").value = "";
+        },
+        remove(barcode) {
+            let qty = prompt("كم عدد القطع المسحوبة؟"); if (!qty) return; qty = Number(qty);
+            let product = State.products.find(p => p.barcode === barcode); if (!product) return;
+            let newQty = (product.quantity || 0) - qty; if (newQty < 0) { UI.toast("الكمية غير كافية", "error"); return; }
+            db.ref("products/" + barcode).update({ quantity: newQty }); UI.toast("تم سحب الكمية", "warning");
+        },
+        scanBarcode() {
+            document.getElementById("barcodeScanner").style.display = "block";
+            const html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (code) => { document.getElementById("productBarcode").value = code; html5QrCode.stop(); document.getElementById("barcodeScanner").style.display = "none"; UI.toast("تم قراءة الباركود", "success"); });
+        },
+        closeScanner() { document.getElementById("barcodeScanner").style.display = "none"; },
+        exportExcel() {
+            if (!checkExcelPermission()) return;
+            let rows = [], today = new Date(TimeUtils.now());
+            State.products.forEach(p => {
+                let status = "متوفر";
+                if ((p.quantity || 0) == 0) status = "نفد";
+                else if ((p.quantity || 0) <= 10) status = "قليل";
+                if (p.expire) {
+                    let expireDate = new Date(p.expire);
+                    if (expireDate < today) status = "منتهي";
+                    else { let days = (expireDate - today) / (1000 * 60 * 60 * 24); if (days <= 30) status = "قريب الانتهاء"; }
+                }
+                if (status !== "متوفر") rows.push({ الباركود: p.barcode, الصنف: p.name, القسم: p.category || "-", الكمية: p.quantity || 0, الانتهاء: p.expire || "-", الحالة: status });
+            });
+            let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "products"); XLSX.writeFile(wb, "products_report.xlsx");
+        }
+    };
+
+    // ========================= خدمة المستخدمين (Users) =========================
+    const UserService = {
+        editingUser: null,
+        openPerms(user) { this.editingUser = user; document.getElementById("permModal").style.display = "flex"; document.querySelectorAll("#permModal input").forEach(c => c.checked = user.permissions?.includes(c.value)); },
+        closePerms() { document.getElementById("permModal").style.display = "none"; },
+        savePerms() { let perms = []; document.querySelectorAll("#permModal input").forEach(c => { if (c.checked) perms.push(c.value); }); this.editingUser.permissions = perms; db.ref("users/" + this.editingUser.id).update({ permissions: perms }); this.closePerms(); UI.renderUsers(); UI.toast("تم تعديل الصلاحيات", "success"); },
+        add() {
+
+let username = document.getElementById("newUsername").value
+let password = document.getElementById("newPassword").value
+
+password = CryptoJS.SHA256(password).toString()
+
+let perms = [];
+document.querySelectorAll(".perm-checkbox").forEach(cb => {
+if (cb.checked) perms.push(cb.value);
+});
+
+if (State.users.find(u => u.username === username)) {
+UI.toast("اسم المستخدم موجود بالفعل", "error");
+return;
+}
+
+let user = { username, password, permissions: perms };
+
+db.ref("users").push(user).then(() => {
+
+UI.toast("تم إضافة المستخدم", "success");
+
+document.getElementById("newUsername").value = "";
+document.getElementById("newPassword").value = "";
+
+document.querySelectorAll(".perm-checkbox").forEach(cb => {
+cb.checked = false;
+cb.closest(".permission-card").classList.remove("active");
+});
+
+});
+
+SystemLog.add("AddUser", username, "👤 مستخدم");
+
+},
+        delete(index) { 
+showConfirm("هل تريد حذف المستخدم؟", () => { 
+
+let user = State.users[index];
+
+// منع حذف admin
+if(user.username === "admin"){
+UI.toast("لا يمكن حذف المدير الرئيسي","error")
+return
+}
+
+db.ref("users").orderByChild("username").equalTo(user.username).once("value", snap => { 
+snap.forEach(c => c.ref.remove()); 
+}); 
+
+State.users.splice(index, 1); 
+UI.renderUsers(); 
+UI.toast("تم حذف المستخدم", "warning"); 
+SystemLog.add("DeleteUser", user.username, "👤 مستخدم"); 
+
+}); 
+}
+    };
+
+    // ========================= خدمة المصادقة المحسنة (Enhanced AuthService) =========================
+    const AuthService = {
+        async login() {
+            const usernameInput = document.getElementById("username");
+            const passwordInput = document.getElementById("password");
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            if (!State.isFirebaseLoaded || State.users.length === 0) {
+                UI.toast("جاري تحميل بيانات النظام... يرجى الانتظار ثواني", "warning");
+                return;
+            }
+
+            if (!username || !password) {
+                UI.toast("يرجى إدخال اسم المستخدم وكلمة المرور", "warning");
+                return;
+            }
+
+            const hash = CryptoJS.SHA256(password).toString();
+            const user = State.users.find(u => u.username.trim() === username && u.password === hash);
+
+            if (!user) {
+                UI.toast("بيانات الدخول غير صحيحة", "error");
+                SystemLog.add("LoginFailed", username, "محاولة دخول فاشلة");
+                return;
+            }
+
+            this.setCurrentUser(user);
+            
+            localStorage.setItem("loggedUser", JSON.stringify({
+                username: user.username,
+                loginTime: TimeUtils.now()
+            }));
+            sessionStorage.setItem("activeSession", "true");
+
+            this.showDashboard();
+            SystemLog.add("Login", user.username, "تسجيل دخول");
+            UI.toast(`مرحباً بك، ${user.username}`, "success");
+        },
+
+        logout() {
+            const username = State.currentUser ? State.currentUser.username : "-";
+            SystemLog.add("Logout", username, "تسجيل خروج");
+
+            localStorage.removeItem("loggedUser");
+            sessionStorage.clear();
+            
+            State.currentUser = null;
+            State.securePermissions = [];
+
+            this.showLoginPage();
+            
+            document.getElementById("username").value = "";
+            document.getElementById("password").value = "";
+            
+            UI.toast("تم تسجيل الخروج بنجاح", "success");
+        },
+
+        setCurrentUser(user) {
+            State.currentUser = Object.freeze({ ...user });
+            State.securePermissions = Object.freeze([...(user.permissions || [])]);
+            
+            const badge = document.getElementById("userRoleBadge");
+            if (badge) badge.innerText = "👤 " + user.username;
+            
+            PermissionService.apply();
+        },
+
+        showDashboard() {
+            document.getElementById("loginPage").style.display = "none";
+            document.getElementById("dashboard").style.display = "block";
+            const welcome = document.getElementById("welcomeOverlay");
+            if (welcome) welcome.style.display = "none";
+        },
+
+        showLoginPage() {
+            document.getElementById("loginPage").style.display = "flex";
+            document.getElementById("dashboard").style.display = "none";
+        },
+
+        restoreSession() {
+            if (State.sessionRestored) return;
+
+            const savedData = localStorage.getItem("loggedUser");
+            if (!savedData) {
+                State.sessionRestored = true;
+                return;
+            }
+
+            try {
+                const session = JSON.parse(savedData);
+                const user = State.users.find(u => u.username.trim() === session.username);
+
+                if (user) {
+                    this.setCurrentUser(user);
+                    this.showDashboard();
+                } else {
+                    this.logout();
+                }
+            } catch (e) {
+                this.logout();
+            }
+
+            State.sessionRestored = true;
+        }
+    };
+// ========================= خدمة الصلاحيات (Permissions) =========================
+    const PermissionService = {
+        apply() { let perms = State.currentUser.permissions || []; document.querySelectorAll(".tab-btn").forEach(btn => { let tab = btn.dataset.tab; if (perms.includes("all") || perms.includes(tab)) btn.style.display = "flex"; else btn.style.display = "none"; }); }
+    };
+
+    // ========================= واجهة المستخدم (UI) =========================
+    const UI = {
+        renderProducts() {
+            let search = document.getElementById("productSearch")?.value?.toLowerCase() || "", html = "", low = 0, expired = 0, soon = 0;
+            State.products.filter(p => p.name?.toLowerCase().includes(search) || p.barcode?.includes(search)).forEach(p => {
+                let today = new Date(TimeUtils.now()), status = "متوفر", badge = "badge-success";
+                if ((p.quantity || 0) == 0) { status = "نفد"; badge = "badge-danger"; }
+                else if ((p.quantity || 0) <= 10) { status = "قليل"; badge = "badge-warning"; low++; }
+                if (p.expire) {
+                    let expireDate = new Date(p.expire);
+                    if (expireDate < today) { status = "منتهي"; badge = "badge-danger"; expired++; }
+                    else { let days = (expireDate - today) / (1000 * 60 * 60 * 24); if (days <= 30) { status = "قريب الانتهاء"; badge = "badge-warning"; soon++; } }
+                }
+                html += `<tr><td>${p.barcode}</td><td>${p.name}</td><td>${p.category || "-"}</td><td>${p.quantity || 0}</td><td>${p.expire || "-"}</td><td><span class="badge ${badge}">${status}</span></td><td><button class="btn-warning btn-primary" onclick="ProductService.remove('${p.barcode}')">➖ سحب</button></td></tr>`;
+            });
+            document.getElementById("productsBody").innerHTML = html;
+            document.getElementById("productsLow").innerText = low; document.getElementById("productsExpired").innerText = expired; document.getElementById("productsExpireSoon").innerText = soon;
+        },
+        renderInsideEmployees() {
+            let body = document.getElementById("insideEmployeesBody"); if (!body) return;
+            let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; });
+            let search = document.getElementById("insideSearch")?.value?.toLowerCase() || "";
+            let inside = Object.values(lastActions).filter(a => a.action === "CheckIn" && (a.name?.toLowerCase().includes(search) || a.code?.toString().includes(search)));
+            document.getElementById("insideCount").innerText = inside.length; document.getElementById("attCount").innerText = inside.length;
+            let html = ""; inside.sort((a, b) => b.timestamp - a.timestamp).forEach(a => { let duration = TimeUtils.now() - a.timestamp; html += `<tr><td>${a.name}</td><td>${a.code}</td><td>${a.timeDisplay}</td><td>${TimeUtils.format(duration)}</td></tr>`; });
+            body.innerHTML = html;
+        },
+        renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
+        renderBreaks() {
+            document.getElementById("breakCount").innerText = State.breaks.length; let body = document.getElementById("breaksBody"); if (!body) return;
+            let html = "", over30 = {};
+            State.breaks.sort((a, b) => b.breakTimestamp - a.breakTimestamp).forEach(b => {
+                let duration = b.duration ? TimeUtils.format(b.duration) : "-";
+                let today = new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+                if (b.date === today && b.duration) { if (!over30[b.code]) over30[b.code] = { name: b.name, code: b.code, total: 0, date: b.date }; over30[b.code].total += b.duration; }
+                html += `<tr><td>${b.name}</td><td>${b.code}</td><td>${b.type || "-"}</td><td>${b.breakTime || "-"}</td><td>${b.returnTime || "-"}</td><td>${duration}</td><td>${b.date}</td><td>${b.user}</td></tr>`;
+            });
+            body.innerHTML = html;
+        let search =
+document.getElementById("break30Search")?.value?.toLowerCase() || ""
+
+let selectedDate =
+document.getElementById("break30Date")?.value
+
+let now = new Date(TimeUtils.now())
+
+let totals = {}
+
+State.breaks.forEach(b=>{
+
+let date = new Date(b.breakTimestamp)
+
+if(selectedDate){
+if(date.toISOString().slice(0,10) !== selectedDate) return
+}
+
+if(State.breakRange === "day"){
+if(date.toDateString() !== now.toDateString()) return
+}
+
+if(State.breakRange === "week"){
+let weekAgo = new Date(TimeUtils.now())
+weekAgo.setDate(weekAgo.getDate()-7)
+if(date < weekAgo) return
+}
+
+if(State.breakRange === "month"){
+let monthAgo = new Date(TimeUtils.now())
+monthAgo.setMonth(now.getMonth()-1)
+if(date < monthAgo) return
+}
+
+if(search &&
+!b.name.toLowerCase().includes(search) &&
+!b.code.toString().includes(search)) return
+
+let duration = b.duration
+
+if(!duration && b.breakTimestamp){
+duration = TimeUtils.now() - b.breakTimestamp
+}
+
+if(duration){
+
+if(!totals[b.code]){
+totals[b.code]={
+name:b.name,
+code:b.code,
+total:0,
+date:b.date
+}
+}
+
+totals[b.code].total += duration
+
+}
+
+})
+
+let overHtml = ""
+
+Object.values(totals).forEach(e=>{
+
+if(e.total < 1800000) return
+
+overHtml += `
+<tr style="background:rgba(239,68,68,.15);color:#fca5a5;font-weight:bold">
+<td>${e.name}</td>
+<td>${e.code}</td>
+<td>${TimeUtils.format(e.total)}</td>
+<td>${e.date}</td>
+</tr>
+`
+
+})
+
+document.getElementById("breaksOver30Body").innerHTML = overHtml
+            let openBreaks = State.breaks.filter(b => !b.returnTimestamp); let box = document.getElementById("breakCount"); if (box) box.innerText = openBreaks.length;
+        },
+        renderVehicles() {
+            document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
+            let body = document.getElementById("activeVehiclesBody"); if (!body) return;
+            let search = document.getElementById("vehicleSearch")?.value || "", q = search.replace(/\s/g, "").replace(/\|/g, "").toLowerCase();
+            let results = State.vehicles.filter(v => v.plate?.replace(/\s/g, "").replace(/\|/g, "").toLowerCase().includes(q));
+            if (results.length === 0) { body.innerHTML = `<tr><td colspan="7" style="padding:20px;font-weight:bold;color:#f87171">لا توجد عربيات بهذا الرقم</td></tr>`; return; }
+            let html = ""; results.sort((a, b) => b.timeIn - a.timeIn).forEach(v => {
+                let inDate = new Date(v.timeIn).toLocaleDateString("ar-EG")
+let inTime = new Date(v.timeIn).toLocaleTimeString("ar-EG")
+
+let outDate = v.timeOut ? new Date(v.timeOut).toLocaleDateString("ar-EG") : ""
+let outTime = v.timeOut ? new Date(v.timeOut).toLocaleTimeString("ar-EG") : ""
+
+let duration = v.timeOut
+? TimeUtils.format(v.timeOut - v.timeIn)
+: TimeUtils.format(TimeUtils.now() - v.timeIn)
+
+html += `<tr>
+<td>${v.plate}</td>
+<td>${v.type}</td>
+<td>${v.company}</td>
+<td>${inDate} ${inTime}</td>
+<td>${v.timeOut ? outDate + " " + outTime : "-"}</td>
+<td>${duration}</td>
+<td>${v.user || "-"}</td>
+<td>${!v.timeOut ? `<button class="btn-danger btn-primary" onclick="VehicleService.exit('${v.id}')">🚪 خروج</button>` : `<span style="color:#10b981;font-weight:bold">تم الخروج</span>`}</td>
+</tr>`
+                ; });
+            body.innerHTML = html; document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
+        },
+        renderLeaves() {
+            let body = document.getElementById("leavesBody"); if (!body) return;
+            let html = ""; State.leaves.sort((a, b) => new Date(b.requestDate + " " + b.requestTime) - new Date(a.requestDate + " " + a.requestTime)).forEach(l => { html += `<tr><td>${l.name}</td><td>${l.code}</td><td>${l.leaveDate}</td><td>${l.requestDate}</td><td>${l.requestTime}</td><td>${l.requestedBy}</td><td>${l.status}</td><td>${l.approvedBy || "-"}</td><td>${l.status === "قيد المراجعة" && (hasPermission("all") || hasPermission("leaveApprove")) ? `<button class="btn-success btn-primary" onclick="showConfirm('هل أنت موافق على قبول الإجازة؟',()=>LeaveService.approve('${l.id}'))">✔ موافقة</button> <button class="btn-danger btn-primary" onclick="showConfirm('هل أنت متأكد من رفض الإجازة؟',()=>LeaveService.reject('${l.id}'))">✖ رفض</button>` : "-"}</td></tr>`; });
+            body.innerHTML = html; document.getElementById("leavesCount").innerText = State.leaves.length;
+        },
+        renderPenalties() {
+            let body = document.getElementById("penaltiesBody"); if (!body) return;
+            let html = ""; State.penalties.sort((a, b) => new Date(b.date + " " + (b.time || "00:00")) - new Date(a.date + " " + (a.time || "00:00"))).forEach(p => { html += `<tr><td>${p.name}</td><td>${p.code}</td><td>${p.hours}</td><td>${p.reason}</td><td>${p.manager}</td><td>${p.date}</td><td>${p.time || "-"}</td><td>${p.createdBy || "-"}</td></tr>`; });
+            body.innerHTML = html; document.getElementById("penaltiesCount").innerText = State.penalties.length;
+        },
+        
+        renderCompanies(){
+
+let body = document.getElementById("companiesBody")
+
+if(!body) return
+
+let search = document
+.getElementById("companySearch")?.value
+?.toLowerCase() || ""
+
+let selectedDate =
+document.getElementById("companyDate")?.value
+
+let now = new Date()
+
+let filtered = State.companies.filter(c=>{
+
+let date = new Date(c.timestamp)
+
+if(selectedDate){
+
+let dStr = date.toISOString().slice(0,10)
+
+if(dStr !== selectedDate) return false
+
+}else{
+
+if(State.companyRange === "day"){
+
+if(date.toDateString() !== now.toDateString())
+return false
+
+}
+
+if(State.companyRange === "week"){
+
+let weekAgo = new Date(TimeUtils.now())
+
+weekAgo.setDate(now.getDate()-7)
+
+if(date < weekAgo) return false
+
+}
+
+if(State.companyRange === "month"){
+
+let monthAgo = new Date(TimeUtils.now())
+
+monthAgo.setMonth(now.getMonth()-1)
+
+if(date < monthAgo) return false
+
+}
+
+}
+
+let matchSearch =
+
+c.company?.toLowerCase().includes(search) ||
+c.person?.toLowerCase().includes(search) ||
+c.nationalId?.includes(search)
+
+return matchSearch
+
+})
+
+let html = ""
+
+filtered
+.sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0))
+.slice(0,50)
+.forEach(c=>{
+
+html += `
+
+<tr>
+
+<td>${c.company}</td>
+<td>${c.person}</td>
+<td>${c.nationalId}</td>
+<td>${c.reason || "-"}</td>
+<td>${c.timeIn || "-"}</td>
+<td>${c.timeOut || "-"}</td>
+<td>${c.date || "-"}</td>
+<td>${c.user || "-"}</td>
+
+</tr>
+
+`
+
+})
+
+body.innerHTML = html
+
+},
+        
+        renderEmployees() {
+            document.getElementById("empCount").innerText = State.employees.length;
+            let body = document.getElementById("employeesBody"); if (!body) return;
+            let search = document.getElementById("employeeSearch")?.value?.toLowerCase() || "";
+            let filtered = State.employees.filter(emp => !search || (emp.name && emp.name.toLowerCase().includes(search)) || (emp.code && emp.code.toString().includes(search)) || (emp.job && emp.job.toLowerCase().includes(search)));
+            let html = ""; filtered.sort((a, b) => a.code - b.code).forEach(emp => { html += `<tr><td>${emp.code}</td><td>${emp.name}</td><td>${emp.job || "-"}</td><td>${emp.branch || "-"}</td><td>${emp.status || "خارج العمل"}</td><td><button class="btn-warning btn-primary" onclick="EmployeeService.edit('${emp.id}')">✏ تعديل</button></td><td><button class="btn-danger btn-primary" onclick="EmployeeService.delete('${emp.id}')">🗑 حذف</button></td></tr>`; });
+            body.innerHTML = html; let totalBox = document.getElementById("totalEmpCount");
+if(totalBox){
+totalBox.innerText = filtered.length;
+} document.getElementById("empCount").innerText = filtered.length;
+        },
+        renderAttendance() { ReportService.render(); },
+        renderUsers() {
+            let permNames = { attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات", leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين", breaks: "الاستئذانات", products: "الأصناف", system: "النظام", excel: "تصدير Excel", all: "كل الصلاحيات" };
+            let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
+${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
+</div>`; return `<tr><td>${u.username}</td><td>${perms}</td><td><button class="btn-warning btn-primary" onclick="UserService.openPerms(State.users[${index}])">✏ تعديل</button></td><td><button class="btn-danger btn-primary" onclick="UserService.delete(${index})">🗑 حذف</button></td></tr>`; }).join("");
+            document.getElementById("usersCount").innerText = State.users.length;
+        },
+        
+        clearInputs(container){
+
+let box = document.querySelector(container)
+
+if(!box) return
+
+box.querySelectorAll("input, textarea, select")
+.forEach(el=>{
+
+if(el.type !== "button" && el.type !== "submit"){
+
+el.value = ""
+
+}
+
+})
+
+},
+        
+        toast(msg, type = "success") { let icons = { success: "✔", error: "✖", warning: "⚠" }; let t = document.createElement("div"); t.className = "toast " + type; t.innerHTML = `<span style="font-size:18px">${icons[type] || ""}</span><span>${msg}</span>`; document.body.appendChild(t); setTimeout(() => t.classList.add("show"), 100); setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, 3000); }
+    };
+
+    // ========================= دالة تصدير الموظفين داخل العمل =========================
+    function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); let rows = inside.map(a => ({ الموظف: a.name, الكود: a.code, وقت_الدخول: a.timeDisplay, مدة_العمل: TimeUtils.format(TimeUtils.now() - a.timestamp) })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "inside"); XLSX.writeFile(wb, "inside_employees.xlsx"); }
+
+    // ========================= مستمعات الأحداث (Event Listeners) =========================
+   document.getElementById("attCode").addEventListener("input", function() {
+
+let value = this.value.trim()
+let box = document.getElementById("empSuggestions")
+
+if (!value) {
+box.style.display = "none"
+return
+}
+
+let results = State.employees.filter(e =>
+e.code.includes(value) || e.name.includes(value)
+)
+
+let html = ""
+
+results.slice(0,5).forEach(emp => {
+
+html += `
+<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)"
+onclick="selectEmployee('${emp.code}','${emp.name}')">
+
+${emp.code} - ${emp.name}
+
+</div>
+`
+
+})
+
+box.innerHTML = html
+box.style.display = html ? "block" : "none"
+
+}) 
+    
+    
+    
+    document.addEventListener("DOMContentLoaded", function() { 
+        setInterval(() => UI.renderInsideEmployees(), 1000); 
+        const confirmBtn = document.getElementById("confirmYes"); 
+        if (confirmBtn) confirmBtn.onclick = function() { if (confirmAction) confirmAction(); closeConfirm(); };
+        FirebaseSync.init();
+    });
+    document.getElementById("breakCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => e.code.includes(value) || e.name.includes(value)); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectBreakEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("penaltyCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => e.code.includes(value) || e.name.includes(value)); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectPenaltyEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("leaveCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => e.code.includes(value) || e.name.includes(value)); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectLeaveEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("vehicleSearch").addEventListener("input", () => UI.renderVehicles());
+    document.getElementById("attendanceDate").value = new Date(TimeUtils.now()).toISOString().slice(0, 10);
+    const togglePassword = document.getElementById("togglePassword"); if (togglePassword) togglePassword.onclick = function() { let pass = document.getElementById("password"); if (pass.type === "password") { pass.type = "text"; togglePassword.classList.remove("fa-eye"); togglePassword.classList.add("fa-eye-slash"); } else { pass.type = "password"; togglePassword.classList.remove("fa-eye-slash"); togglePassword.classList.add("fa-eye"); } };
+    document.querySelectorAll(".tab-btn").forEach(btn => { btn.onclick = () => { document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none"); document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); document.getElementById("tab-" + btn.dataset.tab).style.display = "block"; btn.classList.add("active"); }; });
+    document.querySelectorAll(".permission-card").forEach(card => { card.addEventListener("click", () => { let checkbox = card.querySelector("input"); checkbox.checked = !checkbox.checked; if (checkbox.checked) card.classList.add("active"); else card.classList.remove("active"); }); });
+    const selectAllCheck = document.getElementById("selectAllPerms"); if (selectAllCheck) selectAllCheck.addEventListener("change", () => { let all = selectAllCheck.checked; document.querySelectorAll(".perm-checkbox").forEach(cb => cb.checked = all); document.querySelectorAll(".permission-card").forEach(card => card.classList.toggle("active", all)); });
+
+    // ========================= المزامنة المحسنة مع Firebase (Enhanced Firebase Sync) =========================
+    const FirebaseSync = {
+        init() {
+            db.ref("users").on("value", snap => {
+                const users = [];
+                snap.forEach(c => { users.push({ id: c.key, ...c.val() }); });
+                State.users = users;
+                State.isFirebaseLoaded = true;
+                UI.renderUsers();
+
+                if (!State.sessionRestored) {
+                    AuthService.restoreSession();
+                } else if (State.currentUser) {
+                    const updatedUser = State.users.find(u => u.username === State.currentUser.username);
+                    if (!updatedUser) {
+                        UI.toast("تم إنهاء الجلسة بسبب حذف المستخدم أو تغيير البيانات", "error");
+                        AuthService.logout();
+                    } else {
+                        AuthService.setCurrentUser(updatedUser);
+                    }
+                }
+            }, error => {
+                console.error("Firebase Sync Error (Users):", error);
+                UI.toast("خطأ في مزامنة المستخدمين", "error");
+            });
+
+            const collections = [
+                { ref: "employees", stateKey: "employees", render: () => UI.renderEmployees() },
+                { ref: "attendance", stateKey: "attendance", render: () => { UI.renderAttendance(); UI.renderInsideEmployees(); ReportService.render(); updateAttendanceCounter(); } },
+                { ref: "breaks", stateKey: "breaks", render: () => UI.renderBreaks() },
+                { ref: "systemLogs", stateKey: "systemLogs", render: () => UI.renderSystemLogs() },
+                { ref: "vehicles", stateKey: "vehicles", render: () => UI.renderVehicles() },
+                { ref: "penalties", stateKey: "penalties", render: () => UI.renderPenalties() },
+                { ref: "leaves", stateKey: "leaves", render: () => UI.renderLeaves() },
+                { ref: "products", stateKey: "products", render: () => { UI.renderProducts(); document.getElementById("productsCount").innerText = State.products.length; } }
+            ];
+
+            collections.forEach(col => {
+                db.ref(col.ref).on("value", snap => {
+                    const data = [];
+                    snap.forEach(c => { data.push({ id: c.key, ...c.val() }); });
+                    State[col.stateKey] = data;
+                    col.render();
+                });
+            });
+        }
+    };
+    // ========================= إخفاء شاشة التحميل =========================
+    window.addEventListener("load", () => { setTimeout(() => { document.getElementById("welcomeOverlay").style.display = "none"; }, 1000); });
+    
+    
+    /* =========================
+   THEME TOGGLE
+========================= */
+
+const themeBtn = document.getElementById("themeToggle")
+
+if(themeBtn){
+
+themeBtn.onclick = function(){
+
+document.body.classList.toggle("light-mode")
+
+if(document.body.classList.contains("light-mode")){
+
+themeBtn.innerText = "☀"
+
+}else{
+
+themeBtn.innerText = "🌙"
+
+}
+
+}
+
+}
+    
+</script>
+</body>
+</html>
