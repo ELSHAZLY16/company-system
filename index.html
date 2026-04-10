@@ -8,7 +8,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>علوش البازار - نظام إدارة الحضور</title>
-
+    
     <!-- ========================= الخطوط والأيقونات ========================= -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -996,6 +996,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 <th>اللوحة</th>
 <th>النوع</th>
 <th>الشركة</th>
+<th>الملاحظات</th>
 <th>الدخول</th>
 <th>الخروج</th>
 <th>المدة</th>
@@ -2691,6 +2692,7 @@ html += `<tr>
 <td>${v.plate}</td>
 <td>${v.type}</td>
 <td>${v.company}</td>
+<td>${v.notes || "-"}</td>
 <td>${inDate} ${inTime}</td>
 <td>${v.timeOut ? outDate + " " + outTime : "-"}</td>
 <td>${duration}</td>
