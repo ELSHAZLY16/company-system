@@ -423,45 +423,85 @@ transform:scale(1);
         .permission-card:hover { border-color: #6366f1; }
         .permission-card.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 
-        /* ---------- إشعارات توست (Toast) ---------- */
-        .toast {
-            position: fixed;.toast {
+/* ---------- إشعارات توست (Toast) ---------- */
+
+.toast{
 
 position:fixed;
+
+top:20px;
+
 left:50%;
+
 transform:translateX(-50%) scale(.9);
 
-bottom:auto;
-top:20px;
+min-width:220px;
+
+max-width:90%;
+
+padding:14px 22px;
+
+border-radius:14px;
+
+background:rgba(15,23,42,.9);
+
+border:1px solid rgba(99,102,241,.3);
+
+backdrop-filter:blur(10px);
+
+color:white;
+
+font-weight:600;
+
+font-size:14px;
 
 display:flex;
 
-margin-top:10px;
+align-items:center;
+
+gap:10px;
+
+opacity:0;
+
+transition:.35s;
+
+z-index:9999;
+
+box-shadow:0 10px 35px rgba(0,0,0,.45);
 
 }
-            min-width: 220px;
-            max-width: 90%;
-            padding: 14px 22px;
-            border-radius: 14px;
-            background: rgba(15, 23, 42, 0.9);
-            border: 1px solid rgba(99, 102, 241, 0.3);
-            backdrop-filter: blur(10px);
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            opacity: 0;
-            transition: 0.35s;
-            z-index: 9999;
-            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.45);
-        }
-        .toast.show { opacity: 1; transform: translateX(-50%) scale(1); }
-        .toast.success { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
-        .toast.error { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
-        .toast.warning { border-color: #f59e0b; box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
 
+.toast.show{
+
+opacity:1;
+
+transform:translateX(-50%) scale(1);
+
+}
+
+.toast.success{
+
+border-color:#10b981;
+
+box-shadow:0 0 10px rgba(16,185,129,.4);
+
+}
+
+.toast.error{
+
+border-color:#ef4444;
+
+box-shadow:0 0 10px rgba(239,68,68,.4);
+
+}
+
+.toast.warning{
+
+border-color:#f59e0b;
+
+box-shadow:0 0 10px rgba(245,158,11,.4);
+
+}
         /* ---------- مودال الصلاحيات ---------- */
         .perm-modal {
             position: fixed;
