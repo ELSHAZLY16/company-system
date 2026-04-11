@@ -81,11 +81,7 @@ box-shadow:0 0 10px rgba(99,102,241,.4);
             font-family: 'Cairo', sans-serif;
         }
 
-        body {
-            background: linear-gradient(135deg, #0f172a, #1e1b4b, #0c0a2a);
-            color: #f1f5f9;
-            min-height: 100vh;
-        }
+
 
         /* ---------- مكون الزجاج (Glass Card) ---------- */
         .glass-card {
@@ -246,30 +242,203 @@ background:linear-gradient(135deg,#60a5fa,#c084fc);
         
         
         
-        .permissions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 20px;
-            margin-top: 20px;
-        }
-        .permission-card {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 18px;
-            padding: 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.3s;
-        }
+        .permissions-grid{
+
+display:grid;
+
+grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+
+gap:16px;
+
+margin-top:20px;
+
+}
+
+.permission-card{
+
+background:rgba(255,255,255,.04);
+
+border:1px solid rgba(255,255,255,.08);
+
+border-radius:18px;
+
+padding:18px 12px;
+
+text-align:center;
+
+cursor:pointer;
+
+display:flex;
+
+flex-direction:column;
+
+align-items:center;
+
+justify-content:center;
+
+gap:10px;
+
+transition:.35s cubic-bezier(.2,.8,.2,1);
+
+position:relative;
+
+overflow:hidden;
+
+}
+
+/* الأيقونة */
+
+.permission-card i{
+
+font-size:26px;
+
+color:#818cf8;
+
+transition:.3s;
+
+}
+
+/* النص */
+
+.permission-card span{
+
+font-weight:600;
+
+font-size:14px;
+
+}
+
+/* hover */
+
+.permission-card:hover{
+
+transform:translateY(-6px) scale(1.03);
+
+border-color:#6366f1;
+
+box-shadow:
+
+0 10px 25px rgba(99,102,241,.25);
+
+}
+
+/* الحالة المفعلة */
+
+.permission-card.active{
+
+background:linear-gradient(135deg,#6366f1,#8b5cf6);
+
+border-color:#6366f1;
+
+color:white;
+
+transform:scale(1.05);
+
+box-shadow:
+
+0 10px 30px rgba(99,102,241,.45);
+
+}
+
+/* تغيير لون الايقونة */
+
+.permission-card.active i{
+
+color:white;
+
+}
+
+/* حركة ظهور */
+
+.permission-card{
+
+animation:fadeIn .4s ease forwards;
+
+}
+
+@keyframes fadeIn{
+
+from{
+
+opacity:0;
+
+transform:translateY(10px);
+
+}
+
+to{
+
+opacity:1;
+
+transform:translateY(0);
+
+}
+
+}
+
+.permission-card::after{
+
+content:"✔";
+
+position:absolute;
+
+top:8px;
+
+left:8px;
+
+font-size:14px;
+
+background:white;
+
+color:#6366f1;
+
+width:22px;
+
+height:22px;
+
+display:flex;
+
+align-items:center;
+
+justify-content:center;
+
+border-radius:50%;
+
+opacity:0;
+
+transform:scale(.5);
+
+transition:.3s;
+
+}
+
+.permission-card.active::after{
+
+opacity:1;
+
+transform:scale(1);
+
+}
+
         .permission-card:hover { border-color: #6366f1; }
         .permission-card.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 
         /* ---------- إشعارات توست (Toast) ---------- */
         .toast {
-            position: fixed;
-            bottom: 25px;
-            left: 50%;
-            transform: translateX(-50%) scale(0.9);
+            position: fixed;.toast {
+
+position:fixed;
+left:50%;
+transform:translateX(-50%) scale(.9);
+
+bottom:auto;
+top:20px;
+
+display:flex;
+
+margin-top:10px;
+
+}
             min-width: 220px;
             max-width: 90%;
             padding: 14px 22px;
@@ -875,7 +1044,18 @@ style="width:100%;margin-top:8px">
                     </div>
                 </div>
                 <div class="table-container">
-                    <table><thead><tr><th>الموظف</th><th>الكود</th><th>التاريخ</th><th>الدخول</th><th>الخروج</th><th>ساعات العمل</th><th>المستخدم</th></tr></thead><tbody id="attendanceReportBody"></tbody></table>
+                    <table><thead><tr>
+<th>الموظف</th>
+<th>الكود</th>
+<th>التاريخ</th>
+<th>الدخول</th>
+<th>الخروج</th>
+<th>ساعات العمل</th>
+<th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th>
+</tr></thead>
+
+<tbody id="attendanceReportBody"></tbody></table>
                     <div id="totalHoursBox" style="margin-top:20px; font-size:16px"></div>
                 </div>
             </div>
@@ -929,7 +1109,19 @@ onchange="UI.renderBreaks()"
 
 </div>
                 
-                <div class="table-container" style="margin-top:20px"><table><thead><tr><th>الموظف</th><th>الكود</th><th>نوع الاستئذان</th><th>وقت الاستئذان</th><th>وقت الرجوع</th><th>مدة الاستئذان</th><th>التاريخ</th><th>المستخدم</th></tr></thead><tbody id="breaksBody"></tbody></table></div>
+                <div class="table-container" style="margin-top:20px"><table><thead><tr>
+<th>الموظف</th>
+<th>الكود</th>
+<th>نوع الاستئذان</th>
+<th>وقت الاستئذان</th>
+<th>وقت الرجوع</th>
+<th>مدة الاستئذان</th>
+<th>التاريخ</th>
+<th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th>
+</tr></thead>
+
+<tbody id="breaksBody"></tbody></table></div>
             </div>
             <div class="glass-card" style="padding:20px; margin-top:20px">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>🚨 30 دقيقة استئذان</h3><button class="btn-success btn-primary" onclick="BreakService.exportOver30Excel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
@@ -1001,6 +1193,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 <th>الخروج</th>
 <th>المدة</th>
 <th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th>
 <th></th>
 </tr>
 </thead><tbody id="activeVehiclesBody"></tbody></table></div>
@@ -1175,6 +1368,7 @@ onclick="setCompanyFilter(this,'all')">
 <th>الخروج</th>
 <th>التاريخ</th>
 <th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th>
 
 </tr>
 
@@ -1201,7 +1395,8 @@ onclick="setCompanyFilter(this,'all')">
                     <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="PenaltyService.add()">تسجيل جزاء</button></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-gavel"></i> سجل الجزاءات</h3><button class="btn-success btn-primary" onclick="PenaltyService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
-                <div class="table-container"><table><thead><tr><th>الموظف</th><th>الكود</th><th>الساعات</th><th>السبب</th><th>المدير</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th></tr></thead><tbody id="penaltiesBody"></tbody></table></div>
+                <div class="table-container"><table><thead><tr><th>الموظف</th><th>الكود</th><th>الساعات</th><th>السبب</th><th>المدير</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th></tr></thead><tbody id="penaltiesBody"></tbody></table></div>
             </div>
         </div>
 
@@ -1290,7 +1485,7 @@ oninput="UI.renderEmployees()">
 <th>الوظيفة</th>
 <th>الفرع</th>
 <th>الحالة</th>
-<th>تعديل</th>
+<th class="editColumnHeader">تعديل</th>
 <th>حذف</th>
 
 </tr>
@@ -1309,7 +1504,8 @@ oninput="UI.renderEmployees()">
         <div id="tab-system" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-clipboard-list"></i> سجل النظام</h3><button class="btn-success btn-primary" onclick="SystemLogService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
-                <div class="table-container"><table><thead><tr><th>الحركة</th><th>الاسم</th><th>الكود</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th></tr></thead><tbody id="systemLogsBody"></tbody></table></div>
+                <div class="table-container"><table><thead><tr><th>الحركة</th><th>الاسم</th><th>الكود</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th></tr></thead><tbody id="systemLogsBody"></tbody></table></div>
             </div>
         </div>
 
@@ -1348,10 +1544,17 @@ oninput="UI.renderEmployees()">
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><i class="fas fa-users-cog"></i><span>المستخدمين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="system" hidden><i class="fas fa-clipboard-list"></i><span>النظام</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="excel" hidden><i class="fas fa-file-excel"></i><span>تصدير Excel</span></label>
+                    
+                   <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="edit" hidden>
+<i class="fas fa-pen"></i>
+<span>التعديل</span>
+</label> 
+                    
                     <label class="permission-card"><input type="checkbox" id="selectAllPerms" value="all" hidden><i class="fas fa-crown"></i><span>كل الصلاحيات</span></label>
                 </div>
                 <button class="btn-success btn-primary" style="width:100%" onclick="UserService.add()">➕ إضافة مستخدم</button>
-                <div class="table-container"><table><thead><tr><th>اسم المستخدم</th><th>الصلاحيات</th><th>تعديل</th><th>حذف</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+                <div class="table-container"><table><thead><tr><th>اسم المستخدم</th><th>الصلاحيات</th><th class="editColumnHeader">تعديل</th><th>حذف</th></tr></thead><tbody id="usersBody"></tbody></table></div>
             </div>
         </div>
     </main>
@@ -1368,6 +1571,35 @@ oninput="UI.renderEmployees()">
     </div>
 </div>
 
+
+<!-- ========================= مودال التعديل ========================= -->
+<div id="editModal" style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:99999">
+
+<div class="glass-card" style="padding:25px;width:90%;max-width:380px">
+
+<h3 style="margin-bottom:15px">✏ تعديل السجل</h3>
+
+<label>التاريخ</label>
+<input type="date" id="editDate">
+
+<label style="margin-top:10px">وقت البداية</label>
+<input type="time" id="editIn">
+
+<label style="margin-top:10px">وقت النهاية</label>
+<input type="time" id="editOut">
+
+<div style="display:flex;gap:10px;margin-top:20px">
+
+<button class="btn-success btn-primary" onclick="saveEdit()">💾 حفظ</button>
+
+<button class="btn-danger btn-primary" onclick="closeEdit()">إلغاء</button>
+
+</div>
+
+</div>
+
+</div>
+
 <!-- ========================= مودال تعديل الصلاحيات ========================= -->
 <div id="permModal" class="perm-modal">
     <div class="perm-box">
@@ -1376,6 +1608,9 @@ oninput="UI.renderEmployees()">
         <label><input type="checkbox" value="attendance"> الحضور</label>
         <label><input type="checkbox" value="system"> النظام</label>
         <label><input type="checkbox" value="excel"> تصدير Excel</label>
+        
+        <label><input type="checkbox" value="edit"> التعديل</label>
+        
         <label><input type="checkbox" value="breaks"> الاستئذانات</label>
         <label><input type="checkbox" value="vehicles"> العربيات</label>
         <label><input type="checkbox" value="penalties"> الجزاءات</label>
@@ -1452,7 +1687,7 @@ document.querySelectorAll(".filter-btn")
 
 State.reportRange="all"
 
-breakRange:"all",
+State.breakRange = "all"
 
 UI.renderAttendance()
 
@@ -1861,7 +2096,29 @@ a.code?.toString().includes(search)
             rows.sort((a, b) => (b.checkIn?.timestamp || 0) - (a.checkIn?.timestamp || 0)).forEach(r => {
                 let work = "-";
                 if (r.checkIn && r.checkOut) { let duration = r.checkOut.timestamp - r.checkIn.timestamp; work = TimeUtils.format(duration); if (!totals[r.name]) totals[r.name] = 0; totals[r.name] += duration; }
-                html += `<tr><td>${r.name}</td><td>${r.code}</td><td>${r.date}</td><td>${r.checkIn?.timeDisplay || "-"}</td><td>${r.checkOut?.timeDisplay || "-"}</td><td>${work}</td><td>${r.checkIn?.user || r.checkOut?.user || "-"}</td></tr>`;
+html += `<tr>
+
+<td>${r.name}</td>
+<td>${r.code}</td>
+<td>${r.date}</td>
+<td>${r.checkIn?.timeDisplay || "-"}</td>
+<td>${r.checkOut?.timeDisplay || "-"}</td>
+<td>${work}</td>
+<td>${r.checkIn?.user || r.checkOut?.user || "-"}</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-warning btn-primary"
+onclick='openEditAttendance(${JSON.stringify({
+checkIn:r.checkIn,
+checkOut:r.checkOut
+})})'>
+✏
+</button>
+` : ""}
+</td>
+
+</tr>`;
             });
             document.getElementById("attendanceReportBody").innerHTML = html;
             let totalHtml = "<h3>إجمالي ساعات الموظفين</h3>";
@@ -2483,8 +2740,167 @@ SystemLog.add("DeleteUser", user.username, "👤 مستخدم");
     };
 // ========================= خدمة الصلاحيات (Permissions) =========================
     const PermissionService = {
-        apply() { let perms = State.currentUser.permissions || []; document.querySelectorAll(".tab-btn").forEach(btn => { let tab = btn.dataset.tab; if (perms.includes("all") || perms.includes(tab)) btn.style.display = "flex"; else btn.style.display = "none"; }); }
+        apply(){
+
+let perms = State.currentUser.permissions || []
+
+// التبويبات
+document.querySelectorAll(".tab-btn").forEach(btn => {
+
+let tab = btn.dataset.tab
+
+if(perms.includes("all") || perms.includes(tab)){
+btn.style.display = "flex"
+}else{
+btn.style.display = "none"
+}
+
+})
+
+// عمود التعديل
+
+let editHeaders = document.querySelectorAll(".editColumnHeader")
+
+editHeaders.forEach(col=>{
+
+if(perms.includes("edit") || perms.includes("all")){
+col.style.display = ""
+}else{
+col.style.display = "none"
+}
+
+})
+
+}
     };
+
+/* =========================
+   نظام التعديل العام
+========================= */
+
+let editPath = null
+let editId = null
+let editData = null
+
+function openEditRecord(path,id,data){
+
+if(!hasPermission("edit") && !hasPermission("all")){
+UI.toast("ليس لديك صلاحية التعديل","error")
+return
+}
+
+editPath = path
+editId = id
+editData = data
+
+document.getElementById("editDate").value = data.date || ""
+
+document.getElementById("editIn").value =
+data.timeIn ||
+data.breakTime ||
+data.timeDisplay ||
+""
+
+document.getElementById("editOut").value =
+data.timeOut ||
+data.returnTime ||
+""
+
+document.getElementById("editModal").style.display = "flex"
+
+}
+
+function openEditAttendance(data){
+
+if(!hasPermission("edit") && !hasPermission("all")){
+UI.toast("ليس لديك صلاحية التعديل","error")
+return
+}
+
+editData = data
+
+editPath = "attendance"
+
+editId = data.checkIn?.id
+
+document.getElementById("editDate").value = data.checkIn?.date || ""
+
+document.getElementById("editIn").value =
+data.checkIn?.timeDisplay || ""
+
+document.getElementById("editOut").value =
+data.checkOut?.timeDisplay || ""
+
+document.getElementById("editModal").style.display = "flex"
+
+}
+
+
+function closeEdit(){
+
+document.getElementById("editModal").style.display = "none"
+
+editPath=null
+editId=null
+editData=null
+
+}
+
+function saveEdit(){
+
+if(!editData) return
+
+let date = document.getElementById("editDate").value
+let timeIn = document.getElementById("editIn").value
+let timeOut = document.getElementById("editOut").value
+
+let updates = []
+
+// تعديل الدخول
+if(editData.checkIn && timeIn){
+
+let newIn = new Date(date + " " + timeIn)
+
+updates.push(
+db.ref("attendance/"+editData.checkIn.id).update({
+
+date:date,
+timeDisplay:new Date(date+" "+timeIn).toLocaleTimeString("ar-EG"),
+timestamp:newIn.getTime()
+
+})
+)
+
+}
+
+// تعديل الخروج
+if(editData.checkOut && timeOut){
+
+let newOut = new Date(date + " " + timeOut)
+
+updates.push(
+db.ref("attendance/"+editData.checkOut.id).update({
+
+date:date,
+timeDisplay:new Date(date+" "+timeOut).toLocaleTimeString("ar-EG"),
+timestamp:newOut.getTime()
+
+})
+)
+
+}
+
+Promise.all(updates).then(()=>{
+
+UI.toast("تم تعديل الحضور والانصراف بنجاح","success")
+
+UI.renderAttendance()
+
+closeEdit()
+
+})
+
+}
 
     // ========================= واجهة المستخدم (UI) =========================
     const UI = {
@@ -2613,6 +3029,16 @@ html += `
 <td>${durationText}</td>
 <td>${b.date}</td>
 <td>${b.user}</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-warning btn-primary"
+onclick='openEditRecord("breaks","${b.id}",${JSON.stringify(b)})'>
+✏
+</button>
+` : ""}
+</td>
+
 </tr>
 `
 
@@ -2696,7 +3122,18 @@ html += `<tr>
 <td>${inDate} ${inTime}</td>
 <td>${v.timeOut ? outDate + " " + outTime : "-"}</td>
 <td>${duration}</td>
+
 <td>${v.user || "-"}</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-warning btn-primary"
+onclick='openEditRecord("vehicles","${v.id}",${JSON.stringify(v)})'>
+✏
+</button>
+` : ""}
+</td>
+
 <td>${!v.timeOut ? `<button class="btn-danger btn-primary" onclick="VehicleService.exit('${v.id}')">🚪 خروج</button>` : `<span style="color:#10b981;font-weight:bold">تم الخروج</span>`}</td>
 </tr>`
                 ; });
@@ -2799,6 +3236,15 @@ html += `
 <td>${c.date || "-"}</td>
 <td>${c.user || "-"}</td>
 
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-warning btn-primary"
+onclick='openEditRecord("companies","${c.id}",${JSON.stringify(c)})'>
+✏
+</button>
+` : ""}
+</td>
+
 </tr>
 
 `
@@ -2822,7 +3268,12 @@ totalBox.innerText = filtered.length;
         },
         renderAttendance() { ReportService.render(); },
         renderUsers() {
-            let permNames = { attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات", leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين", breaks: "الاستئذانات", products: "الأصناف", system: "النظام", excel: "تصدير Excel", all: "كل الصلاحيات" };
+            let permNames = { attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات", leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين", breaks: "الاستئذانات", products: "الأصناف", system: "النظام",
+            
+       excel: "تصدير Excel",
+edit: "التعديل",
+all: "كل الصلاحيات"
+           };
             let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
 ${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
 </div>`; return `<tr><td>${u.username}</td><td>${perms}</td><td><button class="btn-warning btn-primary" onclick="UserService.openPerms(State.users[${index}])">✏ تعديل</button></td><td><button class="btn-danger btn-primary" onclick="UserService.delete(${index})">🗑 حذف</button></td></tr>`; }).join("");
@@ -2904,7 +3355,9 @@ box.style.display = html ? "block" : "none"
     document.getElementById("attendanceDate").value = new Date(TimeUtils.now()).toISOString().slice(0, 10);
     const togglePassword = document.getElementById("togglePassword"); if (togglePassword) togglePassword.onclick = function() { let pass = document.getElementById("password"); if (pass.type === "password") { pass.type = "text"; togglePassword.classList.remove("fa-eye"); togglePassword.classList.add("fa-eye-slash"); } else { pass.type = "password"; togglePassword.classList.remove("fa-eye-slash"); togglePassword.classList.add("fa-eye"); } };
     document.querySelectorAll(".tab-btn").forEach(btn => { btn.onclick = () => { document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none"); document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); document.getElementById("tab-" + btn.dataset.tab).style.display = "block"; btn.classList.add("active"); }; });
-    document.querySelectorAll(".permission-card").forEach(card => { card.addEventListener("click", () => { let checkbox = card.querySelector("input"); checkbox.checked = !checkbox.checked; if (checkbox.checked) card.classList.add("active"); else card.classList.remove("active"); }); });
+    document.querySelectorAll(".permission-card").forEach(card => { card.addEventListener("click", () => { let checkbox = card.querySelector("input"); checkbox.checked = !checkbox.checked
+
+card.classList.toggle("active"); if (checkbox.checked) card.classList.add("active"); else card.classList.remove("active"); }); });
     const selectAllCheck = document.getElementById("selectAllPerms"); if (selectAllCheck) selectAllCheck.addEventListener("change", () => { let all = selectAllCheck.checked; document.querySelectorAll(".perm-checkbox").forEach(cb => cb.checked = all); document.querySelectorAll(".permission-card").forEach(card => card.classList.toggle("active", all)); });
 
     // ========================= المزامنة المحسنة مع Firebase (Enhanced Firebase Sync) =========================
