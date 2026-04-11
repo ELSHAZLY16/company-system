@@ -2894,10 +2894,12 @@ let date = document.getElementById("editDate").value
 let timeIn = document.getElementById("editIn").value
 let timeOut = document.getElementById("editOut").value
 
+// ===== تعديل الحضور =====
+if(editData.checkIn){
+
 let updates = []
 
-// تعديل الدخول
-if(editData.checkIn && timeIn){
+if(timeIn){
 
 let newIn = new Date(date + " " + timeIn)
 
@@ -2905,7 +2907,7 @@ updates.push(
 db.ref("attendance/"+editData.checkIn.id).update({
 
 date:date,
-timeDisplay:new Date(date+" "+timeIn).toLocaleTimeString("ar-EG"),
+timeDisplay:newIn.toLocaleTimeString("ar-EG"),
 timestamp:newIn.getTime()
 
 })
@@ -2913,7 +2915,6 @@ timestamp:newIn.getTime()
 
 }
 
-// تعديل الخروج
 if(editData.checkOut && timeOut){
 
 let newOut = new Date(date + " " + timeOut)
@@ -2922,7 +2923,7 @@ updates.push(
 db.ref("attendance/"+editData.checkOut.id).update({
 
 date:date,
-timeDisplay:new Date(date+" "+timeOut).toLocaleTimeString("ar-EG"),
+timeDisplay:newOut.toLocaleTimeString("ar-EG"),
 timestamp:newOut.getTime()
 
 })
@@ -2932,13 +2933,56 @@ timestamp:newOut.getTime()
 
 Promise.all(updates).then(()=>{
 
-UI.toast("تم تعديل الحضور والانصراف بنجاح","success")
+UI.toast("تم تعديل الحضور والانصراف","success")
 
 UI.renderAttendance()
 
 closeEdit()
 
 })
+
+return
+}
+
+// ===== تعديل الاستئذان =====
+if(editPath === "breaks"){
+
+let updates = {}
+
+if(timeIn){
+
+let newBreak = new Date(date + " " + timeIn)
+
+updates.breakTime = newBreak.toLocaleTimeString("ar-EG")
+updates.breakTimestamp = newBreak.getTime()
+updates.date = date
+
+}
+
+if(timeOut){
+
+let newReturn = new Date(date + " " + timeOut)
+
+updates.returnTime = newReturn.toLocaleTimeString("ar-EG")
+updates.returnTimestamp = newReturn.getTime()
+
+if(updates.breakTimestamp){
+updates.duration = newReturn.getTime() - updates.breakTimestamp
+}
+
+}
+
+db.ref("breaks/"+editId).update(updates).then(()=>{
+
+UI.toast("تم تعديل الاستئذان بنجاح","success")
+
+UI.renderBreaks()
+
+closeEdit()
+
+})
+
+}
 
 }
 
