@@ -1041,6 +1041,18 @@ font-size:14px
                     <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
                     <div><label>اسم الصنف</label><input id="productName" placeholder="اسم المنتج"></div>
                     <div><label>القسم</label><input id="productCategory" placeholder="مثال: مواد غذائية"></div>
+                    
+                    
+                    <div>
+<label>الفرع</label>
+<select id="productBranch">
+<option value="">اختر الفرع</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="البازار">فرع البازار</option>
+</select>
+</div>
+                    
+                    
                     <div><label>الكمية</label><input id="productQuantity" type="number" placeholder="مثال: كمية الصنف 100"></div>
                     
                     <div>
@@ -1067,6 +1079,7 @@ font-size:14px
 <th>الباركود</th>
 <th>الصنف</th>
 <th>القسم</th>
+<th>الفرع</th>
 <th>الكمية</th>
 <th>التكلفة</th>
 <th>البيع</th>
@@ -2661,19 +2674,34 @@ expire = document.getElementById("productExpire").value;
             if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
             if (!qty) qty = 1;
             let existing = State.products.find(p => p.barcode === barcode);
-            if (existing) { let newQty = (existing.quantity || 0) + qty; db.ref("products/" + barcode).update({ quantity: newQty }); UI.toast("تم زيادة الكمية", "success"); }
+            if (existing) { let newQty = (existing.quantity || 0) + qty;
+            let name = document.getElementById("productName").value.trim()
+            db.ref("products/" + barcode).update({ quantity: newQty });
+
+SystemLog.add("ProductIncrease", barcode, name)
+
+UI.toast("تم زيادة الكمية", "success"); }
             else { if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; } 
-let product = {
-barcode,
-name,
-category,
+let branch = document.getElementById("productBranch").value
+
+let data = {
+barcode: barcode,
+name: name,
+category: category,
 quantity: qty,
-cost,
-price,
-expire: expire || "",
-created: firebase.database.ServerValue.TIMESTAMP,
+branch: branch,
+cost: cost,
+price: price,
+expire: expire,
 user: State.currentUser.username
-}; db.ref("products/" + barcode).set(product); UI.toast("تم تسجيل صنف جديد", "success"); }
+}
+
+db.ref("products/" + barcode).set(data);
+
+SystemLog.add("ProductAdd", barcode, name)
+
+UI.toast("تم تسجيل صنف جديد", "success");                
+            }
             document.getElementById("productBarcode").value = ""; document.getElementById("productName").value = ""; document.getElementById("productCategory").value = ""; document.getElementById("productQuantity").value = "";
             document.getElementById("productCost").value = "";
 document.getElementById("productPrice").value = "";
@@ -2727,6 +2755,7 @@ rows.push({
 الباركود: p.barcode,
 الصنف: p.name,
 القسم: p.category || "-",
+الفرع: p.branch || "-",
 الكمية: p.quantity || 0,
 التكلفة: p.cost || 0,
 البيع: p.price || 0,
@@ -3203,8 +3232,9 @@ html += `
 
 <td>${p.barcode}</td>
 <td>${p.name}</td>
-<td>${p.category || "-"}</td>
-<td>${p.quantity || 0}</td>
+<td>${p.category}</td>
+<td>${p.branch || "-"}</td>
+<td>${p.quantity}</td>
 <td>${p.cost || 0}</td>
 <td>${p.price || 0}</td>
 <td>${p.expire || "-"}</td>
@@ -3253,6 +3283,12 @@ document.getElementById("productsExpireSoon").innerText = soon
             body.innerHTML = html;
         },
         renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
+        ProductAdd: "📦 إضافة صنف",
+ProductIncrease: "➕ زيادة كمية صنف",
+ProductRemove: "➖ سحب كمية صنف",
+ProductDelete: "🗑 حذف صنف",
+ProductEdit: "✏ تعديل صنف",
+        
 renderBreaks(){
 
 let body = document.getElementById("breaksBody")
