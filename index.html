@@ -994,7 +994,7 @@ font-size:14px
     <div class="stats-grid">
         <div class="glass-card stat-card"><i class="fas fa-coffee"></i><h3>الاستئذانات</h3><p class="stat-value" id="breakCount">0</p></div>
         <div class="glass-card stat-card"><i class="fas fa-fingerprint"></i><h3>الحضور</h3><p class="stat-value" id="attCount">0</p></div>
-        <div class="glass-card stat-card"><i class="fas fa-box"></i><h3>الأصناف</h3><p class="stat-value" id="productsCount">0</p></div>
+        <div class="glass-card stat-card"><i class="fas fa-box"></i><h3>التواريخ</h3><p class="stat-value" id="productsCount">0</p></div>
         <div class="glass-card stat-card"><i class="fas fa-users"></i><h3>الموظفين</h3><p class="stat-value" id="empCount">0</p></div>
         <div class="glass-card stat-card"><i class="fas fa-file-signature"></i><h3>الإجازات</h3><p class="stat-value" id="leavesCount">0</p></div>
         <div class="glass-card stat-card"><i class="fas fa-gavel"></i><h3>الجزاءات</h3><p class="stat-value" id="penaltiesCount">0</p></div>
@@ -1007,7 +1007,7 @@ font-size:14px
         <div class="tabs-wrapper">
             <button class="tab-btn active" data-tab="attendance"><i class="fas fa-fingerprint"></i> الحضور</button>
             <button class="tab-btn" data-tab="breaks"><i class="fas fa-coffee"></i> الاستئذانات</button>
-            <button class="tab-btn" data-tab="products"><i class="fas fa-box"></i> الأصناف</button>
+            <button class="tab-btn" data-tab="products"><i class="fas fa-box"></i> التواريخ</button>
             <button class="tab-btn" data-tab="vehicles"><i class="fas fa-truck"></i> العربيات</button>
    
       <button class="tab-btn" data-tab="companies">
@@ -1027,10 +1027,10 @@ font-size:14px
     <!-- المحتوى الأساسي للتبويبات -->
     <main style="padding:0 15px 50px;">
         
-        <!-- ========================= تبويب الأصناف (Products) ========================= -->
+        <!-- ========================= تبويب التواريخ (Products) ========================= -->
         <div id="tab-products" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
-                <h3><i class="fas fa-box"></i> إدارة الأصناف</h3>
+                <h3><i class="fas fa-box"></i> إدارة التواريخ</h3>
                 <div class="stats-grid" style="margin-top:20px">
                     <div class="glass-card stat-card"><i class="fas fa-exclamation-triangle"></i><h3>قليل</h3><p class="stat-value" id="productsLow">0</p></div>
                     <div class="glass-card stat-card"><i class="fas fa-calendar-times"></i><h3>منتهي</h3><p class="stat-value" id="productsExpired">0</p></div>
@@ -1048,7 +1048,8 @@ font-size:14px
 <select id="productBranch">
 <option value="">اختر الفرع</option>
 <option value="الصباح">فرع الصباح</option>
-<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع البازار</option>
+<option value="البازار">مخزن باب 40</option>
 </select>
 </div>
                     
@@ -1073,7 +1074,7 @@ font-size:14px
                     <input id="productSearch" placeholder="بحث بالباركود أو الاسم" style="flex:1" oninput="UI.renderProducts()">
                     <button class="btn-success btn-primary" onclick="ProductService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button>
                 </div>
-                <!-- جدول الأصناف -->
+                <!-- جدول التواريخ -->
                 <div class="table-container">
                     <table><thead><tr>
 <th>الباركود</th>
@@ -1631,7 +1632,7 @@ oninput="UI.renderEmployees()">
                 </div>
                 <div class="permissions-grid" id="permissionsGrid">
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="attendance" hidden><i class="fas fa-fingerprint"></i><span>الحضور</span></label>
-                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><i class="fas fa-box"></i><span>الأصناف</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><i class="fas fa-box"></i><span>التواريخ</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="vehicles" hidden><i class="fas fa-truck"></i><span>العربيات</span></label>
        
        
@@ -1716,7 +1717,7 @@ oninput="UI.renderEmployees()">
 <div id="permModal" class="perm-modal">
     <div class="perm-box">
         <h3 style="grid-column:span 2">تعديل الصلاحيات</h3>
-        <label><input type="checkbox" value="products"> الأصناف</label>
+        <label><input type="checkbox" value="products"> التواريخ</label>
         <label><input type="checkbox" value="attendance"> الحضور</label>
         <label><input type="checkbox" value="system"> النظام</label>
         <label><input type="checkbox" value="excel"> تصدير Excel</label>
@@ -2661,7 +2662,7 @@ UI.toast("تم رفض الإجازة","warning")
         exportExcel() { if (!checkExcelPermission()) return; let rows = State.leaves.map(l => ({ الموظف: l.name, الكود: l.code, تاريخ_الإجازة: l.leaveDate, تاريخ_الطلب: l.requestDate, الوقت: l.requestTime, مقدم_الطلب: l.requestedBy, الحالة: l.status, المسؤول: l.approvedBy || "-" })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "leaves"); XLSX.writeFile(wb, "leaves_report.xlsx"); }
     };
 
-    // ========================= خدمة الأصناف (Products) =========================
+    // ========================= خدمة التواريخ (Products) =========================
     const ProductService = {
         add() {
             let barcode = document.getElementById("productBarcode").value.trim(),
@@ -3627,7 +3628,7 @@ totalBox.innerText = filtered.length;
         },
         renderAttendance() { ReportService.render(); },
         renderUsers() {
-            let permNames = { attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات", leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين", breaks: "الاستئذانات", products: "الأصناف", system: "النظام",
+            let permNames = { attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات", leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين", breaks: "الاستئذانات", products: "التواريخ", system: "النظام",
             
        excel: "تصدير Excel",
 edit: "التعديل",
