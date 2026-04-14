@@ -3154,9 +3154,9 @@ let newReturn = new Date(date + " " + timeOut)
 updates.returnTime = newReturn.toLocaleTimeString("ar-EG")
 updates.returnTimestamp = newReturn.getTime()
 
-if(updates.breakTimestamp){
-updates.duration = newReturn.getTime() - updates.breakTimestamp
-}
+let breakTime = updates.breakTimestamp || editData.breakTimestamp
+
+updates.duration = newReturn.getTime() - breakTime
 
 }
 
@@ -3390,10 +3390,18 @@ filtered.sort((a,b)=>b.breakTimestamp-a.breakTimestamp)
 
 filtered.forEach(b=>{
 
-let duration = b.duration
+let duration = 0
 
-if(!duration && b.breakTimestamp){
+if(b.breakTimestamp && b.returnTimestamp){
+
+duration = b.returnTimestamp - b.breakTimestamp
+
+}
+
+else if(b.breakTimestamp){
+
 duration = TimeUtils.now() - b.breakTimestamp
+
 }
 
 let durationText = duration ? TimeUtils.format(duration) : "-"
