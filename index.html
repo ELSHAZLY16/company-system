@@ -1524,7 +1524,22 @@ onclick="setCompanyFilter(this,'all')">
                     <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="LeaveService.add()">تقديم الطلب</button></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-calendar-alt"></i> سجل طلبات الإجازات</h3><button class="btn-success btn-primary" onclick="LeaveService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
-                <div class="table-container"><table><thead><tr><th>الموظف</th><th>الكود</th><th>تاريخ الإجازة</th><th>تاريخ الطلب</th><th>الوقت</th><th>مقدم الطلب</th><th>الحالة</th><th>اسم المسؤول</th><th>الإجراء</th></tr></thead><tbody id="leavesBody"></tbody></table></div>
+                <div class="table-container"><table>
+                    
+<thead><tr>
+<th>الموظف</th>
+<th>الكود</th>
+<th>تاريخ الإجازة</th>
+<th>تاريخ الطلب</th>
+<th>الوقت</th>
+<th>مقدم الطلب</th>
+<th>الملاحظات</th>
+<th>الحالة</th>
+<th>اسم المسؤول</th>
+<th>الإجراء</th>
+</tr></thead>
+                
+                <tbody id="leavesBody"></tbody></table></div>
             </div>
         </div>
 
@@ -3501,7 +3516,23 @@ onclick='openEditRecord("vehicles","${v.id}",${JSON.stringify(v)})'>
         },
         renderLeaves() {
             let body = document.getElementById("leavesBody"); if (!body) return;
-            let html = ""; State.leaves.sort((a, b) => new Date(b.requestDate + " " + b.requestTime) - new Date(a.requestDate + " " + a.requestTime)).forEach(l => { html += `<tr><td>${l.name}</td><td>${l.code}</td><td>${l.leaveDate}</td><td>${l.requestDate}</td><td>${l.requestTime}</td><td>${l.requestedBy}</td><td>${l.status}</td><td>${l.approvedBy || "-"}</td><td>${l.status === "قيد المراجعة" && (hasPermission("all") || hasPermission("leaveApprove")) ? `<button class="btn-success btn-primary" onclick="showConfirm('هل أنت موافق على قبول الإجازة؟',()=>LeaveService.approve('${l.id}'))">✔ موافقة</button> <button class="btn-danger btn-primary" onclick="showConfirm('هل أنت متأكد من رفض الإجازة؟',()=>LeaveService.reject('${l.id}'))">✖ رفض</button>` : "-"}</td></tr>`; });
+            let html = ""; State.leaves.sort((a, b) => new Date(b.requestDate + " " + b.requestTime) - new Date(a.requestDate + " " + a.requestTime)).forEach(l => {
+                
+                html += `<tr>
+<td>${l.name}</td>
+<td>${l.code}</td>
+<td>${l.leaveDate}</td>
+<td>${l.requestDate}</td>
+<td>${l.requestTime}</td>
+<td>${l.requestedBy}</td>
+<td>${l.notes || "-"}</td>
+<td>${l.status}</td>
+<td>${l.approvedBy || "-"}</td>
+<td>${l.status === "قيد المراجعة" && (hasPermission("all") || hasPermission("leaveApprove")) ? 
+`<button class="btn-success btn-primary" onclick="showConfirm('هل أنت موافق على قبول الإجازة؟',()=>LeaveService.approve('${l.id}'))">✔ موافقة</button> 
+<button class="btn-danger btn-primary" onclick="showConfirm('هل أنت متأكد من رفض الإجازة؟',()=>LeaveService.reject('${l.id}'))">✖ رفض</button>` 
+: "-"}</td>
+</tr>`; });
             body.innerHTML = html; document.getElementById("leavesCount").innerText = State.leaves.length;
         },
         renderPenalties() {
