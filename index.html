@@ -1079,7 +1079,6 @@ font-size:14px
                     <table><thead><tr>
 <th>الباركود</th>
 <th>الصنف</th>
-<th>القسم</th>
 <th>الفرع</th>
 <th>الكمية</th>
 <th>التكلفة</th>
@@ -3193,8 +3192,17 @@ p.name?.toLowerCase().includes(search) ||
 p.barcode?.includes(search)
 )
 
-.forEach(p=>{
+// ترتيب المنتجات حسب الأقرب انتهاء
+.sort((a,b)=>{
 
+let aDays = a.expire ? getRemainingDays(a.expire) : 999999
+let bDays = b.expire ? getRemainingDays(b.expire) : 999999
+
+return aDays - bDays
+
+})
+
+.forEach(p=>{
 let today = new Date(TimeUtils.now())
 
 let status="متوفر"
