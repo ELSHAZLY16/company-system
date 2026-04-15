@@ -22,6 +22,44 @@
     <!-- ========================= الأنماط (CSS) ========================= -->
     <style>
         /* ---------- إعدادات عامة ---------- */
+     
+     .transferDetails{
+font-size:13px;
+line-height:1.6;
+margin-bottom:10px;
+}
+
+.transferDetails b{
+font-size:13px;
+color:#cbd5f5;
+}
+      
+      /* جدول عرض التحويل */
+.transferModal table{
+width:100%;
+border-collapse:collapse;
+font-size:12px;
+line-height:1;
+}
+
+.transferModal th{
+padding:4px 6px;
+font-size:11px;
+height:22px;
+white-space:nowrap;
+}
+
+.transferModal td{
+padding:3px 6px;
+font-size:11px;
+height:22px;
+white-space:nowrap;
+text-align:center;
+}
+
+.transferModal tr{
+height:22px;
+}
       
       html,body{
 touch-action: manipulation;
@@ -1015,6 +1053,10 @@ font-size:14px
 الشركات
 </button>
       
+      <button class="tab-btn" data-tab="transfers">
+<i class="fas fa-right-left"></i>
+التحويلات
+</button>
       
             <button class="tab-btn" data-tab="penalties"><i class="fas fa-balance-scale"></i> الجزاءات</button>
             <button class="tab-btn" data-tab="leaves"><i class="fas fa-calendar-alt"></i> الإجازات</button>
@@ -1026,6 +1068,194 @@ font-size:14px
 
     <!-- المحتوى الأساسي للتبويبات -->
     <main style="padding:0 15px 50px;">
+        
+        
+        <!-- ========================= تبويب التحويلات ========================= -->
+
+<div id="tab-transfers" class="tab-content" style="display:none;">
+
+<div class="glass-card" style="padding:25px">
+
+<h3>📦 تحويل بين الفروع</h3>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:20px">
+
+<div>
+<label>من فرع</label>
+
+<select id="transferFrom">
+
+<option value="">اختر الفرع</option>
+<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="باب40">مخزن باب 40</option>
+
+</select>
+
+</div>
+
+<div>
+<label>إلى فرع</label>
+
+<select id="transferTo">
+
+<option value="">اختر الفرع</option>
+<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="باب40">مخزن باب 40</option>
+
+</select>
+
+</div>
+
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:10px">
+
+<input id="transferBarcode" placeholder="امسح الباركود">
+
+<button class="btn-primary" onclick="TransferService.scan()">📷</button>
+
+</div>
+
+<div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:10px">
+
+<input id="transferName" placeholder="اسم الصنف" readonly>
+
+<input id="transferExpire" type="date" placeholder="تاريخ الانتهاء">
+
+</div>
+
+
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px">
+
+<input id="transferCartons" type="number" placeholder="كرتونة">
+
+<input id="transferBoxes" type="number" placeholder="علب">
+
+<input id="transferPieces" type="number" placeholder="قطع">
+
+<input id="transferTotal" placeholder="الإجمالي" readonly>
+
+</div>
+
+<button class="btn-success btn-primary" onclick="TransferService.addItem()">
+➕ إضافة الصنف
+</button>
+
+<div class="table-container" style="margin-top:20px">
+
+<table>
+
+<thead>
+
+<tr>
+
+<th>الباركود</th>
+<th>الصنف</th>
+<th>كراتين</th>
+<th>علب</th>
+<th>قطع</th>
+<th>الإجمالي</th>
+<th>الانتهاء</th>
+<th>حذف</th>
+
+</tr>
+
+</thead>
+
+<tbody id="transferItems"></tbody>
+
+</table>
+
+</div>
+
+<button class="btn-primary" style="margin-top:15px;width:100%" onclick="TransferService.save()">
+
+💾 حفظ التحويل
+
+</button>
+
+</div>
+
+<div class="glass-card" style="padding:20px;margin-top:20px">
+
+<h3>📋 سجل التحويلات</h3>
+
+<div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
+
+<input id="transferSearch"
+placeholder="بحث بالفرع أو المستخدم"
+oninput="UI.renderTransfers()">
+
+<input type="date"
+id="transferDate"
+style="width:130px;padding:8px;border-radius:8px;border:none"
+onchange="UI.renderTransfers()">
+
+<div class="attendance-filters">
+
+<button class="filter-btn active"
+onclick="setTransferFilter(this,'day')">
+اليوم
+</button>
+
+<button class="filter-btn"
+onclick="setTransferFilter(this,'week')">
+أسبوع
+</button>
+
+<button class="filter-btn"
+onclick="setTransferFilter(this,'month')">
+شهر
+</button>
+
+<button class="filter-btn"
+onclick="setTransferFilter(this,'all')">
+كل السجلات
+</button>
+
+</div>
+
+<button class="btn-success btn-primary"
+onclick="TransferService.exportExcel()">
+
+<i class="fas fa-file-excel"></i>
+تصدير Excel
+
+</button>
+
+</div>
+
+<div class="table-container">
+
+<table>
+
+<thead>
+
+<tr>
+<th>من</th>
+<th>إلى</th>
+<th>عدد الأصناف</th>
+<th>التاريخ</th>
+<th>المستخدم</th>
+<th>عرض</th>
+<th class="editColumnHeader">تعديل</th>
+<th class="editColumnHeader">حذف</th>
+</tr>
+
+</thead>
+
+<tbody id="transfersBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+
+</div>
         
         <!-- ========================= تبويب التواريخ (Products) ========================= -->
         <div id="tab-products" class="tab-content" style="display:none;">
@@ -1040,7 +1270,7 @@ font-size:14px
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin:20px 0;">
                     <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
                     <div><label>اسم الصنف</label><input id="productName" placeholder="اسم المنتج"></div>
-                    <div><label>القسم</label><input id="productCategory" placeholder="مثال: مواد غذائية"></div>
+                    
                     
                     
                     <div>
@@ -1649,6 +1879,12 @@ oninput="UI.renderEmployees()">
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><i class="fas fa-box"></i><span>التواريخ</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="vehicles" hidden><i class="fas fa-truck"></i><span>العربيات</span></label>
        
+       <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="transfers" hidden>
+<i class="fas fa-right-left"></i>
+<span>التحويلات</span>
+</label>
+       
        
        <label class="permission-card">
 <input type="checkbox" class="perm-checkbox" value="companies" hidden>
@@ -1726,7 +1962,54 @@ oninput="UI.renderEmployees()">
 </div>
 
 </div>
+<!-- ========================= مودال تعديل التحويل ========================= -->
 
+<div id="editTransferModal"
+style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:99999">
+
+<div class="glass-card" style="padding:25px;width:95%;max-width:600px">
+
+<h3 style="margin-bottom:15px">✏ تعديل التحويل</h3>
+
+<div class="table-container" style="max-height:300px">
+
+<table>
+
+<thead>
+
+<tr>
+<th>الصنف</th>
+<th>كراتين</th>
+<th>علب</th>
+<th>قطع</th>
+<th>الانتهاء</th>
+</tr>
+
+</thead>
+
+<tbody id="editTransferItems"></tbody>
+
+</table>
+
+</div>
+
+<div style="display:flex;gap:10px;margin-top:20px">
+
+<button class="btn-success btn-primary"
+onclick="saveTransferEdit()">
+💾 حفظ
+</button>
+
+<button class="btn-danger btn-primary"
+onclick="closeTransferEdit()">
+إلغاء
+</button>
+
+</div>
+
+</div>
+
+</div>
 <!-- ========================= مودال تعديل الصلاحيات ========================= -->
 <div id="permModal" class="perm-modal">
     <div class="perm-box">
@@ -1735,6 +2018,11 @@ oninput="UI.renderEmployees()">
         <label><input type="checkbox" value="attendance"> الحضور</label>
         <label><input type="checkbox" value="system"> النظام</label>
         <label><input type="checkbox" value="excel"> تصدير Excel</label>
+        
+        <label>
+<input type="checkbox" value="transfers">
+التحويلات
+</label>
         
         <label><input type="checkbox" value="edit"> التعديل</label>
         
@@ -1759,6 +2047,53 @@ oninput="UI.renderEmployees()">
 
 <!-- ========================= كود JavaScript الكامل ========================= -->
 <script>
+    
+    function openEditTransfer(id){
+
+if(!hasPermission("edit") && !hasPermission("all")){
+UI.toast("ليس لديك صلاحية التعديل","error")
+return
+}
+
+let t = State.transfers.find(x=>x.id===id)
+
+if(!t) return
+
+let from = prompt("تعديل الفرع المرسل", t.from)
+let to = prompt("تعديل الفرع المستلم", t.to)
+let date = prompt("تعديل التاريخ", t.date)
+
+if(!from || !to) return
+
+db.ref("transfers/"+id).update({
+
+from:from,
+to:to,
+date:date
+
+})
+
+UI.toast("تم تعديل التحويل","success")
+
+}
+    
+    
+    function calcTransferTotal(){
+
+let c = Number(document.getElementById("transferCartons").value) || 0
+let b = Number(document.getElementById("transferBoxes").value) || 0
+let p = Number(document.getElementById("transferPieces").value) || 0
+
+let total = (c * b * p) + (b * p) + p
+
+document.getElementById("transferTotal").value = total
+
+}
+
+document.getElementById("transferCartons").oninput = calcTransferTotal
+document.getElementById("transferBoxes").oninput = calcTransferTotal
+document.getElementById("transferPieces").oninput = calcTransferTotal
+    
     
     function getExpiryStatus(expireDate){
 
@@ -1915,6 +2250,8 @@ State.serverOffset = snapshot.val() || 0
     const State = {
         products: [],
         companies: [],
+        transfers: [],
+        transferItems: [],
         systemLogs: [],
         breaks: [],
         employees: [],
@@ -1927,6 +2264,7 @@ State.serverOffset = snapshot.val() || 0
         breakRange:"all",
         currentUser: null,
         reportRange: "day",
+        transferRange: "day",
         companyRange: "day",
         breakRange: "day",
         processingAttendance: false,
@@ -2769,7 +3107,6 @@ rows.push({
 
 الباركود: p.barcode,
 الصنف: p.name,
-القسم: p.category || "-",
 الفرع: p.branch || "-",
 الكمية: p.quantity || 0,
 التكلفة: p.cost || 0,
@@ -3174,8 +3511,625 @@ closeEdit()
 
 }
 
+const TransferService = {
+
+
+
+scan(){
+
+ProductService.scanBarcode()
+
+},
+
+addItem(){
+    
+    
+    
+
+let barcode = document.getElementById("transferBarcode").value
+
+let name = document.getElementById("transferName").value
+
+let cartons = Number(document.getElementById("transferCartons").value)
+
+let boxes = Number(document.getElementById("transferBoxes").value)
+
+let pieces = Number(document.getElementById("transferPieces").value)
+
+let expire = document.getElementById("transferExpire").value
+
+if(!barcode){
+UI.toast("امسح الباركود","error")
+return
+}
+
+if(cartons == 0 && boxes == 0 && pieces == 0){
+UI.toast("أدخل كرتونة أو علبة أو قطعة","error")
+return
+}
+
+if(!expire){
+UI.toast("حدد تاريخ الانتهاء","error")
+return
+}
+
+let total = Number(document.getElementById("transferTotal").value)
+
+let item = {
+
+barcode,
+name,
+cartons,
+boxes,
+pieces,
+total,
+expire
+
+}
+
+State.transferItems.push(item)
+
+UI.renderTransferItems()
+
+document.getElementById("transferBarcode").value = ""
+document.getElementById("transferBoxes").value = ""
+document.getElementById("transferPieces").value = ""
+document.getElementById("transferTotal").value = ""
+document.getElementById("transferCartons").value = ""
+document.getElementById("transferExpire").value = ""   // مسح تاريخ الانتهاء
+
+document.getElementById("transferBarcode").focus()
+
+},
+
+exportExcel(){
+
+if (!checkExcelPermission()) return
+
+let rows = []
+
+State.transfers.forEach(t=>{
+
+t.items.forEach(i=>{
+
+rows.push({
+
+من:t.from,
+إلى:t.to,
+الصنف:i.name,
+كراتين:i.cartons,
+علب:i.boxes,
+قطع:i.pieces,
+الإجمالي:i.total,
+تاريخ_الانتهاء:i.expire,
+التاريخ:t.date,
+المستخدم:t.user
+
+})
+
+})
+
+})
+
+let ws = XLSX.utils.json_to_sheet(rows)
+
+let wb = XLSX.utils.book_new()
+
+XLSX.utils.book_append_sheet(wb, ws, "transfers")
+
+XLSX.writeFile(wb, "transfers_report.xlsx")
+
+},
+
+save(){
+
+let from = document.getElementById("transferFrom").value
+
+let to = document.getElementById("transferTo").value
+
+// منع التحويل لنفس الفرع
+if(from === to){
+
+UI.toast("لا يمكن التحويل لنفس الفرع","error")
+
+return
+
+}
+
+if(!from || !to){
+
+UI.toast("حدد الفروع","error")
+
+return
+
+}
+
+if(State.transferItems.length == 0){
+
+UI.toast("أضف أصناف للتحويل","error")
+
+return
+
+}
+
+let data = {
+
+from,
+to,
+items: State.transferItems,
+
+date: new Date(TimeUtils.now()).toLocaleDateString("ar-EG"),
+
+timestamp: firebase.database.ServerValue.TIMESTAMP,
+
+user: State.currentUser.username
+
+}
+
+db.ref("transfers").push(data).then(()=>{
+
+UI.renderTransfers()
+
+})
+
+UI.toast("تم حفظ التحويل","success")
+
+State.transferItems = []
+
+UI.renderTransferItems()
+
+}
+
+
+
+}
+
+
+
+function saveTransferEdit(){
+
+let t = State.transfers.find(x=>x.id===editingTransferId)
+
+if(!t) return
+
+let newItems = []
+
+t.items.forEach((i,index)=>{
+
+let cartons = Number(document.getElementById("editCartons"+index).value)
+let boxes = Number(document.getElementById("editBoxes"+index).value)
+let pieces = Number(document.getElementById("editPieces"+index).value)
+let expire = document.getElementById("editExpire"+index).value
+
+let total = cartons * boxes * pieces
+
+newItems.push({
+
+barcode:i.barcode,
+name:i.name,
+cartons,
+boxes,
+pieces,
+expire,
+total
+
+})
+
+})
+
+db.ref("transfers/"+editingTransferId).update({
+
+items:newItems
+
+})
+
+UI.toast("تم تعديل التحويل","success")
+
+closeTransferEdit()
+
+}
+function closeTransferEdit(){
+
+document.getElementById("editTransferModal").style.display="none"
+
+editingTransferId=null
+
+}
+
+TransferService.removeItem = function(index){
+
+State.transferItems.splice(index,1)
+
+UI.renderTransferItems()
+
+UI.toast("تم حذف الصنف","success")
+
+}
+
+
+
+// =============================
+// عرض التحويل
+// =============================
+function viewTransfer(id){
+
+function closeTransferModal(){
+
+let modal = document.querySelector(".transferModal")
+
+if(modal) modal.remove()
+
+
+}
+
+let t = State.transfers.find(x=>x.id===id)
+
+if(!t) return
+
+let time = new Date(t.timestamp).toLocaleTimeString("ar-EG")
+
+let html = `
+
+<div style="
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:10px
+">
+
+<h3>تفاصيل التحويل</h3>
+
+<button onclick="closeTransferModal()"
+style="
+background:#ef4444;
+border:none;
+color:white;
+padding:6px 12px;
+border-radius:8px;
+cursor:pointer;
+font-size:14px
+">
+✖
+</button>
+
+</div>
+
+
+<div class="transferDetails">
+
+<b>من:</b> ${t.from}<br>
+<b>إلى:</b> ${t.to}<br>
+<b>التاريخ:</b> ${t.date}<br>
+<b>الوقت:</b> ${time}<br>
+<b>المستخدم:</b> ${t.user}
+
+</div>
+
+<button class="btn-success btn-primary"
+onclick="exportTransferExcel('${t.id}')"
+style="margin-bottom:10px">
+
+📊 تصدير Excel
+
+</button>
+
+<table style="width:100%;margin-top:10px">
+
+<tr>
+<th>الباركود</th>
+<th>الصنف</th>
+<th>كراتين</th>
+<th>علب</th>
+<th>قطع</th>
+<th>الإجمالي</th>
+<th>الانتهاء</th>
+</tr>
+`
+
+t.items.forEach(i=>{
+
+html += `
+
+<tr>
+
+<td>${i.barcode || "-"}</td>
+<td>${i.name}</td>
+<td>${i.cartons}</td>
+<td>${i.boxes}</td>
+<td>${i.pieces}</td>
+<td>${i.total}</td>
+<td>${i.expire || "-"}</td>
+
+</tr>
+
+`
+
+})
+
+html += "</table>"
+
+let box = document.createElement("div")
+
+box.className="glass-card transferModal"
+
+box.style=`
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+padding:20px;
+z-index:9999;
+max-width:700px;
+width:90%;
+max-height:80vh;
+overflow:auto;
+`
+
+box.innerHTML = html
+
+document.body.appendChild(box)
+
+box.onclick=(e)=>{
+if(e.target===box) box.remove()
+}
+
+}
+
+function exportTransferExcel(id){
+
+let t = State.transfers.find(x=>x.id===id)
+
+if(!t) return
+
+let data = []
+
+t.items.forEach(i=>{
+
+data.push({
+"الباركود": i.barcode || "",
+"الصنف": i.name,
+"كراتين": i.cartons,
+"علب": i.boxes,
+"قطع": i.pieces,
+"الإجمالي": i.total,
+"تاريخ الانتهاء": i.expire || ""
+})
+
+})
+
+let ws = XLSX.utils.json_to_sheet(data)
+
+let wb = XLSX.utils.book_new()
+
+XLSX.utils.book_append_sheet(wb,ws,"Transfer")
+
+XLSX.writeFile(wb,"transfer_"+t.id+".xlsx")
+
+}
+// =============================
+// تعديل التحويل
+// =============================
+let editingTransferId = null
+
+function editTransferItems(id){
+
+if(!hasPermission("edit") && !hasPermission("all")){
+UI.toast("ليس لديك صلاحية التعديل","error")
+return
+}
+
+let t = State.transfers.find(x=>x.id===id)
+
+if(!t) return
+
+editingTransferId = id
+
+let body = document.getElementById("editTransferItems")
+
+let html=""
+
+t.items.forEach((i,index)=>{
+
+html += `
+
+<tr>
+
+<td>${i.name}</td>
+
+<td>
+<input type="number" value="${i.cartons}"
+id="editCartons${index}">
+</td>
+
+<td>
+<input type="number" value="${i.boxes}"
+id="editBoxes${index}">
+</td>
+
+<td>
+<input type="number" value="${i.pieces}"
+id="editPieces${index}">
+</td>
+
+<td>
+<input type="date" value="${i.expire || ""}"
+id="editExpire${index}">
+</td>
+
+</tr>
+
+`
+
+})
+
+body.innerHTML = html
+
+document.getElementById("editTransferModal").style.display="flex"
+
+}
+
+
+// =============================
+// حذف التحويل
+// =============================
+function deleteTransfer(id){
+
+showConfirm("هل تريد حذف التحويل؟",()=>{
+
+db.ref("transfers/"+id).remove()
+
+UI.toast("تم حذف التحويل","warning")
+
+})
+
+}
+
+
+
     // ========================= واجهة المستخدم (UI) =========================
     const UI = {
+       
+renderTransfers(){
+
+let body = document.getElementById("transfersBody")
+
+if(!body) return
+
+let search = document.getElementById("transferSearch")?.value?.toLowerCase() || ""
+let selectedDate = document.getElementById("transferDate")?.value
+
+let now = new Date()
+
+let html=""
+
+let filtered = State.transfers.filter(t=>{
+
+let date = new Date(t.timestamp)
+
+if(selectedDate){
+
+return date.toISOString().slice(0,10) === selectedDate
+
+}
+
+if(State.transferRange === "day"){
+if(date.toDateString() !== now.toDateString()) return false
+}
+
+if(State.transferRange === "week"){
+let weekAgo = new Date()
+weekAgo.setDate(now.getDate()-7)
+if(date < weekAgo) return false
+}
+
+if(State.transferRange === "month"){
+let monthAgo = new Date()
+monthAgo.setMonth(now.getMonth()-1)
+if(date < monthAgo) return false
+}
+
+return (
+t.from?.toLowerCase().includes(search) ||
+t.to?.toLowerCase().includes(search) ||
+t.user?.toLowerCase().includes(search)
+)
+
+})
+
+filtered
+.sort((a,b)=>b.timestamp-a.timestamp)
+.forEach(t=>{
+
+html+=`
+
+<tr>
+
+<td>${t.from}</td>
+<td>${t.to}</td>
+<td>${t.items?.length || 0}</td>
+<td>${t.date}</td>
+<td>${t.user}</td>
+
+<td>
+<button class="btn-primary"
+onclick='viewTransfer("${t.id}")'>
+👁
+</button>
+</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-warning btn-primary"
+onclick='editTransferItems("${t.id}")'>
+✏
+</button>
+` : ""}
+</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-danger btn-primary"
+onclick='deleteTransfer("${t.id}")'>
+🗑
+</button>
+` : ""}
+</td>
+
+</tr>
+
+`
+
+})
+
+body.innerHTML = html
+
+},    
+        
+        renderTransferItems(){
+
+let body = document.getElementById("transferItems")
+
+if(!body) return
+
+let html = ""
+
+State.transferItems.forEach((i,index)=>{
+
+html += `
+
+<tr>
+
+<td>${i.barcode}</td>
+
+<td>${i.name}</td>
+
+<td>${i.cartons}</td>
+
+<td>${i.boxes}</td>
+
+<td>${i.pieces}</td>
+
+<td>${i.total}</td>
+
+<td>${i.expire}</td>
+
+<td>
+<button class="btn-danger btn-primary"
+onclick="TransferService.removeItem(${index})">
+🗑
+</button>
+</td>
+
+</tr>
+
+`
+
+})
+
+body.innerHTML = html
+
+
+},
         renderProducts(){
 
 let search = document.getElementById("productSearch")?.value?.toLowerCase() || ""
@@ -3256,7 +4210,6 @@ html += `
 
 <td>${p.barcode}</td>
 <td>${p.name}</td>
-<td>${p.category}</td>
 <td>${p.branch || "-"}</td>
 <td>${p.quantity}</td>
 <td>${p.cost || 0}</td>
@@ -3675,13 +4628,23 @@ totalBox.innerText = filtered.length;
         },
         renderAttendance() { ReportService.render(); },
         renderUsers() {
-            let permNames = { attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات", leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين", breaks: "الاستئذانات", products: "التواريخ", system: "النظام",
-            
-       excel: "تصدير Excel",
+let permNames = {
+
+attendance: "الحضور",
+vehicles: "العربيات",
+penalties: "الجزاءات",
+leaves: "الإجازات",
+employees: "الموظفين",
+users: "المستخدمين",
+breaks: "الاستئذانات",
+products: "التواريخ",
+system: "النظام",
+transfers: "التحويلات",
+excel: "تصدير Excel",
 edit: "التعديل",
 all: "كل الصلاحيات"
-           };
-            let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
+
+};            let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
 ${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
 </div>`; return `<tr><td>${u.username}</td><td>${perms}</td><td><button class="btn-warning btn-primary" onclick="UserService.openPerms(State.users[${index}])">✏ تعديل</button></td><td><button class="btn-danger btn-primary" onclick="UserService.delete(${index})">🗑 حذف</button></td></tr>`; }).join("");
             document.getElementById("usersCount").innerText = State.users.length;
@@ -3770,6 +4733,22 @@ card.classList.toggle("active"); if (checkbox.checked) card.classList.add("activ
     // ========================= المزامنة المحسنة مع Firebase (Enhanced Firebase Sync) =========================
     const FirebaseSync = {
         init() {
+            
+       db.ref("transfers").on("value",snap=>{
+
+let data = snap.val() || {}
+
+State.transfers = Object.keys(data).map(id=>({
+
+id,
+...data[id]
+
+}))
+
+UI.renderTransfers()
+
+})     
+            
             db.ref("users").on("value", snap => {
                 const users = [];
                 snap.forEach(c => { users.push({ id: c.key, ...c.val() }); });
