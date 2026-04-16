@@ -1286,14 +1286,24 @@ onclick="TransferService.exportExcel()">
                     
                     <div><label>الكمية</label><input id="productQuantity" type="number" placeholder="مثال: كمية الصنف 100"></div>
                     
-                    <div>
+<div>
 <label>سعر التكلفة</label>
-<input id="productCost" type="number" placeholder="مثال: 10">
+<input
+type="text"
+inputmode="decimal"
+id="productCost"
+placeholder="سعر التكلفة"
+oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
 </div>
 
 <div>
 <label>سعر البيع</label>
-<input id="productPrice" type="number" placeholder="مثال: 15">
+<input
+type="text"
+inputmode="decimal"
+id="productPrice"
+placeholder="سعر البيع"
+oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
 </div>
                     
                     <div><label>تاريخ الانتهاء</label><input id="productExpire" type="date"></div>
@@ -1725,23 +1735,90 @@ onclick="setCompanyFilter(this,'all')">
 </div>
 
 </div>
+<!-- ========================= تبويب الجزاءات (Penalties) ========================= -->
+<div id="tab-penalties" class="tab-content" style="display:none;">
 
-        <!-- ========================= تبويب الجزاءات (Penalties) ========================= -->
-        <div id="tab-penalties" class="tab-content" style="display:none;">
-            <div class="glass-card" style="padding:25px;">
-                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
-                    <div><label>كود الموظف</label><div style="position:relative;"><input id="penaltyCode" placeholder="اكتب الكود أو اسم الموظف"><div id="penaltySuggestions" style="position:absolute; background:#0f172a; width:100%; border:1px solid rgba(255,255,255,0.1); display:none; max-height:200px; overflow:auto; z-index:10;"></div></div></div>
-                    <div><label>ساعات الخصم</label><input type="number" id="penaltyHours" placeholder="مثال: يخصم 8 ساعات"></div>
-                    <div><label>المدير</label><input id="penaltyManager" placeholder="مثال: اسم مدير الفرع"></div>
-                    <div><label>سبب الجزاء</label><textarea id="penaltyReason" placeholder="مثال: إهمال - عدم اتباع التعليمات - تأخير - سلوك"></textarea></div>
-                    <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="PenaltyService.add()">تسجيل جزاء</button></div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-gavel"></i> سجل الجزاءات</h3><button class="btn-success btn-primary" onclick="PenaltyService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
-                <div class="table-container"><table><thead><tr><th>الموظف</th><th>الكود</th><th>الساعات</th><th>السبب</th><th>المدير</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th>
-<th class="editColumnHeader">تعديل</th></tr></thead><tbody id="penaltiesBody"></tbody></table></div>
-            </div>
-        </div>
+<div class="glass-card" style="padding:25px;">
 
+<div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
+
+<div>
+<label>كود الموظف</label>
+<div style="position:relative;">
+<input id="penaltyCode" placeholder="اكتب الكود أو اسم الموظف">
+<div id="penaltySuggestions"
+style="position:absolute; background:#0f172a; width:100%; border:1px solid rgba(255,255,255,0.1); display:none; max-height:200px; overflow:auto; z-index:10;">
+</div>
+</div>
+</div>
+
+<div>
+<label>ساعات الخصم</label>
+<input
+type="text"
+inputmode="decimal"
+id="penaltyHours"
+placeholder="مثال: 1.5 ساعة"
+oninput="this.value=this.value.replace(/[^0-9.]/g,'')">
+</div>
+
+<div>
+<label>المدير</label>
+<input id="penaltyManager" placeholder="مثال: اسم مدير الفرع">
+</div>
+
+<div>
+<label>سبب الجزاء</label>
+<textarea id="penaltyReason" placeholder="مثال: إهمال - عدم اتباع التعليمات - تأخير - سلوك"></textarea>
+</div>
+
+<div>
+<label>&nbsp;</label>
+<button class="btn-primary" style="width:100%" onclick="PenaltyService.add()">
+تسجيل جزاء
+</button>
+</div>
+
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+<h3><i class="fas fa-gavel"></i> سجل الجزاءات</h3>
+
+<button class="btn-success btn-primary" onclick="PenaltyService.exportExcel()">
+<i class="fas fa-file-excel"></i> تصدير Excel
+</button>
+
+</div>
+
+<div class="table-container">
+
+<table>
+
+<thead>
+
+<tr>
+<th>الموظف</th>
+<th>الكود</th>
+<th>الساعات</th>
+<th>السبب</th>
+<th>المدير</th>
+<th>التاريخ</th>
+<th>الوقت</th>
+<th>المستخدم</th>
+<th class="editColumnHeader">تعديل</th>
+</tr>
+
+</thead>
+
+<tbody id="penaltiesBody"></tbody>
+
+</table>
+
+</div>
+
+</div>
+
+</div>
         <!-- ========================= تبويب الإجازات (Leaves) ========================= -->
         <div id="tab-leaves" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
