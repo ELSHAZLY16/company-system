@@ -3426,25 +3426,57 @@ SystemLog.add("DeleteUser", user.username, "👤 مستخدم");
         }
     };
 // ========================= خدمة الصلاحيات (Permissions) =========================
-    const PermissionService = {
-        apply(){
+const PermissionService = {
+
+apply(){
 
 let perms = State.currentUser.permissions || []
 
-// التبويبات
+let firstTab = null
+
 document.querySelectorAll(".tab-btn").forEach(btn => {
 
 let tab = btn.dataset.tab
 
 if(perms.includes("all") || perms.includes(tab)){
+
 btn.style.display = "flex"
+
+if(!firstTab){
+firstTab = tab
+}
+
 }else{
+
 btn.style.display = "none"
+
 }
 
 })
 
-// عمود التعديل
+/* إخفاء كل الصفحات */
+
+document.querySelectorAll(".tab-content").forEach(t=>{
+t.style.display="none"
+})
+
+document.querySelectorAll(".tab-btn").forEach(b=>{
+b.classList.remove("active")
+})
+
+/* فتح أول صفحة مسموح بها */
+
+if(firstTab){
+
+let tabBtn = document.querySelector(`.tab-btn[data-tab="${firstTab}"]`)
+let tabPage = document.getElementById("tab-" + firstTab)
+
+if(tabBtn) tabBtn.classList.add("active")
+if(tabPage) tabPage.style.display="block"
+
+}
+
+/* عمود التعديل */
 
 let editHeaders = document.querySelectorAll(".editColumnHeader")
 
@@ -3459,8 +3491,8 @@ col.style.display = "none"
 })
 
 }
-    };
 
+}
 /* =========================
    نظام التعديل العام
 ========================= */
