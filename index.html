@@ -1277,9 +1277,9 @@ onclick="TransferService.exportExcel()">
 <label>الفرع</label>
 <select id="productBranch">
 <option value="">اختر الفرع</option>
+<option value="البازار">فرع البازار</option>
 <option value="الصباح">فرع الصباح</option>
-<option value="الصباح">فرع البازار</option>
-<option value="البازار">مخزن باب 40</option>
+<option value="باب40">مخزن باب 40</option>
 </select>
 </div>
                     
@@ -2079,15 +2079,11 @@ UI.toast("تم تعديل التحويل","success")
     
     
     function calcTransferTotal(){
-
-let c = Number(document.getElementById("transferCartons").value) || 0
-let b = Number(document.getElementById("transferBoxes").value) || 0
-let p = Number(document.getElementById("transferPieces").value) || 0
-
-let total = (c * b * p) + (b * p) + p
-
-document.getElementById("transferTotal").value = total
-
+    let c = Number(document.getElementById("transferCartons").value) || 0;
+    let b = Number(document.getElementById("transferBoxes").value) || 0;
+    let p = Number(document.getElementById("transferPieces").value) || 0;
+    let total = c * b * p;   // التصحيح: ضرب بسيط
+    document.getElementById("transferTotal").value = total;
 }
 
 document.getElementById("transferCartons").oninput = calcTransferTotal
@@ -2261,7 +2257,6 @@ State.serverOffset = snapshot.val() || 0
         leaves: [],
         users: [],
         serverOffset: 0,
-        breakRange:"all",
         currentUser: null,
         reportRange: "day",
         transferRange: "day",
@@ -2662,86 +2657,188 @@ UI.renderCompanies()
 
 
     // ========================= خدمة الاستئذانات (Breaks) =========================
-    const BreakService = {
-        register() {
-            if (State.processingAttendance) return;
-            State.processingAttendance = true; setTimeout(() => { State.processingAttendance = false; }, 1000);
-            let code = document.getElementById("breakCode").value.trim(), action = document.getElementById("breakAction").value, type = document.getElementById("breakType").value;
-            if (!code) { UI.toast("يجب إدخال كود الموظف", "error"); return; }
-            if (action === "Break" && (!type || type === "اختر نوع الاستئذان")) { UI.toast("يجب اختيار نوع الاستئذان أولاً", "error"); return; }
-            let emp = State.employees.find(e => e.code === code || e.name.includes(code));
-            let lastAttendance = State.attendance.filter(a => a.code === code).sort((a, b) => b.timestamp - a.timestamp)[0];
-            if (!lastAttendance || lastAttendance.action !== "CheckIn") { UI.toast("لا يمكن تسجيل استئذان قبل تسجيل حضور", "error"); return; }
-            if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
-            let now = new Date(TimeUtils.now());
-            let openBreak = State.breaks.find(b => b.code === code && !b.returnTimestamp);
-            if (action === "Break" && openBreak) { UI.toast("الموظف في استئذان بالفعل", "warning"); return; }
-            if (action === "Break") {
-                let data = { code, name: emp.name, type, breakTime: now.toLocaleTimeString("ar-EG"), breakTimestamp: firebase.database.ServerValue.TIMESTAMP, returnTime: null, returnTimestamp: null, date: now.toLocaleDateString("ar-EG"), duration: null, user: State.currentUser.username };
-                db.ref("breaks").push(data).then(() => UI.renderBreaks());
-                SystemLog.add("Break", code, emp.name);
-                UI.toast("تم تسجيل الاستئذان", "warning");
-                
-                UI.clearInputs("#tab-breaks")
-                
-                document.getElementById("breakCode").value = ""; document.getElementById("breakType").value = ""; document.getElementById("breakAction").value = "Break"; document.getElementById("breakSuggestions").style.display = "none";
-            }
-            if (action === "Return") {
-                let openBreakObj = State.breaks.filter(b => b.code === code && !b.returnTimestamp).sort((a, b) => b.breakTimestamp - a.breakTimestamp)[0];
-                if (!openBreakObj) { UI.toast("لا يوجد استئذان مفتوح", "error"); return; }
-                let duration = TimeUtils.now() - openBreakObj.breakTimestamp
+const BreakService = {
 
-// حفظ مجموع الاستئذان في Firebase
-let today = new Date(TimeUtils.now()).toISOString().slice(0,10)
+register() {
 
-let totalRef = db.ref("breakTotals/"+code+"/"+today)
+if (State.processingAttendance) return;
 
-totalRef.once("value").then(snap=>{
+State.processingAttendance = true;
+setTimeout(() => { State.processingAttendance = false; }, 1000);
 
-let current = snap.val() || {
-name:emp.name,
-code:code,
-total:0
+let code = document.getElementById("breakCode").value.trim(),
+action = document.getElementById("breakAction").value,
+type = document.getElementById("breakType").value;
+
+if (!code) {
+UI.toast("يجب إدخال كود الموظف", "error");
+return;
 }
 
-current.total += duration
+if (action === "Break" && (!type || type === "اختر نوع الاستئذان")) {
+UI.toast("يجب اختيار نوع الاستئذان أولاً", "error");
+return;
+}
 
-totalRef.set(current)
+let emp = State.employees.find(e => e.code === code || e.name.includes(code));
 
-})
+let lastAttendance = State.attendance
+.filter(a => a.code === code)
+.sort((a, b) => b.timestamp - a.timestamp)[0];
 
-	// حساب مجموع اليوم
-	let todayDisplay = new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
-	
-	let total = 0;
+if (!lastAttendance || lastAttendance.action !== "CheckIn") {
+UI.toast("لا يمكن تسجيل استئذان قبل تسجيل حضور", "error");
+return;
+}
 
-State.breaks.forEach(b=>{
-if(b.code === code && b.date === todayDisplay && b.duration)
-total += b.duration;
-});
+if (!emp) {
+UI.toast("الموظف غير موجود", "error");
+return;
+}
 
-total += duration;
-if (total >= 1800000) UI.toast("⚠ هذا الموظف تجاوز 30 دقيقة استئذان اليوم", "warning");
+let now = new Date(TimeUtils.now());
 
-	db.ref("breaks/" + openBreakObj.id).update({
-	returnTime: now.toLocaleTimeString("ar-EG"),
-	returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
-	duration: duration
-	}).then(() => UI.renderBreaks());
+let openBreak = State.breaks.find(b => b.code === code && !b.returnTimestamp);
 
-UI.toast("تم تسجيل الرجوع", "success");
+if (action === "Break" && openBreak) {
+UI.toast("الموظف في استئذان بالفعل", "warning");
+return;
+}
 
-SystemLog.add("Return", code, emp.name);
+/* تسجيل الاستئذان */
 
-// مسح الحقول بعد تسجيل الحركة
+if (action === "Break") {
+
+let data = {
+
+code,
+name: emp.name,
+type,
+
+breakTime: now.toLocaleTimeString("ar-EG"),
+
+breakTimestamp: firebase.database.ServerValue.TIMESTAMP,
+
+deviceBreakTime: TimeUtils.now(),
+
+returnTime: null,
+returnTimestamp: null,
+
+deviceReturnTime: null,
+
+date: now.toLocaleDateString("ar-EG"),
+
+duration: 0,
+
+status: "open",
+
+user: State.currentUser.username
+
+}
+
+db.ref("breaks").push(data).then(() => UI.renderBreaks());
+
+SystemLog.add("Break", code, emp.name);
+
+UI.toast("تم تسجيل الاستئذان", "warning");
+
+UI.clearInputs("#tab-breaks")
+
 document.getElementById("breakCode").value = "";
 document.getElementById("breakType").value = "";
 document.getElementById("breakAction").value = "Break";
 document.getElementById("breakSuggestions").style.display = "none";
 
 }
-        },
-        exportExcel() { 
+
+/* تسجيل الرجوع */
+
+if (action === "Return") {
+
+let openBreakObj = State.breaks
+.filter(b => b.code === code && !b.returnTimestamp)
+.sort((a,b)=> (b.deviceBreakTime || 0) - (a.deviceBreakTime || 0))[0]
+
+if(!openBreakObj){
+UI.toast("لا يوجد استئذان مفتوح","error")
+return
+}
+
+let start = openBreakObj.deviceBreakTime || openBreakObj.breakTimestamp
+
+let end = TimeUtils.now()
+
+let duration = Math.max(0, end - start)
+
+/* حفظ الرجوع */
+
+db.ref("breaks/" + openBreakObj.id).update({
+
+returnTime: new Date(end).toLocaleTimeString("ar-EG"),
+
+returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
+
+deviceReturnTime: end,
+
+duration: duration,
+
+durationSource: "device",
+
+durationFixed:true,
+
+status:"closed"
+
+})
+
+.then(()=>{
+
+UI.renderBreaks()
+
+})
+
+UI.toast("تم تسجيل الرجوع","success")
+
+SystemLog.add("Return", code, emp.name)
+
+/* تنظيف الحقول */
+
+document.getElementById("breakCode").value = "";
+document.getElementById("breakType").value = "";
+document.getElementById("breakAction").value = "Break";
+document.getElementById("breakSuggestions").style.display = "none";
+
+}
+
+},
+
+/* إصلاح الاستئذانات القديمة */
+
+fixBreakDurations(){
+
+State.breaks.forEach(b=>{
+
+if(b.deviceBreakTime && b.deviceReturnTime){
+
+let correct = b.deviceReturnTime - b.deviceBreakTime
+
+if(correct > 0){
+
+db.ref("breaks/"+b.id).update({
+duration:correct
+})
+
+}
+
+}
+
+})
+
+},
+
+/* تصدير Excel */
+
+exportExcel() {
+
 if (!checkExcelPermission()) return;
 
 let rows = State.breaks.map(b => ({
@@ -2756,10 +2853,16 @@ let rows = State.breaks.map(b => ({
 }));
 
 let ws = XLSX.utils.json_to_sheet(rows);
+
 let wb = XLSX.utils.book_new();
+
 XLSX.utils.book_append_sheet(wb, ws, "breaks");
+
 XLSX.writeFile(wb, "breaks_report.xlsx");
+
 },
+
+/* تصدير المتجاوزين 30 دقيقة */
 
 exportOver30Excel(){
 
@@ -2771,8 +2874,8 @@ State.breaks.forEach(b=>{
 
 let duration = b.duration
 
-if(!duration && b.breakTimestamp){
-duration = TimeUtils.now() - b.breakTimestamp
+if(!duration && b.deviceBreakTime){
+duration = TimeUtils.now() - b.deviceBreakTime
 }
 
 if(duration){
@@ -2802,6 +2905,7 @@ let rows = Object.values(totals)
 }))
 
 let ws = XLSX.utils.json_to_sheet(rows)
+
 let wb = XLSX.utils.book_new()
 
 XLSX.utils.book_append_sheet(wb, ws, "Breaks Over 30")
@@ -2811,7 +2915,6 @@ XLSX.writeFile(wb, "breaks_over_30_minutes.xlsx")
 }
 
 };
-
 /* ========================= خدمة الشركات (Companies) ========================= */
 
 const CompanyService = {
@@ -3016,121 +3119,140 @@ UI.toast("تم رفض الإجازة","warning")
 
     // ========================= خدمة التواريخ (Products) =========================
     const ProductService = {
-        add() {
-            let barcode = document.getElementById("productBarcode").value.trim(),
-name = document.getElementById("productName").value.trim(),
-category = document.getElementById("productCategory").value.trim(),
-qty = Number(document.getElementById("productQuantity").value),
-cost = Number(document.getElementById("productCost").value),
-price = Number(document.getElementById("productPrice").value),
-expire = document.getElementById("productExpire").value;
-            if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
-            if (!qty) qty = 1;
-            let existing = State.products.find(p => p.barcode === barcode);
-            if (existing) { let newQty = (existing.quantity || 0) + qty;
-            let name = document.getElementById("productName").value.trim()
-            db.ref("products/" + barcode).update({ quantity: newQty });
+    add() {
+        let barcode = document.getElementById("productBarcode").value.trim();
+        let name = document.getElementById("productName").value.trim();
+        let qty = Number(document.getElementById("productQuantity").value);
+        let cost = Number(document.getElementById("productCost").value);
+        let price = Number(document.getElementById("productPrice").value);
+        let expire = document.getElementById("productExpire").value;
+        let branch = document.getElementById("productBranch").value;
 
-SystemLog.add("ProductIncrease", barcode, name)
+        if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
+        if (!qty) qty = 1;
 
-UI.toast("تم زيادة الكمية", "success"); }
-            else { if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; } 
-let branch = document.getElementById("productBranch").value
+        let existing = State.products.find(p => p.barcode === barcode);
+        if (existing) {
+            let newQty = (existing.quantity || 0) + qty;
+            db.ref("products/" + existing.id).update({ quantity: newQty });
+            SystemLog.add("ProductIncrease", barcode, name);
+            UI.toast("تم زيادة الكمية", "success");
+        } else {
+            if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; }
+            let data = {
+                barcode: barcode,
+                name: name,
+                quantity: qty,
+                branch: branch,
+                cost: cost,
+                price: price,
+                expire: expire,
+                user: State.currentUser.username,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            db.ref("products").push(data);
+            SystemLog.add("ProductAdd", barcode, name);
+            UI.toast("تم تسجيل صنف جديد", "success");
+        }
+        
+        // مسح الحقول بعد الإضافة
+let fields = [
+"productBarcode",
+"productName",
+"productCategory",
+"productQuantity",
+"productCost",
+"productPrice",
+"productExpire"
+];
 
-let data = {
-barcode: barcode,
-name: name,
-category: category,
-quantity: qty,
-branch: branch,
-cost: cost,
-price: price,
-expire: expire,
-user: State.currentUser.username
+fields.forEach(id=>{
+let el = document.getElementById(id);
+if(el){
+el.value = "";
 }
+});
 
-db.ref("products/" + barcode).set(data);
+// رجوع المؤشر للباركود
+document.getElementById("productBarcode").focus();
+        
+        document.getElementById("productBarcode").value = "";
+        document.getElementById("productName").value = "";
+        document.getElementById("productCategory").value = "";
+        document.getElementById("productQuantity").value = "";
+        document.getElementById("productCost").value = "";
+        document.getElementById("productPrice").value = "";
+        document.getElementById("productExpire").value = "";
+    },
 
-SystemLog.add("ProductAdd", barcode, name)
+    remove(barcode) {
+        let qty = prompt("كم عدد القطع المسحوبة؟");
+        if (!qty) return;
+        qty = Number(qty);
+        let product = State.products.find(p => p.barcode === barcode);
+        if (!product) {
+            UI.toast("المنتج غير موجود", "error");
+            return;
+        }
+        let newQty = (product.quantity || 0) - qty;
+        if (newQty < 0) {
+            UI.toast("الكمية غير كافية", "error");
+            return;
+        }
+        db.ref("products/" + product.id).update({ quantity: newQty });
+        UI.toast("تم سحب الكمية", "warning");
+        SystemLog.add("ProductRemove", barcode, "سحب صنف");
+    },
 
-UI.toast("تم تسجيل صنف جديد", "success");                
+    scanBarcode() {
+        document.getElementById("barcodeScanner").style.display = "block";
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (code) => {
+            document.getElementById("productBarcode").value = code;
+            html5QrCode.stop();
+            document.getElementById("barcodeScanner").style.display = "none";
+            UI.toast("تم قراءة الباركود", "success");
+        });
+    },
+
+    closeScanner() {
+        document.getElementById("barcodeScanner").style.display = "none";
+    },
+
+    exportExcel() {
+        if (!checkExcelPermission()) return;
+        let rows = [];
+        let today = new Date(TimeUtils.now());
+        State.products.forEach(p => {
+            let status = "متوفر";
+            if ((p.quantity || 0) == 0) status = "نفد";
+            else if ((p.quantity || 0) <= 10) status = "قليل";
+            let remaining = "-";
+            if (p.expire) {
+                let expireDate = new Date(p.expire);
+                remaining = Math.floor((expireDate - today) / (1000 * 60 * 60 * 24));
+                if (expireDate < today) status = "منتهي";
+                else if (remaining <= 30) status = "قريب الانتهاء";
             }
-            document.getElementById("productBarcode").value = ""; document.getElementById("productName").value = ""; document.getElementById("productCategory").value = ""; document.getElementById("productQuantity").value = "";
-            document.getElementById("productCost").value = "";
-document.getElementById("productPrice").value = "";
-            
-            document.getElementById("productExpire").value = "";
-        },
-        remove(barcode) {
-            let qty = prompt("كم عدد القطع المسحوبة؟"); if (!qty) return; qty = Number(qty);
-            let product = State.products.find(p => p.barcode === barcode); if (!product) return;
-            let newQty = (product.quantity || 0) - qty; if (newQty < 0) { UI.toast("الكمية غير كافية", "error"); return; }
-            db.ref("products/" + barcode).update({ quantity: newQty }); UI.toast("تم سحب الكمية", "warning");
-            
-            SystemLog.add("ProductRemove", barcode, "سحب صنف")
-        },
-        scanBarcode() {
-            document.getElementById("barcodeScanner").style.display = "block";
-            const html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (code) => { document.getElementById("productBarcode").value = code; html5QrCode.stop(); document.getElementById("barcodeScanner").style.display = "none"; UI.toast("تم قراءة الباركود", "success"); });
-        },
-        closeScanner() { document.getElementById("barcodeScanner").style.display = "none"; },
-exportExcel() {
-
-if (!checkExcelPermission()) return;
-
-let rows = [];
-
-let today = new Date(TimeUtils.now());
-
-State.products.forEach(p => {
-
-let status = "متوفر";
-
-if ((p.quantity || 0) == 0) status = "نفد";
-else if ((p.quantity || 0) <= 10) status = "قليل";
-
-let remaining = "-";
-
-if (p.expire) {
-
-let expireDate = new Date(p.expire);
-
-remaining = Math.floor((expireDate - today) / (1000*60*60*24));
-
-if (expireDate < today) status = "منتهي";
-else if (remaining <= 30) status = "قريب الانتهاء";
-
-}
-
-rows.push({
-
-الباركود: p.barcode,
-الصنف: p.name,
-الفرع: p.branch || "-",
-الكمية: p.quantity || 0,
-التكلفة: p.cost || 0,
-البيع: p.price || 0,
-تاريخ_الانتهاء: p.expire || "-",
-الايام_المتبقية: remaining,
-الحالة: status,
-المستخدم: p.user || "-"
-
-});
-
-});
-
-let ws = XLSX.utils.json_to_sheet(rows);
-
-let wb = XLSX.utils.book_new();
-
-XLSX.utils.book_append_sheet(wb, ws, "products");
-
-XLSX.writeFile(wb, "products_report.xlsx");
-
-}
-    };
-
+            rows.push({
+                الباركود: p.barcode,
+                الصنف: p.name,
+                الفرع: p.branch || "-",
+                الكمية: p.quantity || 0,
+                التكلفة: p.cost || 0,
+                البيع: p.price || 0,
+                تاريخ_الانتهاء: p.expire || "-",
+                الايام_المتبقية: remaining,
+                الحالة: status,
+                المستخدم: p.user || "-"
+            });
+        });
+        let ws = XLSX.utils.json_to_sheet(rows);
+        let wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "products");
+        XLSX.writeFile(wb, "products_report.xlsx");
+    }
+};
     // ========================= خدمة المستخدمين (Users) =========================
     const UserService = {
         editingUser: null,
@@ -3493,8 +3615,13 @@ updates.returnTimestamp = newReturn.getTime()
 
 let breakTime = updates.breakTimestamp || editData.breakTimestamp
 
-updates.duration = newReturn.getTime() - breakTime
+let newDuration = newReturn.getTime() - breakTime
 
+if(newDuration < 0){
+newDuration = 0
+}
+
+updates.duration = newDuration
 }
 
 db.ref("breaks/"+editId).update(updates).then(()=>{
@@ -4279,7 +4406,7 @@ document.getElementById("breakHistorySearch")?.value?.toLowerCase() || ""
 /* التاريخ */
 
 let selectedDate =
-document.getElementById("break30Date")?.value
+document.getElementById("breakDate")?.value
 
 let now = new Date(TimeUtils.now())
 
@@ -4290,21 +4417,15 @@ let totals = {}
 
 let filtered = State.breaks.filter(b=>{
 
-let date = new Date(b.breakTimestamp)
-
-/* فلتر التاريخ */
+let date = new Date(b.breakTimestamp || b.deviceBreakTime || Date.now())
 
 if(selectedDate){
 if(date.toISOString().slice(0,10) !== selectedDate) return false
 }
 
-/* فلتر اليوم */
-
 if(State.breakRange === "day"){
 if(date.toDateString() !== now.toDateString()) return false
 }
-
-/* فلتر الأسبوع */
 
 if(State.breakRange === "week"){
 let weekAgo = new Date(TimeUtils.now())
@@ -4312,15 +4433,11 @@ weekAgo.setDate(now.getDate()-7)
 if(date < weekAgo) return false
 }
 
-/* فلتر الشهر */
-
 if(State.breakRange === "month"){
 let monthAgo = new Date(TimeUtils.now())
 monthAgo.setMonth(now.getMonth()-1)
 if(date < monthAgo) return false
 }
-
-/* البحث بالاسم أو الكود */
 
 if(search){
 
@@ -4337,23 +4454,50 @@ return true
 
 /* ترتيب الأحدث */
 
-filtered.sort((a,b)=>b.breakTimestamp-a.breakTimestamp)
+filtered.sort((a,b)=>(b.breakTimestamp || b.deviceBreakTime || 0)-(a.breakTimestamp || a.deviceBreakTime || 0))
 
 /* رسم جدول الاستئذانات */
 
 filtered.forEach(b=>{
 
-let duration = 0
+/* حساب المدة بالطريقة الموحدة */
 
-if(b.breakTimestamp && b.returnTimestamp){
+let start = b.deviceBreakTime
+let end = b.deviceReturnTime
 
-duration = b.returnTimestamp - b.breakTimestamp
+let duration = b.duration || 0
 
+if(start && end){
+duration = end - start
+}
+else if(start && !end){
+duration = TimeUtils.now() - start
 }
 
-else if(b.breakTimestamp){
+if(duration < 0 || isNaN(duration)){
+duration = 0
+}
 
-duration = TimeUtils.now() - b.breakTimestamp
+/* لو المدة محفوظة نستخدمها */
+
+if(b.duration && b.duration > 0){
+duration = b.duration
+}
+else if(start && end){
+duration = end - start
+}
+
+/* تصحيح المدة القديمة تلقائياً */
+
+if((!b.duration || b.duration === 0) && end){
+
+let correctDuration = end - start
+
+if(correctDuration > 0){
+
+duration = correctDuration
+
+}
 
 }
 
@@ -4441,6 +4585,8 @@ let box = document.getElementById("breakCount")
 if(box) box.innerText = openBreaks.length
 
 },
+
+
 renderVehicles() {
             document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
             let body = document.getElementById("activeVehiclesBody"); if (!body) return;
@@ -4727,8 +4873,11 @@ box.style.display = html ? "block" : "none"
     document.querySelectorAll(".tab-btn").forEach(btn => { btn.onclick = () => { document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none"); document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); document.getElementById("tab-" + btn.dataset.tab).style.display = "block"; btn.classList.add("active"); }; });
     document.querySelectorAll(".permission-card").forEach(card => { card.addEventListener("click", () => { let checkbox = card.querySelector("input"); checkbox.checked = !checkbox.checked
 
+
 card.classList.toggle("active"); if (checkbox.checked) card.classList.add("active"); else card.classList.remove("active"); }); });
     const selectAllCheck = document.getElementById("selectAllPerms"); if (selectAllCheck) selectAllCheck.addEventListener("change", () => { let all = selectAllCheck.checked; document.querySelectorAll(".perm-checkbox").forEach(cb => cb.checked = all); document.querySelectorAll(".permission-card").forEach(card => card.classList.toggle("active", all)); });
+
+
 
     // ========================= المزامنة المحسنة مع Firebase (Enhanced Firebase Sync) =========================
     const FirebaseSync = {
@@ -4782,7 +4931,9 @@ UI.renderTransfers()
                 { ref: "leaves", stateKey: "leaves", render: () => UI.renderLeaves() },
                 { ref: "products", stateKey: "products", render: () => { UI.renderProducts(); document.getElementById("productsCount").innerText = State.products.length; } }
             ];
-
+            
+            setTimeout(()=>BreakService.fixBreakDurations(),2000)
+            
             collections.forEach(col => {
                 db.ref(col.ref).on("value", snap => {
                     const data = [];
