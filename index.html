@@ -3150,7 +3150,7 @@ UI.toast("تم رفض الإجازة","warning")
                 user: State.currentUser.username,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
-            db.ref("products").push(data);
+            db.ref("products/" + barcode).set(data);
             SystemLog.add("ProductAdd", barcode, name);
             UI.toast("تم تسجيل صنف جديد", "success");
         }
