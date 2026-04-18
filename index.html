@@ -3320,16 +3320,28 @@ document.getElementById("productBarcode").focus();
         SystemLog.add("ProductRemove", barcode, "سحب صنف");
     },
 
-    scanBarcode() {
-        document.getElementById("barcodeScanner").style.display = "block";
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (code) => {
-            document.getElementById("productBarcode").value = code;
-            html5QrCode.stop();
-            document.getElementById("barcodeScanner").style.display = "none";
-            UI.toast("تم قراءة الباركود", "success");
-        });
-    },
+    scanBarcode(targetInput="productBarcode") {
+
+document.getElementById("barcodeScanner").style.display = "block";
+
+const html5QrCode = new Html5Qrcode("reader");
+
+html5QrCode.start(
+{ facingMode: "environment" },
+{ fps: 10, qrbox: 250 },
+(code)=>{
+
+document.getElementById(targetInput).value = code;
+
+html5QrCode.stop();
+
+document.getElementById("barcodeScanner").style.display = "none";
+
+UI.toast("تم قراءة الباركود","success");
+
+});
+
+},
 
     closeScanner() {
         document.getElementById("barcodeScanner").style.display = "none";
@@ -3792,7 +3804,7 @@ const TransferService = {
 
 scan(){
 
-ProductService.scanBarcode()
+ProductService.scanBarcode("transferBarcode")
 
 },
 
