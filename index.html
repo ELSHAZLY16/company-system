@@ -136,12 +136,13 @@ box-shadow:0 0 10px rgba(99,102,241,.4);
 
         /* ---------- رأس لوحة التحكم ---------- */
         .dashboard-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px 15px;
-            gap: 10px;
-            flex-wrap: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+
             background: rgba(15, 23, 42, 0.7);
             backdrop-filter: blur(12px);
             border-bottom: 1px solid rgba(99, 102, 241, 0.3);
@@ -869,20 +870,36 @@ textarea:focus {
 /* =========================
    رأس الصفحة (Header)
 ========================= */
-.dashboard-header {
-    background: rgba(15, 23, 42, 0.7);
-    border-bottom: 1px solid rgba(99, 102, 241, 0.3);
-}
-body.light-mode .dashboard-header {
-    background: rgba(255, 255, 255, 0.8);
-    border-bottom: 1px solid #e5e7eb;
+
+@media (max-width:768px){
+
+.dashboard-header{
+flex-direction:row;
+align-items:center;
+justify-content:space-between;
 }
 
-.user-badge {
-    background: rgba(99, 102, 241, 0.2);
-    border: 1px solid #6366f1;
+.header-center h2{
+font-size:18px;
+white-space:nowrap;
 }
 
+.user-badge{
+font-size:12px;
+padding:4px 8px;
+}
+
+.btn-primary{
+padding:6px 10px;
+font-size:12px;
+}
+
+#themeToggle{
+font-size:12px;
+padding:4px 8px;
+}
+
+}
 /* =========================
    أزرار الفلاتر
 ========================= */
