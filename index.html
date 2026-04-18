@@ -2156,11 +2156,50 @@ UI.toast("تم تعديل التحويل","success")
     
     
     function calcTransferTotal(){
-    let c = Number(document.getElementById("transferCartons").value) || 0;
-    let b = Number(document.getElementById("transferBoxes").value) || 0;
-    let p = Number(document.getElementById("transferPieces").value) || 0;
-    let total = c * b * p;   // التصحيح: ضرب بسيط
-    document.getElementById("transferTotal").value = total;
+
+let cartons = Number(document.getElementById("transferCartons").value) || 0
+let boxes = Number(document.getElementById("transferBoxes").value) || 0
+let pieces = Number(document.getElementById("transferPieces").value) || 0
+
+let total = 0
+
+// لو فيه قطع فقط
+if(pieces && !boxes && !cartons){
+total = pieces
+}
+
+// لو فيه علب وقطع
+else if(boxes && pieces && !cartons){
+total = boxes * pieces
+}
+
+// لو فيه كراتين فقط
+else if(cartons && !boxes && !pieces){
+total = cartons
+}
+
+// لو فيه كراتين وعلب
+else if(cartons && boxes && !pieces){
+total = cartons * boxes
+}
+
+// لو فيه الثلاثة
+else if(cartons && boxes && pieces){
+total = cartons * boxes * pieces
+}
+
+// لو فيه علب فقط
+else if(boxes && !pieces && !cartons){
+total = boxes
+}
+
+// لو فيه قطع مع كراتين
+else if(cartons && pieces && !boxes){
+total = cartons * pieces
+}
+
+document.getElementById("transferTotal").value = total
+
 }
 
 document.getElementById("transferCartons").oninput = calcTransferTotal
