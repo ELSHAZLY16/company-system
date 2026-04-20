@@ -19,8 +19,324 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
     <!-- ========================= الأنماط (CSS) ========================= -->
     <style>
+    
+    /* ========== تحسينات إضافية لنظام التسعيرات ========== */
+.pricing-tabs-wrap { display: flex; gap: 4px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 4px; }
+.pricing-tab-btn { background: transparent; border: none; color: #94a3b8; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600; transition: 0.2s; }
+.pricing-tab-btn.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
+.pricing-tab-pane { display: none; animation: fadeSlide 0.25s ease; }
+.pricing-tab-pane.active { display: block; }
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.pricing-h-btn { transition: 0.2s; }
+.pricing-h-btn:hover { background: rgba(255,255,255,0.2) !important; transform: scale(1.05); }
+.spinner { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.price-field { transition: 0.2s; }
+.price-locked .price-field { opacity: 0.4; pointer-events: none; filter: grayscale(0.8); }
+#pricing_fontControls .font-row { display: grid; grid-template-columns: 1.5fr 1fr 0.8fr; gap: 6px; margin-bottom: 6px; align-items: center; }
+#pricing_fontControls .font-row label { font-size: 10px; margin: 0; }
+    
+    /* ========== أنماط التسعيرات المتكاملة ========== */
+.pricing-full-container { font-family: 'Cairo', sans-serif; }
+.pricing-g-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px; margin-bottom: 15px; backdrop-filter: blur(10px); }
+.pricing-g-card:hover { border-color: rgba(99,102,241,0.4); }
+.toggle-item { position: relative; }
+.toggle-item input { display: none; }
+.toggle-item span { display: block; padding: 8px; text-align: center; border-radius: 8px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.05); font-size: 11px; font-weight: 600; cursor: pointer; }
+.toggle-item input:checked + span { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; }
+.tpl-card { padding: 8px; border-radius: 10px; text-align: center; cursor: pointer; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); font-size: 11px; }
+.tpl-card.active { border-color: #6366f1; background: rgba(99,102,241,0.2); color: white; }
+.pricing-lock-toggle { transition: 0.2s; }
+.pricing-lock-toggle.unlocked { background: #10b981; color: white; }
+.btn-accent { background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-purple { background: linear-gradient(135deg, #a855f7, #7e22ce); color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+.btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #e2e8f0; padding: 10px; border-radius: 8px; cursor: pointer; }
+/* أنماط البطاقات داخل المعاينة */
+#pricing_printArea .page { background: white; display: grid; margin-bottom: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; break-after: page; }
+#pricing_printArea .card { border: 1px solid #ccc; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; position: relative; min-height: 180px; }
+#pricing_printArea .card-content { position: relative; z-index: 2; padding: 10px; }
+#pricing_printArea .resizable-el { cursor: ns-resize; user-select: none; display: inline-block; }
+/* قواعد القوالب */
+#pricing_printArea .tpl-discount .card { background: linear-gradient(145deg, #fff9e6, #fff); }
+#pricing_printArea .tpl-wholesale .card { background: linear-gradient(145deg, #e8f5e9, #fff); }
+@media print {
+  body .pricing-sidebar, .perm-modal, #toastContainer { display: none !important; }
+  #pricing_printArea { background: white; margin: 0; padding: 0; }
+  #pricing_printArea .page { box-shadow: none; margin: 0; break-after: page; }
+}
+    
+/* ========== أنماط نظام التسعيرات (مستوردة من index2.html) ========== */
+.pricing-root {
+    --bg-dark: #0b0f19;
+    --bg-card: rgba(20, 24, 36, 0.7);
+    --bg-glass: rgba(255,255,255,0.03);
+    --border-glass: rgba(255,255,255,0.06);
+    --primary: #6366f1;
+    --primary-light: #818cf8;
+    --primary-dark: #4f46e5;
+    --accent: #10b981;
+    --accent-light: #34d399;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #3b82f6;
+    --purple: #a855f7;
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-bright: #ffffff;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --shadow: 0 8px 30px rgba(0,0,0,0.45);
+    --tr: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#tab-pricing .pricing-root {
+    height: 100%;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-family: 'Cairo', sans-serif;
+    color: var(--text-main);
+}
+
+/* الشريط الجانبي */
+#tab-pricing .pricing-sidebar {
+    flex: 1;
+    min-width: 280px;
+    max-width: 360px;
+    height: 100%;
+    overflow-y: auto;
+    padding: 10px 5px;
+}
+
+/* منطقة المعاينة */
+#tab-pricing .pricing-preview {
+    flex: 2;
+    min-width: 350px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* البطاقات (Glass Card) */
+#tab-pricing .p-g-card {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 14px;
+    transition: var(--tr);
+    backdrop-filter: blur(10px);
+}
+#tab-pricing .p-g-card:hover {
+    border-color: rgba(99,102,241,0.3);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+#tab-pricing .p-g-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    color: var(--text-bright);
+    font-weight: 700;
+    font-size: 13px;
+}
+#tab-pricing .p-g-card-header i {
+    color: var(--primary-light);
+}
+
+/* حقول الإدخال */
+#tab-pricing input, #tab-pricing select, #tab-pricing textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 12px;
+}
+#tab-pricing input:focus, #tab-pricing select:focus, #tab-pricing textarea:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.25);
+    background: rgba(0,0,0,0.4);
+}
+
+/* الأزرار */
+#tab-pricing .btn {
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: var(--tr);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+#tab-pricing .btn:active { transform: scale(0.98); }
+#tab-pricing .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; box-shadow: 0 4px 15px rgba(99,102,241,0.4); }
+#tab-pricing .btn-primary:hover { box-shadow: 0 6px 20px rgba(99,102,241,0.5); transform: translateY(-1px); }
+#tab-pricing .btn-accent { background: linear-gradient(135deg, var(--accent), #059669); color: #fff; }
+#tab-pricing .btn-danger { background: linear-gradient(135deg, var(--danger), #b91c1c); color: #fff; }
+#tab-pricing .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-main); }
+#tab-pricing .btn-outline:hover { background: rgba(255,255,255,0.05); border-color: var(--primary); }
+
+/* Drop Zone */
+#tab-pricing .drop-zone {
+    border: 2px dashed rgba(255,255,255,0.1);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: var(--tr);
+    background: rgba(255,255,255,0.02);
+}
+#tab-pricing .drop-zone:hover {
+    border-color: var(--primary);
+    background: rgba(99,102,241,0.08);
+}
+#tab-pricing .drop-zone i {
+    font-size: 28px;
+    color: var(--primary-light);
+    margin-bottom: 8px;
+    display: block;
+}
+#tab-pricing .drop-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* التبديلات (Toggle) */
+#tab-pricing .toggle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+#tab-pricing .toggle-item {
+    position: relative;
+}
+#tab-pricing .toggle-item input {
+    display: none;
+}
+#tab-pricing .toggle-item span {
+    display: block;
+    padding: 8px;
+    text-align: center;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.05);
+    font-size: 11px;
+    font-weight: 600;
+    transition: var(--tr);
+    cursor: pointer;
+}
+#tab-pricing .toggle-item input:checked + span {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(99,102,241,0.3);
+}
+
+/* قوالب البطاقات */
+#tab-pricing .tpl-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+#tab-pricing .tpl-card {
+    padding: 10px;
+    border-radius: 10px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid rgba(255,255,255,0.05);
+    transition: var(--tr);
+    font-size: 11px;
+    font-weight: 600;
+}
+#tab-pricing .tpl-card i {
+    font-size: 20px;
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-muted);
+}
+#tab-pricing .tpl-card.active {
+    border-color: var(--primary);
+    background: rgba(99,102,241,0.15);
+    color: var(--primary-light);
+}
+#tab-pricing .tpl-card.active i {
+    color: var(--primary-light);
+    transform: scale(1.1);
+}
+
+/* منطقة المعاينة (خلفية بيضاء) */
+#pricing_printArea {
+    background: white !important;
+    border-radius: 12px;
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+#pricing_printArea .card {
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: none;
+}
+#pricing_printArea .card-content {
+    color: #1e293b;
+}
+
+/* Toast مخصص لنظام التسعيرات */
+.pricing-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(17,20,30,0.95);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
+}
+.pricing-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.pricing-toast.success { border-right: 3px solid #10b981; }
+.pricing-toast.error { border-right: 3px solid #ef4444; }
+.pricing-toast.warn { border-right: 3px solid #f59e0b; }
+
+/* تحسين التمرير */
+#tab-pricing .pricing-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+#tab-pricing .pricing-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+#tab-pricing .pricing-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.2);
+    border-radius: 10px;
+}
+    
         /* ---------- إعدادات عامة ---------- */
      
      .transferDetails{
@@ -1065,6 +1381,11 @@ font-size:14px
             <button class="tab-btn" data-tab="products"><i class="fas fa-box"></i> التواريخ</button>
             <button class="tab-btn" data-tab="vehicles"><i class="fas fa-truck"></i> العربيات</button>
    
+   <button class="tab-btn" data-tab="pricing">
+<i class="fas fa-tags"></i>
+التسعيرات
+</button>
+   
       <button class="tab-btn" data-tab="companies">
 <i class="fas fa-building"></i>
 الشركات
@@ -1355,6 +1676,210 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
             <div id="reader" style="width:100%"></div>
             <button style="position:absolute; top:20px; left:20px; padding:10px; background:red; color:white; border:none; border-radius:10px" onclick="ProductService.closeScanner()">✖ اغلاق</button>
         </div>
+        
+        
+<!-- ========================= تبويب التسعيرات (نسخة متكاملة من index2) ========================= -->
+<div id="tab-pricing" class="tab-content" style="display:none; height:100%; overflow:hidden;">
+  <div class="pricing-full-container" style="display:flex; gap:20px; height:100%; flex-wrap:wrap; background:var(--bg-dark); position:relative;">
+    
+    <!-- شاشة تحميل داخلية -->
+    <div id="pricing_loadingOverlay" style="position:absolute; inset:0; background:rgba(0,0,0,0.7); z-index:100; display:none; justify-content:center; align-items:center; flex-direction:column; gap:10px; border-radius:20px;">
+      <div class="spinner" style="width:40px; height:40px; border:4px solid rgba(255,255,255,0.2); border-top-color:#6366f1; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+      <div style="color:white;">جارٍ التحميل...</div>
+    </div>
+
+    <!-- الشريط الجانبي -->
+    <div class="pricing-sidebar" style="flex:1; min-width:280px; max-width:420px; background:var(--bg-card); backdrop-filter:blur(12px); border-radius:20px; overflow-y:auto; padding:15px;">
+      
+      <!-- رأس الشريط مع أزرار التراجع/الإعادة -->
+      <div style="display:flex; justify-content:space-between; margin-bottom:15px; gap:8px;">
+        <div class="pricing-status-box" style="background:linear-gradient(135deg, rgba(99,102,241,0.15), rgba(16,185,129,0.1)); border-radius:12px; padding:8px 12px; display:flex; align-items:center; gap:8px; flex:1;">
+          <i class="fas fa-info-circle"></i>
+          <div id="pricing_statusText" style="font-size:11px;">في انتظار ملف Excel</div>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <button class="pricing-h-btn" onclick="PricingModule.undo()" title="تراجع" style="background:rgba(255,255,255,0.1); border:none; width:32px; height:32px; border-radius:8px; cursor:pointer;"><i class="fas fa-undo-alt"></i></button>
+          <button class="pricing-h-btn" onclick="PricingModule.redo()" title="إعادة" style="background:rgba(255,255,255,0.1); border:none; width:32px; height:32px; border-radius:8px; cursor:pointer;"><i class="fas fa-redo-alt"></i></button>
+          <div id="pricing_lockToggle" class="pricing-lock-toggle" style="cursor:pointer; background:rgba(255,255,255,0.05); width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+            <i class="fas fa-lock"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- تبويبات داخلية -->
+      <div class="pricing-tabs-wrap" style="display:flex; gap:4px; background:rgba(0,0,0,0.2); border-radius:12px; padding:4px; margin-bottom:15px;">
+        <button class="pricing-tab-btn active" data-pricing-tab="data"><i class="fas fa-database"></i> البيانات</button>
+        <button class="pricing-tab-btn" data-pricing-tab="design"><i class="fas fa-palette"></i> التصميم</button>
+        <button class="pricing-tab-btn" data-pricing-tab="fonts"><i class="fas fa-font"></i> الخطوط</button>
+        <button class="pricing-tab-btn" data-pricing-tab="rules"><i class="fas fa-scale-balanced"></i> القواعد</button>
+      </div>
+
+      <!-- ========== تبويب البيانات ========== -->
+      <div class="pricing-tab-pane active" id="pricing_tab-data">
+        <!-- رفع Excel -->
+        <div class="pricing-g-card">
+          <div class="pricing-drop-zone" id="pricing_dropZone" style="border:2px dashed rgba(255,255,255,0.1); border-radius:12px; padding:20px; text-align:center; cursor:pointer;">
+            <i class="fas fa-cloud-upload-alt" style="font-size:28px; color:#818cf8;"></i>
+            <div style="font-size:12px;">اسحب ملف Excel أو اضغط</div>
+            <input type="file" id="pricing_fileInput" accept=".xlsx,.xls" style="display:none;">
+          </div>
+        </div>
+
+        <!-- الخلفية -->
+        <div class="pricing-g-card">
+          <div class="pricing-drop-zone" id="pricing_bgDropZone" style="border:1px dashed rgba(255,255,255,0.1); border-radius:12px; padding:12px; text-align:center; cursor:pointer;">
+            <i class="fas fa-image"></i> اسحب صورة الخلفية
+            <input type="file" id="pricing_bgUpload" accept="image/*" style="display:none;">
+          </div>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+            <i class="fas fa-sun"></i>
+            <input type="range" id="pricing_bgOpacity" min="0" max="1" step="0.05" value="1" style="flex:1;">
+            <span id="pricing_opacityVal">100%</span>
+          </div>
+        </div>
+
+        <!-- إضافة المنتجات -->
+        <div class="pricing-g-card">
+          <div class="toggle-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <label class="toggle-item"><input type="checkbox" id="pricing_useList"><span><i class="fas fa-list"></i> القائمة</span></label>
+            <label class="toggle-item"><input type="checkbox" id="pricing_syncQty" checked><span><i class="fas fa-cubes"></i> كمية موحدة</span></label>
+            <label class="toggle-item"><input type="checkbox" id="pricing_syncPriceInp"><span><i class="fas fa-tag"></i> سعر موحد</span></label>
+            <label class="toggle-item"><input type="checkbox" id="pricing_syncOldInp"><span><i class="fas fa-percent"></i> بدل موحد</span></label>
+          </div>
+          <div id="pricing_searchArea" style="max-height:250px; overflow-y:auto;"></div>
+          <div id="pricing_listSection" style="display:none; margin-top:8px;">
+            <textarea id="pricing_listText" rows="3" placeholder="أدخل الأكواد (كود في كل سطر)" style="width:100%;"></textarea>
+            <button class="btn btn-primary" onclick="PricingModule.startScanner('list')" style="margin-top:6px;"><i class="fas fa-camera"></i> مسح باركود</button>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:8px;">
+            <div id="pricing_qtyBox"><input type="number" id="pricing_globalQty" value="1" placeholder="كمية"></div>
+            <div id="pricing_priceBox" class="price-field" style="display:none;"><input type="number" id="pricing_globalPrice" placeholder="سعر"></div>
+            <div id="pricing_oldBox" class="price-field" style="display:none;"><input type="text" id="pricing_globalOld" value="25%" placeholder="بدل"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== تبويب التصميم ========== -->
+      <div class="pricing-tab-pane" id="pricing_tab-design" style="display:none;">
+        <div class="pricing-g-card">
+          <label>الاتجاه</label>
+          <select id="pricing_orientation" style="margin-bottom:10px;">
+            <option value="landscape">عرضي (Landscape)</option>
+            <option value="portrait">طولي (Portrait)</option>
+          </select>
+          <label>تخطيط الصفحة</label>
+          <select id="pricing_layout">
+            <option value="1">1 بطاقة</option><option value="2">2 بطاقات</option><option value="4" selected>4 بطاقات</option>
+            <option value="6">6 بطاقات</option><option value="10">10 بطاقات</option>
+          </select>
+        </div>
+
+        <div class="pricing-g-card">
+          <label>سُمك الإطار</label>
+          <input type="number" id="pricing_cardBorderWidth" value="2" min="0" max="20">
+          <label style="margin-top:8px;">لون الإطار</label>
+          <input type="color" id="pricing_cardBorderColor" value="#bbbbbb">
+          <div style="text-align:center; margin-top:6px;">
+            <label>معاينة</label>
+            <span id="pricing_borderPreview" style="display:inline-block;width:40px;height:24px;border:2px solid #bbb;border-radius:4px;background:rgba(0,0,0,0.2);"></span>
+          </div>
+        </div>
+
+        <div class="pricing-g-card">
+          <label>قالب الكارت</label>
+          <div class="tpl-grid" style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:8px;">
+            <div class="tpl-card active" data-tpl="normal" onclick="PricingModule.setTemplate('normal')">عادي</div>
+            <div class="tpl-card" data-tpl="discount" onclick="PricingModule.setTemplate('discount')">تخفيض</div>
+            <div class="tpl-card" data-tpl="wholesale" onclick="PricingModule.setTemplate('wholesale')">جملة</div>
+          </div>
+        </div>
+
+        <div class="pricing-g-card">
+          <label>المسافات</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div><label style="font-size:10px;">تباعد الأسطر</label><input type="number" id="pricing_lineHeight" value="1.1" step="0.05"></div>
+            <div><label style="font-size:10px;">تباعد الكلمات</label><input type="number" id="pricing_wordSpacing" value="0" step="1"></div>
+            <div><label style="font-size:10px;">مسافة السعر</label><input type="number" id="pricing_priceGap" value="8" step="1"></div>
+          </div>
+        </div>
+
+        <div class="pricing-g-card">
+          <label>العنوان العلوي</label>
+          <input type="text" id="pricing_topText" value="عرض خاص">
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <label><input type="checkbox" id="pricing_showTop" checked> إظهار العنوان</label>
+            <label><input type="checkbox" id="pricing_showQty" checked> إظهار الكمية</label>
+            <label><input type="checkbox" id="pricing_showOld" checked> إظهار البدل</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== تبويب الخطوط ========== -->
+      <div class="pricing-tab-pane" id="pricing_tab-fonts" style="display:none;">
+        <div class="pricing-g-card">
+          <label>نوع الخط</label>
+          <select id="pricing_fontFamily">
+            <option value="'Cairo', sans-serif">كايرو (عصري)</option>
+            <option value="'Almarai', sans-serif">المراعي (ناعم)</option>
+            <option value="'Tajawal', sans-serif">تجول (تقني)</option>
+            <option value="Arial, sans-serif">Arial</option>
+          </select>
+        </div>
+        <div class="pricing-g-card">
+          <div id="pricing_fontControls" style="display:grid; gap:8px;"></div>
+        </div>
+      </div>
+
+      <!-- ========== تبويب القواعد ========== -->
+      <div class="pricing-tab-pane" id="pricing_tab-rules" style="display:none;">
+        <div class="pricing-g-card">
+          <div id="pricing_rulesListSidebar"></div>
+          <button class="btn btn-primary" onclick="PricingModule.openRulesModal()" style="width:100%; margin-top:8px;">⚙️ إدارة القواعد</button>
+        </div>
+      </div>
+
+      <!-- أزرار الإجراءات -->
+      <button class="btn btn-accent" onclick="PricingModule.printNow()" style="width:100%; margin-bottom:8px;"><i class="fas fa-print"></i> طباعة الآن</button>
+      <button class="btn btn-danger" onclick="PricingModule.exportPDF()" style="width:100%; margin-bottom:8px;"><i class="fas fa-file-pdf"></i> تحميل PDF</button>
+      <button class="btn btn-purple" onclick="PricingModule.autoDesign()" style="width:100%; margin-bottom:8px;"><i class="fas fa-magic"></i> تحسين تلقائي</button>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <button class="btn btn-outline" onclick="PricingModule.openHistory()"><i class="fas fa-history"></i> السجل</button>
+        <button class="btn btn-outline" onclick="PricingModule.resetSettings()"><i class="fas fa-undo-alt"></i> إعادة ضبط</button>
+      </div>
+    </div>
+
+    <!-- منطقة المعاينة -->
+    <div class="pricing-preview" style="flex:2; background:#151929; border-radius:20px; padding:15px; overflow-y:auto;">
+      <div id="pricing_printArea" style="background:white; border-radius:12px; padding:20px; min-height:500px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال القواعد -->
+<div id="pricing_rulesModal" class="perm-modal" style="display:none;">
+  <div class="perm-box" style="max-width:500px;">
+    <h3>قواعد التسعير الذكي</h3>
+    <div id="pricing_rulesList"></div>
+    <button class="btn btn-primary" onclick="PricingModule.addRule()">➕ إضافة قاعدة</button>
+    <div class="perm-actions" style="margin-top:15px;">
+      <button onclick="PricingModule.closeRulesModal()">إغلاق</button>
+    </div>
+  </div>
+</div>
+
+<!-- مودال السجل -->
+<div id="pricing_histModal" class="perm-modal" style="display:none;">
+  <div class="perm-box" style="max-width:600px;">
+    <h3>سجل الطباعة</h3>
+    <div id="pricing_histBody"></div>
+    <button class="btn btn-primary" onclick="PricingModule.closeHistory()">إغلاق</button>
+  </div>
+</div>
+
+<!-- عنصر الكاميرا المخفي -->
+<div id="pricing_reader" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#000; z-index:10000;">
+  <button style="position:absolute; top:20px; left:20px; background:red; color:white; border:none; border-radius:10px; padding:10px;" onclick="PricingModule.stopScanner()">✖ إغلاق</button>
+</div>
 
         <!-- ========================= تبويب الحضور (Attendance) ========================= -->
         <div id="tab-attendance" class="tab-content active">
@@ -1416,6 +1941,7 @@ style="width:100%;margin-top:8px">
                     <table><thead><tr>
 <th>الموظف</th>
 <th>الكود</th>
+<th>الوظيفة</th>
 <th>التاريخ</th>
 <th>الدخول</th>
 <th>الخروج</th>
@@ -1436,7 +1962,11 @@ style="width:100%;margin-top:8px">
                     <button class="btn-success btn-primary" onclick="exportInsideExcel()" style="display:flex; align-items:center; gap:6px;"><i class="fas fa-file-excel"></i> تصدير Excel</button>
                 </div>
                 <div class="table-container">
-                    <table><thead><tr><th>الموظف</th><th>الكود</th><th>وقت الدخول</th><th>مدة العمل</th></tr></thead><tbody id="insideEmployeesBody"></tbody></table>
+                    <table><thead><tr><th>الموظف</th>
+<th>الكود</th>
+<th>الوظيفة</th>
+<th>وقت الدخول</th>
+<th>مدة العمل</th></tr></thead><tbody id="insideEmployeesBody"></tbody></table>
                 </div>
             </div>
         </div>
@@ -1974,6 +2504,12 @@ oninput="UI.renderEmployees()">
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="vehicles" hidden><i class="fas fa-truck"></i><span>العربيات</span></label>
        
        <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="pricing" hidden>
+<i class="fas fa-tags"></i>
+<span>التسعيرات</span>
+</label>
+       
+       <label class="permission-card">
 <input type="checkbox" class="perm-checkbox" value="transfers" hidden>
 <i class="fas fa-right-left"></i>
 <span>التحويلات</span>
@@ -2112,6 +2648,10 @@ onclick="closeTransferEdit()">
         <label><input type="checkbox" value="attendance"> الحضور</label>
         <label><input type="checkbox" value="system"> النظام</label>
         <label><input type="checkbox" value="excel"> تصدير Excel</label>
+        <label>
+<input type="checkbox" value="pricing">
+التسعيرات
+</label>
         
         <label>
 <input type="checkbox" value="transfers">
@@ -2664,7 +3204,22 @@ document.getElementById("attCode").focus();
                 if (a.action === "CheckIn") rowsData.push({ code: a.code, name: a.name, date: a.date, checkIn: a, checkOut: null });
                 if (a.action === "CheckOut") { let open = rowsData.slice().reverse().find(r => r.code === a.code && !r.checkOut); if (open) open.checkOut = a; }
             });
-            let rows = rowsData.map(r => ({ الموظف: r.name, الكود: r.code, التاريخ: r.date, الدخول: r.checkIn?.timeDisplay || "-", الخروج: r.checkOut?.timeDisplay || "-", ساعات_العمل: (r.checkIn && r.checkOut) ? TimeUtils.format(r.checkOut.timestamp - r.checkIn.timestamp) : "-" }));
+            let rows = rowsData.map(r => ({
+
+الموظف: r.name,
+الكود: r.code,
+الوظيفة: State.employees.find(e=>e.code==r.code)?.job || "-",
+التاريخ: r.date,
+
+الدخول: r.checkIn?.timeDisplay || "-",
+الخروج: r.checkOut?.timeDisplay || "-",
+
+ساعات_العمل:
+(r.checkIn && r.checkOut)
+? TimeUtils.format(r.checkOut.timestamp - r.checkIn.timestamp)
+: "-"
+
+}));
             let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "attendance"); XLSX.writeFile(wb, "attendance_report.xlsx");
         },
         render() {
@@ -2714,9 +3269,9 @@ a.code?.toString().includes(search)
                 let work = "-";
                 if (r.checkIn && r.checkOut) { let duration = r.checkOut.timestamp - r.checkIn.timestamp; work = TimeUtils.format(duration); if (!totals[r.name]) totals[r.name] = 0; totals[r.name] += duration; }
 html += `<tr>
-
 <td>${r.name}</td>
 <td>${r.code}</td>
+<td>${State.employees.find(e=>e.code==r.code)?.job || "-"}</td>
 <td>${r.date}</td>
 <td>${r.checkIn?.timeDisplay || "-"}</td>
 <td>${r.checkOut?.timeDisplay || "-"}</td>
@@ -4560,7 +5115,13 @@ document.getElementById("productsExpireSoon").innerText = soon
             let search = document.getElementById("insideSearch")?.value?.toLowerCase() || "";
             let inside = Object.values(lastActions).filter(a => a.action === "CheckIn" && (a.name?.toLowerCase().includes(search) || a.code?.toString().includes(search)));
             document.getElementById("insideCount").innerText = inside.length; document.getElementById("attCount").innerText = inside.length;
-            let html = ""; inside.sort((a, b) => b.timestamp - a.timestamp).forEach(a => { let duration = TimeUtils.now() - a.timestamp; html += `<tr><td>${a.name}</td><td>${a.code}</td><td>${a.timeDisplay}</td><td>${TimeUtils.format(duration)}</td></tr>`; });
+            let html = ""; inside.sort((a, b) => b.timestamp - a.timestamp).forEach(a => { let duration = TimeUtils.now() - a.timestamp; html += `<tr>
+<td>${a.name}</td>
+<td>${a.code}</td>
+<td>${State.employees.find(e=>e.code==a.code)?.job || "-"}</td>
+<td>${a.timeDisplay}</td>
+<td>${TimeUtils.format(duration)}</td>
+</tr>`; });
             body.innerHTML = html;
         },
         renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
@@ -4894,22 +5455,15 @@ let matchSearch =
 c.company?.toLowerCase().includes(search) ||
 c.person?.toLowerCase().includes(search) ||
 c.nationalId?.includes(search)
-
 return matchSearch
-
 })
-
 let html = ""
-
 filtered
 .sort((a,b)=> (b.timestamp || 0) - (a.timestamp || 0))
 .slice(0,50)
 .forEach(c=>{
-
 html += `
-
 <tr>
-
 <td>${c.company}</td>
 <td>${c.person}</td>
 <td>${c.nationalId}</td>
@@ -4918,7 +5472,6 @@ html += `
 <td>${c.timeOut || "-"}</td>
 <td>${c.date || "-"}</td>
 <td>${c.user || "-"}</td>
-
 <td>
 ${hasPermission("edit") || hasPermission("all") ? `
 <button class="btn-warning btn-primary"
@@ -4927,17 +5480,11 @@ onclick='openEditRecord("companies","${c.id}",${JSON.stringify(c)})'>
 </button>
 ` : ""}
 </td>
-
 </tr>
-
 `
-
 })
-
 body.innerHTML = html
-
 },
-        
         renderEmployees() {
             document.getElementById("empCount").innerText = State.employees.length;
             let body = document.getElementById("employeesBody"); if (!body) return;
@@ -4952,7 +5499,6 @@ totalBox.innerText = filtered.length;
         renderAttendance() { ReportService.render(); },
         renderUsers() {
 let permNames = {
-
 attendance: "الحضور",
 vehicles: "العربيات",
 penalties: "الجزاءات",
@@ -4966,7 +5512,6 @@ transfers: "التحويلات",
 excel: "تصدير Excel",
 edit: "التعديل",
 all: "كل الصلاحيات"
-
 };            let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
 ${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
 </div>`; return `<tr><td>${u.username}</td><td>${perms}</td><td><button class="btn-warning btn-primary" onclick="UserService.openPerms(State.users[${index}])">✏ تعديل</button></td><td><button class="btn-danger btn-primary" onclick="UserService.delete(${index})">🗑 حذف</button></td></tr>`; }).join("");
@@ -4974,67 +5519,48 @@ ${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</s
         },
         
         clearInputs(container){
-
 let box = document.querySelector(container)
-
 if(!box) return
-
 box.querySelectorAll("input, textarea, select")
 .forEach(el=>{
-
 if(el.type !== "button" && el.type !== "submit"){
-
 el.value = ""
-
 }
-
 })
-
 },
-        
         toast(msg, type = "success") { let icons = { success: "✔", error: "✖", warning: "⚠" }; let t = document.createElement("div"); t.className = "toast " + type; t.innerHTML = `<span style="font-size:18px">${icons[type] || ""}</span><span>${msg}</span>`; document.body.appendChild(t); setTimeout(() => t.classList.add("show"), 100); setTimeout(() => { t.classList.remove("show"); setTimeout(() => t.remove(), 400); }, 3000); }
     };
-
     // ========================= دالة تصدير الموظفين داخل العمل =========================
-    function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); let rows = inside.map(a => ({ الموظف: a.name, الكود: a.code, وقت_الدخول: a.timeDisplay, مدة_العمل: TimeUtils.format(TimeUtils.now() - a.timestamp) })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "inside"); XLSX.writeFile(wb, "inside_employees.xlsx"); }
-
+    function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); let rows = inside.map(a => ({
+الموظف: a.name,
+الكود: a.code,
+الوظيفة: State.employees.find(e=>e.code==a.code)?.job || "-",
+وقت_الدخول: a.timeDisplay,
+مدة_العمل: TimeUtils.format(TimeUtils.now() - a.timestamp)
+})); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "inside"); XLSX.writeFile(wb, "inside_employees.xlsx"); }
     // ========================= مستمعات الأحداث (Event Listeners) =========================
    document.getElementById("attCode").addEventListener("input", function() {
-
 let value = this.value.trim()
 let box = document.getElementById("empSuggestions")
-
 if (!value) {
 box.style.display = "none"
 return
 }
-
 let results = State.employees.filter(e =>
 e.code.includes(value) || e.name.includes(value)
 )
-
 let html = ""
-
 results.slice(0,5).forEach(emp => {
-
 html += `
 <div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)"
 onclick="selectEmployee('${emp.code}','${emp.name}')">
-
 ${emp.code} - ${emp.name}
-
 </div>
 `
-
 })
-
 box.innerHTML = html
 box.style.display = html ? "block" : "none"
-
 }) 
-    
-    
-    
     document.addEventListener("DOMContentLoaded", function() { 
         setInterval(() => UI.renderInsideEmployees(), 1000); 
         const confirmBtn = document.getElementById("confirmYes"); 
@@ -5047,41 +5573,50 @@ box.style.display = html ? "block" : "none"
     document.getElementById("vehicleSearch").addEventListener("input", () => UI.renderVehicles());
     document.getElementById("attendanceDate").value = new Date(TimeUtils.now()).toISOString().slice(0, 10);
     const togglePassword = document.getElementById("togglePassword"); if (togglePassword) togglePassword.onclick = function() { let pass = document.getElementById("password"); if (pass.type === "password") { pass.type = "text"; togglePassword.classList.remove("fa-eye"); togglePassword.classList.add("fa-eye-slash"); } else { pass.type = "password"; togglePassword.classList.remove("fa-eye-slash"); togglePassword.classList.add("fa-eye"); } };
-    document.querySelectorAll(".tab-btn").forEach(btn => { btn.onclick = () => { document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none"); document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active")); document.getElementById("tab-" + btn.dataset.tab).style.display = "block"; btn.classList.add("active"); }; });
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+
+btn.onclick = () => {
+
+document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none")
+document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"))
+
+let tab = btn.dataset.tab
+
+document.getElementById("tab-" + tab).style.display = "block"
+
+btn.classList.add("active")
+
+if(tab === "pricing" && window.PricingModule){
+
+setTimeout(()=>{
+PricingModule.render()
+},100)
+
+}
+
+}
+
+})
     document.querySelectorAll(".permission-card").forEach(card => { card.addEventListener("click", () => { let checkbox = card.querySelector("input"); checkbox.checked = !checkbox.checked
-
-
 card.classList.toggle("active"); if (checkbox.checked) card.classList.add("active"); else card.classList.remove("active"); }); });
     const selectAllCheck = document.getElementById("selectAllPerms"); if (selectAllCheck) selectAllCheck.addEventListener("change", () => { let all = selectAllCheck.checked; document.querySelectorAll(".perm-checkbox").forEach(cb => cb.checked = all); document.querySelectorAll(".permission-card").forEach(card => card.classList.toggle("active", all)); });
-
-
-
     // ========================= المزامنة المحسنة مع Firebase (Enhanced Firebase Sync) =========================
     const FirebaseSync = {
         init() {
-            
-       db.ref("transfers").on("value",snap=>{
-
+      db.ref("transfers").on("value",snap=>{
 let data = snap.val() || {}
-
 State.transfers = Object.keys(data).map(id=>({
-
 id,
 ...data[id]
-
 }))
-
 UI.renderTransfers()
-
 })     
-            
             db.ref("users").on("value", snap => {
                 const users = [];
                 snap.forEach(c => { users.push({ id: c.key, ...c.val() }); });
                 State.users = users;
                 State.isFirebaseLoaded = true;
                 UI.renderUsers();
-
                 if (!State.sessionRestored) {
                     AuthService.restoreSession();
                 } else if (State.currentUser) {
@@ -5097,7 +5632,6 @@ UI.renderTransfers()
                 console.error("Firebase Sync Error (Users):", error);
                 UI.toast("خطأ في مزامنة المستخدمين", "error");
             });
-
             const collections = [
                 { ref: "employees", stateKey: "employees", render: () => UI.renderEmployees() },
                 { ref: "attendance", stateKey: "attendance", render: () => { UI.renderAttendance(); UI.renderInsideEmployees(); ReportService.render(); updateAttendanceCounter(); } },
@@ -5108,9 +5642,7 @@ UI.renderTransfers()
                 { ref: "leaves", stateKey: "leaves", render: () => UI.renderLeaves() },
                 { ref: "products", stateKey: "products", render: () => { UI.renderProducts(); document.getElementById("productsCount").innerText = State.products.length; } }
             ];
-            
             setTimeout(()=>BreakService.fixBreakDurations(),2000)
-            
             collections.forEach(col => {
                 db.ref(col.ref).on("value", snap => {
                     const data = [];
@@ -5123,34 +5655,853 @@ UI.renderTransfers()
     };
     // ========================= إخفاء شاشة التحميل =========================
     window.addEventListener("load", () => { setTimeout(() => { document.getElementById("welcomeOverlay").style.display = "none"; }, 1000); });
-    
-    
     /* =========================
    THEME TOGGLE
 ========================= */
-
 const themeBtn = document.getElementById("themeToggle")
-
 if(themeBtn){
-
 themeBtn.onclick = function(){
-
 document.body.classList.toggle("light-mode")
-
 if(document.body.classList.contains("light-mode")){
-
 themeBtn.innerText = "☀"
-
 }else{
-
 themeBtn.innerText = "🌙"
-
-}
-
-}
-
-}
+}}}
+// ============================================================
+// نظام التسعيرات المتكامل (Pricing Module) - مطابق لـ index2 مع تحسينات
+// ============================================================
+window.PricingModule = (function() {
+  // ---------- البيانات الداخلية ----------
+  let products = [];
+  let singleEntries = {};
+  let pricingRules = [];
+  let currentTemplate = 'normal';
+  let bgImg = '';
+  let isLocked = true;
+  let html5Scanner = null;
+  
+  let fontSizeState = { Top:35, Name:55, Price:150, Curr:50, QtyNum:45, Label:40, Old:35 };
+  let fontColors = { Top:'#6366f1', Name:'#1e293b', Price:'#0f172a', Curr:'#334155', QtyNum:'#475569', Label:'#64748b', Old:'#ef4444' };
+  
+  let settings = {
+    cardBorderWidth: 2, cardBorderColor: '#bbbbbb',
+    lineHeight: 1.1, wordSpacing: 0, priceGap: 8,
+    fontFamily: "'Cairo', sans-serif",
+    topText: 'عرض خاص',
+    showTop: true, showQty: true, showOld: true
+  };
+  
+  let undoStack = [], redoStack = [];
+  const MAX_UNDO = 50;
+  let printArea, statusText;
+  
+  // ========== دوال مساعدة جديدة ==========
+  function toAr(n) {
+    if (n == null || n === '') return '';
+    return n.toString().replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+  }
+  function renderName(n) { return (n || '').toString(); }
+  function validateItem(price, qty, name) {
+    if (!name || name.trim() === '') { toast('❌ اسم الصنف فارغ', 'error'); return false; }
+    if (isNaN(price) || price < 0) { toast('❌ السعر يجب أن يكون ≥ 0', 'error'); return false; }
+    if (isNaN(qty) || qty < 1) { toast('❌ الكمية يجب أن تكون ≥ 1', 'error'); return false; }
+    return true;
+  }
+  function focusNextBarcodeInput(curIdx) {
+    const layout = parseInt(document.getElementById('pricing_layout')?.value || 4);
+    if (layout <= 1) return;
+    const next = curIdx + 1;
+    if (next >= layout) return;
+    const inputs = document.querySelectorAll('.pricing-barcode-input');
+    if (inputs[next]) { inputs[next].focus(); inputs[next].select(); }
+  }
+  function updatePrinterOrientation() {
+    const orient = document.getElementById('pricing_orientation')?.value || 'landscape';
+    let style = document.getElementById('pricing_printStyle');
+    if (!style) { style = document.createElement('style'); style.id = 'pricing_printStyle'; document.head.appendChild(style); }
+    style.innerHTML = `@page { size: A4 ${orient}; margin: 0 !important; }`;
+  }
+  function getRenderedItems() {
+    if (document.getElementById('pricing_useList')?.checked) {
+      const lines = document.getElementById('pricing_listText')?.value.split('\n').map(l=>l.trim()).filter(Boolean) || [];
+      return lines.map(line => {
+        const prod = products.find(p => String(p['Item number']||p['item number']||'').trim() === line || String(p['Barcode']||p['barcode']||'').trim() === line);
+        return prod ? { name: prod['Product name']||prod['Product Name']||'', price: parseFloat(prod['Price']||0), id: line } : null;
+      }).filter(Boolean);
+    }
+    return Object.values(singleEntries).filter(Boolean);
+  }
+  
+  // ========== دوال أساسية (موجودة سابقاً مع تعديلات) ==========
+  function toast(msg, type='success') {
+    let t = document.createElement('div');
+    t.className = 'toast ' + type;
+    let icon = type==='success'?'fa-check-circle':type==='error'?'fa-times-circle':'fa-exclamation-triangle';
+    t.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+    document.body.appendChild(t);
+    setTimeout(()=>t.classList.add('show'), 10);
+    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, 3000);
+  }
+  function showLoading(show) { let overlay = document.getElementById('pricing_loadingOverlay'); if(overlay) overlay.style.display = show ? 'flex' : 'none'; }
+  function debounce(fn, ms) { let timer; return (...args)=>{ clearTimeout(timer); timer = setTimeout(()=>fn(...args), ms); }; }
+  const debouncedRender = debounce(render, 160);
+  const debouncedSave = debounce(saveSettings, 400);
+  function snapshotState() { return JSON.stringify({ singleEntries, fontSizeState }); }
+  function pushUndo() { undoStack.push(snapshotState()); if(undoStack.length > MAX_UNDO) undoStack.shift(); redoStack.length = 0; }
+  function undo() { if(!undoStack.length) { toast('⚠️ لا يوجد تراجع', 'warn'); return; } redoStack.push(snapshotState()); let prev = JSON.parse(undoStack.pop()); singleEntries = prev.singleEntries || {}; fontSizeState = prev.fontSizeState || {}; syncFontStateToInputs(); render(); toast('↩️ تم التراجع', 'info'); }
+  function redo() { if(!redoStack.length) { toast('⚠️ لا يوجد إعادة', 'warn'); return; } undoStack.push(snapshotState()); let next = JSON.parse(redoStack.pop()); singleEntries = next.singleEntries || {}; fontSizeState = next.fontSizeState || {}; syncFontStateToInputs(); render(); toast('↪️ تم الإعادة', 'info'); }
+  function syncFontStateToInputs() { for(let key in fontSizeState) { let inp = document.getElementById(`pricing_s${key}`); if(inp) inp.value = fontSizeState[key]; let col = document.getElementById(`pricing_c${key}`); if(col && fontColors[key]) col.value = fontColors[key]; } }
+  
+  // رفع Excel
+  function loadExcel(file) {
+    showLoading(true);
+    let reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        let wb = XLSX.read(e.target.result, {type:'array'});
+        let sheet = wb.Sheets[wb.SheetNames[0]];
+        let data = XLSX.utils.sheet_to_json(sheet);
+        if(!data.length) { toast('⚠️ الملف فارغ', 'error'); showLoading(false); return; }
+        if(!data[0]['Product name'] && !data[0]['Product Name']) { toast('❌ الملف لا يحتوي على عمود Product name', 'error'); showLoading(false); return; }
+        products = data;
+        if(statusText) statusText.innerHTML = `<i class="fas fa-check-circle"></i> تم تحميل ${products.length} صنف`;
+        toast(`✅ تم تحميل ${products.length} منتج`);
+        render();
+      } catch(err) { toast('❌ خطأ في قراءة الملف', 'error'); }
+      showLoading(false);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+  function loadBg(file) { let reader = new FileReader(); reader.onload = e => { bgImg = e.target.result; render(); toast('🖼️ تم تغيير الخلفية'); }; reader.readAsDataURL(file); }
+  
+  // واجهة الإدخال
+  function updateUI() {
+    let useList = document.getElementById('pricing_useList')?.checked || false;
+    let syncQty = document.getElementById('pricing_syncQty')?.checked || false;
+    let syncPrice = document.getElementById('pricing_syncPriceInp')?.checked || false;
+    let syncOld = document.getElementById('pricing_syncOldInp')?.checked || false;
+    let layout = parseInt(document.getElementById('pricing_layout')?.value || 4);
+    let listSec = document.getElementById('pricing_listSection');
+    if(listSec) listSec.style.display = useList ? 'block' : 'none';
+    let qtyBox = document.getElementById('pricing_qtyBox');
+    if(qtyBox) qtyBox.style.display = syncQty ? 'block' : 'none';
+    let priceBox = document.getElementById('pricing_priceBox');
+    if(priceBox) priceBox.style.display = syncPrice ? 'block' : 'none';
+    let oldBox = document.getElementById('pricing_oldBox');
+    if(oldBox) oldBox.style.display = syncOld ? 'block' : 'none';
+    let area = document.getElementById('pricing_searchArea');
+    if(!area) return;
+    area.innerHTML = '';
+    if(!useList) {
+      for(let i=0; i<layout; i++) {
+        let entry = singleEntries[i] || {};
+        let div = document.createElement('div');
+        div.style.cssText = 'border-bottom:1px solid rgba(255,255,255,0.05); padding:8px 0;';
+        div.innerHTML = `
+          <div style="position:relative;">
+            <input type="text" class="pricing-barcode-input" data-idx="${i}" placeholder="باركود الصنف ${i+1}" value="${entry.id||''}" style="padding-left:32px; width:100%;">
+            <button onclick="PricingModule.startScanner(${i})" style="position:absolute; left:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:#818cf8;"><i class="fas fa-camera"></i></button>
+          </div>
+          <div style="display:flex; gap:4px; margin-top:4px;">
+            ${!syncQty ? `<input type="number" placeholder="كمية" value="${entry.qty||1}" min="1" style="flex:1;" oninput="PricingModule.updateItemQty(${i}, this.value)">` : ''}
+            ${!syncPrice ? `<input type="number" placeholder="سعر" value="${entry.manualPrice||''}" min="0" style="flex:1;" oninput="PricingModule.updateItemPrice(${i}, this.value)">` : ''}
+            ${!syncOld ? `<input type="text" placeholder="بدل" value="${entry.manualOld||''}" style="flex:1;" oninput="PricingModule.updateItemOld(${i}, this.value)">` : ''}
+          </div>
+        `;
+        area.appendChild(div);
+      }
+      document.querySelectorAll('.pricing-barcode-input').forEach(inp => {
+        inp.removeEventListener('input', barcodeHandler);
+        inp.addEventListener('input', barcodeHandler);
+      });
+    }
+    debouncedSave(); render();
+  }
+  
+  function barcodeHandler(e) {
+    let idx = parseInt(this.dataset.idx);
+    let val = this.value.trim();
+    if(!val) { delete singleEntries[idx]; render(); return; }
+    let product = products.find(p => String(p['Item number']||p['item number']||'').trim() === val || String(p['Barcode']||p['barcode']||'').trim() === val);
+    if(product) {
+      let name = product['Product name'] || product['Product Name'] || '';
+      let price = parseFloat(product['Price'] || 0);
+      let qty = parseFloat(product['Quantity'] || 1);
+      if(!validateItem(price, qty, name)) return;
+      pushUndo();
+      singleEntries[idx] = { id:val, name, price, qty, manualPrice:price, manualOld:'', raw:product };
+      render();
+      focusNextBarcodeInput(idx);
+    } else {
+      toast('⚠️ كود غير موجود', 'warn');
+    }
+  }
+  
+  function updateItemQty(idx, val) { if(!singleEntries[idx]) singleEntries[idx] = {}; singleEntries[idx].qty = Math.max(1, parseFloat(val)||1); debouncedRender(); }
+  function updateItemPrice(idx, val) { if(!singleEntries[idx]) singleEntries[idx] = {}; singleEntries[idx].manualPrice = parseFloat(val)||0; debouncedRender(); }
+  function updateItemOld(idx, val) { if(!singleEntries[idx]) singleEntries[idx] = {}; singleEntries[idx].manualOld = val; debouncedRender(); }
+  
+  // قواعد التسعير
+  function applyPricingRules(basePrice, qty) {
+    let price = basePrice;
+    let sorted = [...pricingRules].sort((a,b)=> (a.priority||0)-(b.priority||0));
+    for(let rule of sorted) {
+      let th = parseFloat(rule.threshold), val = parseFloat(rule.value);
+      let met = false;
+      if(rule.type === 'qty_gte' && qty >= th) met = true;
+      else if(rule.type === 'price_gt' && price > th) met = true;
+      else if(rule.type === 'price_lte' && price <= th) met = true;
+      if(met) {
+        if(rule.effect === 'discount') price *= (1 - val/100);
+        else if(rule.effect === 'markup') price *= (1 + val/100);
+        else if(rule.effect === 'fixed_add') price += val;
+      }
+    }
+    return Math.round(price);
+  }
+  
+  // الرسم الأساسي (مع تحسينات toAr و renderName)
+  function render() {
+    if(!printArea) printArea = document.getElementById('pricing_printArea');
+    if(!printArea) return;
+    let layout = parseInt(document.getElementById('pricing_layout')?.value || 4);
+    let orient = document.getElementById('pricing_orientation')?.value || 'landscape';
+    let useList = document.getElementById('pricing_useList')?.checked || false;
+    let syncQty = document.getElementById('pricing_syncQty')?.checked || false;
+    let syncPrice = document.getElementById('pricing_syncPriceInp')?.checked || false;
+    let syncOld = document.getElementById('pricing_syncOldInp')?.checked || false;
+    let gQty = parseFloat(document.getElementById('pricing_globalQty')?.value) || 1;
+    let gPrice = parseFloat(document.getElementById('pricing_globalPrice')?.value) || 0;
+    let gOld = document.getElementById('pricing_globalOld')?.value || '25%';
+    let bgOp = document.getElementById('pricing_bgOpacity')?.value || 1;
+    let borderWidth = settings.cardBorderWidth;
+    let borderColor = settings.cardBorderColor;
+    let lh = settings.lineHeight;
+    let ws = settings.wordSpacing;
+    let pg = settings.priceGap;
+    let ff = settings.fontFamily;
+    let topText = settings.topText;
+    let showTop = settings.showTop;
+    let showQty = settings.showQty;
+    let showOld = settings.showOld;
+    let tplCls = currentTemplate !== 'normal' ? `tpl-${currentTemplate}` : '';
     
+    let items = [];
+    if(useList) {
+      let lines = document.getElementById('pricing_listText')?.value.split('\n').map(l=>l.trim()).filter(Boolean) || [];
+      lines.forEach(line => {
+        let prod = products.find(p => String(p['Item number']||p['item number']||'').trim() === line || String(p['Barcode']||p['barcode']||'').trim() === line);
+        if(prod) items.push({
+          id: line, name: prod['Product name'] || prod['Product Name'] || '',
+          price: parseFloat(prod['Price']||0), qty: parseFloat(prod['Quantity']||1),
+          manualPrice: parseFloat(prod['Price']||0), manualOld: '', raw: prod
+        });
+      });
+    } else {
+      for(let i=0; i<layout; i++) items.push(singleEntries[i] || null);
+    }
+    
+    const scaleMap = {1:1,2:0.75,4:0.55,6:0.45,10:0.35};
+    let baseScale = scaleMap[layout] || 0.55;
+    
+    function getFontSize(scale) {
+      return {
+        sTop: Math.round((fontSizeState.Top||35)*scale),
+        sName: Math.round((fontSizeState.Name||55)*scale),
+        sPrice: Math.round((fontSizeState.Price||150)*scale),
+        sCurr: Math.round((fontSizeState.Curr||50)*scale),
+        sQtyNum: Math.round((fontSizeState.QtyNum||45)*scale),
+        sLabel: Math.round((fontSizeState.Label||40)*scale),
+        sOld: Math.round((fontSizeState.Old||35)*scale),
+        cTop: fontColors.Top || '#6366f1',
+        cName: fontColors.Name || '#1e293b',
+        cPrice: fontColors.Price || '#0f172a',
+        cCurr: fontColors.Curr || '#334155',
+        cQtyNum: fontColors.QtyNum || '#475569',
+        cLabel: fontColors.Label || '#64748b',
+        cOld: fontColors.Old || '#ef4444'
+      };
+    }
+    let fs = getFontSize(baseScale);
+    
+    // تحديث معاينة الإطار إذا وجدت
+    let prev = document.getElementById('pricing_borderPreview');
+    if(prev) prev.style.border = borderWidth>0 ? `${borderWidth}px solid ${borderColor}` : '1px dashed #bbb';
+    
+    let frag = document.createDocumentFragment();
+    for(let i=0; i<Math.max(items.length, layout); i+=layout) {
+      let page = document.createElement('div');
+      page.className = `page ${orient} ${tplCls}`;
+      page.style.display = 'grid';
+      if(layout===1) page.style.gridTemplateColumns = '1fr';
+      else if(layout===2) page.style.gridTemplateColumns = orient==='portrait'?'1fr':'1fr 1fr';
+      else if(layout===4) page.style.gridTemplateColumns = '1fr 1fr';
+      else if(layout===6) page.style.gridTemplateColumns = '1fr 1fr 1fr';
+      else if(layout===10) page.style.gridTemplateColumns = 'repeat(5,1fr)';
+      
+      for(let j=0; j<layout; j++) {
+        let p = items[i+j];
+        let card = document.createElement('div');
+        card.className = 'card';
+        card.style.border = borderWidth>0 ? `${borderWidth}px solid ${borderColor}` : 'none';
+        card.style.fontFamily = ff;
+        if(bgImg) {
+          let bg = document.createElement('div');
+          bg.style.cssText = `position:absolute; inset:0; background-image:url(${bgImg}); background-size:cover; opacity:${bgOp}; z-index:1;`;
+          card.appendChild(bg);
+        }
+        if(!p) { page.appendChild(card); continue; }
+        let qty = syncQty ? gQty : (p.qty||1);
+        let basePrice = syncPrice ? gPrice : (p.manualPrice??p.price);
+        let price = applyPricingRules(Math.round(basePrice * qty), qty);
+        let oldRaw = syncOld ? gOld : (p.manualOld||'25%');
+        let oldP = oldRaw.includes('%') ? Math.round(price*(1+parseFloat(oldRaw)/100)) : parseFloat(oldRaw);
+        if(oldP < price+2) oldP = price+2;
+        
+        let content = document.createElement('div');
+        content.className = 'card-content';
+        content.style.cssText = `line-height:${lh}; word-spacing:${ws}px; display:flex; flex-direction:column; align-items:center; gap:6px;`;
+        if(showTop) {
+          let topDiv = document.createElement('div');
+          topDiv.className = 'resizable-el';
+          topDiv.dataset.key = 'Top';
+          topDiv.style.cssText = `font-size:${fs.sTop}px; color:${fs.cTop}; font-weight:800;`;
+          topDiv.textContent = topText;
+          content.appendChild(topDiv);
+        }
+        let nameDiv = document.createElement('div');
+        nameDiv.className = 'resizable-el';
+        nameDiv.dataset.key = 'Name';
+        nameDiv.style.cssText = `font-size:${fs.sName}px; color:${fs.cName}; font-weight:700;`;
+        nameDiv.textContent = renderName(p.name);
+        content.appendChild(nameDiv);
+        
+        let priceRow = document.createElement('div');
+        priceRow.style.cssText = `display:flex; align-items:center; gap:${pg}px; flex-wrap:wrap; justify-content:center;`;
+        if(showQty) {
+          let qtySpan = document.createElement('span');
+          qtySpan.className = 'resizable-el';
+          qtySpan.dataset.key = 'QtyNum';
+          qtySpan.style.cssText = `font-size:${fs.sQtyNum}px; color:${fs.cQtyNum}; font-weight:800;`;
+          qtySpan.textContent = toAr(qty);
+          priceRow.appendChild(qtySpan);
+          let labelSpan = document.createElement('span');
+          labelSpan.className = 'resizable-el';
+          labelSpan.dataset.key = 'Label';
+          labelSpan.style.cssText = `font-size:${fs.sLabel}px; color:${fs.cLabel};`;
+          labelSpan.textContent = 'بـ';
+          priceRow.appendChild(labelSpan);
+        }
+        let priceSpan = document.createElement('span');
+        priceSpan.className = 'resizable-el';
+        priceSpan.dataset.key = 'Price';
+        priceSpan.style.cssText = `font-size:${fs.sPrice}px; color:${fs.cPrice}; font-weight:900;`;
+        priceSpan.textContent = toAr(price);
+        priceRow.appendChild(priceSpan);
+        let currSpan = document.createElement('span');
+        currSpan.className = 'resizable-el';
+        currSpan.dataset.key = 'Curr';
+        currSpan.style.cssText = `font-size:${fs.sCurr}px; color:${fs.cCurr};`;
+        currSpan.textContent = 'جـ';
+        priceRow.appendChild(currSpan);
+        if(showOld) {
+          let oldSpan = document.createElement('span');
+          oldSpan.className = 'resizable-el';
+          oldSpan.dataset.key = 'Old';
+          oldSpan.style.cssText = `font-size:${fs.sOld}px; color:${fs.cOld}; text-decoration:line-through;`;
+          oldSpan.textContent = `بدل ${toAr(oldP)}`;
+          priceRow.appendChild(oldSpan);
+        }
+        content.appendChild(priceRow);
+        card.appendChild(content);
+        page.appendChild(card);
+      }
+      frag.appendChild(page);
+    }
+    printArea.innerHTML = '';
+    printArea.appendChild(frag);
+    attachResizeEvents();
+  }
+  
+  // السحب لتغيير الحجم
+  function attachResizeEvents() {
+    document.querySelectorAll('#pricing_printArea .resizable-el').forEach(el => {
+      let fresh = el.cloneNode(true);
+      el.parentNode.replaceChild(fresh, el);
+      fresh.addEventListener('mousedown', onResizeStart);
+    });
+  }
+  function onResizeStart(e) {
+    e.preventDefault();
+    let el = e.currentTarget;
+    let key = el.dataset.key;
+    let layout = parseInt(document.getElementById('pricing_layout')?.value || 4);
+    let scaleMap = {1:1,2:0.75,4:0.55,6:0.45,10:0.35};
+    let scale = scaleMap[layout] || 0.55;
+    let startY = e.clientY;
+    let startPx = parseFloat(el.style.fontSize) || (fontSizeState[key]||40)*scale;
+    el.classList.add('resizing-active');
+    let onMove = (ev) => {
+      let delta = (startY - ev.clientY) * 0.6;
+      let newPx = Math.max(8, Math.min(400, startPx + delta));
+      el.style.fontSize = newPx + 'px';
+      document.querySelectorAll(`#pricing_printArea .resizable-el[data-key="${key}"]`).forEach(s => s.style.fontSize = newPx + 'px');
+    };
+    let onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      el.classList.remove('resizing-active');
+      let finalPx = parseFloat(el.style.fontSize) || startPx;
+      let newBase = Math.round(finalPx / scale);
+      fontSizeState[key] = newBase;
+      let inp = document.getElementById(`pricing_s${key}`);
+      if(inp) inp.value = newBase;
+      saveSettings();
+      toast(`حجم ${key}: ${newBase}px`, 'info');
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+  
+  // ماسح الباركود
+  function startScanner(targetIdx) {
+    let readerDiv = document.getElementById('pricing_reader');
+    readerDiv.style.display = 'block';
+    html5Scanner = new Html5Qrcode('pricing_reader');
+    html5Scanner.start({facingMode:'environment'}, {fps:10,qrbox:250}, (code)=>{
+      beep();
+      if(targetIdx === 'list') {
+        let ta = document.getElementById('pricing_listText');
+        let lines = ta.value.split('\n').map(l=>l.trim()).filter(Boolean);
+        if(!lines.includes(code)) ta.value += (ta.value?'\n':'') + code;
+        debouncedRender();
+      } else {
+        let inputs = document.querySelectorAll('.pricing-barcode-input');
+        if(inputs[targetIdx]) {
+          inputs[targetIdx].value = code;
+          let event = new Event('input', {bubbles:true});
+          inputs[targetIdx].dispatchEvent(event);
+        }
+      }
+      stopScanner();
+      toast('✅ تم مسح الباركود');
+    }).catch(()=>{ toast('❌ خطأ في الكاميرا', 'error'); stopScanner(); });
+  }
+  function stopScanner() { if(html5Scanner) { html5Scanner.stop().catch(()=>{}); html5Scanner = null; } document.getElementById('pricing_reader').style.display = 'none'; }
+  function beep() {
+    try{
+      let c = new (window.AudioContext || window.webkitAudioContext)();
+      let o = c.createOscillator(), g = c.createGain();
+      o.connect(g); g.connect(c.destination);
+      o.frequency.value = 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.3, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+0.15);
+      o.start(c.currentTime); o.stop(c.currentTime+0.15);
+    }catch(e){}
+  }
+  
+  // القوالب
+  function setTemplate(tpl) { currentTemplate = tpl; document.querySelectorAll('.tpl-card').forEach(c=>c.classList.toggle('active', c.dataset.tpl===tpl)); render(); saveSettings(); }
+  
+  // الطباعة و PDF
+  function saveToHistory() {
+    let items = [];
+    if(document.getElementById('pricing_useList')?.checked) {
+      let lines = document.getElementById('pricing_listText')?.value.split('\n').filter(l=>l.trim()) || [];
+      items = lines;
+    } else {
+      items = Object.values(singleEntries).map(e=>e.id).filter(Boolean);
+    }
+    if(!items.length) return;
+    let hist = JSON.parse(localStorage.getItem('pricing_history')||'[]');
+    hist.unshift({
+      id: Date.now(), date: new Date().toLocaleString('ar-EG'),
+      count: items.length, codes: items, names: items.slice(0,4),
+      layout: document.getElementById('pricing_layout')?.value || '4',
+      orient: document.getElementById('pricing_orientation')?.value || 'landscape'
+    });
+    if(hist.length>50) hist.pop();
+    localStorage.setItem('pricing_history', JSON.stringify(hist));
+  }
+  function printNow() {
+    let allItems = getRenderedItems().map(item => item.id).filter(Boolean);
+    if(allItems.length) saveToHistory();
+    window.print();
+    toast('🖨️ تم الإرسال للطباعة');
+  }
+  function exportPDF() {
+    let area = document.getElementById('pricing_printArea');
+    if(!area || !area.children.length) { toast('⚠️ لا توجد بيانات', 'warn'); return; }
+    let orient = document.getElementById('pricing_orientation')?.value || 'landscape';
+    html2pdf().set({
+      margin: 0, filename: 'pricing.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: orient === 'landscape' ? 'l' : 'p' }
+    }).from(area).save();
+    toast('📄 جاري إنشاء PDF');
+  }
+  
+  // التحسين التلقائي
+  function autoDesign() {
+    let items = getRenderedItems();
+    if(!items.length) { toast('⚠️ أضف منتجات أولاً', 'warn'); return; }
+    let avgNameLen = items.reduce((s,n)=>s+(n.name?.length||0),0)/(items.length||1);
+    let avgPrice = items.reduce((s,p)=>s+(p.price||0),0)/(items.length||1);
+    let layout = parseInt(document.getElementById('pricing_layout')?.value || 4);
+    let nS = avgNameLen>25?38:avgNameLen>18?46:avgNameLen>10?55:65;
+    let pS = avgPrice<15?190:avgPrice<50?165:avgPrice<200?145:120;
+    let lf = {1:1,2:0.9,4:0.82,6:0.65,10:0.5}[layout]||0.82;
+    nS = Math.round(nS*lf); pS = Math.round(pS*lf);
+    fontSizeState.Name = nS;
+    fontSizeState.Price = pS;
+    fontSizeState.Top = Math.round(32*lf);
+    fontSizeState.Old = Math.round(33*lf);
+    settings.lineHeight = layout>=4 ? 1.0 : 1.1;
+    settings.priceGap = layout>=4 ? 5 : 8;
+    let lineH = document.getElementById('pricing_lineHeight');
+    if(lineH) lineH.value = settings.lineHeight;
+    let priceG = document.getElementById('pricing_priceGap');
+    if(priceG) priceG.value = settings.priceGap;
+    render();
+    saveSettings();
+    toast('🤖 تم تحسين التصميم');
+  }
+  
+  // قواعد التسعير (واجهة)
+  function renderRulesList() {
+    let container = document.getElementById('pricing_rulesList');
+    let sidebar = document.getElementById('pricing_rulesListSidebar');
+    if(!container) return;
+    let html = !pricingRules.length ? '<p style="text-align:center;">لا توجد قواعد</p>' : pricingRules.map((r,i)=>`
+      <div class="rule-card" style="background:rgba(0,0,0,0.2); border-radius:8px; padding:8px; margin-bottom:8px;">
+        <button class="rule-del" onclick="PricingModule.removeRule(${i})" style="float:left; background:none; border:none; color:#ef4444; cursor:pointer;">✖</button>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+          <select onchange="PricingModule.updateRule(${i},'type',this.value)">
+            <option value="qty_gte" ${r.type==='qty_gte'?'selected':''}>كمية ≥</option>
+            <option value="price_gt" ${r.type==='price_gt'?'selected':''}>سعر ></option>
+            <option value="price_lte" ${r.type==='price_lte'?'selected':''}>سعر ≤</option>
+          </select>
+          <input type="number" value="${r.threshold||0}" onchange="PricingModule.updateRule(${i},'threshold',this.value)">
+          <select onchange="PricingModule.updateRule(${i},'effect',this.value)">
+            <option value="discount" ${r.effect==='discount'?'selected':''}>خصم %</option>
+            <option value="markup" ${r.effect==='markup'?'selected':''}>زيادة %</option>
+            <option value="fixed_add" ${r.effect==='fixed_add'?'selected':''}>إضافة ثابتة</option>
+          </select>
+        </div>
+        <input type="number" value="${r.value||0}" onchange="PricingModule.updateRule(${i},'value',this.value)" style="width:100%; margin-top:4px;">
+      </div>
+    `).join('');
+    container.innerHTML = html;
+    if(sidebar) sidebar.innerHTML = html;
+  }
+  function openRulesModal() { document.getElementById('pricing_rulesModal').style.display = 'flex'; renderRulesList(); }
+  function closeRulesModal() { document.getElementById('pricing_rulesModal').style.display = 'none'; }
+  function addRule() { pricingRules.push({ type:'qty_gte', threshold:3, effect:'discount', value:10, priority:pricingRules.length }); renderRulesList(); saveRules(); render(); }
+  function removeRule(idx) { pricingRules.splice(idx,1); pricingRules.forEach((r,i)=>r.priority=i); renderRulesList(); saveRules(); render(); }
+  function updateRule(idx, field, val) { pricingRules[idx][field] = (field==='type'||field==='effect') ? val : (parseFloat(val)||0); saveRules(); render(); }
+  function saveRules() { localStorage.setItem('pricing_rules', JSON.stringify(pricingRules)); }
+  function loadRules() { try{ let r = localStorage.getItem('pricing_rules'); if(r) pricingRules = JSON.parse(r); }catch(e){} }
+  
+  // سجل الطباعة
+  function openHistory() {
+    let modal = document.getElementById('pricing_histModal');
+    if(modal) modal.style.display = 'flex';
+    let hist = JSON.parse(localStorage.getItem('pricing_history')||'[]');
+    let body = document.getElementById('pricing_histBody');
+    if(!hist.length) body.innerHTML = '<p>لا يوجد سجل</p>';
+    else body.innerHTML = hist.map(h=>`<div style="border-bottom:1px solid #ccc; padding:8px;"><strong>${h.date}</strong> - ${h.count} صنف<br><small>${(h.names||[]).join(', ')}</small><br><button onclick="PricingModule.restoreHistory(${h.id})">استعادة</button> <button onclick="PricingModule.deleteHistory(${h.id})">حذف</button></div>`).join('');
+  }
+  function closeHistory() { document.getElementById('pricing_histModal').style.display = 'none'; }
+  function restoreHistory(id) {
+    let hist = JSON.parse(localStorage.getItem('pricing_history')||'[]');
+    let entry = hist.find(h=>h.id===id);
+    if(entry) {
+      document.getElementById('pricing_layout').value = entry.layout;
+      document.getElementById('pricing_orientation').value = entry.orient;
+      document.getElementById('pricing_listText').value = (entry.codes||[]).join('\n');
+      document.getElementById('pricing_useList').checked = true;
+      updateUI();
+      toast('✅ تم الاستعادة');
+    }
+  }
+  function deleteHistory(id) {
+    let hist = JSON.parse(localStorage.getItem('pricing_history')||'[]');
+    localStorage.setItem('pricing_history', JSON.stringify(hist.filter(h=>h.id!==id)));
+    openHistory();
+  }
+  
+  // إعادة الضبط
+  function resetSettings() {
+    if(confirm('⚠️ إعادة ضبط جميع الإعدادات؟ سيتم فقدان البيانات غير المحفوظة.')) {
+      localStorage.removeItem('pricing_v36_settings');
+      localStorage.removeItem('pricing_rules');
+      location.reload();
+    }
+  }
+  
+  // قفل الأسعار
+  function toggleLock() {
+    isLocked = !isLocked;
+    let btn = document.getElementById('pricing_lockToggle');
+    btn.innerHTML = isLocked ? '<i class="fas fa-lock"></i>' : '<i class="fas fa-lock-open"></i>';
+    btn.classList.toggle('unlocked', !isLocked);
+    document.body.classList.toggle('price-locked', isLocked);
+    saveSettings();
+    toast(isLocked ? '🔒 تم قفل الأسعار' : '🔓 تم فتح التعديل', 'warn');
+  }
+  
+  // بناء عناصر التحكم بالخطوط
+  function buildFontControls() {
+    let container = document.getElementById('pricing_fontControls');
+    if(!container) return;
+    let fontElements = ['Top','Name','Price','Curr','QtyNum','Label','Old'];
+    let labels = { Top:'العنوان', Name:'اسم الصنف', Price:'السعر', Curr:'العملة', QtyNum:'الكمية', Label:'بـ', Old:'البدل' };
+    container.innerHTML = '';
+    fontElements.forEach(key => {
+      let div = document.createElement('div');
+      div.className = 'font-row';
+      div.innerHTML = `
+        <label>${labels[key]}</label>
+        <input type="number" id="pricing_s${key}" value="${fontSizeState[key]||35}" style="width:70px;" oninput="PricingModule.updateFontSize('${key}', this.value)">
+        <input type="color" id="pricing_c${key}" value="${fontColors[key]||'#000000'}" oninput="PricingModule.updateFontColor('${key}', this.value)">
+      `;
+      container.appendChild(div);
+    });
+  }
+  function updateFontSize(key, val) { fontSizeState[key] = Math.max(8, Math.min(200, parseFloat(val)||35)); render(); saveSettings(); }
+  function updateFontColor(key, val) { fontColors[key] = val; render(); saveSettings(); }
+  
+  // حفظ واستعادة الإعدادات
+  function saveSettings() {
+    let s = {
+      layout: document.getElementById('pricing_layout')?.value || '4',
+      orientation: document.getElementById('pricing_orientation')?.value || 'landscape',
+      globalQty: document.getElementById('pricing_globalQty')?.value || '1',
+      template: currentTemplate,
+      fontSizeState: fontSizeState,
+      fontColors: fontColors,
+      cardBorderWidth: settings.cardBorderWidth,
+      cardBorderColor: settings.cardBorderColor,
+      lineHeight: settings.lineHeight,
+      wordSpacing: settings.wordSpacing,
+      priceGap: settings.priceGap,
+      fontFamily: settings.fontFamily,
+      topText: settings.topText,
+      showTop: settings.showTop,
+      showQty: settings.showQty,
+      showOld: settings.showOld,
+      isLocked: isLocked
+    };
+    localStorage.setItem('pricing_v36_settings', JSON.stringify(s));
+  }
+  function loadSettings() {
+    let s = localStorage.getItem('pricing_v36_settings');
+    if(!s) return;
+    try{
+      let data = JSON.parse(s);
+      if(data.layout) document.getElementById('pricing_layout').value = data.layout;
+      if(data.orientation) document.getElementById('pricing_orientation').value = data.orientation;
+      if(data.globalQty) document.getElementById('pricing_globalQty').value = data.globalQty;
+      if(data.template) currentTemplate = data.template;
+      if(data.fontSizeState) fontSizeState = data.fontSizeState;
+      if(data.fontColors) fontColors = data.fontColors;
+      if(data.cardBorderWidth !== undefined) settings.cardBorderWidth = data.cardBorderWidth;
+      if(data.cardBorderColor) settings.cardBorderColor = data.cardBorderColor;
+      if(data.lineHeight) settings.lineHeight = data.lineHeight;
+      if(data.wordSpacing !== undefined) settings.wordSpacing = data.wordSpacing;
+      if(data.priceGap) settings.priceGap = data.priceGap;
+      if(data.fontFamily) settings.fontFamily = data.fontFamily;
+      if(data.topText) settings.topText = data.topText;
+      if(data.showTop !== undefined) settings.showTop = data.showTop;
+      if(data.showQty !== undefined) settings.showQty = data.showQty;
+      if(data.showOld !== undefined) settings.showOld = data.showOld;
+      if(data.isLocked !== undefined) isLocked = data.isLocked;
+      
+      let lockBtn = document.getElementById('pricing_lockToggle');
+      if(lockBtn) {
+        lockBtn.innerHTML = isLocked ? '<i class="fas fa-lock"></i>' : '<i class="fas fa-lock-open"></i>';
+        lockBtn.classList.toggle('unlocked', !isLocked);
+        document.body.classList.toggle('price-locked', isLocked);
+      }
+      document.querySelectorAll('.tpl-card').forEach(card=>{ card.classList.toggle('active', card.dataset.tpl === currentTemplate); });
+      let lineH = document.getElementById('pricing_lineHeight'); if(lineH) lineH.value = settings.lineHeight;
+      let wordS = document.getElementById('pricing_wordSpacing'); if(wordS) wordS.value = settings.wordSpacing;
+      let priceG = document.getElementById('pricing_priceGap'); if(priceG) priceG.value = settings.priceGap;
+      let fontF = document.getElementById('pricing_fontFamily'); if(fontF) fontF.value = settings.fontFamily;
+      let topT = document.getElementById('pricing_topText'); if(topT) topT.value = settings.topText;
+      let showTopCh = document.getElementById('pricing_showTop'); if(showTopCh) showTopCh.checked = settings.showTop;
+      let showQtyCh = document.getElementById('pricing_showQty'); if(showQtyCh) showQtyCh.checked = settings.showQty;
+      let showOldCh = document.getElementById('pricing_showOld'); if(showOldCh) showOldCh.checked = settings.showOld;
+    }catch(e){}
+  }
+  
+  // ربط الأحداث
+  function bindEvents() {
+    let dropZone = document.getElementById('pricing_dropZone');
+    if(dropZone) {
+      dropZone.addEventListener('click', ()=> document.getElementById('pricing_fileInput').click());
+      ['dragenter','dragover'].forEach(ev=> dropZone.addEventListener(ev, e=>{ e.preventDefault(); dropZone.classList.add('drag-over'); }));
+      ['dragleave','drop'].forEach(ev=> dropZone.addEventListener(ev, e=>{ e.preventDefault(); dropZone.classList.remove('drag-over'); if(ev.type==='drop' && e.dataTransfer.files[0]) loadExcel(e.dataTransfer.files[0]); }));
+    }
+    document.getElementById('pricing_fileInput')?.addEventListener('change', e=>{ if(e.target.files[0]) loadExcel(e.target.files[0]); });
+    
+    let bgDrop = document.getElementById('pricing_bgDropZone');
+    if(bgDrop) {
+      bgDrop.addEventListener('click', ()=> document.getElementById('pricing_bgUpload').click());
+      ['dragenter','dragover'].forEach(ev=> bgDrop.addEventListener(ev, e=>{ e.preventDefault(); bgDrop.classList.add('drag-over'); }));
+      ['dragleave','drop'].forEach(ev=> bgDrop.addEventListener(ev, e=>{ e.preventDefault(); bgDrop.classList.remove('drag-over'); if(ev.type==='drop' && e.dataTransfer.files[0]) loadBg(e.dataTransfer.files[0]); }));
+    }
+    document.getElementById('pricing_bgUpload')?.addEventListener('change', e=>{ if(e.target.files[0]) loadBg(e.target.files[0]); });
+    
+    document.getElementById('pricing_useList')?.addEventListener('change', updateUI);
+    document.getElementById('pricing_syncQty')?.addEventListener('change', updateUI);
+    document.getElementById('pricing_syncPriceInp')?.addEventListener('change', updateUI);
+    document.getElementById('pricing_syncOldInp')?.addEventListener('change', updateUI);
+    document.getElementById('pricing_layout')?.addEventListener('change', ()=>{ updateUI(); render(); });
+    document.getElementById('pricing_orientation')?.addEventListener('change', () => { render(); updatePrinterOrientation(); saveSettings(); });
+    document.getElementById('pricing_globalQty')?.addEventListener('input', debouncedRender);
+    document.getElementById('pricing_globalPrice')?.addEventListener('input', debouncedRender);
+    document.getElementById('pricing_globalOld')?.addEventListener('input', debouncedRender);
+    document.getElementById('pricing_bgOpacity')?.addEventListener('input', (e)=>{ document.getElementById('pricing_opacityVal').innerText = Math.round(e.target.value*100)+'%'; render(); });
+    document.getElementById('pricing_cardBorderWidth')?.addEventListener('input', (e)=>{ settings.cardBorderWidth = parseInt(e.target.value)||0; render(); saveSettings(); });
+    document.getElementById('pricing_cardBorderColor')?.addEventListener('input', (e)=>{ settings.cardBorderColor = e.target.value; render(); saveSettings(); });
+    document.getElementById('pricing_lineHeight')?.addEventListener('input', (e)=>{ settings.lineHeight = parseFloat(e.target.value)||1.1; render(); saveSettings(); });
+    document.getElementById('pricing_wordSpacing')?.addEventListener('input', (e)=>{ settings.wordSpacing = parseFloat(e.target.value)||0; render(); saveSettings(); });
+    document.getElementById('pricing_priceGap')?.addEventListener('input', (e)=>{ settings.priceGap = parseFloat(e.target.value)||8; render(); saveSettings(); });
+    document.getElementById('pricing_fontFamily')?.addEventListener('change', (e)=>{ settings.fontFamily = e.target.value; render(); saveSettings(); });
+    document.getElementById('pricing_topText')?.addEventListener('input', (e)=>{ settings.topText = e.target.value; render(); saveSettings(); });
+    document.getElementById('pricing_showTop')?.addEventListener('change', (e)=>{ settings.showTop = e.target.checked; render(); saveSettings(); });
+    document.getElementById('pricing_showQty')?.addEventListener('change', (e)=>{ settings.showQty = e.target.checked; render(); saveSettings(); });
+    document.getElementById('pricing_showOld')?.addEventListener('change', (e)=>{ settings.showOld = e.target.checked; render(); saveSettings(); });
+    document.getElementById('pricing_lockToggle')?.addEventListener('click', toggleLock);
+    
+    document.querySelectorAll('.pricing-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        let tabId = btn.dataset.pricingTab;
+        document.querySelectorAll('.pricing-tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.pricing-tab-pane').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        let pane = document.getElementById(`pricing_tab-${tabId}`);
+        if(pane) pane.classList.add('active');
+      });
+    });
+  }
+  
+  // تهيئة
+  function init() {
+    statusText = document.getElementById('pricing_statusText');
+    printArea = document.getElementById('pricing_printArea');
+    loadRules();
+    loadSettings();
+    buildFontControls();
+    bindEvents();
+    updateUI();
+    render();
+    updatePrinterOrientation();
+    document.addEventListener('keydown', (e) => {
+      if(document.getElementById('tab-pricing').style.display !== 'block') return;
+      if(e.ctrlKey && e.key === 'd') { e.preventDefault(); duplicateLastItem(); }
+      if(e.key === 'F2') { e.preventDefault(); printNow(); }
+      if(e.key === 'F1') { e.preventDefault(); startScanner(0); }
+      if(e.ctrlKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); undo(); }
+      if(e.ctrlKey && (e.key === 'y' || e.key === 'Y')) { e.preventDefault(); redo(); }
+    });
+  }
+  
+  function duplicateLastItem() {
+    let layout = parseInt(document.getElementById('pricing_layout')?.value || 4);
+    let last = null;
+    for(let i=layout-1; i>=0; i--) if(singleEntries[i]) { last = singleEntries[i]; break; }
+    if(!last) { toast('⚠️ لا يوجد عنصر', 'warn'); return; }
+    for(let i=0; i<layout; i++) if(!singleEntries[i]) { pushUndo(); singleEntries[i] = {...last}; toast(`✅ تم تكرار: ${last.name}`, 'info'); render(); return; }
+    toast('⚠️ لا يوجد مكان', 'warn');
+  }
+  
+  // API عامة
+  return {
+    init,
+    undo, redo,
+    startScanner, stopScanner,
+    updateItemQty, updateItemPrice, updateItemOld,
+    setTemplate,
+    printNow, exportPDF,
+    autoDesign,
+    openRulesModal, closeRulesModal, addRule, removeRule, updateRule,
+    openHistory, closeHistory, restoreHistory, deleteHistory,
+    resetSettings,
+    updateFontSize, updateFontColor,
+    toggleLock
+  };
+})();
+
+// تشغيل نظام التسعيرات عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+  PricingModule.init();
+  const pricingTabBtn = document.querySelector('.tab-btn[data-tab="pricing"]');
+  if(pricingTabBtn) {
+    pricingTabBtn.addEventListener('click', () => {
+      setTimeout(() => {
+        if(document.getElementById('tab-pricing').style.display === 'block') {
+          PricingModule.render();
+        }
+      }, 50);
+    });
+  }
+});
+
+
+// إصلاح تبويبات التسعيرات الداخلية (البيانات، التصميم، الخطوط، القواعد)
+document.addEventListener('DOMContentLoaded', function() {
+  // ننتظر قليلاً لضمان تحميل PricingModule
+  setTimeout(function() {
+    const tabBtns = document.querySelectorAll('#tab-pricing .pricing-tab-btn');
+    const tabPanes = document.querySelectorAll('#tab-pricing .pricing-tab-pane');
+    
+    if (tabBtns.length === 0) {
+      console.warn('⚠️ لم يتم العثور على أزرار التبويبات الداخلية في #tab-pricing');
+      return;
+    }
+    
+    // إزالة أي مستمعات قديمة وإضافة مستمعات جديدة
+    tabBtns.forEach(btn => {
+      // إزالة المستمعات القديمة (لتجنب التكرار)
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      
+      newBtn.addEventListener('click', function(e) {
+        const tabId = this.getAttribute('data-pricing-tab');
+        if (!tabId) return;
+        
+        // تفعيل الزر الحالي
+        tabBtns.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // إظهار التبويب المناسب وإخفاء الباقي
+        tabPanes.forEach(pane => {
+          pane.style.display = 'none';
+          pane.classList.remove('active');
+        });
+        const activePane = document.getElementById(`pricing_tab-${tabId}`);
+        if (activePane) {
+          activePane.style.display = 'block';
+          activePane.classList.add('active');
+        }
+      });
+    });
+    
+    // التأكد من أن تبويب البيانات هو الظاهر افتراضياً
+    const defaultTab = document.querySelector('#tab-pricing .pricing-tab-btn.active');
+    if (defaultTab) {
+      defaultTab.click();
+    } else {
+      const firstTab = tabBtns[0];
+      if (firstTab) firstTab.click();
+    }
+    
+    console.log('✅ تم إصلاح أزرار التبويبات الداخلية للتسعيرات');
+  }, 100);
+});
 </script>
 </body>
 </html>
