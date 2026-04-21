@@ -24,6 +24,22 @@
     <!-- ========================= الأنماط (CSS) ========================= -->
     <style>
     
+    .transfer-input{
+width:100%;
+min-width:70px;
+padding:8px;
+border-radius:10px;
+border:1px solid rgba(255,255,255,0.15);
+background:#0f172a;
+color:white;
+text-align:center;
+font-size:14px;
+}
+
+.barcode-input{
+min-width:130px;
+}
+    
     /* ========== تحسينات إضافية لنظام التسعيرات ========== */
 .pricing-tabs-wrap { display: flex; gap: 4px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 4px; }
 .pricing-tab-btn { background: transparent; border: none; color: #94a3b8; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 600; transition: 0.2s; }
@@ -2606,6 +2622,27 @@ oninput="UI.renderEmployees()">
 </div>
 
 </div>
+
+<!-- ========================= مودال تعديل المنتج (Product Edit Modal) ========================= -->
+<div id="editProductModal" style="position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999">
+  <div class="glass-card" style="padding:25px; width:95%; max-width:550px;">
+    <h3 style="margin-bottom:20px;">✏️ تعديل بيانات المنتج</h3>
+    <input type="hidden" id="editProductId">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+      <div><label>اسم الصنف</label><input id="editProductName" placeholder="اسم المنتج"></div>
+      <div><label>الكمية</label><input type="number" id="editProductQuantity" placeholder="الكمية"></div>
+      <div><label>سعر التكلفة</label><input type="text" id="editProductCost" placeholder="سعر التكلفة"></div>
+      <div><label>سعر البيع</label><input type="text" id="editProductPrice" placeholder="سعر البيع"></div>
+      <div><label>الفرع</label><select id="editProductBranch"><option value="">اختر الفرع</option><option value="البازار">فرع البازار</option><option value="الصباح">فرع الصباح</option><option value="باب40">مخزن باب 40</option></select></div>
+      <div><label>تاريخ الانتهاء</label><input type="date" id="editProductExpire"></div>
+    </div>
+    <div style="display:flex; gap:15px; margin-top:25px;">
+      <button class="btn-success btn-primary" style="flex:1;" onclick="saveProductEdit()">💾 حفظ التعديلات</button>
+      <button class="btn-danger btn-primary" style="flex:1;" onclick="closeProductEdit()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========================= مودال تعديل التحويل ========================= -->
 
 <div id="editTransferModal"
@@ -2622,6 +2659,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 <thead>
 
 <tr>
+<th>الباركود</th>
 <th>الصنف</th>
 <th>كراتين</th>
 <th>علب</th>
@@ -4046,34 +4084,57 @@ UI.toast("تم حذف الصنف","warning")
 
 }
 
-function editProduct(id){
+function editProduct(id) {
+  let product = State.products.find(p => p.id === id);
+  if (!product) return;
 
-let p = State.products.find(x=>x.id===id)
+  // تعبئة الحقول في المودال
+  document.getElementById("editProductId").value = id;
+  document.getElementById("editProductName").value = product.name || "";
+  document.getElementById("editProductQuantity").value = product.quantity || 0;
+  document.getElementById("editProductCost").value = product.cost || 0;
+  document.getElementById("editProductPrice").value = product.price || 0;
+  document.getElementById("editProductBranch").value = product.branch || "";
+  document.getElementById("editProductExpire").value = product.expire || "";
+  
+  document.getElementById("editProductModal").style.display = "flex";
+}
 
-if(!p) return
+function closeProductEdit() {
+  document.getElementById("editProductModal").style.display = "none";
+}
 
-let name = prompt("اسم الصنف",p.name)
-let qty = prompt("الكمية",p.quantity)
-let price = prompt("سعر البيع",p.price)
-let cost = prompt("التكلفة",p.cost)
-let branch = prompt("الفرع",p.branch)
-let expire = prompt("تاريخ الانتهاء",p.expire)
+function saveProductEdit() {
+  let id = document.getElementById("editProductId").value;
+  let name = document.getElementById("editProductName").value.trim();
+  let quantity = Number(document.getElementById("editProductQuantity").value);
+  let cost = Number(document.getElementById("editProductCost").value);
+  let price = Number(document.getElementById("editProductPrice").value);
+  let branch = document.getElementById("editProductBranch").value;
+  let expire = document.getElementById("editProductExpire").value;
 
-if(!name) return
+  if (!name) {
+    UI.toast("اسم الصنف مطلوب", "error");
+    return;
+  }
+  if (isNaN(quantity) || quantity < 0) {
+    UI.toast("الكمية يجب أن تكون رقماً غير سالب", "error");
+    return;
+  }
 
-db.ref("products/"+id).update({
-
-name:name,
-quantity:Number(qty),
-price:Number(price),
-cost:Number(cost),
-branch:branch,
-expire:expire
-
-})
-
-UI.toast("تم تعديل الصنف","success")
-
+  db.ref("products/" + id).update({
+    name: name,
+    quantity: quantity,
+    cost: cost,
+    price: price,
+    branch: branch,
+    expire: expire
+  }).then(() => {
+    UI.toast("تم تعديل المنتج بنجاح", "success");
+    closeProductEdit();
+  }).catch(err => {
+    UI.toast("حدث خطأ أثناء التعديل", "error");
+  });
 }
     // ========================= خدمة المصادقة المحسنة (Enhanced AuthService) =========================
     const AuthService = {
@@ -4849,25 +4910,43 @@ html += `
 
 <tr>
 
+<td>
+<input class="transfer-input barcode-input"
+type="text"
+value="${i.barcode || ""}"
+id="editBarcode${index}">
+</td>
+
 <td>${i.name}</td>
 
 <td>
-<input type="number" value="${i.cartons}"
+<input class="transfer-input"
+type="number"
+min="0"
+value="${i.cartons}"
 id="editCartons${index}">
 </td>
 
 <td>
-<input type="number" value="${i.boxes}"
+<input class="transfer-input"
+type="number"
+min="0"
+value="${i.boxes}"
 id="editBoxes${index}">
 </td>
 
 <td>
-<input type="number" value="${i.pieces}"
+<input class="transfer-input"
+type="number"
+min="0"
+value="${i.pieces}"
 id="editPieces${index}">
 </td>
 
 <td>
-<input type="date" value="${i.expire || ""}"
+<input class="transfer-input"
+type="date"
+value="${i.expire || ""}"
 id="editExpire${index}">
 </td>
 
@@ -6581,5 +6660,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 </script>
+
+
 </body>
 </html>
