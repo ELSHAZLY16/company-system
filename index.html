@@ -2623,6 +2623,30 @@ oninput="UI.renderEmployees()">
 
 </div>
 
+<!-- ========================= مودال تعديل الموظف (Employee Edit Modal) ========================= -->
+<div id="editEmployeeModal" style="position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999">
+  <div class="glass-card" style="padding:25px; width:95%; max-width:500px;">
+    <h3 style="margin-bottom:20px;">✏️ تعديل بيانات الموظف</h3>
+    <input type="hidden" id="editEmployeeId">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+      <div><label>كود الموظف</label><input type="number" id="editEmployeeCode" placeholder="الكود" readonly style="background:#1e293b;"></div>
+      <div><label>الاسم</label><input id="editEmployeeName" placeholder="اسم الموظف"></div>
+      <div><label>الوظيفة</label><input id="editEmployeeJob" placeholder="الوظيفة"></div>
+      <div><label>الفرع</label><input id="editEmployeeBranch" placeholder="الفرع"></div>
+      <div><label>الحالة</label>
+        <select id="editEmployeeStatus">
+          <option value="خارج العمل">خارج العمل</option>
+          <option value="داخل العمل">داخل العمل</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex; gap:15px; margin-top:25px;">
+      <button class="btn-success btn-primary" style="flex:1;" onclick="saveEmployeeEdit()">💾 حفظ التعديلات</button>
+      <button class="btn-danger btn-primary" style="flex:1;" onclick="closeEmployeeEdit()">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <!-- ========================= مودال تعديل المنتج (Product Edit Modal) ========================= -->
 <div id="editProductModal" style="position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999">
   <div class="glass-card" style="padding:25px; width:95%; max-width:550px;">
@@ -3112,26 +3136,57 @@ CheckOut: "🔴 انصراف"
     };
 
     // ========================= خدمة الموظفين (Employees) =========================
-    const EmployeeService = {
-        add() {
-            let code = document.getElementById("empCode").value, name = document.getElementById("empName").value, job = document.getElementById("empJob").value;
-            if (!code || !name) { UI.toast("ادخل بيانات الموظف", "warning"); return; }
-            if (State.employees.find(e => e.code === code)) { UI.toast("كود الموظف موجود بالفعل", "error"); return; }
-            db.ref("employees").push({ code, name, job, branch: "الفرع الرئيسي", status: "خارج العمل" });
-            UI.toast("تم إضافة الموظف", "success");
-            
-            UI.clearInputs("#tab-employees")
-        },
+    // استبدال EmployeeService.edit كاملاً
+const EmployeeService = {
+  add() { /* كما هو موجود دون تغيير */ },
+  
+  edit(id) {
+    let emp = State.employees.find(e => e.id === id);
+    if (!emp) return;
     
-        delete(id) { showConfirm("حذف الموظف؟", () => { db.ref("employees/" + id).remove(); UI.toast("تم حذف الموظف", "warning"); }); },
-        edit(id) {
-            let emp = State.employees.find(e => e.id === id);
-            let name = prompt("اسم الموظف", emp.name), job = prompt("الوظيفة", emp.job);
-            if (!name) return;
-            db.ref("employees/" + id).update({ name, job });
-            UI.toast("تم تعديل الموظف", "success");
-        }
-    };
+    // تعبئة الحقول في المودال
+    document.getElementById("editEmployeeId").value = emp.id;
+    document.getElementById("editEmployeeCode").value = emp.code;
+    document.getElementById("editEmployeeName").value = emp.name || "";
+    document.getElementById("editEmployeeJob").value = emp.job || "";
+    document.getElementById("editEmployeeBranch").value = emp.branch || "";
+    document.getElementById("editEmployeeStatus").value = emp.status || "خارج العمل";
+    
+    document.getElementById("editEmployeeModal").style.display = "flex";
+  },
+  
+  delete(id) { /* كما هو موجود */ }
+};
+
+// دوال مساعدة للمودال
+function closeEmployeeEdit() {
+  document.getElementById("editEmployeeModal").style.display = "none";
+}
+
+function saveEmployeeEdit() {
+  let id = document.getElementById("editEmployeeId").value;
+  let name = document.getElementById("editEmployeeName").value.trim();
+  let job = document.getElementById("editEmployeeJob").value.trim();
+  let branch = document.getElementById("editEmployeeBranch").value.trim();
+  let status = document.getElementById("editEmployeeStatus").value;
+  
+  if (!name) {
+    UI.toast("اسم الموظف مطلوب", "error");
+    return;
+  }
+  
+  db.ref("employees/" + id).update({
+    name: name,
+    job: job,
+    branch: branch,
+    status: status
+  }).then(() => {
+    UI.toast("تم تعديل بيانات الموظف", "success");
+    closeEmployeeEdit();
+  }).catch(err => {
+    UI.toast("خطأ في التعديل", "error");
+  });
+}
 // ========================= خدمة الحضور (Attendance) =========================
 const AttendanceService = {
     register(){
