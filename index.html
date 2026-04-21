@@ -1380,7 +1380,11 @@ font-size:14px
             <button class="tab-btn" data-tab="breaks"><i class="fas fa-coffee"></i> الاستئذانات</button>
             <button class="tab-btn" data-tab="products"><i class="fas fa-box"></i> التواريخ</button>
             <button class="tab-btn" data-tab="vehicles"><i class="fas fa-truck"></i> العربيات</button>
-   
+
+   <button class="tab-btn" data-tab="prices">
+  <i class="fas fa-chart-line"></i> الأسعار
+</button>
+  
    <button class="tab-btn" data-tab="pricing">
 <i class="fas fa-tags"></i>
 التسعيرات
@@ -1880,6 +1884,8 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <div id="pricing_reader" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#000; z-index:10000;">
   <button style="position:absolute; top:20px; left:20px; background:red; color:white; border:none; border-radius:10px; padding:10px;" onclick="PricingModule.stopScanner()">✖ إغلاق</button>
 </div>
+
+
 
         <!-- ========================= تبويب الحضور (Attendance) ========================= -->
         <div id="tab-attendance" class="tab-content active">
@@ -2502,7 +2508,11 @@ oninput="UI.renderEmployees()">
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="attendance" hidden><i class="fas fa-fingerprint"></i><span>الحضور</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><i class="fas fa-box"></i><span>التواريخ</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="vehicles" hidden><i class="fas fa-truck"></i><span>العربيات</span></label>
-       
+       <label class="permission-card">
+  <input type="checkbox" class="perm-checkbox" value="prices" hidden>
+  <i class="fas fa-chart-line"></i>
+  <span>الأسعار</span>
+</label>
        <label class="permission-card">
 <input type="checkbox" class="perm-checkbox" value="pricing" hidden>
 <i class="fas fa-tags"></i>
@@ -2652,7 +2662,7 @@ onclick="closeTransferEdit()">
 <input type="checkbox" value="pricing">
 التسعيرات
 </label>
-        
+        <label><input type="checkbox" value="prices"> الأسعار</label>
         <label>
 <input type="checkbox" value="transfers">
 التحويلات
@@ -3819,7 +3829,9 @@ UI.toast("تم رفض الإجازة","warning")
         if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
         if (!qty) qty = 1;
 
-        let existing = State.products.find(p => p.barcode === barcode);
+        let existing = State.products.find(p => 
+p.barcode === barcode && p.expire === expire
+);
         if (existing) {
             let newQty = (existing.quantity || 0) + qty;
             db.ref("products/" + existing.id).update({ quantity: newQty });
@@ -5511,6 +5523,7 @@ system: "النظام",
 transfers: "التحويلات",
 excel: "تصدير Excel",
 edit: "التعديل",
+prices: "الأسعار",
 all: "كل الصلاحيات"
 };            let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
 ${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
