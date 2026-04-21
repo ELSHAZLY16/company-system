@@ -1669,6 +1669,10 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <th>المتبقي</th>
 <th>الحالة</th>
 <th>المستخدم</th>
+<th>سحب</th>
+<th>تعديل</th>
+<th>حذف</th>
+
 
                     </tr></thead><tbody id="productsBody"></tbody></table>
                 </div>
@@ -4030,7 +4034,47 @@ SystemLog.add("DeleteUser", user.username, "👤 مستخدم");
 }); 
 }
     };
+function deleteProduct(id){
 
+showConfirm("هل تريد حذف الصنف بالكامل؟",()=>{
+
+db.ref("products/"+id).remove()
+
+UI.toast("تم حذف الصنف","warning")
+
+})
+
+}
+
+function editProduct(id){
+
+let p = State.products.find(x=>x.id===id)
+
+if(!p) return
+
+let name = prompt("اسم الصنف",p.name)
+let qty = prompt("الكمية",p.quantity)
+let price = prompt("سعر البيع",p.price)
+let cost = prompt("التكلفة",p.cost)
+let branch = prompt("الفرع",p.branch)
+let expire = prompt("تاريخ الانتهاء",p.expire)
+
+if(!name) return
+
+db.ref("products/"+id).update({
+
+name:name,
+quantity:Number(qty),
+price:Number(price),
+cost:Number(cost),
+branch:branch,
+expire:expire
+
+})
+
+UI.toast("تم تعديل الصنف","success")
+
+}
     // ========================= خدمة المصادقة المحسنة (Enhanced AuthService) =========================
     const AuthService = {
         async login() {
@@ -5106,6 +5150,24 @@ onclick="ProductService.remove('${p.barcode}')">
 
 </button>
 
+</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-warning btn-primary"
+onclick='editProduct("${p.id}")'>
+✏
+</button>
+` : ""}
+</td>
+
+<td>
+${hasPermission("edit") || hasPermission("all") ? `
+<button class="btn-danger btn-primary"
+onclick='deleteProduct("${p.id}")'>
+🗑
+</button>
+` : ""}
 </td>
 
 </tr>
@@ -6515,6 +6577,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ تم إصلاح أزرار التبويبات الداخلية للتسعيرات');
   }, 100);
 });
+
+
+
 </script>
 </body>
 </html>
