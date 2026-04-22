@@ -2623,6 +2623,8 @@ oninput="UI.renderEmployees()">
 
 </div>
 
+
+
 <!-- ========================= مودال تعديل الموظف (Employee Edit Modal) ========================= -->
 <div id="editEmployeeModal" style="position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:99999">
   <div class="glass-card" style="padding:25px; width:95%; max-width:500px;">
@@ -2758,36 +2760,6 @@ onclick="closeTransferEdit()">
 <!-- ========================= كود JavaScript الكامل ========================= -->
 <script>
     
-    function openEditTransfer(id){
-
-if(!hasPermission("edit") && !hasPermission("all")){
-UI.toast("ليس لديك صلاحية التعديل","error")
-return
-}
-
-let t = State.transfers.find(x=>x.id===id)
-
-if(!t) return
-
-let from = prompt("تعديل الفرع المرسل", t.from)
-let to = prompt("تعديل الفرع المستلم", t.to)
-let date = prompt("تعديل التاريخ", t.date)
-
-if(!from || !to) return
-
-db.ref("transfers/"+id).update({
-
-from:from,
-to:to,
-date:date
-
-})
-
-UI.toast("تم تعديل التحويل","success")
-
-}
-    
-    
     function calcTransferTotal(){
 
 let cartons = Number(document.getElementById("transferCartons").value) || 0
@@ -2838,22 +2810,6 @@ document.getElementById("transferTotal").value = total
 document.getElementById("transferCartons").oninput = calcTransferTotal
 document.getElementById("transferBoxes").oninput = calcTransferTotal
 document.getElementById("transferPieces").oninput = calcTransferTotal
-    
-    
-    function getExpiryStatus(expireDate){
-
-let today = new Date()
-let exp = new Date(expireDate)
-
-let diff = Math.floor((exp - today) / (1000*60*60*24))
-
-if(diff < 0) return {text:"منتهي", color:"red"}
-if(diff <= 30) return {text:"قرب الانتهاء", color:"orange"}
-
-return {text:"صالح", color:"green"}
-
-}
-
 
 function getRemainingDays(expireDate){
 
@@ -3075,24 +3031,6 @@ return firebase.database.ServerValue.TIMESTAMP
 }
 
 }
-    
-  const DeviceUtils = {
-
-getDevice(){
-
-let ua = navigator.userAgent
-
-if(ua.includes("Android")) return "Android Phone"
-if(ua.includes("iPhone")) return "iPhone"
-if(ua.includes("Windows")) return "Windows PC"
-if(ua.includes("Mac")) return "Mac"
-
-return ua
-
-}
-
-}  
-
     // ========================= خدمة سجل النظام (System Logs) =========================
     const SystemLog = {
         add(action, code, name) {
@@ -3576,10 +3514,6 @@ returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
 deviceReturnTime: end,
 
 duration: duration,
-
-durationSource: "device",
-
-durationFixed:true,
 
 status:"closed"
 
