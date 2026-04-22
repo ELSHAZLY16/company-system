@@ -2510,10 +2510,7 @@ oninput="UI.renderEmployees()">
         <!-- ========================= تبويب سجل النظام (System Logs) ========================= -->
         <div id="tab-system" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-clipboard-list"></i> سجل النظام</h3>
-                
-                <button class="btn-danger btn-primary" onclick="SystemLogService.clearAllLogs()" id="clearLogsBtn"><i class="fas fa-trash-alt"></i> مسح الكل</button>
-                <button class="btn-success btn-primary" onclick="SystemLogService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3><i class="fas fa-clipboard-list"></i> سجل النظام</h3><button class="btn-success btn-primary" onclick="SystemLogService.exportExcel()"><i class="fas fa-file-excel"></i> تصدير Excel</button></div>
                 <div class="table-container"><table><thead><tr><th>الحركة</th><th>الاسم</th><th>الكود</th><th>التاريخ</th><th>الوقت</th><th>المستخدم</th>
 <th class="editColumnHeader">تعديل</th></tr></thead><tbody id="systemLogsBody"></tbody></table></div>
             </div>
@@ -3034,71 +3031,48 @@ return firebase.database.ServerValue.TIMESTAMP
 }
 
 }
-const SystemLogService = {
-    translate(action) {
-        let map = { 
-            CompanyIn: "🏢 دخول شركة",
-            CompanyOut: "🏢 خروج شركة",
-            VehicleIn: "🚚 دخول عربية",
-            VehicleOut: "🚚 خروج عربية",
-            Penalty: "⚖️ تسجيل جزاء",
-            Leave: "📅 طلب إجازة",
-            LeaveApproved: "✅ قبول إجازة",
-            LeaveRejected: "❌ رفض إجازة",
-            AddUser: "👤 إضافة مستخدم",
-            DeleteUser: "🗑 حذف مستخدم",
-            Break: "☕ تسجيل استئذان",
-            Return: "↩ رجوع من الاستئذان",
-            CheckIn: "🟢 حضور",
-            CheckOut: "🔴 انصراف"
-        };
-        return map[action] || action;
-    },
-    
-    exportExcel() { 
-        if (!checkExcelPermission()) return; 
-        let rows = State.systemLogs.map(l => ({ 
-            الحركة: this.translate(l.action), 
-            الاسم: l.name, 
-            الكود: l.code, 
-            التاريخ: l.date, 
-            الوقت: l.timeDisplay, 
-            المستخدم: l.user 
-        })); 
-        let ws = XLSX.utils.json_to_sheet(rows); 
-        let wb = XLSX.utils.book_new(); 
-        XLSX.utils.book_append_sheet(wb, ws, "logs"); 
-        XLSX.writeFile(wb, "system_logs.xlsx"); 
-    },
-
-    // 🧹 دالة جديدة: حذف جميع سجلات النظام
-    clearAllLogs() {
-        // التحقق من صلاحية التعديل
-        if (!hasPermission("edit") && !hasPermission("all")) {
-            UI.toast("⚠️ ليس لديك صلاحية لحذف سجل النظام", "error");
-            return;
+    // ========================= خدمة سجل النظام (System Logs) =========================
+    const SystemLog = {
+        add(action, code, name) {
+            let now = new Date(TimeUtils.now());
+            let data = {
+                code: code, name: name, action: action,
+                date: now.toLocaleDateString("ar-EG"), timeDisplay: now.toLocaleTimeString("ar-EG"),
+                timestamp: firebase.database.ServerValue.TIMESTAMP, user: State.currentUser?.username || "system"
+            };
+            db.ref("systemLogs").push(data);
         }
+    };
+    const SystemLogService = {
+        translate(action) {
+            let map = { 
+                
+                CompanyIn: "🏢 دخول شركة",
+CompanyOut: "🏢 خروج شركة",
+                
+VehicleIn: "🚚 دخول عربية",
+VehicleOut: "🚚 خروج عربية",
+Penalty: "⚖️ تسجيل جزاء",
+Leave: "📅 طلب إجازة",
 
-        // تأكيد الحذف
-        showConfirm("🗑️ هل أنت متأكد من حذف جميع سجلات النظام؟\nهذا الإجراء لا يمكن التراجع عنه.", () => {
-            const logsRef = db.ref("systemLogs");
-            logsRef.remove()
-                .then(() => {
-                    UI.toast("✅ تم حذف جميع سجلات النظام بنجاح", "success");
-                    // تحديث الواجهة (تفريغ الجدول)
-                    if (typeof UI !== 'undefined' && UI.renderSystemLogs) {
-                        UI.renderSystemLogs();
-                    }
-                    // تسجيل عملية الحذف في سجل جديد (بعد الحذف)
-                    SystemLog.add("ClearAllLogs", State.currentUser?.username || "system", "مسح كل سجل النظام");
-                })
-                .catch(err => {
-                    console.error("خطأ في حذف السجلات:", err);
-                    UI.toast("❌ حدث خطأ أثناء محاولة حذف السجلات", "error");
-                });
-        });
-    }
+LeaveApproved: "✅ قبول إجازة",
+LeaveRejected: "❌ رفض إجازة",
+
+AddUser: "👤 إضافة مستخدم",
+DeleteUser: "🗑 حذف مستخدم",
+Break: "☕ تسجيل استئذان",
+Return: "↩ رجوع من الاستئذان",
+CheckIn: "🟢 حضور",
+CheckOut: "🔴 انصراف"
 };
+
+
+
+            return map[action] || action;
+        },
+        exportExcel() { if (!checkExcelPermission()) return; let rows = State.systemLogs.map(l => ({ الحركة: this.translate(l.action), الاسم: l.name, الكود: l.code, التاريخ: l.date, الوقت: l.timeDisplay, المستخدم: l.user })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "logs"); XLSX.writeFile(wb, "system_logs.xlsx"); }
+    };
+
     // ========================= خدمة الموظفين (Employees) =========================
     // استبدال EmployeeService.edit كاملاً
 const EmployeeService = {
@@ -3147,7 +3121,6 @@ function saveEmployeeEdit() {
   }).then(() => {
     UI.toast("تم تعديل بيانات الموظف", "success");
     closeEmployeeEdit();
-    SystemLog.add("تعديل بيانات الموظف", id, `تعديل بيانات الموظف: ${name}`);
   }).catch(err => {
     UI.toast("خطأ في التعديل", "error");
   });
@@ -4095,8 +4068,6 @@ showConfirm("هل تريد حذف الصنف بالكامل؟",()=>{
 db.ref("products/"+id).remove()
 
 UI.toast("تم حذف الصنف","warning")
-let product = State.products.find(p => p.id === id);
-if (product) SystemLog.add("DeleteProduct", product.barcode, product.name);
 
 })
 
@@ -4150,7 +4121,6 @@ function saveProductEdit() {
   }).then(() => {
     UI.toast("تم تعديل المنتج بنجاح", "success");
     closeProductEdit();
-    SystemLog.add("تعديل منتج تاريخ", id, `تعديل منتج: ${name}`);
   }).catch(err => {
     UI.toast("حدث خطأ أثناء التعديل", "error");
   });
@@ -4664,7 +4634,6 @@ user: State.currentUser.username
 db.ref("transfers").push(data).then(()=>{
 
 UI.renderTransfers()
-SystemLog.add("اضافة تحويلات", data.from + "→" + data.to, `تحويل ${State.transferItems.length} صنف`);
 
 })
 
@@ -4722,7 +4691,6 @@ items:newItems
 UI.toast("تم تعديل التحويل","success")
 
 closeTransferEdit()
-SystemLog.add("تعديل التحويلات", t.from + "→" + t.to, `تعديل تحويل (${t.id})`);
 
 }
 function closeTransferEdit(){
@@ -4740,7 +4708,6 @@ State.transferItems.splice(index,1)
 UI.renderTransferItems()
 
 UI.toast("تم حذف الصنف","success")
-if (t) SystemLog.add("DeleteTransfer", t.from + "→" + t.to, `حذف تحويل من ${t.date}`); // أضف
 
 }
 
@@ -6674,9 +6641,15 @@ document.addEventListener('DOMContentLoaded', function() {
       const firstTab = tabBtns[0];
       if (firstTab) firstTab.click();
     }
-
+    
+    console.log('✅ تم إصلاح أزرار التبويبات الداخلية للتسعيرات');
   }, 100);
 });
+
+
+
 </script>
+
+
 </body>
 </html>
