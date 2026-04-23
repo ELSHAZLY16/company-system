@@ -970,6 +970,140 @@ body.light-mode .filter-btn.active { background: linear-gradient(135deg,#3b82f6,
   main { padding:0 20px 60px !important; }
 }
 
+
+
+/* ============================================================
+   📱 جداول التحويلات - Responsive Cards على الموبايل
+   ============================================================ */
+
+/* scrollable على التابلت والشاشات المتوسطة */
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* جدول التحويلات: cards على الموبايل الصغير */
+@media (max-width: 520px) {
+
+  /* جدول سجل التحويلات */
+  table:has(#transfersBody) thead { display: none; }
+
+  #transfersBody tr {
+    display: block;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 14px;
+    margin-bottom: 12px;
+    padding: 14px 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    animation: fadeInUp 0.3s ease;
+  }
+
+  #transfersBody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px dashed rgba(255,255,255,0.08);
+    font-size: 13px;
+    white-space: normal;
+    text-align: left;
+    min-height: 36px;
+  }
+
+  #transfersBody td:last-child,
+  #transfersBody td:nth-last-child(2),
+  #transfersBody td:nth-last-child(3) {
+    border-bottom: none;
+    display: inline-flex;
+    width: auto;
+    padding: 6px 4px 2px;
+  }
+
+  #transfersBody td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #818cf8;
+    font-size: 12px;
+    margin-left: 12px;
+    flex-shrink: 0;
+  }
+
+  #transfersBody td[data-label="عرض"]::before,
+  #transfersBody td[data-label="تعديل"]::before,
+  #transfersBody td[data-label="حذف"]::before { display: none; }
+
+  /* جدول الأصناف المؤقتة */
+  table:has(#transferItems) thead { display: none; }
+
+  #transferItems tr {
+    display: block;
+    background: rgba(16, 185, 129, 0.07);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    padding: 12px;
+  }
+
+  #transferItems td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed rgba(255,255,255,0.07);
+    font-size: 13px;
+    white-space: normal;
+    min-height: 34px;
+  }
+
+  #transferItems td:last-child { border-bottom: none; }
+
+  #transferItems td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #34d399;
+    font-size: 12px;
+    margin-left: 12px;
+    flex-shrink: 0;
+  }
+
+  #transferItems td[data-label="حذف"]::before { display: none; }
+
+  /* أزرار أصغر داخل cards */
+  #transfersBody .btn-primary,
+  #transfersBody .btn-warning,
+  #transfersBody .btn-danger,
+  #transferItems .btn-danger {
+    padding: 7px 14px;
+    font-size: 12px;
+    border-radius: 8px;
+    min-width: 70px;
+  }
+}
+
+/* التابلت والشاشات المتوسطة: scroll أفقي */
+@media (min-width: 521px) and (max-width: 768px) {
+  #transfersBody tr td,
+  #transferItems tr td {
+    font-size: 12px;
+    padding: 8px 6px;
+    white-space: nowrap;
+  }
+
+  #transfersBody tr th,
+  #transferItems tr th {
+    font-size: 11px;
+    padding: 8px 5px;
+  }
+
+  .table-container .btn-primary,
+  .table-container .btn-warning,
+  .table-container .btn-danger {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -4881,33 +5015,33 @@ html+=`
 
 <tr>
 
-<td>${t.from}</td>
-<td>${t.to}</td>
-<td>${t.items?.length || 0}</td>
-<td>${t.date}</td>
-<td>${t.user}</td>
+<td data-label="من">${t.from}</td>
+<td data-label="إلى">${t.to}</td>
+<td data-label="عدد الأصناف">${t.items?.length || 0}</td>
+<td data-label="التاريخ">${t.date}</td>
+<td data-label="المستخدم">${t.user}</td>
 
-<td>
+<td data-label="عرض">
 <button class="btn-primary"
 onclick='viewTransfer("${t.id}")'>
-👁
+👁 عرض
 </button>
 </td>
 
-<td>
+<td data-label="تعديل">
 ${hasPermission("edit") || hasPermission("all") ? `
 <button class="btn-warning btn-primary"
 onclick='editTransferItems("${t.id}")'>
-✏
+✏ تعديل
 </button>
 ` : ""}
 </td>
 
-<td>
+<td data-label="حذف">
 ${hasPermission("edit") || hasPermission("all") ? `
 <button class="btn-danger btn-primary"
 onclick='deleteTransfer("${t.id}")'>
-🗑
+🗑 حذف
 </button>
 ` : ""}
 </td>
@@ -4936,21 +5070,21 @@ html += `
 
 <tr>
 
-<td>${i.barcode}</td>
+<td data-label="الباركود">${i.barcode}</td>
 
-<td>${i.name}</td>
+<td data-label="الصنف">${i.name}</td>
 
-<td>${i.cartons}</td>
+<td data-label="كراتين">${i.cartons || 0}</td>
 
-<td>${i.boxes}</td>
+<td data-label="علب">${i.boxes || 0}</td>
 
-<td>${i.pieces}</td>
+<td data-label="قطع">${i.pieces || 0}</td>
 
-<td>${i.total}</td>
+<td data-label="الإجمالي">${i.total || 0}</td>
 
-<td>${i.expire}</td>
+<td data-label="الانتهاء">${i.expire || "-"}</td>
 
-<td>
+<td data-label="حذف">
 <button class="btn-danger btn-primary"
 onclick="TransferService.removeItem(${index})">
 🗑
