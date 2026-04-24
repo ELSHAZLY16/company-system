@@ -2197,6 +2197,18 @@ style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15
 <!-- ════════ PAGE: UPLOAD ════════ -->
 <div class="page" id="pg-upload">
   <div class="stl">رفع ملف المنتجات</div>
+  <!-- Progress Bar -->
+  <div id="uploadProgressContainer" style="display:none; margin:12px 0; padding:0 4px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <span style="font-size:12px; color:var(--txt2);">جارٍ الرفع...</span>
+      <span id="uploadProgressText" style="font-size:13px; font-weight:700; color:var(--cyan);">0%</span>
+    </div>
+    <div style="height:8px; background:rgba(255,255,255,0.1); border-radius:10px; overflow:hidden;">
+      <div id="uploadProgressBar" style="height:100%; width:0%; background:linear-gradient(90deg,#00a8ff,#00d4ff); border-radius:10px; transition:width 0.3s ease;"></div>
+    </div>
+    <div id="uploadProgressStep" style="font-size:11px; color:var(--txt2); margin-top:5px; text-align:center;">تحضير البيانات...</div>
+  </div>
+
   <div class="up-area" id="upA">
     <span class="up-ic">📊</span>
     <div class="up-h">رفع ملف Excel</div>
@@ -2225,7 +2237,6 @@ style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15
   </div>
 </div>
 
-<footer class="footer">نظام الأسعار الذكي ⚡ — علوش البازار & علوش القاهرة · يعمل بالكامل داخل المتصفح بدون سيرفر</footer>
 </div>
 
 <div class="tst-c" id="tstC"></div>
@@ -2635,7 +2646,9 @@ function renderResult(result, bc) {
       ${pb?`<div class="mi"><div class="mi-l">📅 تاريخ سعر البازار</div><div class="mi-v">${fmtDate(pb.dateOfPrice)}</div></div>`:''}
       ${pc?`<div class="mi"><div class="mi-l">📅 تاريخ سعر القاهرة</div><div class="mi-v">${fmtDate(pc.dateOfPrice)}</div></div>`:''}
       ${pb?`<div class="mi"><div class="mi-l">🕐 آخر تعديل البازار</div><div class="mi-v">${fmtDT(pb.modifiedAt)}</div></div>`:''}
+      ${pb&&pb.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة (ب)</div><div class="mi-v">${pb.modifiedBy}</div></div>`:''}
       ${pc?`<div class="mi"><div class="mi-l">🕐 آخر تعديل القاهرة</div><div class="mi-v">${fmtDT(pc.modifiedAt)}</div></div>`:''}
+      ${pc&&pc.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة (ق)</div><div class="mi-v">${pc.modifiedBy}</div></div>`:''}
     </div>
     <div class="ract">
       <button class="ra" onclick="cpAllDual()">📋 نسخ جميع البيانات</button>
@@ -2833,26 +2846,86 @@ function setCF(f){
    CAMERA
 ===================================================== */
 const CAM = (() => {
-  let sc=null,run=false;
-  const start=()=>{
-    document.getElementById('camPh').style.display='none';
-    document.getElementById('scOv').style.display='flex';
-    sc=new Html5Qrcode('sw');
-    sc.start({facingMode:'environment'},{fps:15,qrbox:{width:240,height:145}},
-      dec=>{if(!run)return;document.getElementById('bci').value=dec;stop();swSTab('manual');doSearch(dec);},
-      ()=>{})
-    .then(()=>{run=true;document.getElementById('camBtn').textContent='⏹ إيقاف';document.getElementById('camBtn').classList.add('stop');})
-    .catch(()=>{toast('لا يمكن الوصول للكاميرا','er');document.getElementById('camPh').style.display='block';document.getElementById('scOv').style.display='none';});
+  let sc=null, run=false, swId='sw_cam';
+
+  const getEl = (id) => { try { return document.getElementById(id); } catch(_) { return null; } };
+
+  const resetDiv = () => {
+    // نحتفظ بـ camPh و scOv ونعيد إنشاء div المسح فقط
+    const wrap = getEl('sw');
+    if(!wrap) return;
+    // احفظ camPh و scOv
+    const ph = getEl('camPh');
+    const ov = getEl('scOv');
+    // امسح أو أنشئ div داخلي للمسح
+    let scanDiv = getEl(swId);
+    if(scanDiv) { try { scanDiv.remove(); } catch(_){} }
+    scanDiv = document.createElement('div');
+    scanDiv.id = swId;
+    // أضفه قبل camPh
+    if(ph) wrap.insertBefore(scanDiv, ph);
+    else wrap.appendChild(scanDiv);
+    return scanDiv;
   };
-  const stop=()=>{
-    if(sc&&run)sc.stop().then(()=>{sc.clear();sc=null;run=false;
-      document.getElementById('camBtn').textContent='▶ تشغيل';document.getElementById('camBtn').classList.remove('stop');
-      document.getElementById('camPh').style.display='block';document.getElementById('scOv').style.display='none';
-    }).catch(()=>{});
+
+  const start = () => {
+    const ph = getEl('camPh');
+    const ov = getEl('scOv');
+    if(ph) ph.style.display = 'none';
+    if(ov) ov.style.display = 'flex';
+
+    // أوقف القديم بدون clear
+    if(sc) { try { sc.stop().catch(()=>{}); } catch(_){} sc = null; }
+
+    resetDiv();
+    try {
+      sc = new Html5Qrcode(swId);
+      sc.start(
+        {facingMode:'environment'},
+        {fps:15, qrbox:{width:240,height:145}},
+        dec => {
+          if(!run) return;
+          const bci = getEl('bci');
+          if(bci) bci.value = dec;
+          stop();
+          swSTab('manual');
+          doSearch(dec);
+        },
+        () => {}
+      ).then(() => {
+        run = true;
+        const btn = getEl('camBtn');
+        if(btn) { btn.textContent = '⏹ إيقاف'; btn.classList.add('stop'); }
+      }).catch(() => {
+        if(typeof toast==='function') toast('لا يمكن الوصول للكاميرا','er');
+        else if(typeof prToast==='function') prToast('لا يمكن الوصول للكاميرا','er');
+        if(ph) ph.style.display = 'block';
+        if(ov) ov.style.display = 'none';
+      });
+    } catch(e) {
+      console.error('CAM start error:', e);
+      if(ph) ph.style.display = 'block';
+      if(ov) ov.style.display = 'none';
+    }
   };
-  return{toggle:()=>run?stop():start(),stop};
+
+  const stop = () => {
+    run = false;
+    const btn = getEl('camBtn');
+    const ph = getEl('camPh');
+    const ov = getEl('scOv');
+    if(btn) { btn.textContent = '▶ تشغيل'; btn.classList.remove('stop'); }
+    if(ph) ph.style.display = 'block';
+    if(ov) ov.style.display = 'none';
+    if(sc) {
+      try { sc.stop().catch(()=>{}); } catch(_) {}
+      sc = null;
+    }
+  };
+
+  return { toggle: () => run ? stop() : start(), stop };
 })();
-function camTog(){CAM.toggle();}
+function camTog(){ CAM.toggle(); }
 
 /* =====================================================
    FILE UPLOAD
@@ -2886,33 +2959,18 @@ function handleFile(file){
         const safeKey = (k) => k.replace(/[.#$[\]]/g,'_');
 
         // نحفظ baz و cai كاملاً (كل الحقول)
+        // نحفظ الأسماء فقط لتجنب Write too large
+        // Firebase Realtime DB حد 256KB - الأسعار تُقرأ من الشيت المحلي
         const bazData = {};
+        // ندمج baz و cai في map واحدة (الباركود → الاسم)
+        // هذا يقلل الحجم 50% لأن أغلب المنتجات في الاثنين
         baz.forEach((val, key) => {
-          if(val && val.name) {
-            bazData[safeKey(key)] = {
-              n: clean(val.name),
-              s: val.sellPrice || 0,
-              c: val.costPrice || 0,
-              v: clean(val.vendorCode),
-              vn: clean(val.vendorName),
-              mb: clean(val.modifiedBy),
-              dp: clean(val.dateOfPrice)
-            };
-          }
+          if(val && val.name) bazData[safeKey(key)] = val.name;
         });
-        const caiData = {};
+        const caiData = {}; // cai في object منفصل فقط للمنتجات الغير موجودة في baz
         cai.forEach((val, key) => {
-          if(val && val.name) {
-            caiData[safeKey(key)] = {
-              n: clean(val.name),
-              s: val.sellPrice || 0,
-              c: val.costPrice || 0,
-              v: clean(val.vendorCode),
-              vn: clean(val.vendorName),
-              mb: clean(val.modifiedBy),
-              dp: clean(val.dateOfPrice)
-            };
-          }
+          const sk = safeKey(key);
+          if(val && val.name && !bazData[sk]) caiData[sk] = val.name;
         });
         let cnt = Object.keys(bazData).length + Object.keys(caiData).length;
         const saveData = {
@@ -2921,15 +2979,54 @@ function handleFile(file){
           uploadedBy: (typeof State!=='undefined'&&State.currentUser) ? State.currentUser.username : '-',
           bazTotal: baz.size, caiTotal: cai.size, baz: bazData, cai: caiData
         };
+        // رفع على مرحلتين لتجنب Write too large
+        const metaData = {
+          fileName: saveData.fileName,
+          uploadedAt: saveData.uploadedAt,
+          uploadedBy: saveData.uploadedBy,
+          bazTotal: saveData.bazTotal,
+          caiTotal: saveData.caiTotal
+        };
+        // شريط التقدم
+        const setProgress = (pct, step) => {
+          try {
+            const c = document.getElementById('uploadProgressContainer');
+            const b = document.getElementById('uploadProgressBar');
+            const t = document.getElementById('uploadProgressText');
+            const s = document.getElementById('uploadProgressStep');
+            if(c) c.style.display = 'block';
+            if(b) b.style.width = pct + '%';
+            if(t) t.textContent = pct + '%';
+            if(s && step) s.textContent = step;
+          } catch(_) {}
+        };
+        const hideProgress = () => {
+          try { document.getElementById('uploadProgressContainer').style.display = 'none'; } catch(_) {}
+        };
+
+        setProgress(10, 'حذف الشيت القديم...');
         _db.ref('priceSheet').remove()
-          .then(()=> _db.ref('priceSheet').set(saveData))
-          .then(()=>{
+          .then(() => { setProgress(25, 'رفع معلومات الملف...'); return _db.ref('priceSheet/meta').set(metaData); })
+          .then(() => { setProgress(50, 'رفع بيانات البازار...'); return _db.ref('priceSheet/baz').set(saveData.baz); })
+          .then(() => {
+            if(saveData.cai && Object.keys(saveData.cai).length > 0) {
+              setProgress(75, 'رفع بيانات القاهرة...');
+              return _db.ref('priceSheet/cai').set(saveData.cai);
+            }
+          })
+          .then(() => {
+            setProgress(100, 'تم بنجاح!');
+            setTimeout(hideProgress, 2000);
             const kb = Math.round(JSON.stringify(saveData).length/1024);
-            toast('☁️ Firebase: '+cnt.toLocaleString('ar-EG')+' منتج ('+kb+'KB)','ok');
+            toast('☁️ Firebase: '+cnt.toLocaleString('ar-EG')+' منتج ('+kb+'KB)', 'ok');
             try{if(typeof SystemLog!=='undefined') SystemLog.add('UploadPriceSheet',file.name,cnt+' منتج');}catch(e){}
             try{localStorage.setItem('priceSheetName',file.name);}catch(e){}
           })
-          .catch(e2=>{ console.error('Firebase priceSheet:',e2); toast('⚠️ '+e2.message,'warn'); });
+          .catch(e2=>{
+            hideProgress();
+            console.error('Firebase priceSheet:',e2);
+            toast('⚠️ Firebase: '+e2.message,'warn');
+          });
       }
     } catch(fbErr){ console.error('Firebase block:',fbErr); }
 
@@ -3550,11 +3647,10 @@ onclick="EmployeeService.add()">
 <!-- قائمة الموظفين -->
 <div class="glass-card" style="padding:25px">
 
-<h3 style="margin-bottom:15px">
-
+<h3 style="margin-bottom:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
 <span>👥</span>
 قائمة الموظفين
-
+<span id="totalEmpCount" style="font-size:13px;background:rgba(99,102,241,0.2);color:#818cf8;padding:3px 12px;border-radius:20px;font-weight:700;">0</span>
 </h3>
 
 <input id="employeeSearch"
@@ -4218,13 +4314,17 @@ return firebase.database.ServerValue.TIMESTAMP
         },
         clearLogs() {
             if (!hasPermission("all") && !hasPermission("users")) { UI.toast("ليس لديك صلاحية مسح السجل", "error"); return; }
+            const deleter = State.currentUser?.username || "unknown";
             showConfirm("⚠️ هل أنت متأكد من مسح كل سجل النظام؟ لا يمكن التراجع!", () => {
-                SystemLog.add("ClearLogs", State.currentUser?.username || "-", "مسح سجل النظام");
-                db.ref("systemLogs").remove().then(() => {
-                    UI.toast("✅ تم مسح سجل النظام بالكامل", "success");
-                    State.systemLogs = [];
-                    UI.renderSystemLogs();
-                }).catch(() => UI.toast("❌ خطأ في المسح", "error"));
+                // سجّل من قام بالحذف أولاً
+                SystemLog.add("ClearLogs", deleter, "مسح السجل بواسطة: " + deleter);
+                setTimeout(() => {
+                    db.ref("systemLogs").remove().then(() => {
+                        UI.toast("✅ تم مسح سجل النظام بالكامل", "success");
+                        State.systemLogs = [];
+                        UI.renderSystemLogs();
+                    }).catch(() => UI.toast("❌ خطأ في المسح", "error"));
+                }, 1000); // نأكد حفظ السجل قبل الحذف
             });
         }
     };
@@ -5090,6 +5190,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
         let branch = document.getElementById("productBranch").value;
 
         if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
+        if (!branch) { UI.toast("اختر الفرع أولاً", "error"); document.getElementById("productBranch").focus(); return; }
         if (!qty) qty = 1;
 
         let existing = State.products.find(p => 
@@ -5171,12 +5272,17 @@ html5QrCode.start(
 (code)=>{
 
 document.getElementById(targetInput).value = code;
+// إطلاق input event لتشغيل onProductBarcodeInput/onTransferBarcodeInput
+try {
+  const el = document.getElementById(targetInput);
+  el.dispatchEvent(new Event('input', {bubbles: true}));
+} catch(_) {}
 
 html5QrCode.stop();
 
 document.getElementById("barcodeScanner").style.display = "none";
 
-UI.toast("تم قراءة الباركود","success");
+UI.toast("تم قراءة الباركود", "success");
 
 });
 
@@ -6283,35 +6389,38 @@ function viewTransfer(id){
 }
 
 function exportTransferExcel(id){
+  let t = State.transfers.find(x=>x.id===id);
+  if(!t) return;
 
-let t = State.transfers.find(x=>x.id===id)
+  let data = [];
+  t.items.forEach(i=>{
+    // جلب اسم الصنف من كل المصادر المتاحة
+    let name = i.name || '';
+    if(!name || name === '-') {
+      name = getProductName(i.barcode) || '';
+    }
+    // لو لا يزال فارغاً، ابحث في State.products
+    if(!name) {
+      const sp = State.products && State.products.find(p => String(p.barcode) === String(i.barcode));
+      if(sp) name = sp.name || '';
+    }
 
-if(!t) return
+    data.push({
+      "الباركود": i.barcode || "",
+      "الصنف": name || i.name || "-",
+      "كراتين": i.cartons || 0,
+      "علب": i.boxes || 0,
+      "قطع": i.pieces || 0,
+      "الإجمالي": i.total || 0,
+      "تاريخ الانتهاء": i.expire || ""
+    });
+  });
 
-let data = []
-
-t.items.forEach(i=>{
-
-data.push({
-"الباركود": i.barcode || "",
-"الصنف": i.name,
-"كراتين": i.cartons,
-"علب": i.boxes,
-"قطع": i.pieces,
-"الإجمالي": i.total,
-"تاريخ الانتهاء": i.expire || ""
-})
-
-})
-
-let ws = XLSX.utils.json_to_sheet(data)
-
-let wb = XLSX.utils.book_new()
-
-XLSX.utils.book_append_sheet(wb,ws,"Transfer")
-
-XLSX.writeFile(wb,"transfer_"+t.id+".xlsx")
-
+  let ws = XLSX.utils.json_to_sheet(data);
+  let wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Transfer");
+  XLSX.writeFile(wb, "transfer_" + t.id + ".xlsx");
+  SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير تحويل");
 }
 // =============================
 // تعديل التحويل
@@ -6517,28 +6626,31 @@ function loadPriceSheetFromFirebase() {
   db.ref('priceSheet').once('value').then(snap => {
     const data = snap.val();
     if(!data) return;
-    // دعم الهيكل الجديد (baz/cai) والقديم (names)
     const hasNew = data.baz && Object.keys(data.baz).length > 0;
     const hasOld = data.names && Object.keys(data.names).length > 0;
     if(!hasNew && !hasOld) return;
-    const total = hasNew ? Object.keys(data.baz).length + Object.keys(data.cai||{}).length : Object.keys(data.names).length;
+    const bazCount = hasNew ? Object.keys(data.baz).length : 0;
+    const caiCount = data.cai ? Object.keys(data.cai).length : 0;
+    const total = hasNew ? bazCount + caiCount : Object.keys(data.names).length;
 
     // بناء Map من baz و cai
     const buildMap = (src) => {
       const m = new Map();
       if(!src) return m;
       Object.entries(src).forEach(([k, v]) => {
+        // دعم الهيكل الجديد (string) والقديم (object)
+        const name = typeof v === 'string' ? v : (v.n || v.name || '');
         const obj = {
-          name: v.n || '',
-          sellPrice: v.s || 0,
-          costPrice: v.c || 0,
-          vendorCode: v.v || '',
-          vendorName: v.vn || '',
-          modifiedBy: v.mb || '',
-          dateOfPrice: v.dp || ''
+          name: name,
+          sellPrice: typeof v === 'object' ? (v.s || v.sellPrice || 0) : 0,
+          costPrice: typeof v === 'object' ? (v.c || v.costPrice || 0) : 0,
+          vendorCode: typeof v === 'object' ? (v.v || v.vendorCode || '') : '',
+          vendorName: typeof v === 'object' ? (v.vn || v.vendorName || '') : '',
+          modifiedBy: typeof v === 'object' ? (v.mb || v.modifiedBy || '') : '',
+          dateOfPrice: typeof v === 'object' ? (v.dp || v.dateOfPrice || '') : '',
+          modifiedAt: typeof v === 'object' ? (v.ma || v.modifiedAt || '') : ''
         };
         m.set(k, obj);
-        // أيضاً بدون underscore replacement
         const orig = k.replace(/_/g, '.');
         if(orig !== k) m.set(orig, obj);
       });
@@ -6578,44 +6690,93 @@ function loadPriceSheetFromFirebase() {
 
 function onProductBarcodeInput(barcode) {
   const nameField = document.getElementById('productName');
+  const costField = document.getElementById('productCost');
+  const priceField = document.getElementById('productPrice');
   if(!nameField) return;
+
   barcode = String(barcode).trim();
-  if(!barcode) { nameField.value = ''; return; }
+  if(!barcode) {
+    nameField.value = '';
+    return;
+  }
 
-  // 1. بحث محلي أولاً
-  const localName = getProductName(barcode);
-  if(localName) { nameField.value = localName; return; }
+  // دالة تملأ الحقول
+  const fillFields = (obj) => {
+    if(!obj) return false;
+    const name = typeof obj === 'string' ? obj : (obj.name || '');
+    if(!name) return false;
+    nameField.value = name;
+    // سعر التكلفة والبيع من بيانات البازار
+    if(costField && obj.costPrice) costField.value = obj.costPrice;
+    if(priceField && obj.sellPrice) priceField.value = obj.sellPrice;
+    return true;
+  };
 
-  // 2. بحث في Firebase
+  // 1. من State.products محلياً
+  const localProduct = State.products && State.products.find(p => String(p.barcode) === barcode);
+  if(localProduct && localProduct.name) {
+    fillFields(localProduct);
+    return;
+  }
+
+  // 2. من window.S (شيت الأسعار - يفضّل البازار)
+  try {
+    const ps = window.S;
+    if(ps && ps.getBaz) {
+      const bazMap = ps.getBaz();
+      const caiMap = ps.getCai ? ps.getCai() : null;
+      const safe = barcode.replace(/[.#$[\]]/g, '_');
+      // البازار أولاً
+      for(const k of [barcode, safe, barcode.replace(/\./g,'_')]) {
+        const found = bazMap && bazMap.get(k);
+        if(found && fillFields(found)) return;
+      }
+      // القاهرة كـ fallback
+      for(const k of [barcode, safe]) {
+        const found = caiMap && caiMap.get(k);
+        if(found && fillFields(found)) return;
+      }
+    }
+  } catch(e) {}
+
+  // 3. من Firebase
   nameField.placeholder = '⏳ جارٍ البحث...';
-  getProductNameAsync(barcode, name => {
+  lookupProductFromPriceSheet(barcode, (result) => {
     nameField.placeholder = 'اسم المنتج';
-    if(name) nameField.value = name;
+    if(result) {
+      fillFields(result);
+    }
   });
 }
 
 function onTransferBarcodeInput(barcode) {
   const nameField = document.getElementById('transferName');
   if(!nameField) return;
-  barcode = barcode.trim();
+  barcode = String(barcode || '').trim();
   if(!barcode) { nameField.value = ''; nameField.placeholder = 'اسم الصنف'; return; }
 
-  nameField.value = '';
-  nameField.placeholder = '⏳ جارٍ البحث...';
-
-  // 1. بحث في State.products أولاً (أسرع)
+  // 1. من State.products
   const localProduct = State.products.find(p => String(p.barcode) === barcode);
-  if(localProduct) {
-    nameField.value = localProduct.name || '';
+  if(localProduct && localProduct.name) {
+    nameField.value = localProduct.name;
     nameField.placeholder = 'اسم الصنف';
     return;
   }
 
-  // 2. بحث في شيت الأسعار (Firebase)
+  // 2. من getProductName (window.S)
+  const localName = getProductName(barcode);
+  if(localName) {
+    nameField.value = localName;
+    nameField.placeholder = 'اسم الصنف';
+    return;
+  }
+
+  // 3. من Firebase
+  nameField.placeholder = '⏳ بحث...';
   lookupProductFromPriceSheet(barcode, (result) => {
+    nameField.placeholder = 'اسم الصنف';
     if(result && result.name) {
       nameField.value = result.name;
-      nameField.placeholder = 'اسم الصنف';
     } else {
       nameField.value = '';
       nameField.placeholder = 'لم يُعثر على الصنف';
@@ -6624,18 +6785,52 @@ function onTransferBarcodeInput(barcode) {
 }
 
 function lookupProductFromPriceSheet(barcode, callback) {
+  const bc = String(barcode).trim();
+  const safe = bc.replace(/[.#$[\]]/g, '_');
+
+  // 1. أولاً من window.S (لا يحتاج network)
+  try {
+    const ps = window.S;
+    if(ps && typeof ps.getBaz === 'function') {
+      const baz = ps.getBaz();
+      const cai = ps.getCai ? ps.getCai() : null;
+      for(const k of [bc, safe, bc.replace(/\./g,'_')]) {
+        const found = (baz && baz.get(k)) || (cai && cai.get(k));
+        if(found) {
+          const name = typeof found === 'string' ? found : found.name;
+          if(name) { callback({ name }); return; }
+        }
+      }
+    }
+  } catch(e) {}
+
+  // 2. من Firebase
   if(typeof db === 'undefined') { callback(null); return; }
-  // بحث في Firebase مباشرة
-  const safeBarcode = String(barcode).trim().replace(/[.#$\[\]]/g, '_');
-  db.ref('priceSheet/names/' + safeBarcode).once('value').then(snap => {
-    const name = snap.val();
-    if(name) { callback({ name: name }); return; }
-    // جرب بالباركود الأصلي
-    return db.ref('priceSheet/names/' + barcode).once('value');
-  }).then(snap => {
-    if(snap && snap.val()) { callback({ name: snap.val() }); }
-    else { callback(null); }
-  }).catch(() => callback(null));
+
+  let done = false;
+  const cb = (result) => { if(!done) { done=true; callback(result); } };
+
+  // جرب baz ثم cai ثم names (fallback)
+  const paths = [
+    'priceSheet/baz/' + safe,
+    'priceSheet/cai/' + safe,
+    'priceSheet/baz/' + bc,
+    'priceSheet/cai/' + bc,
+    'priceSheet/names/' + safe
+  ];
+
+  const tryNext = (i) => {
+    if(i >= paths.length) { cb(null); return; }
+    db.ref(paths[i]).once('value').then(snap => {
+      const v = snap.val();
+      if(v && !done) {
+        const name = typeof v === 'string' ? v : (v.n || v.name || '');
+        if(name) cb({ name, sellPrice: v.s||0, costPrice: v.c||0, vendorName: v.vn||'' });
+        else tryNext(i+1);
+      } else tryNext(i+1);
+    }).catch(() => tryNext(i+1));
+  };
+  tryNext(0);
 }
 
 function deleteTransfer(id){
@@ -6884,8 +7079,36 @@ html += `
 <td>${p.name || getProductName(p.barcode) || "-"}</td>
 <td>${p.branch || "-"}</td>
 <td>${p.quantity}</td>
-<td style="color:#94a3b8">${p.cost ? Number(p.cost).toLocaleString('ar-EG') : '-'}</td>
-<td style="color:#34d399;font-weight:600">${p.price ? Number(p.price).toLocaleString('ar-EG') : '-'}</td>
+<td style="color:#94a3b8">${(()=>{
+  let c = p.cost;
+  if(!c && p.barcode) {
+    try {
+      const ps = window.S;
+      if(ps && ps.getBaz) {
+        const bm = ps.getBaz();
+        const safe = String(p.barcode).replace(/[.#$[\]]/g,'_');
+        const found = bm && (bm.get(String(p.barcode)) || bm.get(safe));
+        if(found && found.costPrice) c = found.costPrice;
+      }
+    } catch(_) {}
+  }
+  return c ? Number(c).toLocaleString('ar-EG') : '-';
+})()}</td>
+<td style="color:#34d399;font-weight:600">${(()=>{
+  let pr = p.price;
+  if(!pr && p.barcode) {
+    try {
+      const ps = window.S;
+      if(ps && ps.getBaz) {
+        const bm = ps.getBaz();
+        const safe = String(p.barcode).replace(/[.#$[\]]/g,'_');
+        const found = bm && (bm.get(String(p.barcode)) || bm.get(safe));
+        if(found && found.sellPrice) pr = found.sellPrice;
+      }
+    } catch(_) {}
+  }
+  return pr ? Number(pr).toLocaleString('ar-EG') : '-';
+})()}</td>
 <td>${p.expire || "-"}</td>
 <td>${remaining}</td>
 
@@ -8811,7 +9034,9 @@ function renderResult(result, bc) {
       ${pb?`<div class="mi"><div class="mi-l">📅 تاريخ سعر البازار</div><div class="mi-v">${fmtDate(pb.dateOfPrice)}</div></div>`:''}
       ${pc?`<div class="mi"><div class="mi-l">📅 تاريخ سعر القاهرة</div><div class="mi-v">${fmtDate(pc.dateOfPrice)}</div></div>`:''}
       ${pb?`<div class="mi"><div class="mi-l">🕐 آخر تعديل البازار</div><div class="mi-v">${fmtDT(pb.modifiedAt)}</div></div>`:''}
+      ${pb&&pb.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة (ب)</div><div class="mi-v">${pb.modifiedBy}</div></div>`:''}
       ${pc?`<div class="mi"><div class="mi-l">🕐 آخر تعديل القاهرة</div><div class="mi-v">${fmtDT(pc.modifiedAt)}</div></div>`:''}
+      ${pc&&pc.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة (ق)</div><div class="mi-v">${pc.modifiedBy}</div></div>`:''}
     </div>
     <div class="ract">
       <button class="ra" onclick="cpAllDual()">📋 نسخ جميع البيانات</button>
@@ -9013,7 +9238,9 @@ const CAM = (() => {
   const start=()=>{
     document.getElementById('camPh').style.display='none';
     document.getElementById('scOv').style.display='flex';
-    sc=new Html5Qrcode('sw');
+    // إعادة إنشاء Html5Qrcode بعد clear
+    if(sc) { try { sc.clear(); } catch(_){} sc = null; }
+    sc = new Html5Qrcode('sw');
     sc.start({facingMode:'environment'},{fps:15,qrbox:{width:240,height:145}},
       dec=>{if(!run)return;document.getElementById('bci').value=dec;stop();swSTab('manual');doSearch(dec);},
       ()=>{})
