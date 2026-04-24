@@ -2863,15 +2863,54 @@ function handleFile(file){
   toast('⏳ جارٍ قراءة الملف...','',6000);
   XL.parse(file).then(({baz,cai,total})=>{
     S.setData(baz,cai);
-    document.getElementById('flRow').classList.add('on');
-    document.getElementById('flNm').textContent=file.name;
-    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${S.total().toLocaleString('ar-EG')} باركود فريد`;
-    document.getElementById('bdg').classList.add('on');
-    document.getElementById('bdgTxt').textContent=S.total().toLocaleString('ar-EG')+' منتج';
-    document.getElementById('statsBar').style.display='flex';
-    document.getElementById('srcStrip').classList.add('vis');
-    updStats();
+    // تحديث UI بشكل آمن
+    try {
+      const _g = id => document.getElementById(id);
+      if(_g('flRow')) _g('flRow').classList.add('on');
+      if(_g('flNm'))  _g('flNm').textContent = file.name;
+      if(_g('flCnt')) _g('flCnt').textContent = `البازار: ${baz.size.toLocaleString('ar-EG')} | القاهرة: ${cai.size.toLocaleString('ar-EG')}`;
+      if(_g('bdg'))   _g('bdg').classList.add('on');
+      if(_g('bdgTxt'))_g('bdgTxt').textContent = S.total().toLocaleString('ar-EG') + ' منتج';
+      if(_g('statsBar')) _g('statsBar').style.display = 'flex';
+      if(_g('srcStrip')) _g('srcStrip').classList.add('vis');
+    } catch(uiErr) { console.warn('handleFile UI:', uiErr.message); }
+    try { if(typeof updStats==='function') updStats(); } catch(e){}
     toast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
+
+    // ── رفع الأسماء لـ Firebase (baz/cai/S متاحة هنا مباشرة) ──
+    window.S = S;
+    try {
+      const _db = (typeof db !== 'undefined') ? db : null;
+      if(_db) {
+        const names = {};
+        let cnt = 0;
+        baz.forEach((val, key) => {
+          if(val && val.name) { names[key.replace(/[.#$[\]]/g,'_')] = val.name; cnt++; }
+        });
+        cai.forEach((val, key) => {
+          if(val && val.name) {
+            const safe = key.replace(/[.#$[\]]/g,'_');
+            if(!names[safe]) { names[safe] = val.name; cnt++; }
+          }
+        });
+        const saveData = {
+          fileName: file.name,
+          uploadedAt: firebase.database.ServerValue.TIMESTAMP,
+          uploadedBy: (typeof State!=='undefined'&&State.currentUser) ? State.currentUser.username : '-',
+          bazTotal: baz.size, caiTotal: cai.size, names: names
+        };
+        _db.ref('priceSheet').remove()
+          .then(()=> _db.ref('priceSheet').set(saveData))
+          .then(()=>{
+            const kb = Math.round(JSON.stringify(saveData).length/1024);
+            toast('☁️ Firebase: '+cnt.toLocaleString('ar-EG')+' منتج ('+kb+'KB)','ok');
+            try{if(typeof SystemLog!=='undefined') SystemLog.add('UploadPriceSheet',file.name,cnt+' منتج');}catch(e){}
+            try{localStorage.setItem('priceSheetName',file.name);}catch(e){}
+          })
+          .catch(e2=>{ console.error('Firebase priceSheet:',e2); toast('⚠️ '+e2.message,'warn'); });
+      }
+    } catch(fbErr){ console.error('Firebase block:',fbErr); }
+
   }).catch(err=>toast('❌ '+err,'er'));
 }
 
@@ -2906,7 +2945,7 @@ function thmTog(){
 // prices module: events مؤجلة لحين فتح التبويب (تُستدعى من initPricesModule)
 function bindPricesEvents() {
   const fi = document.getElementById('fi');
-  if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);try{e.target.value='';}catch(err){}});
+  if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);try{try{e.target.value=''}catch(_){};}catch(e){}});
   const thmBtn = document.getElementById('thmBtn');
   if(thmBtn) thmBtn.addEventListener('click',thmTog);
   const bci = document.getElementById('bci');
@@ -3991,7 +4030,15 @@ firebase.database().ref(".info/serverTimeOffset").on("value", function(snapshot)
 State.serverOffset = snapshot.val() || 0
 
 })
-    const db = firebase.database();
+    const db = firebase.database()
+
+// تجاهل خطأ file input value (browser limitation طبيعي)
+window.addEventListener('error', function(e) {
+  if(e.message && e.message.includes('filename') && e.message.includes('HTMLInputElement')) {
+    e.preventDefault();
+    return true;
+  }
+});;
 
     // ========================= الحالة العامة (State) =========================
     const State = {
@@ -6342,12 +6389,12 @@ function getProductName(barcode) {
 
   // 2. من شيت الأسعار المحمّل محلياً (S object في prices module)
   try {
-    const priceS = window.S || (typeof S !== 'undefined' ? S : null);
-    if(priceS && priceS.getBaz) {
-      const baz = priceS.getBaz();
-      if(baz) {
+    const ps = window.S;
+    if(ps && typeof ps.getBaz === 'function') {
+      const baz = ps.getBaz();
+      if(baz && baz.size > 0) {
         const safe = bc.replace(/[.#$\[\]]/g, '_');
-        const found = baz.get(bc) || baz.get(safe) || baz.get(bc.replace(/\./, '_'));
+        const found = baz.get(bc) || baz.get(safe) || baz.get(bc.replace(/\./g, '_'));
         if(found && found.name) return found.name;
       }
     }
@@ -6379,23 +6426,36 @@ function savePriceSheetToFirebase(fileName) {
     UI.toast('⚠️ Firebase غير متصل', 'warning');
     return;
   }
-  const _ps = window.S;
-  if(!_ps || !_ps.getBaz) { UI.toast('⚠️ ارفع الشيت أولاً', 'warning'); return; }
 
-  const baz = _ps.getBaz() || new Map();
-  const cai = _ps.getCai() || new Map();
-  if(baz.size + cai.size === 0) { UI.toast('⚠️ الشيت فارغ', 'warning'); return; }
+  // قراءة البيانات من window.S
+  const ps = window.S;
+  if(!ps || typeof ps.getBaz !== 'function') {
+    UI.toast('⚠️ ارفع الشيت أولاً', 'warning');
+    return;
+  }
+
+  const baz = ps.getBaz() || new Map();
+  const cai = ps.getCai() || new Map();
+
+  if(baz.size + cai.size === 0) {
+    UI.toast('⚠️ الشيت فارغ', 'warning');
+    return;
+  }
 
   UI.toast('☁️ جارٍ الرفع...', 'success');
 
+  // حفظ barcode → name فقط (اقتصاد في المساحة)
   const names = {};
   let count = 0;
   baz.forEach((val, key) => {
-    if(val && val.name) { names[key.replace(/[.#$\[\]]/g,'_')] = val.name; count++; }
+    if(val && val.name) {
+      names[key.replace(/[.#$\[\]]/g, '_')] = val.name;
+      count++;
+    }
   });
   cai.forEach((val, key) => {
     if(val && val.name) {
-      const safe = key.replace(/[.#$\[\]]/g,'_');
+      const safe = key.replace(/[.#$\[\]]/g, '_');
       if(!names[safe]) { names[safe] = val.name; count++; }
     }
   });
@@ -6410,18 +6470,18 @@ function savePriceSheetToFirebase(fileName) {
   };
 
   const kb = Math.round(JSON.stringify(saveData).length / 1024);
-  console.log('رفع شيت الأسعار:', count, 'منتج -', kb, 'KB');
+  console.log('Uploading priceSheet:', count, 'products,', kb, 'KB');
 
   db.ref('priceSheet').remove()
     .then(() => db.ref('priceSheet').set(saveData))
     .then(() => {
       UI.toast('✅ تم الرفع: ' + count.toLocaleString('ar-EG') + ' منتج (' + kb + ' KB)', 'success');
-      SystemLog.add('UploadPriceSheet', fileName || 'sheet', count + ' منتج');
+      try { SystemLog.add('UploadPriceSheet', fileName || 'sheet', count + ' منتج'); } catch(e) {}
       try { localStorage.setItem('priceSheetName', fileName); } catch(e) {}
     })
     .catch(err => {
-      console.error('Firebase error:', err);
-      UI.toast('❌ فشل: ' + (err.message || err), 'error');
+      console.error('Firebase priceSheet error:', err);
+      UI.toast('❌ فشل الرفع: ' + (err.message || err), 'error');
     });
 }
 
@@ -6431,31 +6491,44 @@ function loadPriceSheetFromFirebase() {
   db.ref('priceSheet').once('value').then(snap => {
     const data = snap.val();
     if(!data || !data.names) return;
+
     const total = Object.keys(data.names).length;
     if(total === 0) return;
 
-    // نبني Map من names
+    // بناء Map من names
     const baz = new Map();
     Object.entries(data.names).forEach(([k, name]) => {
       baz.set(k, { name: name });
-      // أيضاً نضيف بدون underscore replacement
-      const original = k.replace(/_/g, '.');
-      if(original !== k) baz.set(original, { name: name });
+      // أيضاً بالشكل الأصلي (underscore → dot)
+      const orig = k.replace(/_/g, '.');
+      if(orig !== k) baz.set(orig, { name: name });
     });
-    const cai = new Map();
 
-    if(window.S && window.S ? window.S.setData : null) window.S ? window.S.setData : null(baz, cai);
+    // sync window.S
+    if(window.S && window.S.setData) {
+      window.S.setData(baz, new Map());
+    }
 
-    // تحديث UI prices module
-    ['flRow'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.add('on'); });
-    const flNm = document.getElementById('flNm');
-    const flCnt = document.getElementById('flCnt');
-    const bdgTxt = document.getElementById('bdgTxt');
-    if(flNm) flNm.textContent = data.fileName || localStorage.getItem('priceSheetName') || 'شيت محفوظ';
-    if(flCnt) flCnt.textContent = 'إجمالي: ' + total.toLocaleString('ar-EG') + ' منتج (من Firebase)';
-    if(bdgTxt) bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
+    // تحديث UI بشكل آمن (العناصر قد تكون غير موجودة)
+    const safeGet = (id) => { try { return document.getElementById(id); } catch(e) { return null; } };
+    const flRow = safeGet('flRow');
+    const flNm  = safeGet('flNm');
+    const flCnt = safeGet('flCnt');
+    const bdg   = safeGet('bdg');
+    const bdgTxt= safeGet('bdgTxt');
+    const statsBar = safeGet('statsBar');
+    const srcStrip = safeGet('srcStrip');
+    const displayName = data.fileName || 'شيت محفوظ';
 
-    console.log('✅ تم تحميل ' + total + ' منتج من Firebase priceSheet');
+    if(flRow) flRow.classList.add('on');
+    if(flNm)  flNm.textContent = displayName;
+    if(flCnt) flCnt.textContent = 'إجمالي: ' + total.toLocaleString('ar-EG') + ' منتج';
+    if(bdg)   bdg.classList.add('on');
+    if(bdgTxt)bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
+    if(statsBar) statsBar.style.display = 'flex';
+    if(srcStrip) srcStrip.classList.add('vis');
+
+    console.log('priceSheet loaded: ' + total + ' products from Firebase');
   }).catch(err => console.warn('priceSheet load error:', err));
 }
 
@@ -8929,17 +9002,11 @@ function handleFile(file){
     document.getElementById('bdgTxt').textContent=window.S && window.S.total().toLocaleString('ar-EG')+' منتج';
     document.getElementById('statsBar').style.display='flex';
     document.getElementById('srcStrip').classList.add('vis');
-    updStats();
+    try { if(typeof updStats==='function') updStats(); } catch(e){}
     prToast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
 
     // ── حفظ في Firebase (يحذف القديم ويضع الجديد) ──────────────────
-    // sync S للـ global scope ثم رفع Firebase
-    if(typeof S !== 'undefined') window.S = S;
-    setTimeout(() => {
-      if(typeof savePriceSheetToFirebase === 'function') {
-        savePriceSheetToFirebase(file.name);
-      }
-    }, 500); // نأكد أن S.setData اكتمل
+// Firebase upload handled in handleFile directly
 
   }).catch(err=>prToast('❌ '+err,'er'));
 }
