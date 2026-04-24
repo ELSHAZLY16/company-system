@@ -1513,6 +1513,8 @@ body.light-mode #tab-prices {
     </div>
 </div>
 
+<div id="printArea" style="display:none;"></div>
+
 <!-- ========================= صفحة تسجيل الدخول ========================= -->
 <div id="loginPage" style="display:flex; align-items:center; justify-content:center; position:fixed; inset:0; z-index:9998; background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%); overflow-y:auto;">
     <div class="glass-card" style="padding:40px 36px; width:90%; max-width:400px; border-color:rgba(99,102,241,0.4);">
@@ -3090,22 +3092,86 @@ function updStats(){
 ===================================================== */
 let dark=true;
 function thmTog(){
-  // نستخدم نظام الثيم الموحد
   document.body.classList.toggle('light-mode');
   const isLight = document.body.classList.contains('light-mode');
   dark = !isLight;
   const thmBtn = document.getElementById('thmBtn');
   if(thmBtn) thmBtn.textContent = isLight ? '☀️' : '🌙';
-  // sync مع الزر الرئيسي
   const mainBtn = document.getElementById('themeToggle');
   if(mainBtn) mainBtn.innerText = isLight ? '☀' : '🌙';
-  localStorage.setItem('al_thm', isLight ? 'light' : 'dark');
+  const val = isLight ? 'light' : 'dark';
+  localStorage.setItem('al_thm', val);
+  // حفظ في Firebase للمستخدم الحالي
+  if(typeof db !== 'undefined' && State.currentUser) {
+    db.ref('userPrefs/' + State.currentUser.username + '/theme').set(val).catch(()=>{});
+  }
+}
+
+// تحميل ثيم المستخدم من Firebase
+function loadUserTheme(username) {
+  // أولاً من localStorage (أسرع)
+  const local = localStorage.getItem('al_thm');
+  if(local) applyTheme(local);
+  // ثم من Firebase (يُحدّث لو تغيّر من جهاز آخر)
+  if(typeof db !== 'undefined' && username) {
+    db.ref('userPrefs/' + username + '/theme').once('value').then(snap => {
+      if(snap.val()) applyTheme(snap.val());
+    }).catch(()=>{});
+  }
+}
+
+function applyTheme(val) {
+  const isLight = val === 'light';
+  if(isLight) document.body.classList.add('light-mode');
+  else document.body.classList.remove('light-mode');
+  dark = !isLight;
+  localStorage.setItem('al_thm', val);
+  const thmBtn = document.getElementById('thmBtn');
+  if(thmBtn) thmBtn.textContent = isLight ? '☀️' : '🌙';
+  const mainBtn = document.getElementById('themeToggle');
+  if(mainBtn) mainBtn.innerText = isLight ? '☀' : '🌙';
 }
 
 /* =====================================================
    INIT
 ===================================================== */
 // prices module: events مؤجلة لحين فتح التبويب (تُستدعى من initPricesModule)
+function renderBarcodeTransfers(bc) {
+  // نعرض تحويلات الصنف أسفل نتيجة البحث في صفحة الأسعار
+  if(typeof State === 'undefined') return;
+  const related = State.transfers ? State.transfers.filter(t =>
+    t.items && t.items.some(i => String(i.barcode) === String(bc))
+  ).slice(0,5) : [];
+
+  let container = document.getElementById('priceTransferHistory');
+  if(!container) {
+    container = document.createElement('div');
+    container.id = 'priceTransferHistory';
+    container.style.cssText = 'margin:12px 0;direction:rtl';
+    const rc = document.getElementById('rc');
+    if(rc && rc.parentNode) rc.parentNode.insertBefore(container, rc.nextSibling);
+  }
+
+  if(!related.length) { container.innerHTML = ''; return; }
+
+  const rows = related.map(t => {
+    const item = t.items.find(i => String(i.barcode) === String(bc));
+    return `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:12px">
+      <span style="color:#94a3b8">${t.date}</span>
+      <span>${t.from} → ${t.to}</span>
+      <span style="color:#34d399;font-weight:700">${item?item.total:'-'} وحدة</span>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:10px;overflow:hidden;margin-top:8px">
+      <div style="padding:8px 12px;background:rgba(99,102,241,0.15);font-size:12px;font-weight:700;color:#818cf8">
+        📦 آخر ${related.length} تحويلات لهذا الصنف
+      </div>
+      ${rows}
+    </div>`;
+}
+
 function bindPricesEvents() {
   const fi = document.getElementById('fi');
   if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);try{try{e.target.value=''}catch(_){};}catch(e){}});
@@ -3940,6 +4006,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 <th>علب</th>
 <th>قطع</th>
 <th>الانتهاء</th>
+<th>حذف</th>
 </tr>
 
 </thead>
@@ -3950,11 +4017,26 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 
 </div>
 
-<div style="display:flex;gap:10px;margin-top:20px">
+<!-- صف إضافة صنف جديد -->
+<div style="margin-top:12px;padding:12px;background:rgba(99,102,241,0.08);border-radius:10px;border:1px solid rgba(99,102,241,0.2)">
+  <div style="font-size:12px;color:#818cf8;margin-bottom:8px;font-weight:700">➕ إضافة صنف جديد</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <input id="newItemBarcode" placeholder="باركود" style="flex:2;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#fff;font-family:inherit"
+      oninput="onEditNewBarcode(this.value)">
+    <input id="newItemName" placeholder="اسم الصنف" readonly style="flex:3;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:#0f172a;color:#94a3b8;font-family:inherit">
+    <input id="newItemCartons" type="number" min="0" placeholder="كراتين" style="width:70px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#fff;font-family:inherit">
+    <input id="newItemBoxes" type="number" min="0" placeholder="علب" style="width:65px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#fff;font-family:inherit">
+    <input id="newItemPieces" type="number" min="0" placeholder="قطع" style="width:65px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#fff;font-family:inherit">
+    <input id="newItemExpire" type="date" style="width:130px;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:#0f172a;color:#fff;font-family:inherit">
+    <button onclick="addItemToEditTransfer()" style="padding:8px 16px;background:rgba(16,185,129,0.25);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;cursor:pointer;font-weight:700;white-space:nowrap">+ إضافة</button>
+  </div>
+</div>
+
+<div style="display:flex;gap:10px;margin-top:16px">
 
 <button class="btn-success btn-primary"
 onclick="saveTransferEdit()">
-💾 حفظ
+💾 حفظ التعديلات
 </button>
 
 <button class="btn-danger btn-primary"
@@ -4199,6 +4281,50 @@ window.addEventListener('error', function(e) {
   if(e.message && e.message.includes('filename') && e.message.includes('HTMLInputElement')) {
     e.preventDefault();
     return true;
+  }
+});
+
+// =====================================================
+// اختصارات لوحة المفاتيح
+// =====================================================
+document.addEventListener('keydown', function(e) {
+  // Escape - إغلاق أي modal مفتوح
+  if(e.key === 'Escape') {
+    // إغلاق modals
+    const modals = document.querySelectorAll('.modal-overlay, .transfer-modal-overlay');
+    modals.forEach(m => { if(m.style.display !== 'none') m.style.display = 'none'; });
+    // إغلاق الكاميرا
+    if(typeof CAM !== 'undefined') CAM.stop();
+    // إغلاق scanner
+    const scanner = document.getElementById('barcodeScanner');
+    if(scanner && scanner.style.display !== 'none') {
+      if(typeof ProductService !== 'undefined') ProductService.closeScanner();
+    }
+    return;
+  }
+
+  // لا تطبّق الاختصارات لو في input
+  const activeEl = document.activeElement;
+  const inInput = activeEl && ['INPUT','TEXTAREA','SELECT'].includes(activeEl.tagName);
+  if(inInput) return;
+
+  switch(e.key) {
+    case 'h': case 'H': // الرئيسية
+      document.querySelector('.tab-btn[data-tab="attendance"]')?.click();
+      break;
+    case 'p': case 'P': // المنتجات/التواريخ
+      document.querySelector('.tab-btn[data-tab="products"]')?.click();
+      break;
+    case 't': case 'T': // التحويلات
+      document.querySelector('.tab-btn[data-tab="transfers"]')?.click();
+      break;
+    case 'a': case 'A': // الأسعار
+      document.querySelector('.tab-btn[data-tab="prices"]')?.click();
+      break;
+    case 'F2': // رفع شيت الأسعار
+      document.getElementById('fi')?.click();
+      e.preventDefault();
+      break;
   }
 });;
 
@@ -5584,6 +5710,8 @@ function saveProductEdit() {
             if (dash) { dash.style.display = "block"; dash.style.visibility = "visible"; }
             if (welcome) { welcome.style.display = "none"; welcome.style.visibility = "hidden"; }
             document.body.style.overflow = "auto";
+            // تحميل ثيم المستخدم
+            if(State.currentUser) loadUserTheme(State.currentUser.username);
         },
 
         showLoginPage() {
@@ -6248,53 +6376,128 @@ UI.toast("تم حذف الصنف","success")
 
 
 function saveTransferEdit(){
+  const t = State.transfers.find(x => x.id === editingTransferId);
+  if(!t) { UI.toast('خطأ: التحويل غير موجود', 'error'); return; }
 
-let t = State.transfers.find(x=>x.id===editingTransferId)
+  const tbody = document.getElementById('editTransferItems');
+  if(!tbody) return;
 
-if(!t) return
+  // قراءة مباشرة من كل صف بدون الاعتماد على الـ IDs
+  const newItems = [];
+  tbody.querySelectorAll('tr').forEach(row => {
+    const allInputs = row.querySelectorAll('input');
+    if(allInputs.length < 4) return;
 
-let newItems = []
+    // text inputs: barcode
+    const barcodeInp = row.querySelector('input[type=text]');
+    const barcode = barcodeInp ? barcodeInp.value.trim() : '';
+    if(!barcode) return;
 
-t.items.forEach((i,index)=>{
+    // name من td (غير input)
+    const nameTd = row.querySelector('td[id^="editName"], td:nth-child(2):not(:has(input))');
+    const name = (nameTd && nameTd.textContent.trim() !== barcode ? nameTd.textContent.trim() : '')
+              || getProductName(barcode) || barcode;
 
-let cartons = Number(document.getElementById("editCartons"+index).value)
-let boxes = Number(document.getElementById("editBoxes"+index).value)
-let pieces = Number(document.getElementById("editPieces"+index).value)
-let expire = document.getElementById("editExpire"+index).value
+    // number inputs
+    const numInputs = row.querySelectorAll('input[type=number]');
+    const cartons = Number(numInputs[0]?.value) || 0;
+    const boxes   = Number(numInputs[1]?.value) || 0;
+    const pieces  = Number(numInputs[2]?.value) || 0;
+    const expire  = row.querySelector('input[type=date]')?.value || '';
+    const total   = (cartons * boxes) + pieces;
 
-let total = cartons * boxes * pieces
+    newItems.push({ barcode, name, cartons, boxes, pieces, expire, total });
+  });
 
-newItems.push({
+  if(newItems.length === 0) { UI.toast('لا توجد أصناف للحفظ', 'error'); return; }
 
-barcode:i.barcode,
-name:i.name,
-cartons,
-boxes,
-pieces,
-expire,
-total
+  const tid = editingTransferId;
+  closeTransferEdit();
 
-})
-
-})
-
-db.ref("transfers/"+editingTransferId).update({
-
-items:newItems
-
-})
-
-UI.toast("تم تعديل التحويل","success")
-
-closeTransferEdit()
-
+  db.ref('transfers/' + tid).update({ items: newItems })
+    .then(() => {
+      const stateT = State.transfers.find(x => x.id === tid);
+      if(stateT) { stateT.items = newItems; }
+      UI.renderTransfers();
+      UI.toast('✅ تم حفظ التعديل (' + newItems.length + ' صنف)', 'success');
+      SystemLog.add('EditTransfer', State.currentUser?.username || '-', newItems.length + ' صنف');
+    })
+    .catch(err => UI.toast('❌ فشل الحفظ: ' + (err.message||err), 'error'));
 }
 function closeTransferEdit(){
+  document.getElementById("editTransferModal").style.display = "none";
+  editingTransferId = null;
+  // مسح حقول الإضافة
+  ['newItemBarcode','newItemName','newItemCartons','newItemBoxes','newItemPieces','newItemExpire'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+}
 
-document.getElementById("editTransferModal").style.display="none"
+// جلب اسم الصنف عند كتابة الباركود في خانة الإضافة
+function onEditNewBarcode(barcode) {
+  barcode = String(barcode).trim();
+  if(!barcode) return;
+  const nameEl = document.getElementById('newItemName');
+  if(!nameEl) return;
+  const name = getProductName(barcode);
+  if(name) { nameEl.value = name; return; }
+  // بحث في Firebase
+  nameEl.value = '⏳ ...';
+  lookupProductFromPriceSheet(barcode, result => {
+    nameEl.value = (result && result.name) ? result.name : '';
+  });
+}
 
-editingTransferId=null
+// إضافة صنف جديد للتحويل المعدَّل
+function addItemToEditTransfer() {
+  const barcode = document.getElementById('newItemBarcode')?.value.trim();
+  if(!barcode) { UI.toast('اكتب الباركود أولاً', 'error'); return; }
 
+  const name    = document.getElementById('newItemName')?.value.trim() || getProductName(barcode) || barcode;
+  const cartons = Number(document.getElementById('newItemCartons')?.value) || 0;
+  const boxes   = Number(document.getElementById('newItemBoxes')?.value)   || 0;
+  const pieces  = Number(document.getElementById('newItemPieces')?.value)  || 0;
+  const expire  = document.getElementById('newItemExpire')?.value || '';
+  const total   = (cartons * boxes) + pieces;
+
+  // إضافة صف جديد في الجدول
+  const tbody = document.getElementById('editTransferItems');
+  if(!tbody) return;
+  const newIndex = tbody.querySelectorAll('tr').length;
+
+  const newRow = document.createElement('tr');
+  newRow.innerHTML = `
+    <td><input class="transfer-input" type="text" value="${barcode}" id="editBarcode${newIndex}"
+      oninput="const n=getProductName(this.value.trim());const el=document.getElementById('editName${newIndex}');if(n&&el)el.textContent=n;"></td>
+    <td id="editName${newIndex}" style="font-size:12px;max-width:120px;word-break:break-word">${name}</td>
+    <td><input class="transfer-input" type="number" min="0" value="${cartons}" id="editCartons${newIndex}"></td>
+    <td><input class="transfer-input" type="number" min="0" value="${boxes}"   id="editBoxes${newIndex}"></td>
+    <td><input class="transfer-input" type="number" min="0" value="${pieces}"  id="editPieces${newIndex}"></td>
+    <td><input class="transfer-input" type="date"   value="${expire}"          id="editExpire${newIndex}"></td>
+    <td><button onclick="this.closest('tr').remove();renumberEditRows()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button></td>`;
+  tbody.appendChild(newRow);
+
+  // مسح حقول الإضافة
+  ['newItemBarcode','newItemName','newItemCartons','newItemBoxes','newItemPieces','newItemExpire'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  document.getElementById('newItemBarcode')?.focus();
+  UI.toast(`✅ تمت إضافة: ${name}`, 'success');
+}
+
+// إعادة ترقيم الـ IDs بعد حذف صف
+function renumberEditRows() {
+  const tbody = document.getElementById('editTransferItems');
+  if(!tbody) return;
+  tbody.querySelectorAll('tr').forEach((row, i) => {
+    const inputs = row.querySelectorAll('input');
+    const idMap = ['editBarcode','editCartons','editBoxes','editPieces','editExpire'];
+    inputs.forEach((inp, j) => { if(idMap[j]) inp.id = idMap[j] + i; });
+    const nameTd = row.querySelector('td[id^="editName"]');
+    if(nameTd) nameTd.id = 'editName' + i;
+  });
 }
 
 // =============================
@@ -6498,10 +6701,17 @@ html += `
 <input class="transfer-input barcode-input"
 type="text"
 value="${i.barcode || ""}"
-id="editBarcode${index}">
+id="editBarcode${index}"
+oninput="
+  const bc=this.value.trim();
+  if(bc){
+    const n=getProductName(bc);
+    const nameEl=document.getElementById('editName${index}');
+    if(n&&nameEl) nameEl.textContent=n;
+  }
+">
 </td>
-
-<td>${i.name}</td>
+<td id="editName${index}" style="font-size:12px;max-width:120px;word-break:break-word">${i.name||getProductName(i.barcode)||'-'}</td>
 
 <td>
 <input class="transfer-input"
@@ -6532,6 +6742,10 @@ id="editPieces${index}">
 type="date"
 value="${i.expire || ""}"
 id="editExpire${index}">
+</td>
+<td>
+<button onclick="this.closest('tr').remove();renumberEditRows()"
+style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button>
 </td>
 
 </tr>
@@ -6605,6 +6819,52 @@ function getProductNameAsync(barcode, callback) {
   }).catch(() => callback(null));
 }
 
+// ─── دوال الطباعة ───────────────────────────────────────────────────────────
+function printContent(html, title) {
+  const area = document.getElementById('printArea');
+  if(!area) return;
+  area.style.display = 'block';
+  area.innerHTML = html;
+  const oldTitle = document.title;
+  document.title = title || 'علوش البازار';
+  window.print();
+  setTimeout(() => { area.style.display = 'none'; area.innerHTML = ''; document.title = oldTitle; }, 500);
+}
+
+function printTransfer(id) {
+  const t = State.transfers.find(x => x.id === id);
+  if(!t) return;
+  const rows = t.items.map(i => {
+    const name = i.name || getProductName(i.barcode) || '-';
+    return `<tr><td>${i.barcode||'-'}</td><td>${name}</td><td>${i.cartons||0}</td><td>${i.boxes||0}</td><td>${i.pieces||0}</td><td><strong>${i.total||0}</strong></td></tr>`;
+  }).join('');
+  printContent(`
+    <div class="print-header"><h2>🏪 علوش البازار — تفاصيل التحويل</h2>
+    <p>من: <strong>${t.from}</strong> → إلى: <strong>${t.to}</strong></p>
+    <p>التاريخ: ${t.date} | الوقت: ${t.time||'-'} | بواسطة: ${t.user}</p></div>
+    <table class="print-table"><thead><tr><th>الباركود</th><th>الصنف</th><th>كراتين</th><th>علب</th><th>قطع</th><th>الإجمالي</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="print-footer">إجمالي الأصناف: ${t.items.length} | طُبع: ${new Date().toLocaleDateString('ar-EG')}</div>`,
+    `تحويل ${t.from} → ${t.to}`);
+}
+
+function printAttendance(dateStr) {
+  const date = dateStr || new Date().toISOString().slice(0,10);
+  const records = State.attendance.filter(a => a.date === date);
+  if(!records.length) { UI.toast('لا توجد سجلات في هذا اليوم','warning'); return; }
+  const rows = records.map(r => {
+    const emp = State.employees.find(e => String(e.code) === String(r.code));
+    return `<tr><td>${r.code}</td><td>${emp?emp.name:r.code}</td><td>${emp?(emp.job||'-'):'-'}</td><td>${r.type}</td><td>${r.time||'-'}</td></tr>`;
+  }).join('');
+  printContent(`
+    <div class="print-header"><h2>🏪 علوش البازار — تقرير الحضور</h2>
+    <p>تاريخ: <strong>${date}</strong> | السجلات: <strong>${records.length}</strong></p></div>
+    <table class="print-table"><thead><tr><th>الكود</th><th>الموظف</th><th>الوظيفة</th><th>النوع</th><th>الوقت</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div class="print-footer">طُبع: ${new Date().toLocaleDateString('ar-EG')}</div>`,
+    `حضور ${date}`);
+}
+
 // ─── حفظ شيت الأسعار في Firebase ────────────────────────────────────────
 function savePriceSheetToFirebase(fileName) {
   if(typeof db === 'undefined') {
@@ -6668,6 +6928,46 @@ function savePriceSheetToFirebase(fileName) {
       console.error('Firebase priceSheet error:', err);
       UI.toast('❌ فشل الرفع: ' + (err.message || err), 'error');
     });
+}
+
+// ─── تاريخ تحويلات صنف ──────────────────────────────────────────────────────
+function showBarcodeTransferHistory(barcode, productName) {
+  const related = State.transfers.filter(t =>
+    t.items && t.items.some(i => String(i.barcode) === String(barcode))
+  ).sort((a,b) => b.timestamp - a.timestamp);
+
+  if(!related.length) { UI.toast('لا توجد تحويلات لهذا الصنف', 'warning'); return; }
+
+  const rows = related.map(t => {
+    const item = t.items.find(i => String(i.barcode) === String(barcode));
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.07)">
+      <td style="padding:8px;text-align:center">${t.date}</td>
+      <td style="padding:8px;text-align:center">${t.from}</td>
+      <td style="padding:8px;text-align:center">→</td>
+      <td style="padding:8px;text-align:center">${t.to}</td>
+      <td style="padding:8px;text-align:center;font-weight:700;color:#34d399">${item?item.total:'-'}</td>
+      <td style="padding:8px;text-align:center;color:#94a3b8;font-size:12px">${t.user}</td>
+    </tr>`;
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:#1e293b;border-radius:16px;width:100%;max-width:600px;max-height:85vh;overflow:auto;padding:24px;direction:rtl">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;color:#fff">📦 تحويلات: ${productName||barcode}</h3>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:rgba(239,68,68,0.3);border:none;color:#f87171;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
+      </div>
+      <p style="color:#94a3b8;font-size:13px;margin-bottom:12px">باركود: ${barcode} | إجمالي التحويلات: ${related.length}</p>
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:rgba(255,255,255,0.05);color:#94a3b8;font-size:12px">
+          <th style="padding:8px">التاريخ</th><th style="padding:8px">من</th><th></th><th style="padding:8px">إلى</th><th style="padding:8px">الكمية</th><th style="padding:8px">بواسطة</th>
+        </tr></thead>
+        <tbody style="color:#e2e8f0">${rows}</tbody>
+      </table>
+    </div>`;
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 // ─── تحميل شيت الأسعار من Firebase ──────────────────────────────────────
@@ -9197,6 +9497,8 @@ function doSearch(bcO) {
     const sp=src==='all'?(result.pb?result.pb.sellPrice:result.pc?result.pc.sellPrice:0):p.sellPrice;
     prToast(`✅ ${p.name}`,'ok');
     window.S.addH({bc,found:true,name:p.name,sp,src:src==='all'?(result.pb&&result.pc?'الفرعين':result.pb?'البازار':'القاهرة'):src,vnd:p.vendorName,t});
+  // عرض تاريخ تحويلات الصنف أسفل النتيجة
+  setTimeout(() => renderBarcodeTransfers(bc), 200);
   } else {
     window.S.incN(); Au.no();
     if(navigator.vibrate)navigator.vibrate([90,40,90]);
@@ -9338,16 +9640,44 @@ function updStats(){
 ===================================================== */
 let dark=true;
 function thmTog(){
-  // نستخدم نظام الثيم الموحد
   document.body.classList.toggle('light-mode');
   const isLight = document.body.classList.contains('light-mode');
   dark = !isLight;
   const thmBtn = document.getElementById('thmBtn');
   if(thmBtn) thmBtn.textContent = isLight ? '☀️' : '🌙';
-  // sync مع الزر الرئيسي
   const mainBtn = document.getElementById('themeToggle');
   if(mainBtn) mainBtn.innerText = isLight ? '☀' : '🌙';
-  localStorage.setItem('al_thm', isLight ? 'light' : 'dark');
+  const val = isLight ? 'light' : 'dark';
+  localStorage.setItem('al_thm', val);
+  // حفظ في Firebase للمستخدم الحالي
+  if(typeof db !== 'undefined' && State.currentUser) {
+    db.ref('userPrefs/' + State.currentUser.username + '/theme').set(val).catch(()=>{});
+  }
+}
+
+// تحميل ثيم المستخدم من Firebase
+function loadUserTheme(username) {
+  // أولاً من localStorage (أسرع)
+  const local = localStorage.getItem('al_thm');
+  if(local) applyTheme(local);
+  // ثم من Firebase (يُحدّث لو تغيّر من جهاز آخر)
+  if(typeof db !== 'undefined' && username) {
+    db.ref('userPrefs/' + username + '/theme').once('value').then(snap => {
+      if(snap.val()) applyTheme(snap.val());
+    }).catch(()=>{});
+  }
+}
+
+function applyTheme(val) {
+  const isLight = val === 'light';
+  if(isLight) document.body.classList.add('light-mode');
+  else document.body.classList.remove('light-mode');
+  dark = !isLight;
+  localStorage.setItem('al_thm', val);
+  const thmBtn = document.getElementById('thmBtn');
+  if(thmBtn) thmBtn.textContent = isLight ? '☀️' : '🌙';
+  const mainBtn = document.getElementById('themeToggle');
+  if(mainBtn) mainBtn.innerText = isLight ? '☀' : '🌙';
 }
 
 /* =====================================================
