@@ -1212,7 +1212,7 @@ body.light-mode #tab-prices {
 #tab-prices .bgrid {position:absolute;inset:0;background-image:linear-gradient(rgba(0,160,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,160,255,.025) 1px,transparent 1px);background-size:48px 48px}
 #tab-prices @keyframes orbF {0%,100%{transform:translate(0,0)}50%{transform:translate(20px,-25px)}}
 #tab-prices /* ═══ APP SHELL ═══ */
-.app {position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.app {position:relative;z-index:1;min-height:auto;display:flex;flex-direction:column}
 #tab-prices /* ═══ HEADER ═══ */
 .hdr {padding:.85rem 1.4rem;display:flex;align-items:center;justify-content:space-between;background:rgba(6,12,22,.9);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-bottom:1px solid var(--bdr);position:sticky;top:0;z-index:100}
 #tab-prices .hdr-logo {display:flex;align-items:center;gap:.65rem}
@@ -1514,7 +1514,7 @@ body.light-mode #tab-prices {
 </div>
 
 <!-- ========================= صفحة تسجيل الدخول ========================= -->
-<div id="loginPage" style="display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);">
+<div id="loginPage" style="display:flex; align-items:center; justify-content:center; position:fixed; inset:0; z-index:9998; background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%); overflow-y:auto;">
     <div class="glass-card" style="padding:40px 36px; width:90%; max-width:400px; border-color:rgba(99,102,241,0.4);">
         <div style="text-align:center; margin-bottom:28px;">
             <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6); width:68px; height:68px; border-radius:18px; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; box-shadow:0 8px 24px rgba(99,102,241,0.45); animation:pulse 2.5s infinite;">
@@ -1539,7 +1539,7 @@ body.light-mode #tab-prices {
 </div>
 
 <!-- ========================= لوحة التحكم الرئيسية ========================= -->
-<div id="dashboard" style="display:none;">
+<div id="dashboard" style="display:none; position:relative; z-index:1;">
     <!-- رأس الصفحة -->
     <div class="dashboard-header">
         <div class="header-left"><button onclick="AuthService.logout()" class="btn-danger btn-primary">خروج</button></div>
@@ -1653,7 +1653,7 @@ font-size:14px
 
 <div style="display:flex;gap:10px;margin-bottom:10px">
 
-<input id="transferBarcode" placeholder="امسح الباركود">
+<input id="transferBarcode" placeholder="امسح الباركود أو اكتبه" oninput="onTransferBarcodeInput(this.value)">
 
 <button class="btn-primary" onclick="TransferService.scan()">📷</button>
 
@@ -1809,7 +1809,7 @@ onclick="TransferService.exportExcel()">
                 </div>
                 <!-- نموذج إضافة صنف -->
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin:20px 0;">
-                    <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
+                    <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1" oninput="onProductBarcodeInput(this.value)"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
                     <div><label>اسم الصنف</label><input id="productName" placeholder="اسم المنتج"></div>
                     
                     
@@ -1852,8 +1852,17 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                 </div>
                 <!-- بحث وتصدير -->
                 <div style="display:flex; gap:10px; margin:10px 0">
-                    <input id="productSearch" placeholder="بحث بالباركود أو الاسم" style="flex:1" oninput="UI.renderProducts()">
-                    <button class="btn-success btn-primary" onclick="ProductService.exportExcel()"><span>📊</span> تصدير Excel</button>
+                    <input id="productSearch" placeholder="بحث بالباركود أو الاسم" style="flex:1;min-width:120px;" oninput="UI.renderProducts()">
+
+<select id="productBranchFilter" onchange="UI.renderProducts()"
+style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:var(--text-main,#fff);font-family:inherit;font-size:13px;min-width:120px;">
+<option value="">🏬 كل الفروع</option>
+<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="باب40">مخزن باب 40</option>
+</select>
+
+<button class="btn-success btn-primary" onclick="ProductService.exportExcel()"><span>📊</span> تصدير Excel</button>
                 </div>
                 <!-- جدول التواريخ -->
                 <div class="table-container">
@@ -2305,6 +2314,8 @@ const S = (() => {
 
   return {
     load: () => { lh(); ls(); },
+    getBaz: () => baz,
+    getCai: () => cai,
 
     setData: (b, c) => {
       baz = b; cai = c;
@@ -2354,6 +2365,7 @@ const S = (() => {
     getH:()=>hist, clrH:()=>{hist=[];sh();},
   };
 })();
+window.S = S; // expose globally
 
 /* =====================================================
    EXCEL READER — KEY FIX: cellDates:true
@@ -2891,25 +2903,25 @@ function thmTog(){
 /* =====================================================
    INIT
 ===================================================== */
-document.addEventListener('DOMContentLoaded',()=>{
-  S.load();
-  const t=localStorage.getItem('al_thm');
-  if(t==='light'){dark=false;document.body.classList.add('light-mode');document.getElementById('thmBtn').textContent='☀️';}
-  renderHist(); updStats();
-  setTimeout(()=>document.getElementById('ldr').classList.add('gone'),1900);
-
-  document.getElementById('fi').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
-  document.getElementById('thmBtn').addEventListener('click',thmTog);
-  document.getElementById('bci').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
-
-  const ua=document.getElementById('upA');
-  ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dov');});
-  ua.addEventListener('dragleave',()=>ua.classList.remove('dov'));
-  ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('dov');handleFile(e.dataTransfer.files[0]);});
-
-  document.getElementById('srcStrip').classList.toggle('vis',S.has());
-  if(S.getH().length) document.getElementById('histSec').style.display='block';
-});
+// prices module: events مؤجلة لحين فتح التبويب (تُستدعى من initPricesModule)
+function bindPricesEvents() {
+  const fi = document.getElementById('fi');
+  if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);try{e.target.value='';}catch(err){}});
+  const thmBtn = document.getElementById('thmBtn');
+  if(thmBtn) thmBtn.addEventListener('click',thmTog);
+  const bci = document.getElementById('bci');
+  if(bci) bci.addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+  const ua = document.getElementById('upA');
+  if(ua){
+    ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dov');});
+    ua.addEventListener('dragleave',()=>ua.classList.remove('dov'));
+    ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('dov');handleFile(e.dataTransfer.files[0]);});
+  }
+  const srcStrip = document.getElementById('srcStrip');
+  if(srcStrip) srcStrip.classList.toggle('vis', S.has());
+  const histSec = document.getElementById('histSec');
+  if(histSec && S.getH().length) histSec.style.display='block';
+}
 </script>
 </div>
 
@@ -5346,15 +5358,20 @@ function saveProductEdit() {
         },
 
         showDashboard() {
-            document.getElementById("loginPage").style.display = "none";
-            document.getElementById("dashboard").style.display = "block";
+            const login = document.getElementById("loginPage");
+            const dash = document.getElementById("dashboard");
             const welcome = document.getElementById("welcomeOverlay");
-            if (welcome) welcome.style.display = "none";
+            if (login) { login.style.display = "none"; login.style.visibility = "hidden"; }
+            if (dash) { dash.style.display = "block"; dash.style.visibility = "visible"; }
+            if (welcome) { welcome.style.display = "none"; welcome.style.visibility = "hidden"; }
+            document.body.style.overflow = "auto";
         },
 
         showLoginPage() {
-            document.getElementById("loginPage").style.display = "flex";
-            document.getElementById("dashboard").style.display = "none";
+            const login = document.getElementById("loginPage");
+            const dash = document.getElementById("dashboard");
+            if (login) { login.style.display = "flex"; login.style.visibility = "visible"; }
+            if (dash) { dash.style.display = "none"; dash.style.visibility = "hidden"; }
         },
 
         restoreSession() {
@@ -6076,16 +6093,18 @@ function viewTransfer(id){
     let time = new Date(t.timestamp).toLocaleTimeString("ar-EG");
 
     // صفوف الأصناف
-    let rows = t.items.map(i=>`
-    <tr>
+    let rows = t.items.map(i=>{
+      const resolvedName = i.name || getProductName(i.barcode) || "-";
+      return `<tr>
         <td data-label="الباركود">${i.barcode || "-"}</td>
-        <td data-label="الصنف">${i.name || "-"}</td>
+        <td data-label="الصنف" class="pr-name-cell" data-bc="${i.barcode || ''}">${resolvedName}</td>
         <td data-label="كراتين">${i.cartons || 0}</td>
         <td data-label="علب">${i.boxes || 0}</td>
         <td data-label="قطع">${i.pieces || 0}</td>
         <td data-label="الإجمالي">${i.total || 0}</td>
         <td data-label="الانتهاء">${i.expire || "-"}</td>
-    </tr>`).join("");
+      </tr>`;
+    }).join("");
 
     // إزالة أي modal قديم
     closeTransferModal();
@@ -6178,6 +6197,20 @@ function viewTransfer(id){
     });
 
     document.body.appendChild(overlay);
+
+    // جلب أسماء الأصناف الناقصة async من Firebase
+    setTimeout(() => {
+      overlay.querySelectorAll('.pr-name-cell[data-bc]').forEach(cell => {
+        if(cell.textContent.trim() === '-') {
+          const bc = cell.getAttribute('data-bc');
+          if(bc) {
+            getProductNameAsync(bc, name => {
+              if(name) { cell.textContent = name; cell.style.color = '#34d399'; }
+            });
+          }
+        }
+      });
+    }, 300);
 }
 
 function exportTransferExcel(id){
@@ -6295,6 +6328,199 @@ document.getElementById("editTransferModal").style.display="flex"
 // =============================
 // حذف التحويل
 // =============================
+// البحث عن اسم الصنف من شيت الأسعار المحفوظ في Firebase
+// عند كتابة باركود في التحويلات - جلب اسم الصنف تلقائياً
+// ─── دالة مشتركة: جلب اسم الصنف من أي مصدر ───────────────────────────
+// 1. State.products (محلي) 2. S object (شيت الأسعار) 3. Firebase
+function getProductName(barcode) {
+  if(!barcode) return null;
+  const bc = String(barcode).trim();
+
+  // 1. من State.products
+  const lp = State.products.find(p => String(p.barcode) === bc || String(p.barcode).replace(/[^0-9]/g,'') === bc.replace(/[^0-9]/g,''));
+  if(lp && lp.name) return lp.name;
+
+  // 2. من شيت الأسعار المحمّل محلياً (S object في prices module)
+  try {
+    const priceS = window.S || (typeof S !== 'undefined' ? S : null);
+    if(priceS && priceS.getBaz) {
+      const baz = priceS.getBaz();
+      if(baz) {
+        const safe = bc.replace(/[.#$\[\]]/g, '_');
+        const found = baz.get(bc) || baz.get(safe) || baz.get(bc.replace(/\./, '_'));
+        if(found && found.name) return found.name;
+      }
+    }
+  } catch(e) {}
+
+  return null;
+}
+
+// جلب اسم الصنف بشكل async (يبحث في Firebase إذا لم يُعثر محلياً)
+function getProductNameAsync(barcode, callback) {
+  const localName = getProductName(barcode);
+  if(localName) { callback(localName); return; }
+
+  // بحث في Firebase
+  if(typeof db === 'undefined') { callback(null); return; }
+  const safe = String(barcode).trim().replace(/[.#$/\[\]]/g, '_');
+  db.ref('priceSheet/baz/' + safe).once('value').then(snap => {
+    if(snap.val() && snap.val().name) { callback(snap.val().name); return; }
+    return db.ref('priceSheet/cai/' + safe).once('value');
+  }).then(snap => {
+    if(snap && snap.val() && snap.val().name) { callback(snap.val().name); }
+    else { callback(null); }
+  }).catch(() => callback(null));
+}
+
+// ─── حفظ شيت الأسعار في Firebase ────────────────────────────────────────
+function savePriceSheetToFirebase(fileName) {
+  if(typeof db === 'undefined') {
+    UI.toast('⚠️ Firebase غير متصل', 'warning');
+    return;
+  }
+  const _ps = window.S;
+  if(!_ps || !_ps.getBaz) { UI.toast('⚠️ ارفع الشيت أولاً', 'warning'); return; }
+
+  const baz = _ps.getBaz() || new Map();
+  const cai = _ps.getCai() || new Map();
+  if(baz.size + cai.size === 0) { UI.toast('⚠️ الشيت فارغ', 'warning'); return; }
+
+  UI.toast('☁️ جارٍ الرفع...', 'success');
+
+  const names = {};
+  let count = 0;
+  baz.forEach((val, key) => {
+    if(val && val.name) { names[key.replace(/[.#$\[\]]/g,'_')] = val.name; count++; }
+  });
+  cai.forEach((val, key) => {
+    if(val && val.name) {
+      const safe = key.replace(/[.#$\[\]]/g,'_');
+      if(!names[safe]) { names[safe] = val.name; count++; }
+    }
+  });
+
+  const saveData = {
+    fileName: fileName || 'sheet',
+    uploadedAt: firebase.database.ServerValue.TIMESTAMP,
+    uploadedBy: State.currentUser ? State.currentUser.username : 'unknown',
+    bazTotal: baz.size,
+    caiTotal: cai.size,
+    names: names
+  };
+
+  const kb = Math.round(JSON.stringify(saveData).length / 1024);
+  console.log('رفع شيت الأسعار:', count, 'منتج -', kb, 'KB');
+
+  db.ref('priceSheet').remove()
+    .then(() => db.ref('priceSheet').set(saveData))
+    .then(() => {
+      UI.toast('✅ تم الرفع: ' + count.toLocaleString('ar-EG') + ' منتج (' + kb + ' KB)', 'success');
+      SystemLog.add('UploadPriceSheet', fileName || 'sheet', count + ' منتج');
+      try { localStorage.setItem('priceSheetName', fileName); } catch(e) {}
+    })
+    .catch(err => {
+      console.error('Firebase error:', err);
+      UI.toast('❌ فشل: ' + (err.message || err), 'error');
+    });
+}
+
+// ─── تحميل شيت الأسعار من Firebase ──────────────────────────────────────
+function loadPriceSheetFromFirebase() {
+  if(typeof db === 'undefined') return;
+  db.ref('priceSheet').once('value').then(snap => {
+    const data = snap.val();
+    if(!data || !data.names) return;
+    const total = Object.keys(data.names).length;
+    if(total === 0) return;
+
+    // نبني Map من names
+    const baz = new Map();
+    Object.entries(data.names).forEach(([k, name]) => {
+      baz.set(k, { name: name });
+      // أيضاً نضيف بدون underscore replacement
+      const original = k.replace(/_/g, '.');
+      if(original !== k) baz.set(original, { name: name });
+    });
+    const cai = new Map();
+
+    if(window.S && window.S ? window.S.setData : null) window.S ? window.S.setData : null(baz, cai);
+
+    // تحديث UI prices module
+    ['flRow'].forEach(id => { const el=document.getElementById(id); if(el) el.classList.add('on'); });
+    const flNm = document.getElementById('flNm');
+    const flCnt = document.getElementById('flCnt');
+    const bdgTxt = document.getElementById('bdgTxt');
+    if(flNm) flNm.textContent = data.fileName || localStorage.getItem('priceSheetName') || 'شيت محفوظ';
+    if(flCnt) flCnt.textContent = 'إجمالي: ' + total.toLocaleString('ar-EG') + ' منتج (من Firebase)';
+    if(bdgTxt) bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
+
+    console.log('✅ تم تحميل ' + total + ' منتج من Firebase priceSheet');
+  }).catch(err => console.warn('priceSheet load error:', err));
+}
+
+function onProductBarcodeInput(barcode) {
+  const nameField = document.getElementById('productName');
+  if(!nameField) return;
+  barcode = String(barcode).trim();
+  if(!barcode) { nameField.value = ''; return; }
+
+  // 1. بحث محلي أولاً
+  const localName = getProductName(barcode);
+  if(localName) { nameField.value = localName; return; }
+
+  // 2. بحث في Firebase
+  nameField.placeholder = '⏳ جارٍ البحث...';
+  getProductNameAsync(barcode, name => {
+    nameField.placeholder = 'اسم المنتج';
+    if(name) nameField.value = name;
+  });
+}
+
+function onTransferBarcodeInput(barcode) {
+  const nameField = document.getElementById('transferName');
+  if(!nameField) return;
+  barcode = barcode.trim();
+  if(!barcode) { nameField.value = ''; nameField.placeholder = 'اسم الصنف'; return; }
+
+  nameField.value = '';
+  nameField.placeholder = '⏳ جارٍ البحث...';
+
+  // 1. بحث في State.products أولاً (أسرع)
+  const localProduct = State.products.find(p => String(p.barcode) === barcode);
+  if(localProduct) {
+    nameField.value = localProduct.name || '';
+    nameField.placeholder = 'اسم الصنف';
+    return;
+  }
+
+  // 2. بحث في شيت الأسعار (Firebase)
+  lookupProductFromPriceSheet(barcode, (result) => {
+    if(result && result.name) {
+      nameField.value = result.name;
+      nameField.placeholder = 'اسم الصنف';
+    } else {
+      nameField.value = '';
+      nameField.placeholder = 'لم يُعثر على الصنف';
+    }
+  });
+}
+
+function lookupProductFromPriceSheet(barcode, callback) {
+  if(typeof db === 'undefined') { callback(null); return; }
+  // بحث في Firebase مباشرة
+  const safeBarcode = String(barcode).trim().replace(/[.#$\[\]]/g, '_');
+  db.ref('priceSheet/names/' + safeBarcode).once('value').then(snap => {
+    const name = snap.val();
+    if(name) { callback({ name: name }); return; }
+    // جرب بالباركود الأصلي
+    return db.ref('priceSheet/names/' + barcode).once('value');
+  }).then(snap => {
+    if(snap && snap.val()) { callback({ name: snap.val() }); }
+    else { callback(null); }
+  }).catch(() => callback(null));
+}
+
 function deleteTransfer(id){
 
 showConfirm("هل تريد حذف التحويل؟",()=>{
@@ -6316,24 +6542,22 @@ SystemLog.add("DeleteTransfer", id, "حذف تحويل")
 renderTransfers(){
 
 let body = document.getElementById("transfersBody")
-
 if(!body) return
 
 let search = document.getElementById("transferSearch")?.value?.toLowerCase() || ""
 let selectedDate = document.getElementById("transferDate")?.value
+let branchFilter = ""
+let dirFilter = ""
 
 let now = new Date()
-
 let html=""
 
 let filtered = State.transfers.filter(t=>{
-
 let date = new Date(t.timestamp)
 
+// فلتر التاريخ
 if(selectedDate){
-
-return date.toISOString().slice(0,10) === selectedDate
-
+if(date.toISOString().slice(0,10) !== selectedDate) return false
 }
 
 if(State.transferRange === "day"){
@@ -6341,28 +6565,34 @@ if(date.toDateString() !== now.toDateString()) return false
 }
 
 if(State.transferRange === "week"){
-let weekAgo = new Date()
-weekAgo.setDate(now.getDate()-7)
+let weekAgo = new Date(); weekAgo.setDate(now.getDate()-7)
 if(date < weekAgo) return false
 }
 
 if(State.transferRange === "month"){
-let monthAgo = new Date()
-monthAgo.setMonth(now.getMonth()-1)
-if(date < monthAgo) return false
+if(date.getMonth() !== now.getMonth() || date.getFullYear() !== now.getFullYear()) return false
 }
 
-return (
-t.from?.toLowerCase().includes(search) ||
-t.to?.toLowerCase().includes(search) ||
-t.user?.toLowerCase().includes(search)
+// فلتر البحث
+let matchSearch = !search ||
+  (t.from||"").toLowerCase().includes(search) ||
+  (t.to||"").toLowerCase().includes(search) ||
+  (t.user||"").toLowerCase().includes(search) ||
+  (t.items||[]).some(i=>(i.name||"").toLowerCase().includes(search))
+
+// فلتر الفرع
+let matchBranch = !branchFilter || (
+  dirFilter === "from" ? (t.from||"") === branchFilter :
+  dirFilter === "to"   ? (t.to||"") === branchFilter :
+  (t.from||"") === branchFilter || (t.to||"") === branchFilter
 )
 
+return matchSearch && matchBranch
 })
 
-filtered
 .sort((a,b)=>b.timestamp-a.timestamp)
-.forEach(t=>{
+
+filtered.forEach(t=>{
 
 html+=`
 
@@ -6457,6 +6687,7 @@ body.innerHTML = html
         renderProducts(){
 
 let search = document.getElementById("productSearch")?.value?.toLowerCase() || ""
+let branchFilter = document.getElementById("productBranchFilter")?.value || ""
 
 let html = ""
 
@@ -6466,8 +6697,8 @@ let soon=0
 
 State.products
 .filter(p =>
-p.name?.toLowerCase().includes(search) ||
-p.barcode?.includes(search)
+(p.name?.toLowerCase().includes(search) || p.barcode?.includes(search)) &&
+(!branchFilter || (p.branch||"") === branchFilter)
 )
 
 // ترتيب المنتجات حسب الأقرب انتهاء
@@ -6533,7 +6764,7 @@ html += `
 <tr ${rowStyle}>
 
 <td>${p.barcode}</td>
-<td>${p.name}</td>
+<td>${p.name || getProductName(p.barcode) || "-"}</td>
 <td>${p.branch || "-"}</td>
 <td>${p.quantity}</td>
 <td style="color:#94a3b8">${p.cost ? Number(p.cost).toLocaleString('ar-EG') : '-'}</td>
@@ -7115,6 +7346,8 @@ setInterval(() => {
         FirebaseSync.init()
         // استرجاع مسودة التحويل إن وجدت
         TransferService.loadDraft()
+        // تحميل شيت الأسعار من Firebase عند بدء التطبيق
+        setTimeout(() => loadPriceSheetFromFirebase(), 2000)
         // استرجاع الثيم المحفوظ
         const savedTheme = localStorage.getItem('al_thm');
         if(savedTheme === 'light'){
@@ -7125,9 +7358,9 @@ setInterval(() => {
             if(pb) pb.textContent = '☀️';
         };
     });
-    document.getElementById("breakCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => e.code.includes(value) || e.name.includes(value)); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectBreakEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
-    document.getElementById("penaltyCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => e.code.includes(value) || e.name.includes(value)); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectPenaltyEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
-    document.getElementById("leaveCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => e.code.includes(value) || e.name.includes(value)); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectLeaveEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("breakCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectBreakEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("penaltyCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectPenaltyEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("leaveCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectLeaveEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
     document.getElementById("vehicleSearch").addEventListener("input", () => UI.renderVehicles());
     document.getElementById("insideSearch").addEventListener("input", () => UI.renderInsideEmployees());
     // حفظ الفروع عند تغييرها
@@ -7148,12 +7381,15 @@ document.getElementById("tab-" + tab).style.display = "block"
 
 btn.classList.add("active")
 
-if(tab === "pricing" && window.PricingModule && typeof PricingModule.render === 'function'){
-
-setTimeout(()=>{
-PricingModule.render()
-},100)
-
+if(tab === "pricing"){
+  setTimeout(()=>{
+    if(window.PricingModule && typeof PricingModule.render === 'function'){
+      PricingModule.render();
+    }
+    if(typeof PricesModule !== 'undefined' && typeof PricesModule.init === 'function'){
+      PricesModule.init();
+    }
+  },200);
 }
 
 }
@@ -8014,11 +8250,21 @@ window.PricingModule = (function() {
 
 // تشغيل نظام التسعيرات عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', () => {
-  PricingModule.init();
+  // تهيئة PricingModule بأمان
+  if (typeof PricingModule !== 'undefined' && typeof PricingModule.init === 'function') {
+    PricingModule.init();
+  }
   // تهيئة تبويب الأسعار عند فتحه
-  document.querySelector('.tab-btn[data-tab="prices"]')?.addEventListener('click', () => {
-    setTimeout(() => { if (typeof PricesModule !== 'undefined') PricesModule.init(); }, 150);
-  });
+  const pricesTabBtn = document.querySelector('.tab-btn[data-tab="prices"]');
+  if (pricesTabBtn) {
+    pricesTabBtn.addEventListener('click', () => {
+      setTimeout(() => {
+        if (typeof PricesModule !== 'undefined' && typeof PricesModule.init === 'function') {
+          PricesModule.init();
+        }
+      }, 200);
+    });
+  }
   const pricingTabBtn = document.querySelector('.tab-btn[data-tab="pricing"]');
   if(pricingTabBtn) {
     pricingTabBtn.addEventListener('click', () => {
@@ -8127,6 +8373,8 @@ const S = (() => {
 
   return {
     load: () => { lh(); ls(); },
+    getBaz: () => baz,
+    getCai: () => cai,
 
     setData: (b, c) => {
       baz = b; cai = c;
@@ -8176,6 +8424,7 @@ const S = (() => {
     getH:()=>hist, clrH:()=>{hist=[];sh();},
   };
 })();
+window.S = window.S || S; // sync
 
 /* =====================================================
    EXCEL READER — KEY FIX: cellDates:true
@@ -8314,7 +8563,7 @@ const Au = (() => {
 ===================================================== */
 function renderResult(result, bc) {
   const card = document.getElementById('rc');
-  const src  = S.getSrc();
+  const src  = window.S.getSrc();
 
   if(!result) {
     card.className='rc err on';
@@ -8459,9 +8708,9 @@ function renderResult(result, bc) {
 ===================================================== */
 function renderCmp() {
   const rows = document.getElementById('crows');
-  const cf   = S.getCF();
+  const cf   = window.S.getCF();
   const q    = (document.getElementById('fsrch')||{value:''}).value.trim().toLowerCase();
-  let d      = S.cmp();
+  let d      = window.S.cmp();
 
   if(!d.length){
     rows.innerHTML='<div class="cempty"><i>📊</i>يرجى رفع ملف Excel أولاً لعرض المقارنة</div>';
@@ -8483,7 +8732,7 @@ function renderCmp() {
   }
 
   // Update summary cards
-  const all  = S.cmp();
+  const all  = window.S.cmp();
   const both = all.filter(r=>r.sb>0&&r.sc>0);
   document.getElementById('smCommon').textContent = both.length.toLocaleString('ar-EG');
   document.getElementById('smDiff').textContent   = both.filter(r=>r.diff>0).length.toLocaleString('ar-EG');
@@ -8515,7 +8764,7 @@ function renderCmp() {
    HISTORY
 ===================================================== */
 function renderHist() {
-  const h   = S.getH();
+  const h   = window.S.getH();
   const sec = document.getElementById('histSec');
   const lst = document.getElementById('hlst');
   if(!h.length){sec.style.display='none';return;}
@@ -8551,27 +8800,27 @@ function prToast(msg,type='',dur=3000){
 function doSearch(bcO) {
   const bc = String(bcO||document.getElementById('bci').value).trim();
   if(!bc){prToast('أدخل رقم الباركود أولاً','er');return;}
-  if(!S.has()){
+  if(!window.S.has()){
     prToast('⚠ يرجى رفع ملف Excel أولاً','er');
     document.getElementById('upA').style.boxShadow='0 0 0 3px rgba(255,45,85,.4)';
     setTimeout(()=>document.getElementById('upA').style.boxShadow='',2200);
     goPg('upload'); return;
   }
-  const src=S.getSrc(), result=S.getProduct(bc,src);
-  S.incS(); renderResult(result,bc);
+  const src=window.S.getSrc(), result=window.S.getProduct(bc,src);
+  window.S.incS(); renderResult(result,bc);
   const t=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
   if(result){
-    S.incF(); Au.ok();
+    window.S.incF(); Au.ok();
     if(navigator.vibrate)navigator.vibrate([45,25,70]);
     const p=src==='all'?(result.pb||result.pc):result;
     const sp=src==='all'?(result.pb?result.pb.sellPrice:result.pc?result.pc.sellPrice:0):p.sellPrice;
     prToast(`✅ ${p.name}`,'ok');
-    S.addH({bc,found:true,name:p.name,sp,src:src==='all'?(result.pb&&result.pc?'الفرعين':result.pb?'البازار':'القاهرة'):src,vnd:p.vendorName,t});
+    window.S.addH({bc,found:true,name:p.name,sp,src:src==='all'?(result.pb&&result.pc?'الفرعين':result.pb?'البازار':'القاهرة'):src,vnd:p.vendorName,t});
   } else {
-    S.incN(); Au.no();
+    window.S.incN(); Au.no();
     if(navigator.vibrate)navigator.vibrate([90,40,90]);
     prToast('❌ الباركود غير موجود','er');
-    S.addH({bc,found:false,t});
+    window.S.addH({bc,found:false,t});
   }
   updStats(); renderHist();
   document.getElementById('bci').value='';
@@ -8580,7 +8829,7 @@ function doSearch(bcO) {
 
 function jumpS(bc){ document.getElementById('bci').value=bc; goPg('search'); swSTab('manual'); doSearch(bc); }
 function clrRes(){ const c=document.getElementById('rc');c.classList.remove('on');setTimeout(()=>{c.className='rc';c.innerHTML='';},280); }
-function clrHist(){ S.clrH(); renderHist(); prToast('تم مسح السجل'); }
+function clrHist(){ window.S.clrH(); renderHist(); prToast('تم مسح السجل'); }
 
 function cpV(btn,v,lbl){
   navigator.clipboard.writeText(v).then(()=>{
@@ -8614,12 +8863,12 @@ function goPg(id){
   document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
   document.getElementById('pg-'+id).classList.add('on');
   document.querySelector(`[data-pg="${id}"]`).classList.add('on');
-  document.getElementById('srcStrip').classList.toggle('vis', id==='search'&&S.has());
+  document.getElementById('srcStrip').classList.toggle('vis', id==='search'&&window.S.has());
   if(id==='compare') renderCmp();
 }
 
 function setSrc(s){
-  S.setSrc(s);
+  window.S.setSrc(s);
   document.querySelectorAll('.spc').forEach(b=>b.classList.toggle('on',b.dataset.src===s));
   const l={'all':'عرض جميع الفروع','بورسعيد':'تم تحديد علوش البازار','القاهرة':'تم تحديد علوش القاهرة'};
   prToast(l[s]||s);
@@ -8634,7 +8883,7 @@ function swSTab(t){
 }
 
 function setCF(f){
-  S.setCF(f);
+  window.S.setCF(f);
   document.querySelectorAll('.ff').forEach(b=>b.classList.toggle('on',b.dataset.cf===f));
   renderCmp();
 }
@@ -8672,22 +8921,36 @@ function handleFile(file){
   if(!file.name.match(/\.(xlsx|xls)$/i)){prToast('يرجى اختيار ملف Excel','er');return;}
   prToast('⏳ جارٍ قراءة الملف...','',6000);
   XL.parse(file).then(({baz,cai,total})=>{
-    S.setData(baz,cai);
+    window.S ? window.S.setData : null(baz,cai);
     document.getElementById('flRow').classList.add('on');
     document.getElementById('flNm').textContent=file.name;
-    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${S.total().toLocaleString('ar-EG')} باركود فريد`;
+    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${window.S && window.S.total().toLocaleString('ar-EG')} باركود فريد`;
     document.getElementById('bdg').classList.add('on');
-    document.getElementById('bdgTxt').textContent=S.total().toLocaleString('ar-EG')+' منتج';
+    document.getElementById('bdgTxt').textContent=window.S && window.S.total().toLocaleString('ar-EG')+' منتج';
     document.getElementById('statsBar').style.display='flex';
     document.getElementById('srcStrip').classList.add('vis');
     updStats();
     prToast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
+
+    // ── حفظ في Firebase (يحذف القديم ويضع الجديد) ──────────────────
+    // sync S للـ global scope ثم رفع Firebase
+    if(typeof S !== 'undefined') window.S = S;
+    setTimeout(() => {
+      if(typeof savePriceSheetToFirebase === 'function') {
+        savePriceSheetToFirebase(file.name);
+      }
+    }, 500); // نأكد أن S.setData اكتمل
+
   }).catch(err=>prToast('❌ '+err,'er'));
 }
 
+// حفظ شيت الأسعار في Firebase
+
+// تحميل شيت الأسعار من Firebase عند بدء التطبيق
+
 function updStats(){
-  const s=S.getStats();
-  document.getElementById('sv0').textContent=S.total().toLocaleString('ar-EG');
+  const s=window.S.getStats();
+  document.getElementById('sv0').textContent=window.S && window.S.total().toLocaleString('ar-EG');
   document.getElementById('sv1').textContent=s.s.toLocaleString('ar-EG');
   document.getElementById('sv2').textContent=s.f.toLocaleString('ar-EG');
   document.getElementById('sv3').textContent=s.n.toLocaleString('ar-EG');
@@ -8714,29 +8977,26 @@ function thmTog(){
    INIT
 ===================================================== */
 function initPricesModule() {
-  S.load();
-    // sync ثيم prices مع الثيم الموحد
+  // sync الثيم مع الثيم الموحد
   const isLightMode = document.body.classList.contains('light-mode');
   dark = !isLightMode;
   const thmBtn = document.getElementById('thmBtn');
   if (thmBtn) thmBtn.textContent = isLightMode ? '☀️' : '🌙';
-  S.load();
-  const t=localStorage.getItem('al_thm');
-  if(t==='light'){dark=false;document.body.classList.add('light-mode');document.getElementById('thmBtn').textContent='☀️';}
-  renderHist(); updStats();
-  
-
-  document.getElementById('fi').addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
-  document.getElementById('thmBtn').addEventListener('click',thmTog);
-  document.getElementById('bci').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
-
-  const ua=document.getElementById('upA');
-  ua.addEventListener('dragover',e=>{e.preventDefault();ua.classList.add('dov');});
-  ua.addEventListener('dragleave',()=>ua.classList.remove('dov'));
-  ua.addEventListener('drop',e=>{e.preventDefault();ua.classList.remove('dov');handleFile(e.dataTransfer.files[0]);});
-
-  document.getElementById('srcStrip').classList.toggle('vis',S.has());
-  if(S.getH().length) document.getElementById('histSec').style.display='block';
+  // ربط events مرة واحدة فقط
+  if (!window._pricesEventsBound) {
+    bindPricesEvents();
+    window._pricesEventsBound = true;
+  }
+  // تحديث البيانات
+  window.S.load();
+  renderHist();
+  updStats();
+  // تحميل الشيت من Firebase إذا لم يكن محملاً
+  if (window.S && window.S.total() === 0) {
+    if(typeof loadPriceSheetFromFirebase === 'function') {
+      loadPriceSheetFromFirebase();
+    }
+  }
 };
 
 
