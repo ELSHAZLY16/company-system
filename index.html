@@ -2962,15 +2962,27 @@ function handleFile(file){
         // نحفظ الأسماء فقط لتجنب Write too large
         // Firebase Realtime DB حد 256KB - الأسعار تُقرأ من الشيت المحلي
         const bazData = {};
-        // ندمج baz و cai في map واحدة (الباركود → الاسم)
-        // هذا يقلل الحجم 50% لأن أغلب المنتجات في الاثنين
+        // نحفظ baz كـ {n, s, c} (اسم + بيع + تكلفة)
+        // والـ key هو الباركود المعالج
         baz.forEach((val, key) => {
-          if(val && val.name) bazData[safeKey(key)] = val.name;
+          if(val && val.name) {
+            const sk = safeKey(key);
+            // نحفظ كـ object مضغوط للحصول على الأسعار عند التحميل
+            const entry = { n: val.name };
+            if(val.sellPrice) entry.s = val.sellPrice;
+            if(val.costPrice) entry.c = val.costPrice;
+            bazData[sk] = entry;
+          }
         });
-        const caiData = {}; // cai في object منفصل فقط للمنتجات الغير موجودة في baz
+        const caiData = {};
         cai.forEach((val, key) => {
           const sk = safeKey(key);
-          if(val && val.name && !bazData[sk]) caiData[sk] = val.name;
+          if(val && val.name && !bazData[sk]) {
+            const entry = { n: val.name };
+            if(val.sellPrice) entry.s = val.sellPrice;
+            if(val.costPrice) entry.c = val.costPrice;
+            caiData[sk] = entry;
+          }
         });
         let cnt = Object.keys(bazData).length + Object.keys(caiData).length;
         const saveData = {
@@ -6510,30 +6522,36 @@ document.getElementById("editTransferModal").style.display="flex"
 // عند كتابة باركود في التحويلات - جلب اسم الصنف تلقائياً
 // ─── دالة مشتركة: جلب اسم الصنف من أي مصدر ───────────────────────────
 // 1. State.products (محلي) 2. S object (شيت الأسعار) 3. Firebase
+// يُعيد object كامل {name, sellPrice, costPrice} من شيت الأسعار
+function getProductData(barcode) {
+  if(!barcode) return null;
+  const bc = String(barcode).trim();
+  const variants = [bc, bc.replace(/\./g, '_'), bc.replace(/[.#$[\]]/g, '_')];
+  try {
+    const ps = window.S;
+    if(ps && ps.getBaz) {
+      const baz = ps.getBaz();
+      const cai = ps.getCai ? ps.getCai() : null;
+      for(const k of variants) {
+        const found = (baz && baz.get(k)) || (cai && cai.get(k));
+        if(found && found.name) return found;
+      }
+    }
+  } catch(e) {}
+  return null;
+}
+
 function getProductName(barcode) {
   if(!barcode) return null;
   const bc = String(barcode).trim();
 
-  // 1. من State.products
-  const lp = State.products.find(p => String(p.barcode) === bc || String(p.barcode).replace(/[^0-9]/g,'') === bc.replace(/[^0-9]/g,''));
-  if(lp && lp.name) return lp.name;
+  // 1. من شيت الأسعار (window.S) أولاً
+  const priceObj = getProductData(bc);
+  if(priceObj && priceObj.name) return priceObj.name;
 
-  // 2. من شيت الأسعار المحمّل محلياً (S object في prices module)
-  try {
-    const ps = window.S;
-    if(ps && typeof ps.getBaz === 'function') {
-      const bazMap = ps.getBaz();
-      const caiMap = ps.getCai ? ps.getCai() : null;
-      if((bazMap && bazMap.size > 0) || (caiMap && caiMap.size > 0)) {
-        // جرب كل أشكال الـ key
-        const variants = [bc, bc.replace(/\./g,'_'), bc.replace(/[.#$[\]]/g,'_'), bc.trim()];
-        for(const k of variants) {
-          const found = (bazMap && bazMap.get(k)) || (caiMap && caiMap.get(k));
-          if(found && found.name) return found.name;
-        }
-      }
-    }
-  } catch(e) {}
+  // 2. من State.products كـ fallback
+  const lp = State.products && State.products.find(p => String(p.barcode) === bc || String(p.barcode).replace(/[^0-9]/g,'') === bc.replace(/[^0-9]/g,''));
+  if(lp && lp.name) return lp.name;
 
   return null;
 }
@@ -6638,21 +6656,26 @@ function loadPriceSheetFromFirebase() {
       const m = new Map();
       if(!src) return m;
       Object.entries(src).forEach(([k, v]) => {
-        // دعم الهيكل الجديد (string) والقديم (object)
-        const name = typeof v === 'string' ? v : (v.n || v.name || '');
+        const isStr = typeof v === 'string';
+        const name = isStr ? v : (v.n || v.name || '');
+        if(!name) return;
         const obj = {
-          name: name,
-          sellPrice: typeof v === 'object' ? (v.s || v.sellPrice || 0) : 0,
-          costPrice: typeof v === 'object' ? (v.c || v.costPrice || 0) : 0,
-          vendorCode: typeof v === 'object' ? (v.v || v.vendorCode || '') : '',
-          vendorName: typeof v === 'object' ? (v.vn || v.vendorName || '') : '',
-          modifiedBy: typeof v === 'object' ? (v.mb || v.modifiedBy || '') : '',
-          dateOfPrice: typeof v === 'object' ? (v.dp || v.dateOfPrice || '') : '',
-          modifiedAt: typeof v === 'object' ? (v.ma || v.modifiedAt || '') : ''
+          name,
+          sellPrice:   isStr ? 0 : Number(v.s  || v.sellPrice  || 0),
+          costPrice:   isStr ? 0 : Number(v.c  || v.costPrice  || 0),
+          vendorCode:  isStr ? '' : (v.v  || v.vendorCode  || ''),
+          vendorName:  isStr ? '' : (v.vn || v.vendorName  || ''),
+          modifiedBy:  isStr ? '' : (v.mb || v.modifiedBy  || ''),
+          dateOfPrice: isStr ? '' : (v.dp || v.dateOfPrice || ''),
+          modifiedAt:  isStr ? '' : (v.ma || v.modifiedAt  || '')
         };
         m.set(k, obj);
+        // أيضاً بالشكل الأصلي (underscore → dot أو العكس)
         const orig = k.replace(/_/g, '.');
         if(orig !== k) m.set(orig, obj);
+        // وبالشكل الرقمي المباشر
+        const noLead = k.replace(/^0+/, '');
+        if(noLead !== k) m.set(noLead, obj);
       });
       return m;
     };
@@ -6689,63 +6712,47 @@ function loadPriceSheetFromFirebase() {
 }
 
 function onProductBarcodeInput(barcode) {
-  const nameField = document.getElementById('productName');
-  const costField = document.getElementById('productCost');
+  const nameField  = document.getElementById('productName');
+  const costField  = document.getElementById('productCost');
   const priceField = document.getElementById('productPrice');
   if(!nameField) return;
 
-  barcode = String(barcode).trim();
-  if(!barcode) {
-    nameField.value = '';
-    return;
-  }
+  barcode = String(barcode || '').trim();
+  if(!barcode) { nameField.value = ''; return; }
 
-  // دالة تملأ الحقول
   const fillFields = (obj) => {
     if(!obj) return false;
     const name = typeof obj === 'string' ? obj : (obj.name || '');
     if(!name) return false;
     nameField.value = name;
-    // سعر التكلفة والبيع من بيانات البازار
-    if(costField && obj.costPrice) costField.value = obj.costPrice;
-    if(priceField && obj.sellPrice) priceField.value = obj.sellPrice;
+    if(costField  && (obj.costPrice || obj.cost))  costField.value  = obj.costPrice || obj.cost  || '';
+    if(priceField && (obj.sellPrice || obj.price)) priceField.value = obj.sellPrice || obj.price || '';
     return true;
   };
 
-  // 1. من State.products محلياً
+  // 1. من شيت الأسعار (window.S) - المصدر الأساسي للأسعار
+  const priceData = getProductData(barcode);
+  if(priceData && fillFields(priceData)) return;
+
+  // 2. من State.products كـ fallback للاسم فقط
   const localProduct = State.products && State.products.find(p => String(p.barcode) === barcode);
   if(localProduct && localProduct.name) {
     fillFields(localProduct);
+    // لكن حاول جيب الأسعار من Firebase
+    lookupProductFromPriceSheet(barcode, (result) => {
+      if(result && result.sellPrice) {
+        if(priceField) priceField.value = result.sellPrice;
+        if(costField && result.costPrice) costField.value = result.costPrice;
+      }
+    });
     return;
   }
 
-  // 2. من window.S (شيت الأسعار - يفضّل البازار)
-  try {
-    const ps = window.S;
-    if(ps && ps.getBaz) {
-      const bazMap = ps.getBaz();
-      const caiMap = ps.getCai ? ps.getCai() : null;
-      const safe = barcode.replace(/[.#$[\]]/g, '_');
-      // البازار أولاً
-      for(const k of [barcode, safe, barcode.replace(/\./g,'_')]) {
-        const found = bazMap && bazMap.get(k);
-        if(found && fillFields(found)) return;
-      }
-      // القاهرة كـ fallback
-      for(const k of [barcode, safe]) {
-        const found = caiMap && caiMap.get(k);
-        if(found && fillFields(found)) return;
-      }
-    }
-  } catch(e) {}
-
-  // 3. من Firebase
+  // 3. من Firebase مباشرة
   nameField.placeholder = '⏳ جارٍ البحث...';
   lookupProductFromPriceSheet(barcode, (result) => {
     nameField.placeholder = 'اسم المنتج';
-    if(result) {
-      fillFields(result);
-    }
+    if(result) fillFields(result);
   });
 }
 
