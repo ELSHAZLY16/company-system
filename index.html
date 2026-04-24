@@ -2967,20 +2967,31 @@ function handleFile(file){
         baz.forEach((val, key) => {
           if(val && val.name) {
             const sk = safeKey(key);
-            // نحفظ كـ object مضغوط للحصول على الأسعار عند التحميل
             const entry = { n: val.name };
-            if(val.sellPrice) entry.s = val.sellPrice;
-            if(val.costPrice) entry.c = val.costPrice;
+            if(val.sellPrice)   entry.s  = val.sellPrice;
+            if(val.costPrice)   entry.c  = val.costPrice;
+            if(val.vendorName)  entry.vn = val.vendorName;
+            if(val.vendorCode)  entry.v  = val.vendorCode;
+            if(val.modifiedBy)  entry.mb = val.modifiedBy;
+            if(val.dateOfPrice) entry.dp = val.dateOfPrice;
+            if(val.modifiedAt)  entry.ma = val.modifiedAt;
             bazData[sk] = entry;
           }
         });
+        // cai: كل منتجات القاهرة (بما فيها المشتركة مع البازار)
+        // ضروري عشان prices module تقدر تقارن بين الفرعين
         const caiData = {};
         cai.forEach((val, key) => {
-          const sk = safeKey(key);
-          if(val && val.name && !bazData[sk]) {
+          if(val && val.name) {
+            const sk = safeKey(key);
             const entry = { n: val.name };
-            if(val.sellPrice) entry.s = val.sellPrice;
-            if(val.costPrice) entry.c = val.costPrice;
+            if(val.sellPrice)   entry.s  = val.sellPrice;
+            if(val.costPrice)   entry.c  = val.costPrice;
+            if(val.vendorName)  entry.vn = val.vendorName;
+            if(val.vendorCode)  entry.v  = val.vendorCode;
+            if(val.modifiedBy)  entry.mb = val.modifiedBy;
+            if(val.dateOfPrice) entry.dp = val.dateOfPrice;
+            if(val.modifiedAt)  entry.ma = val.modifiedAt;
             caiData[sk] = entry;
           }
         });
@@ -3019,12 +3030,33 @@ function handleFile(file){
         setProgress(10, 'حذف الشيت القديم...');
         _db.ref('priceSheet').remove()
           .then(() => { setProgress(25, 'رفع معلومات الملف...'); return _db.ref('priceSheet/meta').set(metaData); })
-          .then(() => { setProgress(50, 'رفع بيانات البازار...'); return _db.ref('priceSheet/baz').set(saveData.baz); })
           .then(() => {
-            if(saveData.cai && Object.keys(saveData.cai).length > 0) {
-              setProgress(75, 'رفع بيانات القاهرة...');
-              return _db.ref('priceSheet/cai').set(saveData.cai);
+            setProgress(50, 'رفع بيانات البازار...');
+            const bazEntries = Object.entries(saveData.baz);
+            const CHUNK = 5000;
+            const chunks = [];
+            for(let i=0; i<bazEntries.length; i+=CHUNK) {
+              chunks.push(Object.fromEntries(bazEntries.slice(i, i+CHUNK)));
             }
+            return chunks.reduce((p, chunk) =>
+              p.then(() => _db.ref('priceSheet/baz').update(chunk)),
+              Promise.resolve()
+            );
+          })
+          .then(() => {
+            const caiEntries = saveData.cai ? Object.entries(saveData.cai) : [];
+            if(caiEntries.length === 0) return;
+            setProgress(75, 'رفع بيانات القاهرة...');
+            // رفع cai على chunks لتجنب Write too large
+            const CHUNK = 5000;
+            const chunks = [];
+            for(let i=0; i<caiEntries.length; i+=CHUNK) {
+              chunks.push(Object.fromEntries(caiEntries.slice(i, i+CHUNK)));
+            }
+            return chunks.reduce((p, chunk) =>
+              p.then(() => _db.ref('priceSheet/cai').update(chunk)),
+              Promise.resolve()
+            );
           })
           .then(() => {
             setProgress(100, 'تم بنجاح!');
