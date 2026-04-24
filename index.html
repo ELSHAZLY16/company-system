@@ -1653,7 +1653,7 @@ font-size:14px
 
 <div style="display:flex;gap:10px;margin-bottom:10px">
 
-<input id="transferBarcode" placeholder="امسح الباركود">
+<input id="transferBarcode" placeholder="امسح الباركود أو اكتبه" oninput="onTransferBarcodeInput(this.value)">
 
 <button class="btn-primary" onclick="TransferService.scan()">📷</button>
 
@@ -1809,7 +1809,7 @@ onclick="TransferService.exportExcel()">
                 </div>
                 <!-- نموذج إضافة صنف -->
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin:20px 0;">
-                    <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
+                    <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1" oninput="onProductBarcodeInput(this.value)"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
                     <div><label>اسم الصنف</label><input id="productName" placeholder="اسم المنتج"></div>
                     
                     
@@ -2314,6 +2314,8 @@ const S = (() => {
 
   return {
     load: () => { lh(); ls(); },
+    getBaz: () => baz,
+    getCai: () => cai,
 
     setData: (b, c) => {
       baz = b; cai = c;
@@ -2363,6 +2365,7 @@ const S = (() => {
     getH:()=>hist, clrH:()=>{hist=[];sh();},
   };
 })();
+window.S = S; // expose globally
 
 /* =====================================================
    EXCEL READER — KEY FIX: cellDates:true
@@ -2860,15 +2863,76 @@ function handleFile(file){
   toast('⏳ جارٍ قراءة الملف...','',6000);
   XL.parse(file).then(({baz,cai,total})=>{
     S.setData(baz,cai);
-    document.getElementById('flRow').classList.add('on');
-    document.getElementById('flNm').textContent=file.name;
-    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${S.total().toLocaleString('ar-EG')} باركود فريد`;
-    document.getElementById('bdg').classList.add('on');
-    document.getElementById('bdgTxt').textContent=S.total().toLocaleString('ar-EG')+' منتج';
-    document.getElementById('statsBar').style.display='flex';
-    document.getElementById('srcStrip').classList.add('vis');
-    updStats();
+    // تحديث UI بشكل آمن
+    try {
+      const _g = id => document.getElementById(id);
+      if(_g('flRow')) _g('flRow').classList.add('on');
+      if(_g('flNm'))  _g('flNm').textContent = file.name;
+      if(_g('flCnt')) _g('flCnt').textContent = `البازار: ${baz.size.toLocaleString('ar-EG')} | القاهرة: ${cai.size.toLocaleString('ar-EG')}`;
+      if(_g('bdg'))   _g('bdg').classList.add('on');
+      if(_g('bdgTxt'))_g('bdgTxt').textContent = S.total().toLocaleString('ar-EG') + ' منتج';
+      if(_g('statsBar')) _g('statsBar').style.display = 'flex';
+      if(_g('srcStrip')) _g('srcStrip').classList.add('vis');
+    } catch(uiErr) { console.warn('handleFile UI:', uiErr.message); }
+    try { if(typeof updStats==='function') updStats(); } catch(e){}
     toast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
+
+    // ── رفع البيانات الكاملة لـ Firebase ──
+    window.S = S;
+    try {
+      const _db = (typeof db !== 'undefined') ? db : null;
+      if(_db) {
+        const clean = (v) => (v === undefined || v === null || v === 'nan') ? '' : String(v);
+        const safeKey = (k) => k.replace(/[.#$[\]]/g,'_');
+
+        // نحفظ baz و cai كاملاً (كل الحقول)
+        const bazData = {};
+        baz.forEach((val, key) => {
+          if(val && val.name) {
+            bazData[safeKey(key)] = {
+              n: clean(val.name),
+              s: val.sellPrice || 0,
+              c: val.costPrice || 0,
+              v: clean(val.vendorCode),
+              vn: clean(val.vendorName),
+              mb: clean(val.modifiedBy),
+              dp: clean(val.dateOfPrice)
+            };
+          }
+        });
+        const caiData = {};
+        cai.forEach((val, key) => {
+          if(val && val.name) {
+            caiData[safeKey(key)] = {
+              n: clean(val.name),
+              s: val.sellPrice || 0,
+              c: val.costPrice || 0,
+              v: clean(val.vendorCode),
+              vn: clean(val.vendorName),
+              mb: clean(val.modifiedBy),
+              dp: clean(val.dateOfPrice)
+            };
+          }
+        });
+        let cnt = Object.keys(bazData).length + Object.keys(caiData).length;
+        const saveData = {
+          fileName: file.name,
+          uploadedAt: firebase.database.ServerValue.TIMESTAMP,
+          uploadedBy: (typeof State!=='undefined'&&State.currentUser) ? State.currentUser.username : '-',
+          bazTotal: baz.size, caiTotal: cai.size, baz: bazData, cai: caiData
+        };
+        _db.ref('priceSheet').remove()
+          .then(()=> _db.ref('priceSheet').set(saveData))
+          .then(()=>{
+            const kb = Math.round(JSON.stringify(saveData).length/1024);
+            toast('☁️ Firebase: '+cnt.toLocaleString('ar-EG')+' منتج ('+kb+'KB)','ok');
+            try{if(typeof SystemLog!=='undefined') SystemLog.add('UploadPriceSheet',file.name,cnt+' منتج');}catch(e){}
+            try{localStorage.setItem('priceSheetName',file.name);}catch(e){}
+          })
+          .catch(e2=>{ console.error('Firebase priceSheet:',e2); toast('⚠️ '+e2.message,'warn'); });
+      }
+    } catch(fbErr){ console.error('Firebase block:',fbErr); }
+
   }).catch(err=>toast('❌ '+err,'er'));
 }
 
@@ -2903,7 +2967,7 @@ function thmTog(){
 // prices module: events مؤجلة لحين فتح التبويب (تُستدعى من initPricesModule)
 function bindPricesEvents() {
   const fi = document.getElementById('fi');
-  if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);e.target.value='';});
+  if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);try{try{e.target.value=''}catch(_){};}catch(e){}});
   const thmBtn = document.getElementById('thmBtn');
   if(thmBtn) thmBtn.addEventListener('click',thmTog);
   const bci = document.getElementById('bci');
@@ -3988,7 +4052,15 @@ firebase.database().ref(".info/serverTimeOffset").on("value", function(snapshot)
 State.serverOffset = snapshot.val() || 0
 
 })
-    const db = firebase.database();
+    const db = firebase.database()
+
+// تجاهل خطأ file input value (browser limitation طبيعي)
+window.addEventListener('error', function(e) {
+  if(e.message && e.message.includes('filename') && e.message.includes('HTMLInputElement')) {
+    e.preventDefault();
+    return true;
+  }
+});;
 
     // ========================= الحالة العامة (State) =========================
     const State = {
@@ -6090,16 +6162,18 @@ function viewTransfer(id){
     let time = new Date(t.timestamp).toLocaleTimeString("ar-EG");
 
     // صفوف الأصناف
-    let rows = t.items.map(i=>`
-    <tr>
+    let rows = t.items.map(i=>{
+      const resolvedName = i.name || getProductName(i.barcode) || "-";
+      return `<tr>
         <td data-label="الباركود">${i.barcode || "-"}</td>
-        <td data-label="الصنف">${i.name || "-"}</td>
+        <td data-label="الصنف" class="pr-name-cell" data-bc="${i.barcode || ''}">${resolvedName}</td>
         <td data-label="كراتين">${i.cartons || 0}</td>
         <td data-label="علب">${i.boxes || 0}</td>
         <td data-label="قطع">${i.pieces || 0}</td>
         <td data-label="الإجمالي">${i.total || 0}</td>
         <td data-label="الانتهاء">${i.expire || "-"}</td>
-    </tr>`).join("");
+      </tr>`;
+    }).join("");
 
     // إزالة أي modal قديم
     closeTransferModal();
@@ -6192,6 +6266,20 @@ function viewTransfer(id){
     });
 
     document.body.appendChild(overlay);
+
+    // جلب أسماء الأصناف الناقصة async من Firebase
+    setTimeout(() => {
+      overlay.querySelectorAll('.pr-name-cell[data-bc]').forEach(cell => {
+        if(cell.textContent.trim() === '-') {
+          const bc = cell.getAttribute('data-bc');
+          if(bc) {
+            getProductNameAsync(bc, name => {
+              if(name) { cell.textContent = name; cell.style.color = '#34d399'; }
+            });
+          }
+        }
+      });
+    }, 300);
 }
 
 function exportTransferExcel(id){
@@ -6309,6 +6397,247 @@ document.getElementById("editTransferModal").style.display="flex"
 // =============================
 // حذف التحويل
 // =============================
+// البحث عن اسم الصنف من شيت الأسعار المحفوظ في Firebase
+// عند كتابة باركود في التحويلات - جلب اسم الصنف تلقائياً
+// ─── دالة مشتركة: جلب اسم الصنف من أي مصدر ───────────────────────────
+// 1. State.products (محلي) 2. S object (شيت الأسعار) 3. Firebase
+function getProductName(barcode) {
+  if(!barcode) return null;
+  const bc = String(barcode).trim();
+
+  // 1. من State.products
+  const lp = State.products.find(p => String(p.barcode) === bc || String(p.barcode).replace(/[^0-9]/g,'') === bc.replace(/[^0-9]/g,''));
+  if(lp && lp.name) return lp.name;
+
+  // 2. من شيت الأسعار المحمّل محلياً (S object في prices module)
+  try {
+    const ps = window.S;
+    if(ps && typeof ps.getBaz === 'function') {
+      const bazMap = ps.getBaz();
+      const caiMap = ps.getCai ? ps.getCai() : null;
+      if((bazMap && bazMap.size > 0) || (caiMap && caiMap.size > 0)) {
+        // جرب كل أشكال الـ key
+        const variants = [bc, bc.replace(/\./g,'_'), bc.replace(/[.#$[\]]/g,'_'), bc.trim()];
+        for(const k of variants) {
+          const found = (bazMap && bazMap.get(k)) || (caiMap && caiMap.get(k));
+          if(found && found.name) return found.name;
+        }
+      }
+    }
+  } catch(e) {}
+
+  return null;
+}
+
+// جلب اسم الصنف بشكل async (يبحث في Firebase إذا لم يُعثر محلياً)
+function getProductNameAsync(barcode, callback) {
+  const localName = getProductName(barcode);
+  if(localName) { callback(localName); return; }
+
+  // بحث في Firebase
+  if(typeof db === 'undefined') { callback(null); return; }
+  const safe = String(barcode).trim().replace(/[.#$/\[\]]/g, '_');
+  db.ref('priceSheet/baz/' + safe).once('value').then(snap => {
+    if(snap.val() && snap.val().name) { callback(snap.val().name); return; }
+    return db.ref('priceSheet/cai/' + safe).once('value');
+  }).then(snap => {
+    if(snap && snap.val() && snap.val().name) { callback(snap.val().name); }
+    else { callback(null); }
+  }).catch(() => callback(null));
+}
+
+// ─── حفظ شيت الأسعار في Firebase ────────────────────────────────────────
+function savePriceSheetToFirebase(fileName) {
+  if(typeof db === 'undefined') {
+    UI.toast('⚠️ Firebase غير متصل', 'warning');
+    return;
+  }
+
+  // قراءة البيانات من window.S
+  const ps = window.S;
+  if(!ps || typeof ps.getBaz !== 'function') {
+    UI.toast('⚠️ ارفع الشيت أولاً', 'warning');
+    return;
+  }
+
+  const baz = ps.getBaz() || new Map();
+  const cai = ps.getCai() || new Map();
+
+  if(baz.size + cai.size === 0) {
+    UI.toast('⚠️ الشيت فارغ', 'warning');
+    return;
+  }
+
+  UI.toast('☁️ جارٍ الرفع...', 'success');
+
+  // حفظ barcode → name فقط (اقتصاد في المساحة)
+  const names = {};
+  let count = 0;
+  baz.forEach((val, key) => {
+    if(val && val.name) {
+      names[key.replace(/[.#$\[\]]/g, '_')] = val.name;
+      count++;
+    }
+  });
+  cai.forEach((val, key) => {
+    if(val && val.name) {
+      const safe = key.replace(/[.#$\[\]]/g, '_');
+      if(!names[safe]) { names[safe] = val.name; count++; }
+    }
+  });
+
+  const saveData = {
+    fileName: fileName || 'sheet',
+    uploadedAt: firebase.database.ServerValue.TIMESTAMP,
+    uploadedBy: State.currentUser ? State.currentUser.username : 'unknown',
+    bazTotal: baz.size,
+    caiTotal: cai.size,
+    names: names
+  };
+
+  const kb = Math.round(JSON.stringify(saveData).length / 1024);
+  console.log('Uploading priceSheet:', count, 'products,', kb, 'KB');
+
+  db.ref('priceSheet').remove()
+    .then(() => db.ref('priceSheet').set(saveData))
+    .then(() => {
+      UI.toast('✅ تم الرفع: ' + count.toLocaleString('ar-EG') + ' منتج (' + kb + ' KB)', 'success');
+      try { SystemLog.add('UploadPriceSheet', fileName || 'sheet', count + ' منتج'); } catch(e) {}
+      try { localStorage.setItem('priceSheetName', fileName); } catch(e) {}
+    })
+    .catch(err => {
+      console.error('Firebase priceSheet error:', err);
+      UI.toast('❌ فشل الرفع: ' + (err.message || err), 'error');
+    });
+}
+
+// ─── تحميل شيت الأسعار من Firebase ──────────────────────────────────────
+function loadPriceSheetFromFirebase() {
+  if(typeof db === 'undefined') return;
+  db.ref('priceSheet').once('value').then(snap => {
+    const data = snap.val();
+    if(!data) return;
+    // دعم الهيكل الجديد (baz/cai) والقديم (names)
+    const hasNew = data.baz && Object.keys(data.baz).length > 0;
+    const hasOld = data.names && Object.keys(data.names).length > 0;
+    if(!hasNew && !hasOld) return;
+    const total = hasNew ? Object.keys(data.baz).length + Object.keys(data.cai||{}).length : Object.keys(data.names).length;
+
+    // بناء Map من baz و cai
+    const buildMap = (src) => {
+      const m = new Map();
+      if(!src) return m;
+      Object.entries(src).forEach(([k, v]) => {
+        const obj = {
+          name: v.n || '',
+          sellPrice: v.s || 0,
+          costPrice: v.c || 0,
+          vendorCode: v.v || '',
+          vendorName: v.vn || '',
+          modifiedBy: v.mb || '',
+          dateOfPrice: v.dp || ''
+        };
+        m.set(k, obj);
+        // أيضاً بدون underscore replacement
+        const orig = k.replace(/_/g, '.');
+        if(orig !== k) m.set(orig, obj);
+      });
+      return m;
+    };
+
+    const baz = buildMap(data.baz || data.names || {});
+    const cai = buildMap(data.cai || {});
+
+    // sync window.S
+    if(window.S && window.S.setData) {
+      window.S.setData(baz, cai);
+    }
+
+    // تحديث UI بشكل آمن (العناصر قد تكون غير موجودة)
+    const safeGet = (id) => { try { return document.getElementById(id); } catch(e) { return null; } };
+    const flRow = safeGet('flRow');
+    const flNm  = safeGet('flNm');
+    const flCnt = safeGet('flCnt');
+    const bdg   = safeGet('bdg');
+    const bdgTxt= safeGet('bdgTxt');
+    const statsBar = safeGet('statsBar');
+    const srcStrip = safeGet('srcStrip');
+    const displayName = data.fileName || 'شيت محفوظ';
+
+    if(flRow) flRow.classList.add('on');
+    if(flNm)  flNm.textContent = displayName;
+    if(flCnt) flCnt.textContent = 'إجمالي: ' + total.toLocaleString('ar-EG') + ' منتج';
+    if(bdg)   bdg.classList.add('on');
+    if(bdgTxt)bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
+    if(statsBar) statsBar.style.display = 'flex';
+    if(srcStrip) srcStrip.classList.add('vis');
+
+    console.log('priceSheet loaded: ' + total + ' products from Firebase');
+  }).catch(err => console.warn('priceSheet load error:', err));
+}
+
+function onProductBarcodeInput(barcode) {
+  const nameField = document.getElementById('productName');
+  if(!nameField) return;
+  barcode = String(barcode).trim();
+  if(!barcode) { nameField.value = ''; return; }
+
+  // 1. بحث محلي أولاً
+  const localName = getProductName(barcode);
+  if(localName) { nameField.value = localName; return; }
+
+  // 2. بحث في Firebase
+  nameField.placeholder = '⏳ جارٍ البحث...';
+  getProductNameAsync(barcode, name => {
+    nameField.placeholder = 'اسم المنتج';
+    if(name) nameField.value = name;
+  });
+}
+
+function onTransferBarcodeInput(barcode) {
+  const nameField = document.getElementById('transferName');
+  if(!nameField) return;
+  barcode = barcode.trim();
+  if(!barcode) { nameField.value = ''; nameField.placeholder = 'اسم الصنف'; return; }
+
+  nameField.value = '';
+  nameField.placeholder = '⏳ جارٍ البحث...';
+
+  // 1. بحث في State.products أولاً (أسرع)
+  const localProduct = State.products.find(p => String(p.barcode) === barcode);
+  if(localProduct) {
+    nameField.value = localProduct.name || '';
+    nameField.placeholder = 'اسم الصنف';
+    return;
+  }
+
+  // 2. بحث في شيت الأسعار (Firebase)
+  lookupProductFromPriceSheet(barcode, (result) => {
+    if(result && result.name) {
+      nameField.value = result.name;
+      nameField.placeholder = 'اسم الصنف';
+    } else {
+      nameField.value = '';
+      nameField.placeholder = 'لم يُعثر على الصنف';
+    }
+  });
+}
+
+function lookupProductFromPriceSheet(barcode, callback) {
+  if(typeof db === 'undefined') { callback(null); return; }
+  // بحث في Firebase مباشرة
+  const safeBarcode = String(barcode).trim().replace(/[.#$\[\]]/g, '_');
+  db.ref('priceSheet/names/' + safeBarcode).once('value').then(snap => {
+    const name = snap.val();
+    if(name) { callback({ name: name }); return; }
+    // جرب بالباركود الأصلي
+    return db.ref('priceSheet/names/' + barcode).once('value');
+  }).then(snap => {
+    if(snap && snap.val()) { callback({ name: snap.val() }); }
+    else { callback(null); }
+  }).catch(() => callback(null));
+}
+
 function deleteTransfer(id){
 
 showConfirm("هل تريد حذف التحويل؟",()=>{
@@ -6552,7 +6881,7 @@ html += `
 <tr ${rowStyle}>
 
 <td>${p.barcode}</td>
-<td>${p.name}</td>
+<td>${p.name || getProductName(p.barcode) || "-"}</td>
 <td>${p.branch || "-"}</td>
 <td>${p.quantity}</td>
 <td style="color:#94a3b8">${p.cost ? Number(p.cost).toLocaleString('ar-EG') : '-'}</td>
@@ -7134,6 +7463,8 @@ setInterval(() => {
         FirebaseSync.init()
         // استرجاع مسودة التحويل إن وجدت
         TransferService.loadDraft()
+        // تحميل شيت الأسعار من Firebase عند بدء التطبيق
+        setTimeout(() => { if(typeof loadPriceSheetFromFirebase==="function") loadPriceSheetFromFirebase(); }, 2500)
         // استرجاع الثيم المحفوظ
         const savedTheme = localStorage.getItem('al_thm');
         if(savedTheme === 'light'){
@@ -8159,6 +8490,8 @@ const S = (() => {
 
   return {
     load: () => { lh(); ls(); },
+    getBaz: () => baz,
+    getCai: () => cai,
 
     setData: (b, c) => {
       baz = b; cai = c;
@@ -8208,6 +8541,7 @@ const S = (() => {
     getH:()=>hist, clrH:()=>{hist=[];sh();},
   };
 })();
+window.S = window.S || S; // sync
 
 /* =====================================================
    EXCEL READER — KEY FIX: cellDates:true
@@ -8346,7 +8680,7 @@ const Au = (() => {
 ===================================================== */
 function renderResult(result, bc) {
   const card = document.getElementById('rc');
-  const src  = S.getSrc();
+  const src  = window.S.getSrc();
 
   if(!result) {
     card.className='rc err on';
@@ -8491,9 +8825,9 @@ function renderResult(result, bc) {
 ===================================================== */
 function renderCmp() {
   const rows = document.getElementById('crows');
-  const cf   = S.getCF();
+  const cf   = window.S.getCF();
   const q    = (document.getElementById('fsrch')||{value:''}).value.trim().toLowerCase();
-  let d      = S.cmp();
+  let d      = window.S.cmp();
 
   if(!d.length){
     rows.innerHTML='<div class="cempty"><i>📊</i>يرجى رفع ملف Excel أولاً لعرض المقارنة</div>';
@@ -8515,7 +8849,7 @@ function renderCmp() {
   }
 
   // Update summary cards
-  const all  = S.cmp();
+  const all  = window.S.cmp();
   const both = all.filter(r=>r.sb>0&&r.sc>0);
   document.getElementById('smCommon').textContent = both.length.toLocaleString('ar-EG');
   document.getElementById('smDiff').textContent   = both.filter(r=>r.diff>0).length.toLocaleString('ar-EG');
@@ -8547,7 +8881,7 @@ function renderCmp() {
    HISTORY
 ===================================================== */
 function renderHist() {
-  const h   = S.getH();
+  const h   = window.S.getH();
   const sec = document.getElementById('histSec');
   const lst = document.getElementById('hlst');
   if(!h.length){sec.style.display='none';return;}
@@ -8583,27 +8917,27 @@ function prToast(msg,type='',dur=3000){
 function doSearch(bcO) {
   const bc = String(bcO||document.getElementById('bci').value).trim();
   if(!bc){prToast('أدخل رقم الباركود أولاً','er');return;}
-  if(!S.has()){
+  if(!window.S.has()){
     prToast('⚠ يرجى رفع ملف Excel أولاً','er');
     document.getElementById('upA').style.boxShadow='0 0 0 3px rgba(255,45,85,.4)';
     setTimeout(()=>document.getElementById('upA').style.boxShadow='',2200);
     goPg('upload'); return;
   }
-  const src=S.getSrc(), result=S.getProduct(bc,src);
-  S.incS(); renderResult(result,bc);
+  const src=window.S.getSrc(), result=window.S.getProduct(bc,src);
+  window.S.incS(); renderResult(result,bc);
   const t=new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
   if(result){
-    S.incF(); Au.ok();
+    window.S.incF(); Au.ok();
     if(navigator.vibrate)navigator.vibrate([45,25,70]);
     const p=src==='all'?(result.pb||result.pc):result;
     const sp=src==='all'?(result.pb?result.pb.sellPrice:result.pc?result.pc.sellPrice:0):p.sellPrice;
     prToast(`✅ ${p.name}`,'ok');
-    S.addH({bc,found:true,name:p.name,sp,src:src==='all'?(result.pb&&result.pc?'الفرعين':result.pb?'البازار':'القاهرة'):src,vnd:p.vendorName,t});
+    window.S.addH({bc,found:true,name:p.name,sp,src:src==='all'?(result.pb&&result.pc?'الفرعين':result.pb?'البازار':'القاهرة'):src,vnd:p.vendorName,t});
   } else {
-    S.incN(); Au.no();
+    window.S.incN(); Au.no();
     if(navigator.vibrate)navigator.vibrate([90,40,90]);
     prToast('❌ الباركود غير موجود','er');
-    S.addH({bc,found:false,t});
+    window.S.addH({bc,found:false,t});
   }
   updStats(); renderHist();
   document.getElementById('bci').value='';
@@ -8612,7 +8946,7 @@ function doSearch(bcO) {
 
 function jumpS(bc){ document.getElementById('bci').value=bc; goPg('search'); swSTab('manual'); doSearch(bc); }
 function clrRes(){ const c=document.getElementById('rc');c.classList.remove('on');setTimeout(()=>{c.className='rc';c.innerHTML='';},280); }
-function clrHist(){ S.clrH(); renderHist(); prToast('تم مسح السجل'); }
+function clrHist(){ window.S.clrH(); renderHist(); prToast('تم مسح السجل'); }
 
 function cpV(btn,v,lbl){
   navigator.clipboard.writeText(v).then(()=>{
@@ -8646,12 +8980,12 @@ function goPg(id){
   document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
   document.getElementById('pg-'+id).classList.add('on');
   document.querySelector(`[data-pg="${id}"]`).classList.add('on');
-  document.getElementById('srcStrip').classList.toggle('vis', id==='search'&&S.has());
+  document.getElementById('srcStrip').classList.toggle('vis', id==='search'&&window.S.has());
   if(id==='compare') renderCmp();
 }
 
 function setSrc(s){
-  S.setSrc(s);
+  window.S.setSrc(s);
   document.querySelectorAll('.spc').forEach(b=>b.classList.toggle('on',b.dataset.src===s));
   const l={'all':'عرض جميع الفروع','بورسعيد':'تم تحديد علوش البازار','القاهرة':'تم تحديد علوش القاهرة'};
   prToast(l[s]||s);
@@ -8666,7 +9000,7 @@ function swSTab(t){
 }
 
 function setCF(f){
-  S.setCF(f);
+  window.S.setCF(f);
   document.querySelectorAll('.ff').forEach(b=>b.classList.toggle('on',b.dataset.cf===f));
   renderCmp();
 }
@@ -8704,22 +9038,30 @@ function handleFile(file){
   if(!file.name.match(/\.(xlsx|xls)$/i)){prToast('يرجى اختيار ملف Excel','er');return;}
   prToast('⏳ جارٍ قراءة الملف...','',6000);
   XL.parse(file).then(({baz,cai,total})=>{
-    S.setData(baz,cai);
+    window.S ? window.S.setData : null(baz,cai);
     document.getElementById('flRow').classList.add('on');
     document.getElementById('flNm').textContent=file.name;
-    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${S.total().toLocaleString('ar-EG')} باركود فريد`;
+    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${window.S && window.S.total().toLocaleString('ar-EG')} باركود فريد`;
     document.getElementById('bdg').classList.add('on');
-    document.getElementById('bdgTxt').textContent=S.total().toLocaleString('ar-EG')+' منتج';
+    document.getElementById('bdgTxt').textContent=window.S && window.S.total().toLocaleString('ar-EG')+' منتج';
     document.getElementById('statsBar').style.display='flex';
     document.getElementById('srcStrip').classList.add('vis');
-    updStats();
+    try { if(typeof updStats==='function') updStats(); } catch(e){}
     prToast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
+
+    // ── حفظ في Firebase (يحذف القديم ويضع الجديد) ──────────────────
+// Firebase upload handled in handleFile directly
+
   }).catch(err=>prToast('❌ '+err,'er'));
 }
 
+// حفظ شيت الأسعار في Firebase
+
+// تحميل شيت الأسعار من Firebase عند بدء التطبيق
+
 function updStats(){
-  const s=S.getStats();
-  document.getElementById('sv0').textContent=S.total().toLocaleString('ar-EG');
+  const s=window.S.getStats();
+  document.getElementById('sv0').textContent=window.S && window.S.total().toLocaleString('ar-EG');
   document.getElementById('sv1').textContent=s.s.toLocaleString('ar-EG');
   document.getElementById('sv2').textContent=s.f.toLocaleString('ar-EG');
   document.getElementById('sv3').textContent=s.n.toLocaleString('ar-EG');
@@ -8757,9 +9099,15 @@ function initPricesModule() {
     window._pricesEventsBound = true;
   }
   // تحديث البيانات
-  S.load();
+  window.S.load();
   renderHist();
   updStats();
+  // تحميل الشيت من Firebase إذا لم يكن محملاً
+  if (window.S && window.S.total() === 0) {
+    if(typeof loadPriceSheetFromFirebase === 'function') {
+      loadPriceSheetFromFirebase();
+    }
+  }
 };
 
 
