@@ -3871,89 +3871,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
         </div>
 
         <!-- ========================= تبويب الموظفين (Employees) ========================= -->
-<div id="tab-employees" class="tab-content" style="display:none;">
 
-<!-- كارت إضافة موظف -->
-<div class="glass-card" style="padding:25px;margin-bottom:20px;">
-
-<h3 style="margin-bottom:20px">
-<span>👤➕</span>
-إضافة موظف جديد
-</h3>
-
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px">
-
-<div>
-<label>كود الموظف</label>
-<input id="empCode" type="number" placeholder="كود الموظف">
-</div>
-
-<div>
-<label>اسم الموظف</label>
-<input id="empName" placeholder="اسم الموظف">
-</div>
-
-</div>
-
-<div style="margin-bottom:20px">
-<label>الوظيفة</label>
-<input id="empJob" placeholder="الوظيفة">
-</div>
-
-<button class="btn-success btn-primary"
-style="width:100%;height:55px;font-size:18px"
-onclick="EmployeeService.add()">
-
-<span>➕</span>
-إضافة موظف
-
-</button>
-
-</div>
-
-
-<!-- قائمة الموظفين -->
-<div class="glass-card" style="padding:25px">
-
-<h3 style="margin-bottom:15px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-<span>👥</span>
-قائمة الموظفين
-<span id="totalEmpCount" style="font-size:13px;background:rgba(99,102,241,0.2);color:#818cf8;padding:3px 12px;border-radius:20px;font-weight:700;">0</span>
-</h3>
-
-<input id="employeeSearch"
-placeholder="ابحث عن موظف..."
-style="margin-bottom:15px"
-oninput="UI.renderEmployees()">
-
-
-<div class="table-container">
-
-<table>
-
-<thead>
-<tr>
-
-<th>الكود</th>
-<th>الاسم</th>
-<th>الوظيفة</th>
-<th>الفرع</th>
-<th>الحالة</th>
-<th class="editColumnHeader">تعديل</th>
-<th>حذف</th>
-
-</tr>
-</thead>
-
-<tbody id="employeesBody"></tbody>
-
-</table>
-
-</div>
-
-</div>
-
-</div>
         <!-- ========================= تبويب سجل النظام (System Logs) ========================= -->
         <div id="tab-system" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
@@ -4106,86 +4024,7 @@ oninput="UI.renderEmployees()">
 </div>
 </div>
 
-<!-- Modal إضافة/تعديل بيانات الموظف -->
-<div id="empdataModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px">
-  <div class="glass-card" style="padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;direction:rtl">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-      <h3 style="margin:0">📋 بيانات الموظف</h3>
-      <button onclick="EmpDataService.closeModal()" style="background:rgba(239,68,68,0.3);border:none;color:#f87171;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
-    </div>
-
-    <div style="display:grid;gap:12px">
-
-      <!-- كود الموظف مع autocomplete -->
-      <div>
-        <label style="font-size:13px;color:var(--txt2)">كود الموظف</label>
-        <div style="position:relative">
-          <input id="edEmpCode" placeholder="اكتب الكود أو الاسم للبحث"
-            oninput="EmpDataService.onEmpSearch(this.value)"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-          <div id="edEmpSugg" style="position:absolute;background:#1e293b;width:100%;border:1px solid rgba(255,255,255,0.1);border-radius:8px;display:none;max-height:150px;overflow-y:auto;z-index:10;top:100%;right:0"></div>
-        </div>
-      </div>
-
-      <div>
-        <label style="font-size:13px;color:var(--txt2)">اسم الموظف</label>
-        <input id="edEmpName" readonly placeholder="يُجلب تلقائياً"
-          style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#94a3b8;font-family:inherit;box-sizing:border-box">
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label style="font-size:13px;color:var(--txt2)">الراتب (جنيه)</label>
-          <input id="edSalary" type="number" min="0" placeholder="0"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="font-size:13px;color:var(--txt2)">تاريخ التعيين</label>
-          <input id="edHireDate" type="date"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label style="font-size:13px;color:var(--txt2)">رقم البطاقة</label>
-          <input id="edNationalId" placeholder="رقم البطاقة"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="font-size:13px;color:var(--txt2)">رقم الهاتف</label>
-          <input id="edPhone" type="tel" placeholder="01x-xxxx-xxxx"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div>
-          <label style="font-size:13px;color:var(--txt2)">⏰ وقت الحضور (من)</label>
-          <input id="edCheckIn" type="time" oninput="EmpDataService.calcHours()"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-        </div>
-        <div>
-          <label style="font-size:13px;color:var(--txt2)">⏰ وقت الانصراف (إلى)</label>
-          <input id="edCheckOut" type="time" oninput="EmpDataService.calcHours()"
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-        </div>
-      </div>
-
-      <!-- ساعات العمل تُحسب تلقائياً -->
-      <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:12px;text-align:center">
-        <span style="font-size:13px;color:var(--txt2)">⏱ ساعات العمل: </span>
-        <span id="edWorkHours" style="font-size:18px;font-weight:700;color:#818cf8">-- ساعة</span>
-      </div>
-
-      <button onclick="EmpDataService.save()"
-        style="background:linear-gradient(135deg,#6366f1,#818cf8);border:none;color:#fff;padding:12px;border-radius:10px;cursor:pointer;font-size:15px;font-family:inherit;font-weight:700">
-        💾 حفظ البيانات
-      </button>
-
-    </div>
-  </div>
-</div>
+<!-- empdataModal removed - using empAddForm -->
 
 <div id="tab-users" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
@@ -4878,72 +4717,8 @@ return firebase.database.ServerValue.TIMESTAMP
 
     // ========================= خدمة الموظفين (Employees) =========================
     // EmployeeService - مع إصلاح add() و delete()
-const EmployeeService = {
-  // كل العمليات تتم على empData/{code} فقط
-  add() {
-    const code = String(document.getElementById("empCode").value || '').trim();
-    const name = document.getElementById("empName").value.trim();
-    const job  = document.getElementById("empJob").value.trim();
-    if(!code || !name) { UI.toast("الكود والاسم مطلوب", "error"); return; }
-    if(!State.empData || Array.isArray(State.empData)) State.empData = {};
-    if(State.empData[code]) { UI.toast("كود الموظف موجود بالفعل", "error"); return; }
-    const data = {
-      code: isNaN(code)?code:Number(code), name, job,
-      branch:'', status:'خارج العمل',
-      salary:0, hireDate:'', nationalId:'', phone:'',
-      checkIn:'', checkOut:'', workHours:0,
-      updatedAt: new Date().toISOString(),
-      updatedBy: State.currentUser?.username||'-'
-    };
-    db.ref("empData/" + code).set(data).then(() => {
-      State.empData[code] = data;
-      const rec = { id: code, code: Number(code)||code, name, job, branch:'', status:'خارج العمل' };
-      const idx = State.employees.findIndex(e => String(e.code)===code);
-      if(idx>=0) State.employees[idx]={...State.employees[idx],...rec};
-      else State.employees.push(rec);
-      UI.renderEmployees();
-      EmpDataService.render();
-      ['empCode','empName','empJob'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-      document.getElementById("empCode")?.focus();
-      UI.toast("✅ تم إضافة الموظف", "success");
-      SystemLog.add("AddEmployee", code, name);
-    }).catch(err => UI.toast("❌ خطأ في الإضافة: "+err.message, "error"));
-  },
-
-  delete(id) {
-    const emp = State.employees.find(e => e.id===id || String(e.code)===String(id));
-    if(!emp) { UI.toast("الموظف غير موجود","error"); return; }
-    const code = String(emp.code);
-    showConfirm("هل تريد حذف الموظف: " + emp.name + "؟", () => {
-      db.ref("empData/" + code).remove().then(() => {
-        if(State.empData) delete State.empData[code];
-        State.employees = State.employees.filter(e => String(e.code)!==code);
-        UI.renderEmployees();
-        EmpDataService.render();
-        UI.toast("✅ تم حذف الموظف", "warning");
-        SystemLog.add("DeleteEmployee", code, emp.name);
-      }).catch(err => UI.toast("❌ خطأ في الحذف: "+err.message,"error"));
-    });
-  },
-
-  edit(id) {
-    const emp = State.employees.find(e => e.id===id || String(e.code)===String(id));
-    if(!emp) return;
-    // فتح فورم بيانات الموظفين للتعديل
-    if(typeof EmpDataService !== 'undefined') {
-      EmpDataService.editEmployee(id, String(emp.code), emp.name, emp.job||'', emp.branch||'');
-    } else {
-      // fallback للمودال القديم
-      document.getElementById("editEmployeeId").value = emp.id||id;
-      document.getElementById("editEmployeeCode").value = emp.code;
-      document.getElementById("editEmployeeName").value = emp.name||"";
-      document.getElementById("editEmployeeJob").value = emp.job||"";
-      document.getElementById("editEmployeeBranch").value = emp.branch||"";
-      document.getElementById("editEmployeeStatus").value = emp.status||"خارج العمل";
-      document.getElementById("editEmployeeModal").style.display = "flex";
-    }
-  }
-};
+// EmployeeService removed
+;
 
 // دوال مساعدة للمودال
 function closeEmployeeEdit() {
@@ -4951,36 +4726,25 @@ function closeEmployeeEdit() {
 }
 
 function saveEmployeeEdit() {
-  let id = document.getElementById("editEmployeeId").value;
-  let name = document.getElementById("editEmployeeName").value.trim();
-  let job = document.getElementById("editEmployeeJob").value.trim();
-  let branch = document.getElementById("editEmployeeBranch").value.trim();
-  let status = document.getElementById("editEmployeeStatus").value;
-  
-  if (!name) {
-    UI.toast("اسم الموظف مطلوب", "error");
-    return;
-  }
-  
-  // ابحث عن الكود من State.employees
-  const emp = State.employees.find(e => e.id === id || String(e.code) === String(id));
-  const code = emp ? String(emp.code) : String(id);
-
-  // حفظ في empData (المصدر الموحد)
-  if(!State.empData || Array.isArray(State.empData)) State.empData = {};
-  const existing = State.empData[code] || {};
+  const code   = document.getElementById("editEmployeeCode")?.value || '';
+  const name   = document.getElementById("editEmployeeName")?.value.trim() || '';
+  const job    = document.getElementById("editEmployeeJob")?.value.trim() || '';
+  const branch = document.getElementById("editEmployeeBranch")?.value || '';
+  const status = document.getElementById("editEmployeeStatus")?.value || 'خارج العمل';
+  if(!name) { UI.toast("اسم الموظف مطلوب","error"); return; }
+  const existing = (State.empData && State.empData[String(code)]) || {};
   const updated = { ...existing, name, job, branch, status, updatedAt: new Date().toISOString(), updatedBy: State.currentUser?.username||'-' };
-
-  db.ref("empData/" + code).update({ name, job, branch, status })
+  db.ref("empData/" + code).set(updated)
     .then(() => {
-      State.empData[code] = { ...existing, ...updated };
-      const idx = State.employees.findIndex(e => String(e.code)===code);
-      if(idx>=0) { State.employees[idx].name=name; State.employees[idx].job=job; State.employees[idx].branch=branch; State.employees[idx].status=status; }
+      if(!State.empData || typeof State.empData !== 'object') State.empData = {};
+      State.empData[String(code)] = updated;
+      const idx = State.employees ? State.employees.findIndex(e => String(e.code)===String(code)) : -1;
+      if(idx>=0) State.employees[idx] = {...State.employees[idx], name, job, branch, status};
+      if(typeof EmpDataService !== 'undefined') EmpDataService.render();
       UI.renderEmployees();
-      EmpDataService.render();
-      UI.toast("✅ تم تعديل بيانات الموظف", "success");
       closeEmployeeEdit();
-    }).catch(err => UI.toast("❌ خطأ في التعديل: "+err.message, "error"));
+      UI.toast("✅ تم تعديل بيانات الموظف","success");
+    }).catch(err => UI.toast("❌ "+err.message,"error"));
 }
 // ========================= خدمة الحضور (Attendance) =========================
 const AttendanceService = {
@@ -7335,9 +7099,7 @@ function getProductNameAsync(barcode, callback) {
 if(!State.empData || Array.isArray(State.empData)) State.empData = {};
 
 // دالة مساعدة: تجيب قائمة الموظفين دائماً من State.employees
-function getEmpList() {
-  return Array.isArray(State.employees) ? State.employees : [];
-}
+
 
 // دالة: تجيب بيانات موظف من empData (المصدر الوحيد)
 function getEmpData(code) {
@@ -7369,41 +7131,23 @@ const EmpDataService = {
 
   // فتح modal الإضافة/التعديل
   openAdd(code) {
-    const modal = document.getElementById('empdataModal');
-    if(!modal) return;
-
-    // مسح الحقول أولاً دائماً
-    ['edEmpCode','edEmpName','edSalary','edNationalId','edPhone','edCheckIn','edCheckOut'].forEach(id => {
-      const el = document.getElementById(id); if(el && el.type !== 'file') el.value = '';
-    });
-    const wh = document.getElementById('edWorkHours');
-    if(wh) wh.textContent = '-- ساعة';
-
-    // تعيين تاريخ اليوم افتراضياً
-    const hd = document.getElementById('edHireDate');
-    if(hd) hd.value = new Date().toISOString().slice(0,10);
-
+    // alias لـ showAddEmpForm
     if(code) {
-      code = String(code); // نضمن أنه string
-      const emp = State.employees.find(e => String(e.code) === code);
-      const d = (State.empData && State.empData[code]) ? State.empData[code] : {};
-
-      if(document.getElementById('edEmpCode')) document.getElementById('edEmpCode').value = code;
-      if(document.getElementById('edEmpName')) document.getElementById('edEmpName').value = emp ? emp.name : (d.name||'');
-      if(document.getElementById('edSalary'))    document.getElementById('edSalary').value    = d.salary    || '';
-      if(document.getElementById('edHireDate'))  document.getElementById('edHireDate').value  = d.hireDate  || new Date().toISOString().slice(0,10);
-      if(document.getElementById('edNationalId'))document.getElementById('edNationalId').value= d.nationalId|| '';
-      if(document.getElementById('edPhone'))     document.getElementById('edPhone').value      = d.phone     || '';
-      if(document.getElementById('edCheckIn'))   document.getElementById('edCheckIn').value    = d.checkIn   || '';
-      if(document.getElementById('edCheckOut'))  document.getElementById('edCheckOut').value   = d.checkOut  || '';
-      this.calcHours();
+      const d = (State.empData && State.empData[String(code)]) || {};
+      const emp = State.employees ? State.employees.find(e => String(e.code)===String(code)) : null;
+      this.showAddEmpForm(code, String(code), emp ? emp.name : (d.name||''), emp ? (emp.job||'') : (d.job||''), emp ? (emp.branch||'') : (d.branch||''));
+    } else {
+      this.showAddEmpForm(null,'','','','');
     }
-    modal.style.display = 'flex';
   },
 
   closeModal() {
-    const modal = document.getElementById('empdataModal');
-    if(modal) modal.style.display = 'none';
+    const form = document.getElementById('empAddForm');
+    if(form) form.style.display = 'none';
+    // مسح الحقول
+    ['edEmpCode','edEmpName','edSalary','edHireDate','edNationalId','edPhone','edCheckIn','edCheckOut'].forEach(id=>{
+      const el=document.getElementById(id); if(el&&el.type!=='file') el.value='';
+    });
   },
 
   // بحث الموظف بالكود أو الاسم
@@ -7459,58 +7203,40 @@ const EmpDataService = {
 
   // حفظ البيانات
   save() {
-    const code = String(document.getElementById('edEmpCode')?.value || '').trim();
-    if(!code) { UI.toast('اختر الموظف أولاً', 'error'); return; }
-    // تأكد أن empData object
-    if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
-
-    // جلب بيانات الموظف من employees (الكود والاسم والوظيفة والفرع)
-    const empRef = State.employees ? State.employees.find(e => String(e.code) === code) : null;
+    // تقرأ من modal edEmp* وتملأ newEmp* ثم تحفظ
+    const code = String(document.getElementById('edEmpCode')?.value||'').trim();
+    if(!code) { UI.toast('اختر الموظف أولاً','error'); return; }
+    const existing = (State.empData && State.empData[code]) || {};
     const data = {
-      code,
-      name:       empRef ? empRef.name : (document.getElementById('edEmpName')?.value.trim() || ''),
-      job:        empRef ? (empRef.job || '') : '',
-      branch:     empRef ? (empRef.branch || '') : '',
-      salary:     Number(document.getElementById('edSalary')?.value)      || 0,
-      hireDate:   document.getElementById('edHireDate')?.value            || '',
-      nationalId: document.getElementById('edNationalId')?.value.trim()   || '',
-      phone:      document.getElementById('edPhone')?.value.trim()        || '',
-      checkIn:    document.getElementById('edCheckIn')?.value             || '',
-      checkOut:   document.getElementById('edCheckOut')?.value            || '',
-      updatedAt:  new Date().toISOString(),
-      updatedBy:  State.currentUser?.username || '-'
+      code: Number(code)||code,
+      name: (document.getElementById('edEmpName')?.value||existing.name||'').trim(),
+      job: existing.job||'',
+      branch: existing.branch||'',
+      salary: Number(document.getElementById('edSalary')?.value)||existing.salary||0,
+      hireDate: document.getElementById('edHireDate')?.value||existing.hireDate||'',
+      nationalId: (document.getElementById('edNationalId')?.value||existing.nationalId||'').trim(),
+      phone: (document.getElementById('edPhone')?.value||existing.phone||'').trim(),
+      checkIn: document.getElementById('edCheckIn')?.value||existing.checkIn||'',
+      checkOut: document.getElementById('edCheckOut')?.value||existing.checkOut||'',
+      status: existing.status||'خارج العمل',
+      updatedAt: new Date().toISOString(),
+      updatedBy: State.currentUser?.username||'-'
     };
-
-    // حساب ساعات العمل
     if(data.checkIn && data.checkOut) {
-      const [inH,inM]   = data.checkIn.split(':').map(Number);
-      const [outH,outM] = data.checkOut.split(':').map(Number);
-      let mins = (outH*60+outM) - (inH*60+inM);
-      if(mins < 0) mins += 24*60;
+      const [ih,im]=data.checkIn.split(':').map(Number), [oh,om]=data.checkOut.split(':').map(Number);
+      let mins=(oh*60+om)-(ih*60+im); if(mins<0) mins+=1440;
       data.workHours = parseFloat((mins/60).toFixed(2));
     }
-
-    // تهيئة empData كـ object قبل الحفظ
-    if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) {
-      State.empData = {};
-    }
-
-    db.ref('empData/' + code).set(data)
-      .then(() => {
-        // تحديث State محلياً فوراً بدون انتظار listener
-        if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
-        State.empData[String(code)] = data;
-        // تحديث State.employees
-        const empIdx = State.employees ? State.employees.findIndex(e => String(e.code) === String(code)) : -1;
-        if(empIdx >= 0) {
-          State.employees[empIdx] = { ...State.employees[empIdx], name: data.name, job: data.job||'', branch: data.branch||'' };
-        }
-        this.closeModal();
-        this.render();
-        UI.toast('✅ تم حفظ بيانات ' + (data.name||code), 'success');
-        SystemLog.add('EmpData', code, 'تحديث بيانات: ' + data.name);
+    if(!State.empData||typeof State.empData!=='object') State.empData={};
+    db.ref('empData/'+code).set({...existing,...data})
+      .then(()=>{
+        State.empData[code]={...existing,...data};
+        const idx=State.employees?State.employees.findIndex(e=>String(e.code)===code):-1;
+        if(idx>=0) State.employees[idx]={...State.employees[idx],name:data.name,job:data.job,branch:data.branch};
+        this.closeModal(); this.render();
+        UI.toast('✅ تم حفظ بيانات '+(data.name||code),'success');
       })
-      .catch(err => UI.toast('❌ ' + err.message, 'error'));
+      .catch(err=>UI.toast('❌ '+err.message,'error'));
   },
 
   // عرض الجدول
@@ -8029,32 +7755,7 @@ const IncentiveService = {
 // ─── دالة موحدة لقراءة قائمة الموظفين ──────────────────────────────────────
 // تقرأ من empData (بيانات الموظفين الجديد) أولاً
 // وتكمل بأي موظف موجود في employees غير محفوظ في empData
-function getEmpList() {
-  const result = [];
-  const seen = new Set();
 
-  // أولاً: من empData (البيانات الكاملة)
-  if(State.empData && typeof State.empData === 'object' && !Array.isArray(State.empData)) {
-    Object.values(State.empData || {}).forEach(d => {
-      if(d && d.code) {
-        result.push({ code: d.code, name: d.name||'', job: d.job||'', branch: d.branch||'', id: d.code });
-        seen.add(String(d.code));
-      }
-    });
-  }
-
-  // ثانياً: أي موظف في employees مش موجود في empData
-  if(State.employees && Array.isArray(State.employees)) {
-    State.employees.forEach(e => {
-      if(!seen.has(String(e.code))) {
-        result.push({ code: e.code, name: e.name||'', job: e.job||'', branch: e.branch||'', id: e.id });
-        seen.add(String(e.code));
-      }
-    });
-  }
-
-  return result.sort((a,b) => Number(a.code) - Number(b.code));
-}
 
 // ─── دوال الطباعة ───────────────────────────────────────────────────────────
 function printContent(html, title) {
