@@ -4739,6 +4739,11 @@ function saveEmployeeEdit() {
       if(!State.empData || typeof State.empData !== 'object') State.empData = {};
       State.empData[String(code)] = updated;
       const idx = State.employees ? State.employees.findIndex(e => String(e.code)===String(code)) : -1;
+        // تحديث empData أيضاً
+        if(State.empData && State.empData[String(code)]) {
+          const newSt = (action==="CheckIn")?"داخل العمل":"خارج العمل";
+          State.empData[String(code)].status = newSt;
+        }
       if(idx>=0) State.employees[idx] = {...State.employees[idx], name, job, branch, status};
       if(typeof EmpDataService !== 'undefined') EmpDataService.render();
       UI.renderEmployees();
@@ -4760,10 +4765,11 @@ const AttendanceService = {
 
         let action = document.getElementById("attAction").value
 
-        // البحث عن الموظف
-        let emp = State.employees.find(e =>
-            String(e.code) === code || (e.name && e.name.includes(code))
-        )
+        // البحث عن الموظف من empData (المصدر الوحيد)
+        let emp = getEmpData(code) ||
+            Object.values(State.empData||{}).find(e =>
+                e && (String(e.code)===code || (e.name&&e.name.includes(code)))
+            )
 
         // آخر حركة للموظف
         let lastAction = State.attendance
@@ -4805,23 +4811,23 @@ const AttendanceService = {
         // تسجيل في سجل النظام
         SystemLog.add(action, code, emp.name)
 
-        // تحديث حالة الموظف
-        let employee = State.employees.find(e => e.code === code)
+        // تحديث حالة الموظف في State.empData و State.employees
+        if(!State.empData || typeof State.empData!=='object') State.empData = {};
+        let _empD = State.empData[String(code)];
+        let employee = State.employees ? State.employees.find(e => String(e.code) === String(code)) : null;
 
-        if (employee){
-
-            if (action === "CheckIn"){
-                employee.status = "داخل العمل"
-                employee.checkInTime = TimeUtils.now()
-            }
+        if (_empD || employee){
+            const newStatus = (action === "CheckIn") ? "داخل العمل" : "خارج العمل";
+            if(_empD) { _empD.status = newStatus; if(action==="CheckIn") _empD.checkInTime=TimeUtils.now(); else _empD.checkInTime=null; }
+            if(employee) { employee.status = newStatus; if(action==="CheckIn") employee.checkInTime=TimeUtils.now(); else employee.checkInTime=null; }
 
             if (action === "CheckOut"){
-
-                employee.status = "خارج العمل"
+                employee = _empD || employee;
+                if(!employee) employee = {};
                 employee.checkInTime = null
 
                 let openBreak = State.breaks
-                .filter(b => b.code === code && !b.returnTimestamp)
+                .filter(b => String(b.code) === String(code) && !b.returnTimestamp)
                 .sort((a,b)=> b.breakTimestamp - a.breakTimestamp)[0]
 
                 if(openBreak){
@@ -5056,11 +5062,14 @@ UI.toast("يجب اختيار نوع الاستئذان أولاً", "error");
 return;
 }
 
-let emp = State.employees.find(e => String(e.code) === code || (e.name && e.name.includes(code)));
+let emp = getEmpData(code) ||
+    Object.values(State.empData||{}).find(e =>
+        e && (String(e.code)===code || (e.name&&e.name.includes(code)))
+    );
 
 let lastAttendance = State.attendance
-.filter(a => a.code === code)
-.sort((a, b) => b.timestamp - a.timestamp)[0];
+.filter(a => String(a.code) === String(code))
+.sort((a, b) => (b.timestamp||0) - (a.timestamp||0))[0];
 
 if (!lastAttendance || lastAttendance.action !== "CheckIn") {
 UI.toast("لا يمكن تسجيل استئذان قبل تسجيل حضور", "error");
@@ -5074,7 +5083,7 @@ return;
 
 let now = new Date(TimeUtils.now());
 
-let openBreak = State.breaks.find(b => b.code === code && !b.returnTimestamp);
+let openBreak = State.breaks.find(b => String(b.code) === String(code) && !b.returnTimestamp);
 
 if (action === "Break" && openBreak) {
 UI.toast("الموظف في استئذان بالفعل", "warning");
@@ -5132,7 +5141,7 @@ document.getElementById("breakSuggestions").style.display = "none";
 if (action === "Return") {
 
 let openBreakObj = State.breaks
-.filter(b => b.code === code && !b.returnTimestamp)
+.filter(b => String(b.code) === String(code) && !b.returnTimestamp)
 .sort((a,b)=> (b.deviceBreakTime || 0) - (a.deviceBreakTime || 0))[0]
 
 if(!openBreakObj){
@@ -5429,7 +5438,7 @@ document.getElementById("companyReason").value = last.reason
             let code = document.getElementById("penaltyCode").value.trim(), hours = document.getElementById("penaltyHours").value, manager = document.getElementById("penaltyManager").value, reason = document.getElementById("penaltyReason").value;
             if (!code) { UI.toast("اكتب كود الموظف أولاً", "error"); return; }
             if (!hours) { UI.toast("أدخل ساعات الخصم", "error"); return; }
-            let emp = State.employees.find(e => String(e.code) === code);
+            let emp = getEmpData(code) || State.employees.find(e => String(e.code) === code);
             if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
             let now = new Date(TimeUtils.now());
             let penalty = { code, name: emp.name, hours, manager, reason, date: now.toLocaleDateString("ar-EG"), time: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
@@ -5451,7 +5460,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
             let code = document.getElementById("leaveCode").value.trim(), date = document.getElementById("leaveDate").value, manager = document.getElementById("leaveManager").value, notes = document.getElementById("leaveNotes").value;
             if (!code) { UI.toast("اكتب كود الموظف أولاً", "error"); return; }
             if (!date) { UI.toast("حدد تاريخ الإجازة", "error"); return; }
-            let emp = State.employees.find(e => String(e.code) === code);
+            let emp = getEmpData(code) || State.employees.find(e => String(e.code) === code);
             if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
             let now = new Date(TimeUtils.now());
             let leave = { code, name: emp.name, leaveDate: date, requestDate: now.toLocaleDateString("ar-EG"), requestTime: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, requestedBy: State.currentUser.username, manager, notes, status: "قيد المراجعة" };
@@ -7103,16 +7112,22 @@ if(!State.empData || Array.isArray(State.empData)) State.empData = {};
 
 // دالة: تجيب بيانات موظف من empData (المصدر الوحيد)
 function getEmpData(code) {
-  const c = String(code);
-  // أولاً من empData
+  const c = String(code).trim();
+  const n = String(Number(c)); // رقمي
+  // من empData
   if(State.empData && typeof State.empData === 'object') {
     if(State.empData[c]) return State.empData[c];
-    // جرب رقمي
-    const num = String(Number(c));
-    if(State.empData[num]) return State.empData[num];
+    if(State.empData[n]) return State.empData[n];
+    // بحث في القيم
+    const found = Object.values(State.empData).find(e =>
+      e && (String(e.code)===c || String(e.code)===n)
+    );
+    if(found) return found;
   }
   // fallback من State.employees
-  return State.employees ? State.employees.find(e => String(e.code) === c) : null;
+  return State.employees ? State.employees.find(e =>
+    String(e.code)===c || String(e.code)===n
+  ) : null;
 }
 
 // دالة: تجيب الوظيفة من empData
@@ -7156,7 +7171,8 @@ const EmpDataService = {
     const sugg = document.getElementById('edEmpSugg');
     if(!sugg) return;
     if(!val) { sugg.style.display='none'; return; }
-    const results = State.employees.filter(e =>
+    let _src = (State.employees&&State.employees.length>0)?State.employees:Object.values(State.empData||{}).filter(e=>e&&e.name);
+    let results = _src.filter(e =>
       String(e.code).includes(val) || (e.name||'').includes(val)
     ).slice(0,6);
     if(!results.length) { sugg.style.display='none'; return; }
@@ -7586,7 +7602,8 @@ function onIncEmpInput(val) {
   const box = document.getElementById('incEmpSuggestions');
   if(!box) return;
   if(!val) { box.style.display='none'; return; }
-  const results = State.employees.filter(e =>
+  let _src = (State.employees&&State.employees.length>0)?State.employees:Object.values(State.empData||{}).filter(e=>e&&e.name);
+    let results = _src.filter(e =>
     String(e.code).includes(val) || (e.name && e.name.includes(val))
   ).slice(0, 6);
   if(!results.length) { box.style.display='none'; return; }
@@ -8952,7 +8969,7 @@ if (!value) {
 box.style.display = "none"
 return
 }
-let results = State.employees.filter(e =>
+let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e =>
   String(e.code).includes(value) || (e.name && e.name.includes(value))
 )
 let html = ""
@@ -8991,9 +9008,9 @@ setInterval(() => {
             if(pb) pb.textContent = '☀️';
         };
     });
-    document.getElementById("breakCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectBreakEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
-    document.getElementById("penaltyCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectPenaltyEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
-    document.getElementById("leaveCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = State.employees.filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectLeaveEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("breakCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectBreakEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("penaltyCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectPenaltyEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("leaveCode").addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div style="padding:8px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)" onclick="selectLeaveEmp('${emp.code}','${emp.name}')">${emp.code} - ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
     document.getElementById("vehicleSearch").addEventListener("input", () => UI.renderVehicles());
     document.getElementById("insideSearch").addEventListener("input", () => UI.renderInsideEmployees());
     // حفظ الفروع عند تغييرها
