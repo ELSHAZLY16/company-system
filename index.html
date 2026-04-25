@@ -4558,6 +4558,7 @@ document.addEventListener('keydown', function(e) {
         leaves: [],
         incentives: [],
         users: [],
+        empData: {},
         serverOffset: 0,
         currentUser: null,
         reportRange: "day",
@@ -4576,7 +4577,7 @@ document.addEventListener('keydown', function(e) {
         return perms.includes(permission) || perms.includes("all");
     }
 
-    Object.seal(State);
+    // Object.seal removed - empData must remain writable
     // ========================= دوال مساعدة عامة =========================
     let confirmAction = null;
     function showConfirm(message, callback) { confirmAction = callback; document.getElementById("confirmText").innerText = message; document.getElementById("confirmModal").style.display = "flex"; }
@@ -7113,17 +7114,32 @@ if(!State.empData || Array.isArray(State.empData)) State.empData = {};
 // دالة: تجيب بيانات موظف من empData (المصدر الوحيد)
 function getEmpData(code) {
   const c = String(code).trim();
-  const n = String(Number(c)); // رقمي
+  const n = String(Number(c));
+  
   // من empData
   if(State.empData && typeof State.empData === 'object') {
+    // بحث مباشر بالـ key
     if(State.empData[c]) return State.empData[c];
-    if(State.empData[n]) return State.empData[n];
-    // بحث في القيم
-    const found = Object.values(State.empData).find(e =>
-      e && (String(e.code)===c || String(e.code)===n)
-    );
+    if(n !== c && State.empData[n]) return State.empData[n];
+    
+    // بحث في القيم عبر code field
+    const vals = Object.values(State.empData);
+    const found = vals.find(e => e && (String(e.code)===c || String(e.code)===n));
     if(found) return found;
+    
+    // DEBUG: نطبع مفاتيح empData
+    if(vals.length > 0) {
+      const keys = Object.keys(State.empData).slice(0,5);
+      console.log('[getEmpData] code='+c+' empData keys='+keys+' empData size='+vals.length);
+      const sample = vals[0];
+      console.log('[getEmpData] sample=', JSON.stringify(sample).slice(0,100));
+    } else {
+      console.warn('[getEmpData] empData فارغ! code='+c);
+    }
+  } else {
+    console.warn('[getEmpData] State.empData غير موجود! type='+typeof State.empData);
   }
+  
   // fallback من State.employees
   return State.employees ? State.employees.find(e =>
     String(e.code)===c || String(e.code)===n
@@ -7281,7 +7297,8 @@ const EmpDataService = {
       .sort((a,b) => Number(a.code) - Number(b.code))
       .map(emp => {
         const code = String(emp.code);
-        const d = (State.empData && State.empData[code]) ? State.empData[code] : emp;
+        // نجيب البيانات الكاملة من empData مباشرة
+        const d = (State.empData && (State.empData[code] || State.empData[String(Number(code))])) || emp;
         // حساب ساعات العمل
         let workHoursStr = '-';
         if(d.checkIn && d.checkOut) {
@@ -9047,28 +9064,31 @@ if(tab === "incentives"){
   IncentiveService.render();
 }
 if(tab === "empdata"){
-  // لو State.employees فارغة نجلب من Firebase مباشرة
-  if(!State.employees || State.employees.length === 0) {
-    db.ref('empData').once('value').then(snap => {
-      const val = snap.val();
-      if(val && typeof val === 'object') {
-        State.empData = val;
-        State.employees = Object.entries(val)
-          .filter(([k,d]) => d && d.name)
-          .map(([k,d]) => ({
-            id: String(d.code||k),
-            code: Number(d.code||k)||d.code||k,
-            name: d.name||'',
-            job: d.job||'',
-            branch: d.branch||'',
-            status: d.status||'خارج العمل'
-          }));
-      }
-      EmpDataService.render();
-    });
-  } else {
+  // نجلب من Firebase دائماً لضمان أحدث البيانات
+  db.ref('empData').once('value').then(snap => {
+    const val = snap.val();
+    console.log('[tab-empdata] empData من Firebase:', val ? Object.keys(val).length+' موظف' : 'فارغ');
+    if(val && Object.keys(val).length > 0) {
+      const firstKey = Object.keys(val)[0];
+      console.log('[tab-empdata] أول key='+firstKey+' value='+JSON.stringify(val[firstKey]).slice(0,100));
+    }
+    if(val && typeof val === 'object' && !Array.isArray(val)) {
+      State.empData = val;
+      State.employees = Object.entries(val)
+        .filter(([k,d]) => d && d.name)
+        .map(([k,d]) => ({
+          id: String(d.code||k),
+          code: Number(d.code||k)||d.code||k,
+          name: d.name||'',
+          job: d.job||'',
+          branch: d.branch||'',
+          status: d.status||'خارج العمل'
+        }));
+      const cnt = document.getElementById("totalEmpCount");
+      if(cnt) cnt.textContent = State.employees.length;
+    }
     EmpDataService.render();
-  }
+  }).catch(()=>{ EmpDataService.render(); });
 }
 
 }
@@ -9155,8 +9175,15 @@ UI.renderTransfers()
             // empData يُعامَل كـ object (مش array)
             db.ref("empData").on("value", snap => {
                 const val = snap.val();
-                if(!val || typeof val !== 'object' || Array.isArray(val)) return;
+                if(!val || typeof val !== 'object' || Array.isArray(val)) {
+                    console.warn('[empData listener] val غير صالح:', typeof val, val);
+                    return;
+                }
                 State.empData = val;
+                const keys = Object.keys(val);
+                console.log('[empData listener] تم تحميل', keys.length, 'موظف. أول 3 keys:', keys.slice(0,3));
+                const first = val[keys[0]];
+                console.log('[empData listener] أول موظف:', JSON.stringify(first).slice(0,100));
                 // بناء State.employees من empData
                 State.employees = Object.entries(val)
                     .filter(([k,d]) => d && (d.name || d.code))
