@@ -4072,7 +4072,6 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <span>طلبات الإجازة</span>
 </label>
                     
-                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="employees" hidden><span>🪪</span><span>الموظفين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="empdata" hidden><span>📋</span><span>بيانات الموظفين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><span>☕</span><span>الاستئذانات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><span>⚙️</span><span>المستخدمين</span></label>
@@ -4295,7 +4294,6 @@ onclick="closeTransferEdit()">
 </label>
         
         
-        <label><input type="checkbox" value="employees"> الموظفين</label>
         <label><input type="checkbox" value="empdata"> بيانات الموظفين</label>
         <label><input type="checkbox" value="users"> المستخدمين</label>
         <label><input type="checkbox" value="all"> 👑 كل الصلاحيات</label>
@@ -5968,6 +5966,8 @@ const PermissionService = {
 apply(){
 
 let perms = State.currentUser.permissions || []
+
+
 
 let firstTab = null
 
