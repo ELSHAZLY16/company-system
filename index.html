@@ -1741,6 +1741,12 @@ font-size:14px
 <div class="glass-card" style="padding:20px;margin-top:20px">
 
 <h3>📋 سجل التحويلات</h3>
+<div style="margin-bottom:10px">
+  <button onclick="fixAllTransferTotals()" 
+    style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+    🔧 إصلاح إجماليات التحويلات القديمة
+  </button>
+</div>
 
 <div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
 
@@ -4307,44 +4313,35 @@ onclick="closeTransferEdit()">
     function calcTransferTotal(){
 
 let cartons = Number(document.getElementById("transferCartons").value) || 0
-let boxes = Number(document.getElementById("transferBoxes").value) || 0
-let pieces = Number(document.getElementById("transferPieces").value) || 0
+let boxes   = Number(document.getElementById("transferBoxes").value)   || 0
+let pieces  = Number(document.getElementById("transferPieces").value)  || 0
 
 let total = 0
 
-// لو فيه قطع فقط
-if(pieces && !boxes && !cartons){
-total = pieces
+if(cartons && boxes && pieces){
+    // الثلاثة: كراتين × علب × قطعة
+    total = cartons * boxes * pieces
 }
-
-// لو فيه علب وقطع
-else if(boxes && pieces && !cartons){
-total = boxes * pieces
+else if(cartons && boxes){
+    // كراتين × علب
+    total = cartons * boxes
 }
-
-// لو فيه كراتين فقط
-else if(cartons && !boxes && !pieces){
-total = cartons
+else if(cartons && pieces){
+    // كراتين × قطع
+    total = cartons * pieces
 }
-
-// لو فيه كراتين وعلب
-else if(cartons && boxes && !pieces){
-total = cartons * boxes
+else if(boxes && pieces){
+    // علب × قطع
+    total = boxes * pieces
 }
-
-// لو فيه الثلاثة
-else if(cartons && boxes && pieces){
-total = cartons * boxes * pieces
+else if(cartons){
+    total = cartons
 }
-
-// لو فيه علب فقط
-else if(boxes && !pieces && !cartons){
-total = boxes
+else if(boxes){
+    total = boxes
 }
-
-// لو فيه قطع مع كراتين
-else if(cartons && pieces && !boxes){
-total = cartons * pieces
+else if(pieces){
+    total = pieces
 }
 
 document.getElementById("transferTotal").value = total
@@ -6619,7 +6616,15 @@ function saveTransferEdit(){
     const boxes   = Number(numInputs[1]?.value) || 0;
     const pieces  = Number(numInputs[2]?.value) || 0;
     const expire  = row.querySelector('input[type=date]')?.value || '';
-    const total   = (cartons * boxes) + pieces;
+    // نفس منطق calcTransferTotal
+    let total = 0;
+    if(cartons && boxes && pieces)       total = cartons * boxes * pieces;
+    else if(cartons && boxes && !pieces) total = cartons * boxes;
+    else if(cartons && !boxes && pieces) total = cartons * pieces;
+    else if(!cartons && boxes && pieces) total = boxes * pieces;
+    else if(cartons && !boxes && !pieces)total = cartons;
+    else if(!cartons && boxes && !pieces)total = boxes;
+    else if(!cartons && !boxes && pieces)total = pieces;
 
     newItems.push({ barcode, name, cartons, boxes, pieces, expire, total });
   });
@@ -6674,7 +6679,15 @@ function addItemToEditTransfer() {
   const boxes   = Number(document.getElementById('newItemBoxes')?.value)   || 0;
   const pieces  = Number(document.getElementById('newItemPieces')?.value)  || 0;
   const expire  = document.getElementById('newItemExpire')?.value || '';
-  const total   = (cartons * boxes) + pieces;
+    // نفس منطق calcTransferTotal
+    let total = 0;
+    if(cartons && boxes && pieces)       total = cartons * boxes * pieces;
+    else if(cartons && boxes && !pieces) total = cartons * boxes;
+    else if(cartons && !boxes && pieces) total = cartons * pieces;
+    else if(!cartons && boxes && pieces) total = boxes * pieces;
+    else if(cartons && !boxes && !pieces)total = cartons;
+    else if(!cartons && boxes && !pieces)total = boxes;
+    else if(!cartons && !boxes && pieces)total = pieces;
 
   // إضافة صف جديد في الجدول
   const tbody = document.getElementById('editTransferItems');
@@ -8158,6 +8171,56 @@ function lookupProductFromPriceSheet(barcode, callback) {
     }).catch(() => tryNext(i+1));
   };
   tryNext(0);
+}
+
+
+function calcItemTotal(cartons, boxes, pieces) {
+    cartons = Number(cartons) || 0;
+    boxes   = Number(boxes)   || 0;
+    pieces  = Number(pieces)  || 0;
+    if(cartons && boxes && pieces) return cartons * boxes * pieces;
+    if(cartons && boxes)           return cartons * boxes;
+    if(cartons && pieces)          return cartons * pieces;
+    if(boxes   && pieces)          return boxes   * pieces;
+    if(cartons)                    return cartons;
+    if(boxes)                      return boxes;
+    if(pieces)                     return pieces;
+    return 0;
+}
+
+function fixAllTransferTotals() {
+    if(!State.transfers || !State.transfers.length) {
+        UI.toast("لا توجد تحويلات", "warning");
+        return;
+    }
+    showConfirm("إصلاح إجماليات كل التحويلات؟ سيتم تحديث Firebase.", () => {
+        let fixed = 0, total = 0;
+        let promises = [];
+        State.transfers.forEach(t => {
+            if(!t.items || !t.items.length) return;
+            let newItems = t.items.map(item => {
+                let correctTotal = calcItemTotal(item.cartons, item.boxes, item.pieces);
+                total++;
+                if(correctTotal !== item.total) {
+                    fixed++;
+                    return { ...item, total: correctTotal };
+                }
+                return item;
+            });
+            // لو في تغيير - حدّث Firebase
+            if(JSON.stringify(newItems) !== JSON.stringify(t.items)) {
+                promises.push(
+                    db.ref("transfers/" + t.id).update({ items: newItems })
+                      .then(() => { t.items = newItems; })
+                );
+            }
+        });
+        Promise.all(promises).then(() => {
+            UI.renderTransfers();
+            UI.toast("✅ تم إصلاح " + fixed + " صنف من " + total, "success");
+            SystemLog.add("FixTransferTotals", State.currentUser?.username||"-", fixed + " إصلاح");
+        }).catch(err => UI.toast("❌ " + err.message, "error"));
+    });
 }
 
 function deleteTransfer(id){
