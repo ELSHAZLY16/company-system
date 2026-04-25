@@ -5118,7 +5118,7 @@ document.getElementById("attCode").focus();
 
 الموظف: r.name,
 الكود: r.code,
-الوظيفة: State.employees.find(e=>e.code==r.code)?.job || "-",
+الوظيفة: getEmpJob(r.code),
 التاريخ: r.date,
 
 الدخول: r.checkIn?.timeDisplay || "-",
@@ -5182,7 +5182,7 @@ a.code?.toString().includes(search)
 html += `<tr>
 <td>${r.name}</td>
 <td>${r.code}</td>
-<td>${State.employees.find(e=>e.code==r.code)?.job || "-"}</td>
+<td>${getEmpJob(r.code)}</td>
 <td>${r.date}</td>
 <td>${r.checkIn?.timeDisplay || "-"}</td>
 <td>${r.checkOut?.timeDisplay || "-"}</td>
@@ -7339,6 +7339,32 @@ function getEmpList() {
   return Array.isArray(State.employees) ? State.employees : [];
 }
 
+// دالة: تجيب بيانات موظف من empData (المصدر الوحيد)
+function getEmpData(code) {
+  const c = String(code);
+  // أولاً من empData
+  if(State.empData && typeof State.empData === 'object') {
+    if(State.empData[c]) return State.empData[c];
+    // جرب رقمي
+    const num = String(Number(c));
+    if(State.empData[num]) return State.empData[num];
+  }
+  // fallback من State.employees
+  return State.employees ? State.employees.find(e => String(e.code) === c) : null;
+}
+
+// دالة: تجيب الوظيفة من empData
+function getEmpJob(code) {
+  const d = getEmpData(code);
+  return (d && d.job) ? d.job : '-';
+}
+
+// دالة: تجيب الاسم من empData
+function getEmpName(code) {
+  const d = getEmpData(code);
+  return (d && d.name) ? d.name : String(code);
+}
+
 const EmpDataService = {
 
   // فتح modal الإضافة/التعديل
@@ -8064,8 +8090,7 @@ function printAttendance(dateStr) {
   const records = State.attendance.filter(a => a.date === date);
   if(!records.length) { UI.toast('لا توجد سجلات في هذا اليوم','warning'); return; }
   const rows = records.map(r => {
-    const emp = State.employees.find(e => String(e.code) === String(r.code));
-    return `<tr><td>${r.code}</td><td>${emp?emp.name:r.code}</td><td>${emp?(emp.job||'-'):'-'}</td><td>${r.type}</td><td>${r.time||'-'}</td></tr>`;
+    return `<tr><td>${r.code}</td><td>${getEmpName(r.code)}</td><td>${getEmpJob(r.code)}</td><td>${r.type}</td><td>${r.time||'-'}</td></tr>`;
   }).join('');
   printContent(`
     <div class="print-header"><h2>🏪 علوش البازار — تقرير الحضور</h2>
@@ -8739,7 +8764,7 @@ document.getElementById("productsExpireSoon").innerText = soon
             let html = ""; inside.sort((a, b) => b.timestamp - a.timestamp).forEach(a => { let duration = TimeUtils.now() - a.timestamp; html += `<tr>
 <td>${a.name}</td>
 <td>${a.code}</td>
-<td>${(()=>{ const e=State.employees.find(x=>String(x.code)==String(a.code)); const d=State.empData&&(State.empData[String(a.code)]||State.empData[a.code]); return (e&&e.job)||( d&&d.job)||'-'; })()}</td>
+<td>${getEmpJob(a.code)}</td>
 <td>${a.timeDisplay}</td>
 <td style="color:${duration > 36000000 ? '#f87171' : duration > 28800000 ? '#fbbf24' : '#34d399'}; font-weight:700;">${TimeUtils.format(duration)}</td>
 </tr>`; });
@@ -9196,7 +9221,7 @@ el.value = ""
     function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); let rows = inside.map(a => ({
 الموظف: a.name,
 الكود: a.code,
-الوظيفة: (()=>{ const e=State.employees.find(x=>String(x.code)==String(a.code)); const d=State.empData&&(State.empData[String(a.code)]||State.empData[a.code]); return (e&&e.job)||( d&&d.job)||'-'; })(),
+الوظيفة: getEmpJob(a.code),
 وقت_الدخول: a.timeDisplay,
 مدة_العمل: TimeUtils.format(TimeUtils.now() - a.timestamp)
 })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "inside"); XLSX.writeFile(wb, "inside_employees.xlsx");
