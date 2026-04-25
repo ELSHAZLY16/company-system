@@ -545,19 +545,35 @@ tr:hover td { background: rgba(99,102,241,0.08); }
 .perm-box {
   background: #0f172a;
   border: 1px solid var(--border-light);
-  padding: 24px;
+  padding: 20px;
   border-radius: var(--radius);
-  width: 90%;
-  max-width: 360px;
+  width: 96%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
   color: #fff;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
   box-shadow: var(--shadow-lg);
   animation: fadeInScale 0.25s ease;
 }
-.perm-box label { display: flex; gap: 10px; align-items: center; font-size: 14px; cursor: pointer; }
-.perm-actions { display: flex; gap: 10px; margin-top: 8px; grid-column: span 2; }
+.perm-box label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.2s;
+}
+.perm-box label:hover { background: rgba(99,102,241,0.1); }
+.perm-box label input[type="checkbox"] { accent-color: #6366f1; width: 16px; height: 16px; }
+/* perm-box label defined above */
+.perm-actions { display: flex; gap: 10px; margin-top: 8px; grid-column: span 3; }
 .perm-actions button {
   flex: 1; padding: 10px; border: none;
   border-radius: var(--radius-sm);
@@ -945,10 +961,10 @@ body.light-mode .filter-btn.active { background: linear-gradient(135deg,#3b82f6,
   th { font-size:10px; padding:6px 5px; }
   td { font-size:11px; padding:4px 5px; }
 
-  .permissions-grid { grid-template-columns: repeat(auto-fit,minmax(110px,1fr)); gap:10px; }
+  .permissions-grid { grid-template-columns: repeat(3,1fr); gap:8px; }
   .permission-card { padding:12px 8px; }
 
-  .perm-box { max-width:95vw; padding:16px; }
+  .perm-box { max-width:96vw; padding:14px; grid-template-columns:1fr 1fr 1fr; }
 
   .pricing-sidebar { min-width:100%; max-width:100%; }
   .pricing-preview { min-width:100%; }
@@ -1602,8 +1618,9 @@ font-size:14px
 </button>
       
             <button class="tab-btn" data-tab="penalties"><span>⚖️</span> الجزاءات</button>
+            <button class="tab-btn" data-tab="incentives"><span>🏆</span> الحوافز</button>
             <button class="tab-btn" data-tab="leaves"><span>📅</span> الإجازات</button>
-            <button class="tab-btn" data-tab="employees"><span>📒</span> الموظفين</button>
+            <button class="tab-btn" data-tab="empdata"><span>📋</span> الموظفين</button>
             <button class="tab-btn" data-tab="users"><span>⚙️</span> الإدارة</button>
             <button class="tab-btn" data-tab="system"><span>📋</span> النظام</button>
         </div>
@@ -2227,6 +2244,9 @@ style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15
     <div style="flex:1;min-width:0">
       <div class="fl-name" id="flNm">—</div>
       <div class="fl-cnt" id="flCnt">—</div>
+      <div id="flUploadTime" style="font-size:11px;color:var(--txt2,#94a3b8);margin-top:3px;display:none">
+        🕐 آخر رفع: <span id="flUploadTimeVal">—</span>
+      </div>
     </div>
     <button class="fl-chg" onclick="document.getElementById('fi').click()">تغيير</button>
   </div>
@@ -3172,6 +3192,22 @@ function renderBarcodeTransfers(bc) {
     </div>`;
 }
 
+function showUploadTime(timeStr, uploadedBy) {
+  const container = document.getElementById('flUploadTime');
+  const val = document.getElementById('flUploadTimeVal');
+  if(!container || !val) return;
+  const byText = uploadedBy ? ' بواسطة ' + uploadedBy : '';
+  val.textContent = (timeStr || '—') + byText;
+  container.style.display = 'block';
+}
+
+// تحميل وقت الرفع من localStorage عند بدء التشغيل
+function loadUploadTimeFromLocal() {
+  const t = localStorage.getItem('priceSheetUploadTime');
+  const by = localStorage.getItem('priceSheetUploadBy');
+  if(t) showUploadTime(t, by);
+}
+
 function bindPricesEvents() {
   const fi = document.getElementById('fi');
   if(fi) fi.addEventListener('change',e=>{handleFile(e.target.files[0]);try{try{e.target.value=''}catch(_){};}catch(e){}});
@@ -3683,7 +3719,129 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
 </div>
         <!-- ========================= تبويب الإجازات (Leaves) ========================= -->
-        <div id="tab-leaves" class="tab-content" style="display:none;">
+        <!-- ========================= صفحة الحوافز ========================= -->
+<div id="tab-incentives" class="tab-content" style="display:none;">
+<div class="glass-card" style="padding:25px">
+
+  <h3 style="margin-bottom:20px"><span>🏆</span> إدارة الحوافز</h3>
+
+  <!-- فورم إضافة حافز -->
+  <div class="glass-card" style="padding:20px;margin-bottom:20px;background:rgba(99,102,241,0.05);border:1px solid rgba(99,102,241,0.2)">
+    <h4 style="margin-bottom:15px;color:#818cf8">➕ إضافة حافز جديد</h4>
+
+    <div style="display:grid;gap:12px">
+
+      <div>
+        <label style="font-size:13px;color:var(--txt2)">كود الموظف أو اسمه</label>
+        <div style="position:relative">
+          <input id="incEmpCode" placeholder="ابحث بالكود أو الاسم"
+            oninput="onIncEmpInput(this.value)"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+          <div id="incEmpSuggestions" style="position:absolute;background:#1e293b;width:100%;border:1px solid rgba(255,255,255,0.1);border-radius:8px;display:none;max-height:180px;overflow-y:auto;z-index:100;top:100%;right:0"></div>
+        </div>
+        <input id="incEmpName" readonly placeholder="اسم الموظف"
+          style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#94a3b8;font-family:inherit;box-sizing:border-box;margin-top:6px">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">نوع الحافز</label>
+          <select id="incType" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit">
+            <option value="مالي">💰 حافز مالي</option>
+            <option value="تميز">⭐ تميز وأداء</option>
+            <option value="انتظام">✅ انتظام وحضور</option>
+            <option value="مبيعات">📈 مبيعات</option>
+            <option value="اقتراح">💡 اقتراح مفيد</option>
+            <option value="أخرى">📌 أخرى</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">القيمة</label>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:8px;width:100%">
+            <input id="incAmount" type="number" min="0" placeholder="أدخل القيمة"
+              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box;font-size:16px">
+            <select id="incUnit" style="padding:10px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;width:100px;font-size:14px">
+              <option value="جنيه">💰 جنيه</option>
+              <option value="ساعة">⏱ ساعة</option>
+              <option value="يوم">📅 يوم</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:13px;color:var(--txt2)">السبب / الملاحظة</label>
+        <input id="incNote" placeholder="سبب الحافز..."
+          style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+
+      <div>
+        <label style="font-size:13px;color:var(--txt2)">التاريخ</label>
+        <input id="incDate" type="date"
+          style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+
+      <button onclick="IncentiveService.add()"
+        style="background:linear-gradient(135deg,#6366f1,#818cf8);border:none;color:#fff;padding:12px;border-radius:10px;cursor:pointer;font-size:15px;font-family:inherit;font-weight:700">
+        🏆 تسجيل الحافز
+      </button>
+
+    </div>
+  </div>
+
+  <!-- فلاتر وبحث -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px;align-items:center">
+    <input id="incSearch" placeholder="🔍 بحث باسم أو كود الموظف"
+      oninput="IncentiveService.render()"
+      style="flex:1;min-width:150px;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit">
+
+    <select id="incTypeFilter" onchange="IncentiveService.render()"
+      style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit">
+      <option value="">كل الأنواع</option>
+      <option value="مالي">💰 مالي</option>
+      <option value="تميز">⭐ تميز</option>
+      <option value="انتظام">✅ انتظام</option>
+      <option value="مبيعات">📈 مبيعات</option>
+      <option value="اقتراح">💡 اقتراح</option>
+      <option value="أخرى">📌 أخرى</option>
+    </select>
+
+    <input id="incDateFilter" type="month"
+      onchange="IncentiveService.render()"
+      style="padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit">
+
+    <button onclick="IncentiveService.exportExcel()"
+      style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+      📊 تصدير Excel
+    </button>
+  </div>
+
+  <!-- إجماليات -->
+  <div id="incStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:15px"></div>
+
+  <!-- جدول الحوافز -->
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>الموظف</th>
+          <th>الكود</th>
+          <th>النوع</th>
+          <th>القيمة</th>
+          <th>السبب</th>
+          <th>التاريخ</th>
+          <th>بواسطة</th>
+          <th>حذف</th>
+        </tr>
+      </thead>
+      <tbody id="incBody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<div id="tab-leaves" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
                     <div><label>كود الموظف</label><div style="position:relative;"><input id="leaveCode" placeholder="اكتب الكود أو اسم الموظف"><div id="leaveSuggestions" style="position:absolute; background:#0f172a; width:100%; border:1px solid rgba(255,255,255,0.1); display:none; max-height:200px; overflow:auto; z-index:10;"></div></div></div>
@@ -3816,14 +3974,227 @@ oninput="UI.renderEmployees()">
         </div>
 
         <!-- ========================= تبويب إدارة المستخدمين (Users) ========================= -->
-        <div id="tab-users" class="tab-content" style="display:none;">
+        <!-- ========================= صفحة بيانات الموظفين ========================= -->
+<div id="tab-empdata" class="tab-content" style="display:none;">
+<div class="glass-card" style="padding:25px">
+
+  <h3 style="margin-bottom:20px"><span>📋</span> بيانات الموظفين</h3>
+
+  <!-- فورم إضافة/تعديل الموظف -->
+  <div id="empAddForm" class="glass-card" style="padding:18px;margin-bottom:18px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h4 style="margin:0;color:#34d399" id="empFormTitle">➕ إضافة موظف جديد</h4>
+      <button onclick="document.getElementById('empAddForm').style.display='none'"
+        style="background:rgba(239,68,68,0.2);border:none;color:#f87171;width:28px;height:28px;border-radius:50%;cursor:pointer">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">كود الموظف *</label>
+        <input id="newEmpCode" placeholder="الكود" type="number"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">اسم الموظف *</label>
+        <input id="newEmpName" placeholder="الاسم الكامل"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">الوظيفة</label>
+        <input id="newEmpJob" placeholder="الوظيفة"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">الفرع</label>
+        <select id="newEmpBranch"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit">
+          <option value="">اختر الفرع</option>
+          <option value="البازار">البازار</option>
+          <option value="الصباح">الصباح</option>
+          <option value="باب40">باب 40</option>
+          <option value="الادارة">الإدارة</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">الراتب (جنيه)</label>
+        <input id="newEmpSalary" type="number" min="0" placeholder="0"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">تاريخ التعيين</label>
+        <input id="newEmpHireDate" type="date"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">رقم البطاقة</label>
+        <input id="newEmpNationalId" placeholder="رقم البطاقة"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">رقم الهاتف</label>
+        <input id="newEmpPhone" type="tel" placeholder="01x-xxxx-xxxx"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">⏰ وقت الحضور (من)</label>
+        <input id="newEmpCheckIn" type="time" oninput="EmpDataService.calcNewHours()"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">⏰ وقت الانصراف (إلى)</label>
+        <input id="newEmpCheckOut" type="time" oninput="EmpDataService.calcNewHours()"
+          style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+      </div>
+    </div>
+    <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:10px;text-align:center;margin-top:10px">
+      <span style="font-size:12px;color:var(--txt2)">⏱ ساعات العمل: </span>
+      <span id="newEmpWorkHours" style="font-size:16px;font-weight:700;color:#818cf8">-- ساعة</span>
+    </div>
+    <input type="hidden" id="editingEmpId">
+    <button onclick="EmpDataService.saveEmployee()"
+      style="width:100%;margin-top:12px;background:linear-gradient(135deg,#10b981,#34d399);border:none;color:#fff;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700">
+      💾 حفظ الموظف
+    </button>
+  </div>
+
+  <!-- بحث وفلتر -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px">
+    <input id="empdataSearch" placeholder="🔍 بحث بالاسم أو الكود"
+      oninput="EmpDataService.render()"
+      style="flex:1;min-width:150px;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit">
+    <button onclick="EmpDataService.showAddEmpForm()"
+      style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+      👤 إضافة موظف
+    </button>
+    <label style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+      📥 استيراد JSON
+      <input type="file" accept=".json" onchange="EmpDataService.importFromJSON(this)" style="display:none">
+    </label>
+    <button onclick="EmpDataService.openAdd()"
+      style="background:rgba(99,102,241,0.3);border:1px solid rgba(99,102,241,0.5);color:#fff;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+      📋 تعديل البيانات
+    </button>
+    <button onclick="EmpDataService.exportExcel()"
+      style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:9px 16px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+      📊 تصدير Excel
+    </button>
+  </div>
+
+  <!-- جدول البيانات -->
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>الكود</th>
+          <th>الاسم</th>
+          <th>الوظيفة</th>
+          <th>الفرع</th>
+          <th>الراتب</th>
+          <th>رقم البطاقة</th>
+          <th>رقم الهاتف</th>
+          <th>تاريخ التعيين</th>
+          <th>من</th>
+          <th>إلى</th>
+          <th>ساعات العمل</th>
+          <th>تعديل</th>
+          <th>حذف</th>
+        </tr>
+      </thead>
+      <tbody id="empdataBody"></tbody>
+    </table>
+  </div>
+
+</div>
+</div>
+
+<!-- Modal إضافة/تعديل بيانات الموظف -->
+<div id="empdataModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:none;align-items:center;justify-content:center;padding:16px">
+  <div class="glass-card" style="padding:24px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;direction:rtl">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <h3 style="margin:0">📋 بيانات الموظف</h3>
+      <button onclick="EmpDataService.closeModal()" style="background:rgba(239,68,68,0.3);border:none;color:#f87171;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
+    </div>
+
+    <div style="display:grid;gap:12px">
+
+      <!-- كود الموظف مع autocomplete -->
+      <div>
+        <label style="font-size:13px;color:var(--txt2)">كود الموظف</label>
+        <div style="position:relative">
+          <input id="edEmpCode" placeholder="اكتب الكود أو الاسم للبحث"
+            oninput="EmpDataService.onEmpSearch(this.value)"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+          <div id="edEmpSugg" style="position:absolute;background:#1e293b;width:100%;border:1px solid rgba(255,255,255,0.1);border-radius:8px;display:none;max-height:150px;overflow-y:auto;z-index:10;top:100%;right:0"></div>
+        </div>
+      </div>
+
+      <div>
+        <label style="font-size:13px;color:var(--txt2)">اسم الموظف</label>
+        <input id="edEmpName" readonly placeholder="يُجلب تلقائياً"
+          style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#94a3b8;font-family:inherit;box-sizing:border-box">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">الراتب (جنيه)</label>
+          <input id="edSalary" type="number" min="0" placeholder="0"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">تاريخ التعيين</label>
+          <input id="edHireDate" type="date"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">رقم البطاقة</label>
+          <input id="edNationalId" placeholder="رقم البطاقة"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">رقم الهاتف</label>
+          <input id="edPhone" type="tel" placeholder="01x-xxxx-xxxx"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">⏰ وقت الحضور (من)</label>
+          <input id="edCheckIn" type="time" oninput="EmpDataService.calcHours()"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:13px;color:var(--txt2)">⏰ وقت الانصراف (إلى)</label>
+          <input id="edCheckOut" type="time" oninput="EmpDataService.calcHours()"
+            style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
+        </div>
+      </div>
+
+      <!-- ساعات العمل تُحسب تلقائياً -->
+      <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:8px;padding:12px;text-align:center">
+        <span style="font-size:13px;color:var(--txt2)">⏱ ساعات العمل: </span>
+        <span id="edWorkHours" style="font-size:18px;font-weight:700;color:#818cf8">-- ساعة</span>
+      </div>
+
+      <button onclick="EmpDataService.save()"
+        style="background:linear-gradient(135deg,#6366f1,#818cf8);border:none;color:#fff;padding:12px;border-radius:10px;cursor:pointer;font-size:15px;font-family:inherit;font-weight:700">
+        💾 حفظ البيانات
+      </button>
+
+    </div>
+  </div>
+</div>
+
+<div id="tab-users" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
                 <h3>👥 إدارة المستخدمين</h3>
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
                     <div><label>اسم المستخدم</label><input id="newUsername" placeholder="مثال: admin"></div>
                     <div><label>كلمة المرور</label><input type="password" id="newPassword" placeholder="أدخل كلمة المرور"></div>
                 </div>
-                <div class="permissions-grid" id="permissionsGrid">
+                <div class="permissions-grid" id="permissionsGrid" style="grid-column:span 3">
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="attendance" hidden><span>🔏</span><span>الحضور</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><span>📦</span><span>التواريخ</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="vehicles" hidden><span>🚛</span><span>العربيات</span></label>
@@ -3852,6 +4223,7 @@ oninput="UI.renderEmployees()">
 </label>
        
        
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="incentives" hidden><span>🏆</span><span>الحوافز</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="penalties" hidden><span>⚖️</span><span>الجزاءات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="leaves" hidden><span>📅</span><span>الإجازات</span></label>
                     
@@ -3862,6 +4234,7 @@ oninput="UI.renderEmployees()">
 </label>
                     
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="employees" hidden><span>🪪</span><span>الموظفين</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="empdata" hidden><span>📋</span><span>بيانات الموظفين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><span>☕</span><span>الاستئذانات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><span>⚙️</span><span>المستخدمين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="system" hidden><span>📋</span><span>النظام</span></label>
@@ -4052,7 +4425,7 @@ onclick="closeTransferEdit()">
 <!-- ========================= مودال تعديل الصلاحيات ========================= -->
 <div id="permModal" class="perm-modal">
     <div class="perm-box">
-        <h3 style="grid-column:span 2">تعديل الصلاحيات</h3>
+        <h3 style="grid-column:span 3">تعديل الصلاحيات</h3>
         <label><input type="checkbox" value="products"> التواريخ</label>
         <label><input type="checkbox" value="attendance"> الحضور</label>
         <label><input type="checkbox" value="system"> النظام</label>
@@ -4071,6 +4444,7 @@ onclick="closeTransferEdit()">
         
         <label><input type="checkbox" value="breaks"> الاستئذانات</label>
         <label><input type="checkbox" value="vehicles"> العربيات</label>
+        <label><input type="checkbox" value="incentives"> الحوافز</label>
         <label><input type="checkbox" value="penalties"> الجزاءات</label>
         <label><input type="checkbox" value="leaves"> الإجازات</label>
         
@@ -4083,8 +4457,10 @@ onclick="closeTransferEdit()">
         
         
         <label><input type="checkbox" value="employees"> الموظفين</label>
+        <label><input type="checkbox" value="empdata"> بيانات الموظفين</label>
         <label><input type="checkbox" value="users"> المستخدمين</label>
-        <div class="perm-actions"><button onclick="UserService.closePerms()">إلغاء</button><button onclick="UserService.savePerms()">حفظ</button></div>
+        <label><input type="checkbox" value="all"> 👑 كل الصلاحيات</label>
+        <div class="perm-actions" style="grid-column:span 3"><button onclick="UserService.closePerms()">إلغاء</button><button onclick="UserService.savePerms()">حفظ</button></div>
     </div>
 </div>
 
@@ -4341,6 +4717,7 @@ document.addEventListener('keydown', function(e) {
         vehicles: [],
         penalties: [],
         leaves: [],
+        incentives: [],
         users: [],
         serverOffset: 0,
         currentUser: null,
@@ -4502,68 +4879,69 @@ return firebase.database.ServerValue.TIMESTAMP
     // ========================= خدمة الموظفين (Employees) =========================
     // EmployeeService - مع إصلاح add() و delete()
 const EmployeeService = {
+  // كل العمليات تتم على empData/{code} فقط
   add() {
-    let code = Number(document.getElementById("empCode").value);
-    let name = document.getElementById("empName").value.trim();
-    let job = document.getElementById("empJob").value.trim();
-    
-    if (!code || !name) {
-      UI.toast("الكود والاسم مطلوب", "error");
-      return;
-    }
-    
-    if (State.employees.find(e => String(e.code) === String(code))) {
-      UI.toast("كود الموظف موجود بالفعل", "error");
-      return;
-    }
-    
-    let emp = { code, name, job, status: "خارج العمل", branch: "", timestamp: firebase.database.ServerValue.TIMESTAMP, user: State.currentUser.username };
-    db.ref("employees").push(emp).then(() => {
-      UI.toast("تم إضافة الموظف", "success");
+    const code = String(document.getElementById("empCode").value || '').trim();
+    const name = document.getElementById("empName").value.trim();
+    const job  = document.getElementById("empJob").value.trim();
+    if(!code || !name) { UI.toast("الكود والاسم مطلوب", "error"); return; }
+    if(!State.empData || Array.isArray(State.empData)) State.empData = {};
+    if(State.empData[code]) { UI.toast("كود الموظف موجود بالفعل", "error"); return; }
+    const data = {
+      code: isNaN(code)?code:Number(code), name, job,
+      branch:'', status:'خارج العمل',
+      salary:0, hireDate:'', nationalId:'', phone:'',
+      checkIn:'', checkOut:'', workHours:0,
+      updatedAt: new Date().toISOString(),
+      updatedBy: State.currentUser?.username||'-'
+    };
+    db.ref("empData/" + code).set(data).then(() => {
+      State.empData[code] = data;
+      const rec = { id: code, code: Number(code)||code, name, job, branch:'', status:'خارج العمل' };
+      const idx = State.employees.findIndex(e => String(e.code)===code);
+      if(idx>=0) State.employees[idx]={...State.employees[idx],...rec};
+      else State.employees.push(rec);
       UI.renderEmployees();
-      document.getElementById("empCode").value = "";
-      document.getElementById("empName").value = "";
-      document.getElementById("empJob").value = "";
-      document.getElementById("empCode").focus();
+      EmpDataService.render();
+      ['empCode','empName','empJob'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+      document.getElementById("empCode")?.focus();
+      UI.toast("✅ تم إضافة الموظف", "success");
       SystemLog.add("AddEmployee", code, name);
-    }).catch(err => {
-      UI.toast("خطأ في الإضافة", "error");
-      console.error("Employee add error:", err);
-    });
+    }).catch(err => UI.toast("❌ خطأ في الإضافة: "+err.message, "error"));
   },
-  
+
   delete(id) {
-    let emp = State.employees.find(e => e.id === id);
-    if (!emp) {
-      UI.toast("الموظف غير موجود", "error");
-      return;
-    }
-    
+    const emp = State.employees.find(e => e.id===id || String(e.code)===String(id));
+    if(!emp) { UI.toast("الموظف غير موجود","error"); return; }
+    const code = String(emp.code);
     showConfirm("هل تريد حذف الموظف: " + emp.name + "؟", () => {
-      db.ref("employees/" + id).remove().then(() => {
-        UI.toast("تم حذف الموظف", "warning");
+      db.ref("empData/" + code).remove().then(() => {
+        if(State.empData) delete State.empData[code];
+        State.employees = State.employees.filter(e => String(e.code)!==code);
         UI.renderEmployees();
-        SystemLog.add("DeleteEmployee", emp.code, emp.name);
-      }).catch(err => {
-        UI.toast("خطأ في الحذف", "error");
-        console.error("Employee delete error:", err);
-      });
+        EmpDataService.render();
+        UI.toast("✅ تم حذف الموظف", "warning");
+        SystemLog.add("DeleteEmployee", code, emp.name);
+      }).catch(err => UI.toast("❌ خطأ في الحذف: "+err.message,"error"));
     });
   },
-  
+
   edit(id) {
-    let emp = State.employees.find(e => e.id === id);
-    if (!emp) return;
-    
-    // تعبئة الحقول في المودال
-    document.getElementById("editEmployeeId").value = emp.id;
-    document.getElementById("editEmployeeCode").value = emp.code;
-    document.getElementById("editEmployeeName").value = emp.name || "";
-    document.getElementById("editEmployeeJob").value = emp.job || "";
-    document.getElementById("editEmployeeBranch").value = emp.branch || "";
-    document.getElementById("editEmployeeStatus").value = emp.status || "خارج العمل";
-    
-    document.getElementById("editEmployeeModal").style.display = "flex";
+    const emp = State.employees.find(e => e.id===id || String(e.code)===String(id));
+    if(!emp) return;
+    // فتح فورم بيانات الموظفين للتعديل
+    if(typeof EmpDataService !== 'undefined') {
+      EmpDataService.editEmployee(id, String(emp.code), emp.name, emp.job||'', emp.branch||'');
+    } else {
+      // fallback للمودال القديم
+      document.getElementById("editEmployeeId").value = emp.id||id;
+      document.getElementById("editEmployeeCode").value = emp.code;
+      document.getElementById("editEmployeeName").value = emp.name||"";
+      document.getElementById("editEmployeeJob").value = emp.job||"";
+      document.getElementById("editEmployeeBranch").value = emp.branch||"";
+      document.getElementById("editEmployeeStatus").value = emp.status||"خارج العمل";
+      document.getElementById("editEmployeeModal").style.display = "flex";
+    }
   }
 };
 
@@ -4584,17 +4962,25 @@ function saveEmployeeEdit() {
     return;
   }
   
-  db.ref("employees/" + id).update({
-    name: name,
-    job: job,
-    branch: branch,
-    status: status
-  }).then(() => {
-    UI.toast("تم تعديل بيانات الموظف", "success");
-    closeEmployeeEdit();
-  }).catch(err => {
-    UI.toast("خطأ في التعديل", "error");
-  });
+  // ابحث عن الكود من State.employees
+  const emp = State.employees.find(e => e.id === id || String(e.code) === String(id));
+  const code = emp ? String(emp.code) : String(id);
+
+  // حفظ في empData (المصدر الموحد)
+  if(!State.empData || Array.isArray(State.empData)) State.empData = {};
+  const existing = State.empData[code] || {};
+  const updated = { ...existing, name, job, branch, status, updatedAt: new Date().toISOString(), updatedBy: State.currentUser?.username||'-' };
+
+  db.ref("empData/" + code).update({ name, job, branch, status })
+    .then(() => {
+      State.empData[code] = { ...existing, ...updated };
+      const idx = State.employees.findIndex(e => String(e.code)===code);
+      if(idx>=0) { State.employees[idx].name=name; State.employees[idx].job=job; State.employees[idx].branch=branch; State.employees[idx].status=status; }
+      UI.renderEmployees();
+      EmpDataService.render();
+      UI.toast("✅ تم تعديل بيانات الموظف", "success");
+      closeEmployeeEdit();
+    }).catch(err => UI.toast("❌ خطأ في التعديل: "+err.message, "error"));
 }
 // ========================= خدمة الحضور (Attendance) =========================
 const AttendanceService = {
@@ -5500,9 +5886,44 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
     // ========================= خدمة المستخدمين (Users) =========================
     const UserService = {
         editingUser: null,
-        openPerms(user) { this.editingUser = user; document.getElementById("permModal").style.display = "flex"; document.querySelectorAll("#permModal input").forEach(c => c.checked = user.permissions?.includes(c.value)); },
+        openPerms(user) {
+          this.editingUser = user;
+          const modal = document.getElementById("permModal");
+          modal.style.display = "flex";
+          // تحديد الصلاحيات الحالية
+          document.querySelectorAll("#permModal input").forEach(c => {
+            c.checked = user.permissions?.includes(c.value) || user.permissions?.includes("all");
+          });
+          // all checkbox toggle
+          const allCb = modal.querySelector('input[value="all"]');
+          if(allCb) {
+            allCb.onchange = () => {
+              document.querySelectorAll("#permModal input:not([value='all'])").forEach(c => {
+                c.checked = allCb.checked;
+              });
+            };
+          }
+          // عند تغيير أي صلاحية → تحقق من all
+          document.querySelectorAll("#permModal input:not([value='all'])").forEach(cb => {
+            cb.onchange = () => {
+              const allCb = modal.querySelector('input[value="all"]');
+              if(allCb) {
+                allCb.checked = [...document.querySelectorAll("#permModal input:not([value='all'])")]
+                  .every(c => c.checked);
+              }
+            };
+          });
+        },
         closePerms() { document.getElementById("permModal").style.display = "none"; },
-        savePerms() { let perms = []; document.querySelectorAll("#permModal input").forEach(c => { if (c.checked) perms.push(c.value); }); this.editingUser.permissions = perms; db.ref("users/" + this.editingUser.id).update({ permissions: perms }); this.closePerms(); UI.renderUsers(); UI.toast("تم تعديل الصلاحيات", "success"); },
+        savePerms() {
+          let perms = [];
+          document.querySelectorAll("#permModal input").forEach(c => { if(c.checked) perms.push(c.value); });
+          this.editingUser.permissions = perms;
+          db.ref("users/" + this.editingUser.id).update({ permissions: perms });
+          this.closePerms();
+          UI.renderUsers();
+          UI.toast("✅ تم تعديل الصلاحيات", "success");
+        },
         add() {
 
 let username = document.getElementById("newUsername").value
@@ -6768,6 +7189,74 @@ document.getElementById("editTransferModal").style.display="flex"
 // عند كتابة باركود في التحويلات - جلب اسم الصنف تلقائياً
 // ─── دالة مشتركة: جلب اسم الصنف من أي مصدر ───────────────────────────
 // 1. State.products (محلي) 2. S object (شيت الأسعار) 3. Firebase
+// ═══ getEmpList - قائمة موظفين مدمجة من empData + employees ═══
+function getEmpList() {
+  const list = [];
+  // من empData أولاً (البيانات الكاملة)
+  if(State.empData && typeof State.empData === 'object' && !Array.isArray(State.empData)) {
+    Object.values(State.empData || {}).forEach(d => {
+      if(d && d.code) {
+        // جيب job وbranch من State.employees
+        const emp = State.employees && State.employees.find(e => String(e.code) === String(d.code));
+        list.push({
+          code: String(d.code),
+          name: d.name || (emp ? emp.name : ''),
+          job:    emp ? (emp.job || '-')    : '-',
+          branch: emp ? (emp.branch || '-') : '-',
+          salary: d.salary || 0,
+          nationalId: d.nationalId || '',
+          phone: d.phone || '',
+          hireDate: d.hireDate || '',
+          checkIn: d.checkIn || '',
+          checkOut: d.checkOut || '',
+          workHours: d.workHours || 0,
+          status: emp ? (emp.status || 'خارج العمل') : 'خارج العمل',
+          id: emp ? emp.id : d.code
+        });
+      }
+    });
+    // أضف الموظفين الموجودين في employees لكن ليس في empData
+    if(State.employees) {
+      State.employees.forEach(emp => {
+        const exists = list.find(e => String(e.code) === String(emp.code));
+        if(!exists) {
+          list.push({
+            code: String(emp.code),
+            name: emp.name || '',
+            job: emp.job || '-',
+            branch: emp.branch || '-',
+            salary: 0, nationalId: '', phone: '', hireDate: '',
+            checkIn: '', checkOut: '', workHours: 0,
+            status: emp.status || 'خارج العمل',
+            id: emp.id
+          });
+        }
+      });
+    }
+  } else if(State.employees) {
+    // fallback: من State.employees فقط
+    State.employees.forEach(emp => {
+      list.push({
+        code: String(emp.code), name: emp.name || '',
+        job: emp.job || '-', branch: emp.branch || '-',
+        status: emp.status || 'خارج العمل', id: emp.id,
+        salary: 0, nationalId: '', phone: '', hireDate: '',
+        checkIn: '', checkOut: '', workHours: 0
+      });
+    });
+  }
+  return list.sort((a,b) => Number(a.code) - Number(b.code));
+}
+
+// يجيب اسم موظف من empData أو employees
+function getEmpName(code) {
+  if(!code) return '';
+  const c = String(code);
+  if(State.empData && State.empData[c]) return State.empData[c].name || '';
+  const emp = State.employees && State.employees.find(e => String(e.code) === c);
+  return emp ? emp.name : '';
+}
+
 // يُعيد object كامل {name, sellPrice, costPrice} من شيت الأسعار
 function getProductData(barcode) {
   if(!barcode) return null;
@@ -6817,6 +7306,696 @@ function getProductNameAsync(barcode, callback) {
     if(snap && snap.val() && snap.val().name) { callback(snap.val().name); }
     else { callback(null); }
   }).catch(() => callback(null));
+}
+
+// ════════════════════════════════════════════════════════════════
+// EMP DATA SERVICE - بيانات الموظفين
+// ════════════════════════════════════════════════════════════════
+
+if(!State.empData || Array.isArray(State.empData)) State.empData = {};
+
+// دالة مساعدة: تجيب قائمة الموظفين دائماً من State.employees
+function getEmpList() {
+  return Array.isArray(State.employees) ? State.employees : [];
+}
+
+const EmpDataService = {
+
+  // فتح modal الإضافة/التعديل
+  openAdd(code) {
+    const modal = document.getElementById('empdataModal');
+    if(!modal) return;
+
+    // مسح الحقول أولاً دائماً
+    ['edEmpCode','edEmpName','edSalary','edNationalId','edPhone','edCheckIn','edCheckOut'].forEach(id => {
+      const el = document.getElementById(id); if(el && el.type !== 'file') el.value = '';
+    });
+    const wh = document.getElementById('edWorkHours');
+    if(wh) wh.textContent = '-- ساعة';
+
+    // تعيين تاريخ اليوم افتراضياً
+    const hd = document.getElementById('edHireDate');
+    if(hd) hd.value = new Date().toISOString().slice(0,10);
+
+    if(code) {
+      code = String(code); // نضمن أنه string
+      const emp = State.employees.find(e => String(e.code) === code);
+      const d = (State.empData && State.empData[code]) ? State.empData[code] : {};
+
+      if(document.getElementById('edEmpCode')) document.getElementById('edEmpCode').value = code;
+      if(document.getElementById('edEmpName')) document.getElementById('edEmpName').value = emp ? emp.name : (d.name||'');
+      if(document.getElementById('edSalary'))    document.getElementById('edSalary').value    = d.salary    || '';
+      if(document.getElementById('edHireDate'))  document.getElementById('edHireDate').value  = d.hireDate  || new Date().toISOString().slice(0,10);
+      if(document.getElementById('edNationalId'))document.getElementById('edNationalId').value= d.nationalId|| '';
+      if(document.getElementById('edPhone'))     document.getElementById('edPhone').value      = d.phone     || '';
+      if(document.getElementById('edCheckIn'))   document.getElementById('edCheckIn').value    = d.checkIn   || '';
+      if(document.getElementById('edCheckOut'))  document.getElementById('edCheckOut').value   = d.checkOut  || '';
+      this.calcHours();
+    }
+    modal.style.display = 'flex';
+  },
+
+  closeModal() {
+    const modal = document.getElementById('empdataModal');
+    if(modal) modal.style.display = 'none';
+  },
+
+  // بحث الموظف بالكود أو الاسم
+  onEmpSearch(val) {
+    val = String(val||'').trim();
+    const sugg = document.getElementById('edEmpSugg');
+    if(!sugg) return;
+    if(!val) { sugg.style.display='none'; return; }
+    const results = State.employees.filter(e =>
+      String(e.code).includes(val) || (e.name||'').includes(val)
+    ).slice(0,6);
+    if(!results.length) { sugg.style.display='none'; return; }
+    sugg.innerHTML = results.map(e => `
+      <div onclick="EmpDataService.selectEmp('${e.code}','${e.name}')"
+        style="padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px">
+        <strong>${e.code}</strong> — ${e.name}
+      </div>`).join('');
+    sugg.style.display = 'block';
+  },
+
+  selectEmp(code, name) {
+    document.getElementById('edEmpCode').value = code;
+    document.getElementById('edEmpName').value = name;
+    document.getElementById('edEmpSugg').style.display = 'none';
+    // لو عنده بيانات محفوظة، نملأها
+    const d = State.empData[code];
+    if(d) {
+      document.getElementById('edSalary').value    = d.salary    || '';
+      document.getElementById('edHireDate').value   = d.hireDate  || '';
+      document.getElementById('edNationalId').value = d.nationalId || '';
+      document.getElementById('edPhone').value      = d.phone     || '';
+      document.getElementById('edCheckIn').value    = d.checkIn   || '';
+      document.getElementById('edCheckOut').value   = d.checkOut  || '';
+      this.calcHours();
+    }
+  },
+
+  // حساب ساعات العمل
+  calcHours() {
+    const inVal  = document.getElementById('edCheckIn')?.value;
+    const outVal = document.getElementById('edCheckOut')?.value;
+    const el     = document.getElementById('edWorkHours');
+    if(!el) return;
+    if(!inVal || !outVal) { el.textContent = '-- ساعة'; return; }
+    const [inH,inM]   = inVal.split(':').map(Number);
+    const [outH,outM] = outVal.split(':').map(Number);
+    let mins = (outH*60+outM) - (inH*60+inM);
+    if(mins < 0) mins += 24*60; // عمل ليلي
+    const hours = Math.floor(mins/60);
+    const rem   = mins % 60;
+    el.textContent = hours + (rem ? ':' + String(rem).padStart(2,'0') : '') + ' ساعة';
+  },
+
+  // حفظ البيانات
+  save() {
+    const code = String(document.getElementById('edEmpCode')?.value || '').trim();
+    if(!code) { UI.toast('اختر الموظف أولاً', 'error'); return; }
+    // تأكد أن empData object
+    if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
+
+    // جلب بيانات الموظف من employees (الكود والاسم والوظيفة والفرع)
+    const empRef = State.employees ? State.employees.find(e => String(e.code) === code) : null;
+    const data = {
+      code,
+      name:       empRef ? empRef.name : (document.getElementById('edEmpName')?.value.trim() || ''),
+      job:        empRef ? (empRef.job || '') : '',
+      branch:     empRef ? (empRef.branch || '') : '',
+      salary:     Number(document.getElementById('edSalary')?.value)      || 0,
+      hireDate:   document.getElementById('edHireDate')?.value            || '',
+      nationalId: document.getElementById('edNationalId')?.value.trim()   || '',
+      phone:      document.getElementById('edPhone')?.value.trim()        || '',
+      checkIn:    document.getElementById('edCheckIn')?.value             || '',
+      checkOut:   document.getElementById('edCheckOut')?.value            || '',
+      updatedAt:  new Date().toISOString(),
+      updatedBy:  State.currentUser?.username || '-'
+    };
+
+    // حساب ساعات العمل
+    if(data.checkIn && data.checkOut) {
+      const [inH,inM]   = data.checkIn.split(':').map(Number);
+      const [outH,outM] = data.checkOut.split(':').map(Number);
+      let mins = (outH*60+outM) - (inH*60+inM);
+      if(mins < 0) mins += 24*60;
+      data.workHours = parseFloat((mins/60).toFixed(2));
+    }
+
+    // تهيئة empData كـ object قبل الحفظ
+    if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) {
+      State.empData = {};
+    }
+
+    db.ref('empData/' + code).set(data)
+      .then(() => {
+        if(!State.empData || typeof State.empData !== 'object') State.empData = {};
+        State.empData[code] = data;
+        this.closeModal();
+        this.render();
+        SystemLog.add('EmpData', code, 'تحديث بيانات: ' + data.name);
+        UI.toast('✅ تم حفظ بيانات ' + (data.name||code), 'success');
+      })
+      .catch(err => UI.toast('❌ ' + err.message, 'error'));
+  },
+
+  // عرض الجدول
+  render() {
+    const body = document.getElementById('empdataBody');
+    if(!body) return;
+    // تأكد State.empData object وليس array
+    if(!State.empData || Array.isArray(State.empData)) State.empData = {};
+    const search = document.getElementById('empdataSearch')?.value.toLowerCase() || '';
+
+    // قراءة من State.employees + بيانات إضافية من State.empData
+    // جمع الموظفين من empData + State.employees
+    const _empMap = {};
+    Object.entries(State.empData||{}).forEach(([k,d]) => {
+      if(!d || !d.name) return;
+      const c = String(d.code || k);
+      _empMap[c] = d;
+    });
+    (State.employees||[]).forEach(e => {
+      if(e && e.name && !_empMap[String(e.code)]) _empMap[String(e.code)] = e;
+    });
+    const allEmps = Object.values(_empMap);
+
+    const rows = allEmps
+      .filter(e => !search || String(e.code).includes(search) || (e.name||'').toLowerCase().includes(search))
+      .sort((a,b) => Number(a.code) - Number(b.code))
+      .map(emp => {
+        const code = String(emp.code);
+        const d = (State.empData && State.empData[code]) ? State.empData[code] : emp;
+        // حساب ساعات العمل
+        let workHoursStr = '-';
+        if(d.checkIn && d.checkOut) {
+          const [inH,inM]   = d.checkIn.split(':').map(Number);
+          const [outH,outM] = d.checkOut.split(':').map(Number);
+          let mins = (outH*60+outM) - (inH*60+inM);
+          if(mins < 0) mins += 24*60;
+          const h = Math.floor(mins/60), m = mins%60;
+          workHoursStr = h + (m ? ':'+String(m).padStart(2,'0') : '') + ' س';
+        }
+        return `<tr>
+          <td style="font-weight:700;color:#818cf8">${emp.code}</td>
+          <td>${emp.name}</td>
+          <td style="font-size:12px">${emp.job || '-'}</td>
+          <td style="font-size:12px">${emp.branch || '-'}</td>
+          <td style="color:#34d399">${d.salary ? Number(d.salary).toLocaleString('ar-EG')+' ج' : '-'}</td>
+          <td style="font-size:12px;color:#94a3b8">${d.nationalId || '-'}</td>
+          <td style="font-size:12px">${d.phone || '-'}</td>
+          <td style="font-size:12px">${d.hireDate || '-'}</td>
+          <td style="color:#34d399;text-align:center">${d.checkIn || '-'}</td>
+          <td style="color:#f87171;text-align:center">${d.checkOut || '-'}</td>
+          <td style="color:#f59e0b;font-weight:700;text-align:center">${workHoursStr}</td>
+          <td>
+            <button onclick="EmpDataService.editEmployee('${emp.code}','${emp.code}','${emp.name}','${emp.job||''}','${emp.branch||''}')"
+              style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer">✏ تعديل</button>
+          </td>
+          <td>
+            <button onclick="EmpDataService.deleteEmployee('${emp.code}','${emp.name}')"
+              style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer">🗑 حذف</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+    body.innerHTML = rows || '<tr><td colspan="13" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+  },
+
+  // تصدير Excel
+  exportExcel() {
+    const data = getEmpList().map(emp => {
+      const d = (State.empData && State.empData[emp.code]) ? State.empData[emp.code] : emp;
+      let workHours = '';
+      if(d.checkIn && d.checkOut) {
+        const [inH,inM]   = d.checkIn.split(':').map(Number);
+        const [outH,outM] = d.checkOut.split(':').map(Number);
+        let mins = (outH*60+outM) - (inH*60+inM);
+        if(mins < 0) mins += 24*60;
+        workHours = parseFloat((mins/60).toFixed(2));
+      }
+      return {
+        'الكود':          emp.code,
+        'الاسم':          emp.name,
+        'الراتب (جنيه)': d.salary || 0,
+        'رقم البطاقة':   d.nationalId || '',
+        'رقم الهاتف':    d.phone || '',
+        'تاريخ التعيين': d.hireDate || '',
+        'وقت الحضور':    d.checkIn || '',
+        'وقت الانصراف':  d.checkOut || '',
+        'ساعات العمل':   workHours || ''
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'EmpData');
+    XLSX.writeFile(wb, 'employee_data_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير بيانات الموظفين');
+  },
+
+  // عرض فورم إضافة موظف
+  showAddEmpForm(id, code, name, job, branch) {
+    const form = document.getElementById('empAddForm');
+    if(!form) return;
+
+    // تعبئة بيانات الموظف الأساسية
+    const setVal = (elId, val) => { const el = document.getElementById(elId); if(el) el.value = val||''; };
+    setVal('newEmpCode', code);
+    setVal('newEmpName', name);
+    setVal('newEmpJob', job);
+    setVal('newEmpBranch', branch);
+    setVal('editingEmpId', id);
+
+    // تعبئة البيانات الإضافية من empData لو موجودة
+    const d = (State.empData && code) ? (State.empData[String(code)] || {}) : {};
+    setVal('newEmpSalary',    d.salary || '');
+    setVal('newEmpHireDate',  d.hireDate || '');
+    setVal('newEmpNationalId',d.nationalId || '');
+    setVal('newEmpPhone',     d.phone || '');
+    setVal('newEmpCheckIn',   d.checkIn || '');
+    setVal('newEmpCheckOut',  d.checkOut || '');
+    this.calcNewHours();
+
+    const title = document.getElementById('empFormTitle');
+    if(title) title.textContent = id ? '✏️ تعديل موظف' : '➕ إضافة موظف جديد';
+    form.style.display = 'block';
+    document.getElementById('newEmpCode').focus();
+  },
+
+  calcNewHours() {
+    const inVal  = document.getElementById('newEmpCheckIn')?.value;
+    const outVal = document.getElementById('newEmpCheckOut')?.value;
+    const el     = document.getElementById('newEmpWorkHours');
+    if(!el) return;
+    if(!inVal || !outVal) { el.textContent = '-- ساعة'; return; }
+    const [inH,inM]   = inVal.split(':').map(Number);
+    const [outH,outM] = outVal.split(':').map(Number);
+    let mins = (outH*60+outM) - (inH*60+inM);
+    if(mins < 0) mins += 24*60;
+    const h = Math.floor(mins/60), m = mins%60;
+    el.textContent = h + (m ? ':'+String(m).padStart(2,'0') : '') + ' ساعة';
+  },
+
+  // حفظ الموظف (إضافة أو تعديل)
+  saveEmployee() {
+    const getV = (id) => String(document.getElementById(id)?.value||'').trim();
+    const code   = getV('newEmpCode');
+    const name   = getV('newEmpName');
+    const job    = getV('newEmpJob');
+    const branch = getV('newEmpBranch');
+    const editId = getV('editingEmpId');
+    const salary    = Number(getV('newEmpSalary'))    || 0;
+    const hireDate  = getV('newEmpHireDate');
+    const nationalId= getV('newEmpNationalId');
+    const phone     = getV('newEmpPhone');
+    const checkIn   = getV('newEmpCheckIn');
+    const checkOut  = getV('newEmpCheckOut');
+
+    if(!code) { UI.toast('اكتب كود الموظف', 'error'); return; }
+    if(!name) { UI.toast('اكتب اسم الموظف', 'error'); return; }
+    // ضمان أن empData object
+    if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
+
+    // حساب ساعات العمل
+    let workHours = 0;
+    if(checkIn && checkOut) {
+      const [inH,inM]   = checkIn.split(':').map(Number);
+      const [outH,outM] = checkOut.split(':').map(Number);
+      let mins = (outH*60+outM) - (inH*60+inM);
+      if(mins < 0) mins += 24*60;
+      workHours = parseFloat((mins/60).toFixed(2));
+    }
+
+    // البيانات الإضافية لـ empData
+    const extraData = {
+      code, name, salary, hireDate, nationalId, phone,
+      checkIn, checkOut, workHours,
+      updatedAt: new Date().toISOString(),
+      updatedBy: State.currentUser?.username || '-'
+    };
+
+    // تأكد empData جاهز
+    if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
+
+    // كل البيانات تُحفظ في empData/{code} فقط
+    const fullData = {
+      code: Number(code), name, job, branch,
+      salary, hireDate, nationalId, phone,
+      checkIn, checkOut, workHours,
+      status: 'خارج العمل',
+      updatedAt: new Date().toISOString(),
+      updatedBy: State.currentUser?.username || '-'
+    };
+
+    // تحقق من تكرار الكود (للإضافة فقط)
+    const codeExists = Object.values(State.empData || {}).some(e =>
+      String(e.code) === String(code) && (!editId || e.id !== editId)
+    );
+    if(!editId && codeExists) { UI.toast('كود الموظف موجود بالفعل', 'error'); return; }
+
+    if(editId) fullData.id = editId;
+
+    // حفظ في empData
+    db.ref('empData/' + code).set(fullData)
+      .then(() => {
+        // تحديث State.empData - نتأكد أنه object صالح
+        if(typeof State.empData !== 'object' || State.empData === null || Array.isArray(State.empData)) {
+          State.empData = {};
+        }
+        State.empData[String(code)] = fullData;
+
+        // تحديث State.employees
+        const existIdx = State.employees ? State.employees.findIndex(e => String(e.code) === String(code)) : -1;
+        const empRecord = { id: editId||String(code), code: Number(code)||code, name, job, branch, status: 'خارج العمل' };
+        if(existIdx >= 0) State.employees[existIdx] = { ...State.employees[existIdx], ...empRecord };
+        else { if(!State.employees) State.employees = []; State.employees.push(empRecord); }
+      })
+      .then(() => {
+        this.render();
+        if(typeof UI.renderEmployees === 'function') UI.renderEmployees();
+        document.getElementById('empAddForm').style.display = 'none';
+        ['newEmpCode','newEmpName','newEmpJob','newEmpSalary','newEmpNationalId',
+         'newEmpPhone','newEmpCheckIn','newEmpCheckOut','editingEmpId'].forEach(fid => {
+          const el = document.getElementById(fid);
+          if(el && el.type !== 'file') el.value='';
+        });
+        const wh = document.getElementById('newEmpWorkHours');
+        if(wh) wh.textContent = '-- ساعة';
+        UI.toast('✅ ' + (editId ? 'تم تعديل' : 'تمت إضافة') + ' ' + name, 'success');
+        SystemLog.add(editId ? 'EditEmployee' : 'AddEmployee', State.currentUser?.username||'-', name);
+      })
+      .catch(err => {
+        console.error('saveEmployee error details:', JSON.stringify({msg: err.message, code: err.code, name: err.name}));
+        UI.toast('❌ فشل الحفظ: ' + (err.message || 'خطأ غير معروف'), 'error');
+      });
+  },
+
+  // تعديل الموظف
+  editEmployee(id, code, name, job, branch) {
+    // نفتح الفورم الكامل للتعديل
+    this.showAddEmpForm(id, code, name, job, branch);
+    // scroll للأعلى
+    const form = document.getElementById('empAddForm');
+    if(form) form.scrollIntoView({behavior:'smooth'});
+  },
+
+  // حذف الموظف
+  deleteEmployee(codeOrId, empName) {
+    const name = empName || codeOrId;
+    showConfirm('حذف الموظف ' + name + '؟', () => {
+      const code = String(codeOrId);
+      const emp = State.employees.find(e => String(e.code) === code || e.id === code);
+      const promises = [];
+      // حذف من empData فقط (المصدر الوحيد)
+      promises.push(db.ref('empData/' + code).remove());
+
+      Promise.all(promises)
+        .then(() => {
+          if(!State.empData || Array.isArray(State.empData)) State.empData = {};
+          delete State.empData[code];
+          State.employees = State.employees.filter(e => String(e.code) !== code);
+          this.render();
+          UI.toast('✅ تم حذف ' + name, 'success');
+          SystemLog.add('DeleteEmployee', State.currentUser?.username||'-', 'حذف: ' + name);
+        }).catch(err => UI.toast('❌ ' + err.message, 'error'));
+    });
+  },
+
+  // تحميل من Firebase
+  load() {
+    db.ref('empData').once('value').then(snap => {
+      const val = snap.val();
+      State.empData = (val && !Array.isArray(val)) ? val : {};
+      this.render();
+    }).catch(()=>{});
+  },
+
+  // استيراد من JSON (employees export)
+  importFromJSON(inputEl) {
+    const file = inputEl && inputEl.files && inputEl.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const raw = JSON.parse(e.target.result);
+        // تحديد نوع الملف: employees export أو empData export
+        const entries = Object.values(raw);
+        if(!entries.length) { UI.toast('الملف فارغ', 'error'); return; }
+
+        UI.toast('⏳ جارٍ الاستيراد...', 'info');
+        const empDataToImport = {};
+
+        entries.forEach(emp => {
+          const code = String(emp.code || '').trim();
+          if(!code) return;
+          empDataToImport[code] = {
+            code: isNaN(code) ? code : Number(code),
+            name: emp.name || '',
+            job: emp.job || '',
+            branch: emp.branch || '',
+            status: emp.status || 'خارج العمل',
+            salary: emp.salary || 0,
+            hireDate: emp.hireDate || '',
+            nationalId: emp.nationalId || '',
+            phone: emp.phone || '',
+            checkIn: emp.checkIn || '',
+            checkOut: emp.checkOut || '',
+            workHours: emp.workHours || 0,
+            updatedAt: new Date().toISOString(),
+            updatedBy: State.currentUser?.username || 'import'
+          };
+        });
+
+        const cnt = Object.keys(empDataToImport).length;
+        if(!cnt) { UI.toast('لا توجد بيانات صالحة', 'error'); return; }
+
+        // رفع على Firebase
+        db.ref('empData').update(empDataToImport)
+          .then(() => {
+            State.empData = { ...State.empData, ...empDataToImport };
+            this.render();
+            UI.toast('✅ تم استيراد ' + cnt + ' موظف', 'success');
+            SystemLog.add('ImportEmployees', State.currentUser?.username||'-', cnt + ' موظف');
+            try { inputEl.value = ''; } catch(_) {}
+          })
+          .catch(err => UI.toast('❌ ' + err.message, 'error'));
+      } catch(err) {
+        UI.toast('❌ خطأ في قراءة الملف: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+};
+
+// ════════════════════════════════════════════════════════════════
+// INCENTIVE SERVICE - نظام الحوافز
+// ════════════════════════════════════════════════════════════════
+
+// تهيئة الـ State للحوافز
+if(!State.incentives) State.incentives = [];
+
+// استكمال دالة البحث في الموظفين للحوافز
+function onIncEmpInput(val) {
+  val = val.trim();
+  const box = document.getElementById('incEmpSuggestions');
+  if(!box) return;
+  if(!val) { box.style.display='none'; return; }
+  const results = State.employees.filter(e =>
+    String(e.code).includes(val) || (e.name && e.name.includes(val))
+  ).slice(0, 6);
+  if(!results.length) { box.style.display='none'; return; }
+  box.innerHTML = results.map(e => `
+    <div onclick="selectIncEmp('${e.code}','${e.name}')"
+      style="padding:9px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.06);font-size:13px">
+      <strong>${e.code}</strong> — ${e.name}
+    </div>`).join('');
+  box.style.display = 'block';
+}
+
+function selectIncEmp(code, name) {
+  const codeEl = document.getElementById('incEmpCode');
+  const nameEl = document.getElementById('incEmpName');
+  const box    = document.getElementById('incEmpSuggestions');
+  if(codeEl) codeEl.value = code;
+  if(nameEl) nameEl.value = name;
+  if(box)    box.style.display = 'none';
+}
+
+const IncentiveService = {
+
+  add() {
+    const code   = document.getElementById('incEmpCode')?.value.trim();
+    const name   = document.getElementById('incEmpName')?.value.trim();
+    const type   = document.getElementById('incType')?.value;
+    const amount = Number(document.getElementById('incAmount')?.value) || 0;
+    const note   = document.getElementById('incNote')?.value.trim();
+    const date   = document.getElementById('incDate')?.value;
+
+    if(!code) { UI.toast('اختر الموظف أولاً', 'error'); return; }
+    if(!date) { UI.toast('حدد التاريخ', 'error'); return; }
+
+    const emp = State.employees.find(e => String(e.code) === String(code));
+    const id  = 'inc_' + Date.now();
+    const unit   = document.getElementById('incUnit')?.value || 'جنيه';
+    const record = {
+      id, code, name: name || (emp ? emp.name : code),
+      type: type || 'مالي',
+      amount, unit, note, date,
+      by: State.currentUser?.username || '-',
+      ts: Date.now()
+    };
+
+    // نضيف محلياً فوراً (Firebase Sync سيتولى التحديث التلقائي)
+    // لكن نمنع التكرار بفحص عدم وجود الـ ID
+    db.ref('incentives/' + id).set(record)
+      .then(() => {
+        // لا نضيف محلياً هنا - Firebase onValue سيضيفه تلقائياً
+        this.clearForm();
+        SystemLog.add('Incentive', code, type + ': ' + amount + ' ' + (record.unit||'جنيه'));
+        UI.toast('✅ تم تسجيل الحافز لـ ' + record.name, 'success');
+      })
+      .catch(err => UI.toast('❌ ' + err.message, 'error'));
+  },
+
+  clearForm() {
+    ['incEmpCode','incEmpName','incNote','incDate'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.value = '';
+    });
+    const amt = document.getElementById('incAmount');
+    if(amt) amt.value = '';
+    const type = document.getElementById('incType');
+    if(type) type.selectedIndex = 0;
+  },
+
+  delete(id, name) {
+    showConfirm('حذف حافز ' + name + '؟', () => {
+      db.ref('incentives/' + id).remove().then(() => {
+        State.incentives = State.incentives.filter(x => x.id !== id);
+        this.render();
+        UI.toast('تم الحذف', 'success');
+      }).catch(err => UI.toast('❌ ' + err.message, 'error'));
+    });
+  },
+
+  render() {
+    const body       = document.getElementById('incBody');
+    const stats      = document.getElementById('incStats');
+    const search     = document.getElementById('incSearch')?.value.toLowerCase() || '';
+    const typeFilter = document.getElementById('incTypeFilter')?.value || '';
+    const dateFilter = document.getElementById('incDateFilter')?.value || '';
+    if(!body) return;
+    if(!State.incentives) State.incentives = [];
+
+    let filtered = State.incentives.filter(r => {
+      const matchSearch = !search || (r.name||'').toLowerCase().includes(search) || String(r.code).includes(search);
+      const matchType   = !typeFilter || r.type === typeFilter;
+      const matchDate   = !dateFilter || (r.date||'').startsWith(dateFilter);
+      return matchSearch && matchType && matchDate;
+    });
+
+    // إجماليات
+    const totalAmount = filtered
+      .filter(r => !r.unit || r.unit === 'جنيه')
+      .reduce((s, r) => s + (r.amount || 0), 0);
+    const totalHours = filtered
+      .filter(r => r.unit === 'ساعة')
+      .reduce((s, r) => s + (r.amount || 0), 0);
+    const uniqueEmps  = new Set(filtered.map(r => r.code)).size;
+    if(stats) stats.innerHTML = [
+      { label: 'إجمالي الحوافز', val: filtered.length, color: '#818cf8', icon: '🏆' },
+      { label: 'إجمالي المبلغ',  val: totalAmount.toLocaleString('ar-EG') + ' ج' + (totalHours ? ' + ' + totalHours + ' س' : ''), color: '#34d399', icon: '💰' },
+      { label: 'عدد الموظفين',   val: uniqueEmps, color: '#f59e0b', icon: '👥' }
+    ].map(s => `<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,0.08)">
+      <div style="font-size:20px">${s.icon}</div>
+      <div style="font-size:18px;font-weight:700;color:${s.color}">${s.val}</div>
+      <div style="font-size:11px;color:var(--txt2)">${s.label}</div>
+    </div>`).join('');
+
+    if(!filtered.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#64748b">لا توجد حوافز</td></tr>'; return; }
+
+    body.innerHTML = filtered.map(r => `<tr>
+      <td>${r.name || '-'}</td>
+      <td>${r.code}</td>
+      <td><span style="background:rgba(99,102,241,0.15);color:#818cf8;padding:2px 8px;border-radius:20px;font-size:12px">${r.type}</span></td>
+      <td style="color:#34d399;font-weight:700">${r.amount ? Number(r.amount).toLocaleString('ar-EG') + ' ' + (r.unit||'ج') : '-'}</td>
+      <td style="font-size:12px;color:#94a3b8;max-width:150px">${r.note || '-'}</td>
+      <td>${r.date || '-'}</td>
+      <td style="font-size:12px">${r.by || '-'}</td>
+      <td>${hasPermission('edit')||hasPermission('all') ? `<button onclick="IncentiveService.delete('${r.id}','${r.name}')"
+        style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button>` : '-'}</td>
+    </tr>`).join('');
+  },
+
+  exportExcel() {
+    const search     = document.getElementById('incSearch')?.value.toLowerCase() || '';
+    const typeFilter = document.getElementById('incTypeFilter')?.value || '';
+    const dateFilter = document.getElementById('incDateFilter')?.value || '';
+    const filtered   = State.incentives.filter(r => {
+      const matchSearch = !search || (r.name||'').toLowerCase().includes(search) || String(r.code).includes(search);
+      const matchType   = !typeFilter || r.type === typeFilter;
+      const matchDate   = !dateFilter || (r.date||'').startsWith(dateFilter);
+      return matchSearch && matchType && matchDate;
+    });
+    if(!filtered.length) { UI.toast('لا توجد بيانات للتصدير', 'warning'); return; }
+
+    const data = filtered.map(r => ({
+      'الموظف': r.name || '-',
+      'الكود': r.code,
+      'النوع': r.type,
+      'القيمة': (r.amount || 0) + ' ' + (r.unit || 'جنيه'),
+      'السبب': r.note || '-',
+      'التاريخ': r.date || '-',
+      'بواسطة': r.by || '-'
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Incentives');
+    XLSX.writeFile(wb, 'incentives_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير حوافز');
+  },
+
+  load() {
+    db.ref('incentives').orderByChild('ts').once('value').then(snap => {
+      State.incentives = [];
+      snap.forEach(ch => {
+        const v = ch.val();
+        if(v && v.id) State.incentives.unshift(v);
+      });
+      this.render();
+    }).catch(()=>{});
+  }
+};
+
+// ─── دالة موحدة لقراءة قائمة الموظفين ──────────────────────────────────────
+// تقرأ من empData (بيانات الموظفين الجديد) أولاً
+// وتكمل بأي موظف موجود في employees غير محفوظ في empData
+function getEmpList() {
+  const result = [];
+  const seen = new Set();
+
+  // أولاً: من empData (البيانات الكاملة)
+  if(State.empData && typeof State.empData === 'object' && !Array.isArray(State.empData)) {
+    Object.values(State.empData || {}).forEach(d => {
+      if(d && d.code) {
+        result.push({ code: d.code, name: d.name||'', job: d.job||'', branch: d.branch||'', id: d.code });
+        seen.add(String(d.code));
+      }
+    });
+  }
+
+  // ثانياً: أي موظف في employees مش موجود في empData
+  if(State.employees && Array.isArray(State.employees)) {
+    State.employees.forEach(e => {
+      if(!seen.has(String(e.code))) {
+        result.push({ code: e.code, name: e.name||'', job: e.job||'', branch: e.branch||'', id: e.id });
+        seen.add(String(e.code));
+      }
+    });
+  }
+
+  return result.sort((a,b) => Number(a.code) - Number(b.code));
 }
 
 // ─── دوال الطباعة ───────────────────────────────────────────────────────────
@@ -7038,6 +8217,23 @@ function loadPriceSheetFromFirebase() {
     if(bdgTxt)bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
     if(statsBar) statsBar.style.display = 'flex';
     if(srcStrip) srcStrip.classList.add('vis');
+
+    // عرض وقت الرفع
+    try {
+      let _uploadTime = '';
+      let _uploadBy = '';
+      if(data.meta && data.meta.uploadedAt) {
+        _uploadTime = new Date(data.meta.uploadedAt).toLocaleString('ar-EG', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});
+        _uploadBy = data.meta.uploadedBy || '';
+      } else if(data.uploadedAt && typeof data.uploadedAt === 'number') {
+        _uploadTime = new Date(data.uploadedAt).toLocaleString('ar-EG', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});
+        _uploadBy = data.uploadedBy || '';
+      } else {
+        _uploadTime = localStorage.getItem('priceSheetUploadTime') || '';
+        _uploadBy = localStorage.getItem('priceSheetUploadBy') || '';
+      }
+      if(_uploadTime && typeof showUploadTime === 'function') showUploadTime(_uploadTime, _uploadBy);
+    } catch(e) {}
 
     console.log('priceSheet loaded: ' + total + ' products from Firebase');
   }).catch(err => console.warn('priceSheet load error:', err));
@@ -8070,13 +9266,62 @@ if(tab === "pricing"){
     }
   },200);
 }
+if(tab === "incentives"){
+  const incDate = document.getElementById('incDate');
+  if(incDate && !incDate.value) incDate.value = new Date().toISOString().slice(0,10);
+  IncentiveService.render();
+}
+if(tab === "empdata"){
+  // لو State.employees فارغة نجلب من Firebase مباشرة
+  if(!State.employees || State.employees.length === 0) {
+    db.ref('empData').once('value').then(snap => {
+      const val = snap.val();
+      if(val && typeof val === 'object') {
+        State.empData = val;
+        State.employees = Object.entries(val)
+          .filter(([k,d]) => d && d.name)
+          .map(([k,d]) => ({
+            id: String(d.code||k),
+            code: Number(d.code||k)||d.code||k,
+            name: d.name||'',
+            job: d.job||'',
+            branch: d.branch||'',
+            status: d.status||'خارج العمل'
+          }));
+      }
+      EmpDataService.render();
+    });
+  } else {
+    EmpDataService.render();
+  }
+}
 
 }
 
 })
     document.querySelectorAll(".permission-card").forEach(card => { card.addEventListener("click", () => { let checkbox = card.querySelector("input"); checkbox.checked = !checkbox.checked
 card.classList.toggle("active"); if (checkbox.checked) card.classList.add("active"); else card.classList.remove("active"); }); });
-    const selectAllCheck = document.getElementById("selectAllPerms"); if (selectAllCheck) selectAllCheck.addEventListener("change", () => { let all = selectAllCheck.checked; document.querySelectorAll(".perm-checkbox").forEach(cb => cb.checked = all); document.querySelectorAll(".permission-card").forEach(card => card.classList.toggle("active", all)); });
+    const selectAllCheck = document.getElementById("selectAllPerms");
+    if (selectAllCheck) {
+      // كل الصلاحيات → يحدد/يشيل الكل
+      selectAllCheck.addEventListener("change", () => {
+        const all = selectAllCheck.checked;
+        document.querySelectorAll(".perm-checkbox:not(#selectAllPerms)").forEach(cb => {
+          cb.checked = all;
+          cb.closest(".permission-card")?.classList.toggle("active", all);
+        });
+      });
+
+      // عند تغيير أي صلاحية → نتحقق هل الكل محدد
+      document.querySelectorAll(".perm-checkbox:not(#selectAllPerms)").forEach(cb => {
+        cb.addEventListener("change", () => {
+          const allChecked = [...document.querySelectorAll(".perm-checkbox:not(#selectAllPerms)")]
+            .every(c => c.checked);
+          selectAllCheck.checked = allChecked;
+          selectAllCheck.closest(".permission-card")?.classList.toggle("active", allChecked);
+        });
+      });
+    }
     // ========================= المزامنة المحسنة مع Firebase (Enhanced Firebase Sync) =========================
     const FirebaseSync = {
         init() {
@@ -8110,7 +9355,12 @@ UI.renderTransfers()
                 UI.toast("خطأ في مزامنة المستخدمين", "error");
             });
             const collections = [
-                { ref: "employees", stateKey: "employees", render: () => UI.renderEmployees() },
+                // employees قديم - نحتفظ به للتوافق مع البيانات الحالية
+            { ref: "employees", stateKey: "employees", render: () => {
+              // ندمج employees في State.employees مع empData
+              UI.renderEmployees();
+            }},
+            { ref: "incentives", stateKey: "incentives", render: () => IncentiveService.render() },
                 { ref: "attendance", stateKey: "attendance", render: () => { UI.renderAttendance(); UI.renderInsideEmployees(); ReportService.render(); updateAttendanceCounter(); } },
                 { ref: "breaks", stateKey: "breaks", render: () => UI.renderBreaks() },
                 { ref: "systemLogs", stateKey: "systemLogs", render: () => UI.renderSystemLogs() },
@@ -8127,6 +9377,35 @@ UI.renderTransfers()
                     State[col.stateKey] = data;
                     col.render();
                 });
+            });
+
+            // empData يُعامَل كـ object (مش array)
+            db.ref("empData").on("value", snap => {
+                const val = snap.val();
+                State.empData = (val && typeof val === 'object' && !Array.isArray(val)) ? val : {};
+                // مزامنة State.employees من empData
+                // بناء State.employees من empData
+                const newEmpList = [];
+                Object.entries(State.empData || {}).forEach(([key, d]) => {
+                    if(!d) return;
+                    // d.code أو key نفسه
+                    const code = d.code || key;
+                    if(!code) return;
+                    newEmpList.push({
+                        id: String(code),
+                        code: Number(code) || code,
+                        name: d.name || '',
+                        job: d.job || '',
+                        branch: d.branch || '',
+                        status: d.status || 'خارج العمل'
+                    });
+                });
+                State.employees = newEmpList;
+                EmpDataService.render();
+                if(typeof UI !== 'undefined' && UI.renderEmployees) UI.renderEmployees();
+                // تحديث عداد الموظفين
+                const cnt = document.getElementById("totalEmpCount");
+                if(cnt) cnt.textContent = State.employees.length;
             });
         }
     };
