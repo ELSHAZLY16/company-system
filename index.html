@@ -6133,6 +6133,26 @@ function saveProductEdit() {
             document.body.style.overflow = "auto";
             // تحميل ثيم المستخدم
             if(State.currentUser) loadUserTheme(State.currentUser.username);
+            // تحميل empData مبكراً لضمان State.employees جاهز
+            db.ref('empData').once('value').then(snap => {
+                const val = snap.val();
+                if(val && typeof val === 'object' && !Array.isArray(val)) {
+                    State.empData = val;
+                    State.employees = Object.entries(val)
+                        .filter(([k,d]) => d && d.name)
+                        .map(([k,d]) => ({
+                            id: String(d.code||k),
+                            code: Number(d.code||k)||d.code||k,
+                            name: d.name||'',
+                            job: d.job||'',
+                            branch: d.branch||'',
+                            status: d.status||'خارج العمل'
+                        }));
+                    // تحديث العداد
+                    const cnt = document.getElementById("totalEmpCount");
+                    if(cnt) cnt.textContent = State.employees.length;
+                }
+            }).catch(()=>{});
         },
 
         showLoginPage() {
@@ -7451,12 +7471,18 @@ const EmpDataService = {
 
     db.ref('empData/' + code).set(data)
       .then(() => {
-        if(!State.empData || typeof State.empData !== 'object') State.empData = {};
-        State.empData[code] = data;
+        // تحديث State محلياً فوراً بدون انتظار listener
+        if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
+        State.empData[String(code)] = data;
+        // تحديث State.employees
+        const empIdx = State.employees ? State.employees.findIndex(e => String(e.code) === String(code)) : -1;
+        if(empIdx >= 0) {
+          State.employees[empIdx] = { ...State.employees[empIdx], name: data.name, job: data.job||'', branch: data.branch||'' };
+        }
         this.closeModal();
         this.render();
-        SystemLog.add('EmpData', code, 'تحديث بيانات: ' + data.name);
         UI.toast('✅ تم حفظ بيانات ' + (data.name||code), 'success');
+        SystemLog.add('EmpData', code, 'تحديث بيانات: ' + data.name);
       })
       .catch(err => UI.toast('❌ ' + err.message, 'error'));
   },
@@ -7522,6 +7548,12 @@ const EmpDataService = {
       }).join('');
 
     body.innerHTML = rows || '<tr><td colspan="13" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+    // تحديث العداد
+    const empCount = _empMap ? Object.keys(_empMap).length : 0;
+    ['totalEmpCount','empCount'].forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.textContent = empCount;
+    });
   },
 
   // تصدير Excel
@@ -7639,42 +7671,44 @@ const EmpDataService = {
     // تأكد empData جاهز
     if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
 
-    // كل البيانات تُحفظ في empData/{code} فقط
+    // دمج مع البيانات الحالية لضمان عدم فقدان أي حقل
+    const existing = (State.empData && State.empData[String(code)]) || {};
     const fullData = {
-      code: Number(code), name, job, branch,
+      ...existing,
+      code: Number(code) || code,
+      name, job, branch,
       salary, hireDate, nationalId, phone,
       checkIn, checkOut, workHours,
-      status: 'خارج العمل',
+      status: existing.status || 'خارج العمل',
       updatedAt: new Date().toISOString(),
       updatedBy: State.currentUser?.username || '-'
     };
 
     // تحقق من تكرار الكود (للإضافة فقط)
-    const codeExists = Object.values(State.empData || {}).some(e =>
-      String(e.code) === String(code) && (!editId || e.id !== editId)
-    );
-    if(!editId && codeExists) { UI.toast('كود الموظف موجود بالفعل', 'error'); return; }
-
-    if(editId) fullData.id = editId;
+    if(!editId) {
+      const codeExists = Object.values(State.empData || {}).some(e =>
+        String(e.code) === String(code)
+      );
+      if(codeExists) { UI.toast('كود الموظف موجود بالفعل', 'error'); return; }
+    }
 
     // حفظ في empData
     db.ref('empData/' + code).set(fullData)
       .then(() => {
-        // تحديث State.empData - نتأكد أنه object صالح
-        if(typeof State.empData !== 'object' || State.empData === null || Array.isArray(State.empData)) {
-          State.empData = {};
-        }
+        // تحديث State محلياً فوراً
+        if(!State.empData || typeof State.empData !== 'object' || Array.isArray(State.empData)) State.empData = {};
         State.empData[String(code)] = fullData;
-
         // تحديث State.employees
-        const existIdx = State.employees ? State.employees.findIndex(e => String(e.code) === String(code)) : -1;
-        const empRecord = { id: editId||String(code), code: Number(code)||code, name, job, branch, status: 'خارج العمل' };
-        if(existIdx >= 0) State.employees[existIdx] = { ...State.employees[existIdx], ...empRecord };
-        else { if(!State.employees) State.employees = []; State.employees.push(empRecord); }
-      })
-      .then(() => {
-        this.render();
-        if(typeof UI.renderEmployees === 'function') UI.renderEmployees();
+        const empIdx = State.employees ? State.employees.findIndex(e => String(e.code) === String(code)) : -1;
+        const empRec = { id: String(code), code: Number(code)||code, name, job, branch, status: 'خارج العمل' };
+        if(empIdx >= 0) State.employees[empIdx] = { ...State.employees[empIdx], ...empRec };
+        else { if(!State.employees) State.employees = []; State.employees.push(empRec); }
+        // تحديث العداد
+        ['totalEmpCount','empCount'].forEach(id => {
+          const el = document.getElementById(id);
+          if(el) el.textContent = State.employees.length;
+        });
+        // إغلاق الفورم وتحديث الجدول
         document.getElementById('empAddForm').style.display = 'none';
         ['newEmpCode','newEmpName','newEmpJob','newEmpSalary','newEmpNationalId',
          'newEmpPhone','newEmpCheckIn','newEmpCheckOut','editingEmpId'].forEach(fid => {
@@ -7683,13 +7717,11 @@ const EmpDataService = {
         });
         const wh = document.getElementById('newEmpWorkHours');
         if(wh) wh.textContent = '-- ساعة';
+        this.render();
         UI.toast('✅ ' + (editId ? 'تم تعديل' : 'تمت إضافة') + ' ' + name, 'success');
         SystemLog.add(editId ? 'EditEmployee' : 'AddEmployee', State.currentUser?.username||'-', name);
       })
-      .catch(err => {
-        console.error('saveEmployee error details:', JSON.stringify({msg: err.message, code: err.code, name: err.name}));
-        UI.toast('❌ فشل الحفظ: ' + (err.message || 'خطأ غير معروف'), 'error');
-      });
+      .catch(err => UI.toast('❌ فشل الحفظ: ' + (err.message||'خطأ'), 'error'));
   },
 
   // تعديل الموظف
@@ -8707,7 +8739,7 @@ document.getElementById("productsExpireSoon").innerText = soon
             let html = ""; inside.sort((a, b) => b.timestamp - a.timestamp).forEach(a => { let duration = TimeUtils.now() - a.timestamp; html += `<tr>
 <td>${a.name}</td>
 <td>${a.code}</td>
-<td>${State.employees.find(e=>e.code==a.code)?.job || "-"}</td>
+<td>${(()=>{ const e=State.employees.find(x=>String(x.code)==String(a.code)); const d=State.empData&&(State.empData[String(a.code)]||State.empData[a.code]); return (e&&e.job)||( d&&d.job)||'-'; })()}</td>
 <td>${a.timeDisplay}</td>
 <td style="color:${duration > 36000000 ? '#f87171' : duration > 28800000 ? '#fbbf24' : '#34d399'}; font-weight:700;">${TimeUtils.format(duration)}</td>
 </tr>`; });
@@ -9164,7 +9196,7 @@ el.value = ""
     function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); let rows = inside.map(a => ({
 الموظف: a.name,
 الكود: a.code,
-الوظيفة: State.employees.find(e=>e.code==a.code)?.job || "-",
+الوظيفة: (()=>{ const e=State.employees.find(x=>String(x.code)==String(a.code)); const d=State.empData&&(State.empData[String(a.code)]||State.empData[a.code]); return (e&&e.job)||( d&&d.job)||'-'; })(),
 وقت_الدخول: a.timeDisplay,
 مدة_العمل: TimeUtils.format(TimeUtils.now() - a.timestamp)
 })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "inside"); XLSX.writeFile(wb, "inside_employees.xlsx");
@@ -9356,10 +9388,8 @@ UI.renderTransfers()
             });
             const collections = [
                 // employees قديم - نحتفظ به للتوافق مع البيانات الحالية
-            { ref: "employees", stateKey: "employees", render: () => {
-              // ندمج employees في State.employees مع empData
-              UI.renderEmployees();
-            }},
+            // employees node محذوف من Firebase - empData هو المصدر الوحيد
+            // { ref: "employees" } - removed
             { ref: "incentives", stateKey: "incentives", render: () => IncentiveService.render() },
                 { ref: "attendance", stateKey: "attendance", render: () => { UI.renderAttendance(); UI.renderInsideEmployees(); ReportService.render(); updateAttendanceCounter(); } },
                 { ref: "breaks", stateKey: "breaks", render: () => UI.renderBreaks() },
@@ -9382,30 +9412,30 @@ UI.renderTransfers()
             // empData يُعامَل كـ object (مش array)
             db.ref("empData").on("value", snap => {
                 const val = snap.val();
-                State.empData = (val && typeof val === 'object' && !Array.isArray(val)) ? val : {};
-                // مزامنة State.employees من empData
+                if(!val || typeof val !== 'object' || Array.isArray(val)) return;
+                State.empData = val;
                 // بناء State.employees من empData
-                const newEmpList = [];
-                Object.entries(State.empData || {}).forEach(([key, d]) => {
-                    if(!d) return;
-                    // d.code أو key نفسه
-                    const code = d.code || key;
-                    if(!code) return;
-                    newEmpList.push({
-                        id: String(code),
-                        code: Number(code) || code,
+                State.employees = Object.entries(val)
+                    .filter(([k,d]) => d && (d.name || d.code))
+                    .map(([k,d]) => ({
+                        id: String(d.code || k),
+                        code: Number(d.code || k) || d.code || k,
                         name: d.name || '',
                         job: d.job || '',
                         branch: d.branch || '',
                         status: d.status || 'خارج العمل'
-                    });
+                    }));
+                // تحديث العداد
+                ['totalEmpCount','empCount'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) el.textContent = State.employees.length;
                 });
-                State.employees = newEmpList;
-                EmpDataService.render();
-                if(typeof UI !== 'undefined' && UI.renderEmployees) UI.renderEmployees();
-                // تحديث عداد الموظفين
-                const cnt = document.getElementById("totalEmpCount");
-                if(cnt) cnt.textContent = State.employees.length;
+                // تحديث الصفحات
+                if(typeof EmpDataService !== 'undefined') EmpDataService.render();
+                if(typeof UI !== 'undefined') {
+                    if(UI.renderEmployees) UI.renderEmployees();
+                    if(UI.renderInsideEmployees) UI.renderInsideEmployees();
+                }
             });
         }
     };
