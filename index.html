@@ -1687,13 +1687,15 @@ font-size:14px
 </div>
 
 
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px">
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:15px">
 
-<input id="transferCartons" type="number" placeholder="كرتونة">
+<input id="transferCartons" type="number" placeholder="كرتونة" oninput="calcTransferTotal()">
 
-<input id="transferBoxes" type="number" placeholder="علب">
+<input id="transferBoxes" type="number" placeholder="علب" oninput="calcTransferTotal()">
 
-<input id="transferPieces" type="number" placeholder="قطع">
+<input id="transferPieces" type="number" placeholder="قطع" oninput="calcTransferTotal()">
+
+<input id="transferKilo" type="number" step="0.1" placeholder="كيلو" oninput="calcTransferTotal()">
 
 <input id="transferTotal" placeholder="الإجمالي" readonly>
 
@@ -1716,6 +1718,7 @@ font-size:14px
 <th>كراتين</th>
 <th>علب</th>
 <th>قطع</th>
+<th>كيلو</th>
 <th>الإجمالي</th>
 <th>الانتهاء</th>
 <th>حذف</th>
@@ -4315,23 +4318,32 @@ onclick="closeTransferEdit()">
 let cartons = Number(document.getElementById("transferCartons").value) || 0
 let boxes   = Number(document.getElementById("transferBoxes").value)   || 0
 let pieces  = Number(document.getElementById("transferPieces").value)  || 0
+let kilo    = parseFloat(document.getElementById("transferKilo")?.value) || 0
 
 let total = 0
+let totalText = ""
+
+// لو في كيلو - يُعرض منفصلاً
+if(kilo > 0) {
+    if(cartons > 0) {
+        totalText = cartons + " ك × " + kilo + " كجم"
+    } else {
+        totalText = kilo + " كجم"
+    }
+    document.getElementById("transferTotal").value = totalText
+    return
+}
 
 if(cartons && boxes && pieces){
-    // الثلاثة: كراتين × علب × قطعة
     total = cartons * boxes * pieces
 }
 else if(cartons && boxes){
-    // كراتين × علب
     total = cartons * boxes
 }
 else if(cartons && pieces){
-    // كراتين × قطع
     total = cartons * pieces
 }
 else if(boxes && pieces){
-    // علب × قطع
     total = boxes * pieces
 }
 else if(cartons){
@@ -6425,6 +6437,8 @@ let boxes = Number(document.getElementById("transferBoxes").value)
 
 let pieces = Number(document.getElementById("transferPieces").value)
 
+let kilo = parseFloat(document.getElementById("transferKilo")?.value) || 0
+
 let expire = document.getElementById("transferExpire").value
 
 if(!barcode){
@@ -6432,8 +6446,8 @@ UI.toast("امسح الباركود","error")
 return
 }
 
-if(cartons == 0 && boxes == 0 && pieces == 0){
-UI.toast("أدخل كرتونة أو علبة أو قطعة","error")
+if(cartons == 0 && boxes == 0 && pieces == 0 && kilo == 0){
+UI.toast("أدخل كرتونة أو علبة أو قطعة أو كيلو","error")
 return
 }
 
@@ -6442,15 +6456,16 @@ UI.toast("حدد تاريخ الانتهاء","error")
 return
 }
 
-let total = Number(document.getElementById("transferTotal").value)
+let total = document.getElementById("transferTotal").value
 
 let item = {
 
 barcode,
 name,
-cartons,
-boxes,
-pieces,
+cartons: cartons || 0,
+boxes:   boxes   || 0,
+pieces:  pieces  || 0,
+kilo:    kilo    || 0,
 total,
 expire
 
@@ -6467,6 +6482,7 @@ document.getElementById("transferPieces").value = ""
 document.getElementById("transferTotal").value = ""
 document.getElementById("transferCartons").value = ""
 document.getElementById("transferExpire").value = ""
+if(document.getElementById("transferKilo")) document.getElementById("transferKilo").value = ""
 
 document.getElementById("transferBarcode").focus()
 
@@ -6751,6 +6767,7 @@ function viewTransfer(id){
         <td data-label="كراتين">${i.cartons || 0}</td>
         <td data-label="علب">${i.boxes || 0}</td>
         <td data-label="قطع">${i.pieces || 0}</td>
+        <td data-label="كيلو">${i.kilo ? i.kilo+' كجم' : '-'}</td>
         <td data-label="الإجمالي">${i.total || 0}</td>
         <td data-label="الانتهاء">${i.expire || "-"}</td>
       </tr>`;
@@ -6832,6 +6849,7 @@ function viewTransfer(id){
                         <th style="padding:10px 8px; text-align:center; font-weight:700; color:#818cf8; font-size:12px;">كراتين</th>
                         <th style="padding:10px 8px; text-align:center; font-weight:700; color:#818cf8; font-size:12px;">علب</th>
                         <th style="padding:10px 8px; text-align:center; font-weight:700; color:#818cf8; font-size:12px;">قطع</th>
+                        <th style="padding:10px 8px; text-align:center; font-weight:700; color:#818cf8; font-size:12px;">كيلو</th>
                         <th style="padding:10px 8px; text-align:center; font-weight:700; color:#818cf8; font-size:12px;">الإجمالي</th>
                         <th style="padding:10px 8px; text-align:center; font-weight:700; color:#818cf8; font-size:12px;">الانتهاء</th>
                     </tr>
@@ -8174,10 +8192,15 @@ function lookupProductFromPriceSheet(barcode, callback) {
 }
 
 
-function calcItemTotal(cartons, boxes, pieces) {
+function calcItemTotal(cartons, boxes, pieces, kilo) {
     cartons = Number(cartons) || 0;
     boxes   = Number(boxes)   || 0;
     pieces  = Number(pieces)  || 0;
+    kilo    = parseFloat(kilo) || 0;
+    // لو في كيلو - إجمالي بالكيلو
+    if(kilo > 0) {
+        return cartons > 0 ? cartons + " ك × " + kilo + " كجم" : kilo + " كجم";
+    }
     if(cartons && boxes && pieces) return cartons * boxes * pieces;
     if(cartons && boxes)           return cartons * boxes;
     if(cartons && pieces)          return cartons * pieces;
@@ -8364,6 +8387,8 @@ html += `
 <td data-label="علب">${i.boxes || 0}</td>
 
 <td data-label="قطع">${i.pieces || 0}</td>
+
+<td data-label="كيلو">${i.kilo ? i.kilo+' كجم' : '-'}</td>
 
 <td data-label="الإجمالي">${i.total || 0}</td>
 
