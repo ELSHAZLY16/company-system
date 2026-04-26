@@ -1616,6 +1616,10 @@ font-size:14px
 <span>⇄</span>
 التحويلات
 </button>
+            <button class="tab-btn" data-tab="transfer-analytics">
+<span>📊</span>
+تحليل التحويلات
+</button>
       
             <button class="tab-btn" data-tab="penalties"><span>⚖️</span> الجزاءات</button>
             <button class="tab-btn" data-tab="incentives"><span>🏆</span> الحوافز</button>
@@ -3458,6 +3462,168 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
             </div>
         </div>
 
+
+<!-- ========================= تبويب تحليل التحويلات ========================= -->
+<div id="tab-transfer-analytics" class="tab-content" style="display:none;">
+
+  <!-- ===== فلاتر عامة ===== -->
+  <div class="glass-card" style="padding:18px;margin-bottom:16px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <span style="font-weight:700;color:#818cf8;font-size:14px">📅 فلتر الفترة:</span>
+
+      <button class="filter-btn active" onclick="setAnalyticsFilter(this,'all')">كل الوقت</button>
+      <button class="filter-btn" onclick="setAnalyticsFilter(this,'month')">آخر شهر</button>
+      <button class="filter-btn" onclick="setAnalyticsFilter(this,'week')">آخر أسبوع</button>
+      <button class="filter-btn" onclick="setAnalyticsFilter(this,'day')">اليوم</button>
+
+      <input type="date" id="analyticsDateFrom"
+        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit"
+        onchange="TransferAnalytics.renderAll()" placeholder="من">
+      <input type="date" id="analyticsDateTo"
+        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit"
+        onchange="TransferAnalytics.renderAll()" placeholder="إلى">
+
+      <select id="analyticsFromFilter"
+        onchange="TransferAnalytics.renderAll()"
+        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+        <option value="">📤 كل الفروع (من)</option>
+        <option value="البازار">البازار</option>
+        <option value="الصباح">الصباح</option>
+        <option value="باب40">باب 40</option>
+      </select>
+
+      <select id="analyticsToFilter"
+        onchange="TransferAnalytics.renderAll()"
+        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+        <option value="">📥 كل الفروع (إلى)</option>
+        <option value="البازار">البازار</option>
+        <option value="الصباح">الصباح</option>
+        <option value="باب40">باب 40</option>
+      </select>
+
+      <select id="analyticsUserFilter"
+        onchange="TransferAnalytics.renderAll()"
+        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+        <option value="">👤 كل المستخدمين</option>
+      </select>
+
+      <button onclick="TransferAnalytics.exportAll()"
+        style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+        📊 تصدير Excel
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== بطاقات إحصائية ===== -->
+  <div id="analyticsKPICards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px"></div>
+
+  <!-- ===== بحث بالباركود ===== -->
+  <div class="glass-card" style="padding:25px;margin-bottom:16px">
+    <h3 style="margin-bottom:16px">🔍 تتبع تنقل صنف بالباركود</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+      <div style="flex:1;min-width:200px;position:relative">
+        <input id="analyticsBarcodeInput"
+          placeholder="اكتب الباركود أو امسحه"
+          style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;font-size:14px"
+          oninput="TransferAnalytics.searchBarcode(this.value)"
+          onkeydown="if(event.key==='Enter') TransferAnalytics.searchBarcode(this.value)">
+      </div>
+      <button onclick="ProductService.scanBarcode('analyticsBarcodeInput')"
+        style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;padding:10px 14px;border-radius:8px;cursor:pointer;font-size:18px">
+        📷
+      </button>
+      <button onclick="TransferAnalytics.clearSearch()"
+        style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:10px 14px;border-radius:8px;cursor:pointer;font-family:inherit">
+        ✕ مسح
+      </button>
+    </div>
+
+    <div id="analyticsBarcodeResult" style="display:none">
+      <div id="analyticsProductInfo" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:12px;padding:16px;margin-bottom:12px"></div>
+      <div id="analyticsItemStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px"></div>
+
+      <!-- مسار التنقل -->
+      <h4 style="margin-bottom:10px;color:#94a3b8;font-size:13px">🗺️ مسار التنقل بين الفروع</h4>
+      <div id="analyticsMoveMap" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;padding:12px;background:rgba(0,0,0,0.2);border-radius:10px"></div>
+
+      <h4 style="margin-bottom:10px;color:#94a3b8;font-size:13px">📋 سجل كل التنقلات</h4>
+      <div class="table-container">
+        <table>
+          <thead><tr>
+            <th>من فرع</th><th>إلى فرع</th>
+            <th>كراتين</th><th>علب</th><th>قطع</th><th>كيلو</th><th>الإجمالي</th>
+            <th>التاريخ</th><th>الوقت</th><th>المستخدم</th>
+          </tr></thead>
+          <tbody id="analyticsBarcodeBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="analyticsNoResult" style="display:none;text-align:center;padding:30px;color:#64748b">
+      <div style="font-size:40px;margin-bottom:10px">📭</div>
+      <div>لم يُعثر على تحويلات لهذا الباركود</div>
+    </div>
+  </div>
+
+  <!-- ===== تحليل الفروع (من/إلى) ===== -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+
+    <div class="glass-card" style="padding:20px">
+      <h4 style="margin-bottom:14px;color:#f87171">📤 أكثر الفروع إرسالاً</h4>
+      <div id="analyticsFromChart"></div>
+    </div>
+
+    <div class="glass-card" style="padding:20px">
+      <h4 style="margin-bottom:14px;color:#34d399">📥 أكثر الفروع استقبالاً</h4>
+      <div id="analyticsToChart"></div>
+    </div>
+
+  </div>
+
+  <!-- ===== أكثر 10 منتجات تداولاً ===== -->
+  <div class="glass-card" style="padding:25px;margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <h3>🏆 أكثر 10 منتجات تداولاً</h3>
+    </div>
+    <div id="analyticsChart" style="margin-bottom:16px"></div>
+    <div class="table-container">
+      <table>
+        <thead><tr>
+          <th>#</th><th>الباركود</th><th>اسم الصنف</th>
+          <th>عدد التحويلات</th><th>إجمالي الكميات</th>
+          <th>أكثر فرع مُرسِل</th><th>أكثر فرع مستقبِل</th><th>آخر تحويل</th>
+        </tr></thead>
+        <tbody id="analyticsTop10Body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== أكثر 10 مستخدمين تحويلاً ===== -->
+  <div class="glass-card" style="padding:25px;margin-bottom:16px">
+    <h3 style="margin-bottom:16px">👤 أكثر المستخدمين تحويلاً</h3>
+    <div id="analyticsUsersChart"></div>
+  </div>
+
+  <!-- ===== جدول كل التحويلات المفلترة ===== -->
+  <div class="glass-card" style="padding:25px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <h3>📋 كل التحويلات <span id="analyticsTransferCount" style="color:#818cf8;font-size:13px"></span></h3>
+      <input id="analyticsSearchInput" placeholder="🔍 بحث بالصنف أو المستخدم"
+        oninput="TransferAnalytics.renderAll()"
+        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;min-width:200px">
+    </div>
+    <div class="table-container">
+      <table>
+        <thead><tr>
+          <th>من</th><th>إلى</th><th>عدد الأصناف</th><th>التاريخ</th><th>المستخدم</th><th>عرض</th>
+        </tr></thead>
+        <tbody id="analyticsTransfersBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
 <!-- ========================= تبويب الشركات (Companies) ========================= -->
 
 <div id="tab-companies" class="tab-content" style="display:none;">
@@ -4082,6 +4248,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 </label>
                     
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="empdata" hidden><span>📋</span><span>بيانات الموظفين</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="transfer-analytics" hidden><span>📊</span><span>تحليل التحويلات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><span>☕</span><span>الاستئذانات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><span>⚙️</span><span>المستخدمين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="system" hidden><span>📋</span><span>النظام</span></label>
@@ -4304,6 +4471,7 @@ onclick="closeTransferEdit()">
         
         
         <label><input type="checkbox" value="empdata"> بيانات الموظفين</label>
+        <label><input type="checkbox" value="transfer-analytics"> تحليل التحويلات</label>
         <label><input type="checkbox" value="users"> المستخدمين</label>
         <label><input type="checkbox" value="all"> 👑 كل الصلاحيات</label>
         <div class="perm-actions" style="grid-column:span 3"><button onclick="UserService.closePerms()">إلغاء</button><button onclick="UserService.savePerms()">حفظ</button></div>
@@ -4431,7 +4599,21 @@ UI.renderAttendance()
 
 }
     
-    function setFilter(btn,range){
+    
+function setAnalyticsFilter(btn, range) {
+  document.querySelectorAll("#tab-transfer-analytics .filter-btn")
+    .forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  // مسح تواريخ مخصصة
+  const df = document.getElementById('analyticsDateFrom');
+  const dt = document.getElementById('analyticsDateTo');
+  if(df) df.value = '';
+  if(dt) dt.value = '';
+  TransferAnalytics._range = range;
+  TransferAnalytics.renderAll();
+}
+
+function setFilter(btn,range){
 
 document.querySelectorAll(".attendance-filters .filter-btn")
 .forEach(b=>b.classList.remove("active"))
@@ -8261,6 +8443,338 @@ SystemLog.add("DeleteTransfer", id, "حذف تحويل")
 
 
 
+    
+// ════════════════════════════════════════════════════
+// TRANSFER ANALYTICS SERVICE - تحليل التحويلات
+// ════════════════════════════════════════════════════
+const TransferAnalytics = {
+
+  _range: 'all',
+
+  // جلب التحويلات المفلترة
+  getFiltered() {
+    const range    = this._range;
+    const dateFrom = document.getElementById('analyticsDateFrom')?.value;
+    const dateTo   = document.getElementById('analyticsDateTo')?.value;
+    const fromF    = document.getElementById('analyticsFromFilter')?.value || '';
+    const toF      = document.getElementById('analyticsToFilter')?.value || '';
+    const userF    = document.getElementById('analyticsUserFilter')?.value || '';
+    const search   = document.getElementById('analyticsSearchInput')?.value?.toLowerCase() || '';
+    const now      = new Date();
+
+    return State.transfers.filter(t => {
+      const tDate = new Date(t.timestamp || 0);
+
+      // فلتر الوقت
+      if(dateFrom && dateTo) {
+        const from = new Date(dateFrom); const to = new Date(dateTo);
+        to.setHours(23,59,59);
+        if(tDate < from || tDate > to) return false;
+      } else {
+        if(range === 'day')   { if(tDate.toDateString() !== now.toDateString()) return false; }
+        if(range === 'week')  { const w = new Date(); w.setDate(now.getDate()-7); if(tDate < w) return false; }
+        if(range === 'month') { const m = new Date(); m.setMonth(now.getMonth()-1); if(tDate < m) return false; }
+      }
+
+      if(fromF && (t.from || '') !== fromF) return false;
+      if(toF   && (t.to   || '') !== toF)   return false;
+      if(userF && (t.user || '') !== userF)  return false;
+      if(search) {
+        const inItems = (t.items||[]).some(i => (i.name||'').toLowerCase().includes(search) || String(i.barcode).includes(search));
+        if(!inItems && !(t.user||'').toLowerCase().includes(search)) return false;
+      }
+      return true;
+    });
+  },
+
+  // تحديث قائمة المستخدمين في الفلتر
+  updateUserFilter() {
+    const sel = document.getElementById('analyticsUserFilter');
+    if(!sel) return;
+    const users = [...new Set(State.transfers.map(t => t.user).filter(Boolean))].sort();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">👤 كل المستخدمين</option>' +
+      users.map(u => `<option value="${u}" ${u===cur?'selected':''}>${u}</option>`).join('');
+  },
+
+  renderAll() {
+    this.updateUserFilter();
+    const filtered = this.getFiltered();
+    this.renderKPICards(filtered);
+    this.renderTop10(filtered);
+    this.renderBranchCharts(filtered);
+    this.renderUsersChart(filtered);
+    this.renderTransfersList(filtered);
+  },
+
+  renderKPICards(filtered) {
+    const totalTransfers = filtered.length;
+    const totalItems = filtered.reduce((s,t) => s + (t.items?.length||0), 0);
+    const uniqueProducts = new Set(filtered.flatMap(t => (t.items||[]).map(i => i.barcode))).size;
+    const users = new Set(filtered.map(t => t.user)).size;
+    const pairs = {};
+    filtered.forEach(t => {
+      const key = (t.from||'?') + '→' + (t.to||'?');
+      pairs[key] = (pairs[key]||0) + 1;
+    });
+    const topPair = Object.entries(pairs).sort((a,b)=>b[1]-a[1])[0];
+
+    document.getElementById('analyticsKPICards').innerHTML = [
+      { icon:'🔄', val: totalTransfers, label:'إجمالي التحويلات', color:'#818cf8' },
+      { icon:'📦', val: totalItems,     label:'إجمالي الأصناف',   color:'#34d399' },
+      { icon:'🏷️', val: uniqueProducts, label:'منتج مختلف',        color:'#f59e0b' },
+      { icon:'👤', val: users,          label:'مستخدمين',          color:'#60a5fa' },
+      { icon:'🔗', val: topPair ? topPair[0] : '-', label:'أكثر مسار', color:'#a78bfa' },
+    ].map(c => `
+      <div class="glass-card" style="padding:16px;text-align:center;min-height:90px">
+        <div style="font-size:24px">${c.icon}</div>
+        <div style="font-size:20px;font-weight:900;color:${c.color};margin:4px 0">${c.val}</div>
+        <div style="font-size:11px;color:#64748b">${c.label}</div>
+      </div>`).join('');
+  },
+
+  renderTop10(filtered) {
+    const productMap = {};
+    filtered.forEach(t => {
+      (t.items||[]).forEach(item => {
+        const bc = String(item.barcode||'').trim();
+        if(!bc) return;
+        if(!productMap[bc]) productMap[bc] = {
+          barcode:bc, name:item.name||getProductName(bc)||bc,
+          count:0, totalQty:0, froms:{}, tos:{}, lastDate:t.date||'', lastTs:0
+        };
+        const p = productMap[bc];
+        p.count++;
+        p.totalQty += parseFloat(item.total)||0;
+        p.froms[t.from] = (p.froms[t.from]||0)+1;
+        p.tos[t.to]     = (p.tos[t.to]||0)+1;
+        if((t.timestamp||0) > p.lastTs) { p.lastTs = t.timestamp||0; p.lastDate = t.date||''; }
+      });
+    });
+
+    const top10 = Object.values(productMap).sort((a,b)=>b.count-a.count).slice(0,10);
+    const maxC  = top10[0]?.count || 1;
+    const colors = ['#6366f1','#8b5cf6','#a855f7','#ec4899','#f43f5e','#f97316','#f59e0b','#eab308','#84cc16','#22c55e'];
+
+    // بار شارت
+    document.getElementById('analyticsChart').innerHTML = top10.length ? `
+      <div style="background:rgba(0,0,0,0.2);border-radius:12px;padding:14px;margin-bottom:4px">
+        ${top10.map((p,i) => `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+            <div style="width:16px;font-size:10px;color:#64748b;font-weight:700;text-align:center">${i+1}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:10px;color:#94a3b8;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</div>
+              <div style="background:rgba(255,255,255,0.05);border-radius:4px;height:16px;overflow:hidden">
+                <div style="height:100%;width:${Math.round((p.count/maxC)*100)}%;background:${colors[i]};border-radius:4px;display:flex;align-items:center;padding-right:5px;min-width:28px">
+                  <span style="font-size:10px;color:#fff;font-weight:700">${p.count}</span>
+                </div>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>` : '';
+
+    // جدول
+    document.getElementById('analyticsTop10Body').innerHTML = top10.length ?
+      top10.map((p,i) => {
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`;
+        const topFrom = Object.entries(p.froms).sort((a,b)=>b[1]-a[1])[0]?.[0]||'-';
+        const topTo   = Object.entries(p.tos).sort((a,b)=>b[1]-a[1])[0]?.[0]||'-';
+        return `<tr onclick="document.getElementById('analyticsBarcodeInput').value='${p.barcode}';TransferAnalytics.searchBarcode('${p.barcode}')" style="cursor:pointer">
+          <td style="font-size:16px">${medal}</td>
+          <td style="font-family:monospace;font-size:11px;color:#94a3b8">${p.barcode}</td>
+          <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</td>
+          <td style="text-align:center"><span style="background:rgba(99,102,241,0.2);color:#818cf8;padding:3px 10px;border-radius:20px;font-weight:700">${p.count}</span></td>
+          <td style="text-align:center;color:#34d399;font-weight:700">${p.totalQty||'-'}</td>
+          <td style="font-size:11px;color:#f87171">${topFrom}</td>
+          <td style="font-size:11px;color:#34d399">${topTo}</td>
+          <td style="font-size:11px;color:#64748b">${p.lastDate}</td>
+        </tr>`;
+      }).join('') :
+      '<tr><td colspan="8" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+  },
+
+  renderBranchCharts(filtered) {
+    const fromMap={}, toMap={};
+    filtered.forEach(t => {
+      fromMap[t.from] = (fromMap[t.from]||0)+1;
+      toMap[t.to]     = (toMap[t.to]||0)+1;
+    });
+
+    const barChart = (map, containerId, color) => {
+      const el = document.getElementById(containerId);
+      if(!el) return;
+      const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+      const max = sorted[0]?.[1]||1;
+      if(!sorted.length) { el.innerHTML='<div style="color:#64748b;text-align:center;padding:20px">لا توجد بيانات</div>'; return; }
+      el.innerHTML = sorted.map(([branch, count]) => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <div style="width:55px;font-size:11px;color:#94a3b8;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${branch}</div>
+          <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:20px;overflow:hidden">
+            <div style="height:100%;width:${Math.round((count/max)*100)}%;background:${color};border-radius:4px;display:flex;align-items:center;padding-right:6px;min-width:28px">
+              <span style="font-size:11px;color:#fff;font-weight:700">${count}</span>
+            </div>
+          </div>
+        </div>`).join('');
+    };
+
+    barChart(fromMap, 'analyticsFromChart', 'linear-gradient(90deg,#ef4444,#f87171)');
+    barChart(toMap,   'analyticsToChart',   'linear-gradient(90deg,#10b981,#34d399)');
+  },
+
+  renderUsersChart(filtered) {
+    const userMap={};
+    filtered.forEach(t => { userMap[t.user] = (userMap[t.user]||0)+1; });
+    const sorted = Object.entries(userMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const max = sorted[0]?.[1]||1;
+    const el  = document.getElementById('analyticsUsersChart');
+    if(!el) return;
+    if(!sorted.length) { el.innerHTML='<div style="color:#64748b;text-align:center;padding:16px">لا توجد بيانات</div>'; return; }
+    el.innerHTML = `<div style="background:rgba(0,0,0,0.15);border-radius:10px;padding:14px">` +
+      sorted.map(([user, count], i) => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
+          <div style="width:70px;font-size:11px;color:#94a3b8;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${user}</div>
+          <div style="flex:1;background:rgba(255,255,255,0.05);border-radius:4px;height:18px;overflow:hidden">
+            <div style="height:100%;width:${Math.round((count/max)*100)}%;background:linear-gradient(90deg,#6366f1,#a78bfa);border-radius:4px;display:flex;align-items:center;padding-right:5px;min-width:28px">
+              <span style="font-size:10px;color:#fff;font-weight:700">${count}</span>
+            </div>
+          </div>
+          <div style="font-size:11px;color:#818cf8;font-weight:700;width:40px">${count} تحويل</div>
+        </div>`).join('') + '</div>';
+  },
+
+  renderTransfersList(filtered) {
+    const tbody = document.getElementById('analyticsTransfersBody');
+    const countEl = document.getElementById('analyticsTransferCount');
+    if(!tbody) return;
+    const sorted = [...filtered].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0)).slice(0,100);
+    if(countEl) countEl.textContent = '(' + filtered.length + ' تحويل)';
+    if(!sorted.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">لا توجد تحويلات</td></tr>'; return; }
+    tbody.innerHTML = sorted.map(t => `
+      <tr>
+        <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:3px 8px;border-radius:6px;font-size:11px">${t.from}</span></td>
+        <td><span style="background:rgba(16,185,129,0.15);color:#34d399;padding:3px 8px;border-radius:6px;font-size:11px">${t.to}</span></td>
+        <td style="text-align:center;color:#818cf8;font-weight:700">${t.items?.length||0}</td>
+        <td style="font-size:12px">${t.date}</td>
+        <td style="font-size:12px;color:#94a3b8">${t.user}</td>
+        <td><button onclick="viewTransfer('${t.id}')" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px">👁 عرض</button></td>
+      </tr>`).join('');
+  },
+
+  searchBarcode(barcode) {
+    barcode = String(barcode||'').trim();
+    const result   = document.getElementById('analyticsBarcodeResult');
+    const noResult = document.getElementById('analyticsNoResult');
+    if(!result||!noResult) return;
+    if(!barcode) { result.style.display='none'; noResult.style.display='none'; return; }
+
+    const movements = [];
+    State.transfers.forEach(t => {
+      (t.items||[]).forEach(item => {
+        if(String(item.barcode).trim() === barcode) {
+          movements.push({ ...item, from:t.from, to:t.to, date:t.date, timestamp:t.timestamp||0, user:t.user });
+        }
+      });
+    });
+
+    if(!movements.length) { result.style.display='none'; noResult.style.display='block'; return; }
+    noResult.style.display='none';
+    result.style.display='block';
+    movements.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+
+    const productName = movements[0].name || getProductName(barcode) || barcode;
+    const totalMoves  = movements.length;
+    const fromSet = new Set(movements.map(m=>m.from));
+    const toSet   = new Set(movements.map(m=>m.to));
+
+    document.getElementById('analyticsProductInfo').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="font-size:30px">📦</div>
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#e2e8f0">${productName}</div>
+          <div style="font-size:12px;color:#94a3b8;font-family:monospace">${barcode}</div>
+        </div>
+      </div>`;
+
+    document.getElementById('analyticsItemStats').innerHTML = [
+      { icon:'🔄', val:totalMoves,                       label:'عدد التنقلات',  color:'#818cf8' },
+      { icon:'📤', val:[...fromSet].join(' ، '),          label:'خرج من',        color:'#f87171' },
+      { icon:'📥', val:[...toSet].join(' ، '),            label:'وصل إلى',       color:'#34d399' },
+      { icon:'📅', val:movements[0].date,                 label:'آخر تحويل',     color:'#60a5fa' },
+    ].map(s=>`
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;text-align:center">
+        <div style="font-size:20px">${s.icon}</div>
+        <div style="font-size:14px;font-weight:700;color:${s.color};margin:4px 0">${s.val}</div>
+        <div style="font-size:11px;color:#64748b">${s.label}</div>
+      </div>`).join('');
+
+    // مسار التنقل
+    const paths = movements.map(m => m.from+'→'+m.to);
+    const pathCount = {};
+    paths.forEach(p => pathCount[p]=(pathCount[p]||0)+1);
+    document.getElementById('analyticsMoveMap').innerHTML =
+      Object.entries(pathCount).sort((a,b)=>b[1]-a[1]).map(([path,count]) => {
+        const [f,t] = path.split('→');
+        return `<div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:8px;padding:6px 12px;font-size:12px;display:flex;align-items:center;gap:6px">
+          <span style="color:#f87171">${f}</span>
+          <span style="color:#64748b">→</span>
+          <span style="color:#34d399">${t}</span>
+          <span style="background:#6366f1;color:#fff;padding:1px 6px;border-radius:10px;font-size:11px;font-weight:700">${count}x</span>
+        </div>`;
+      }).join('');
+
+    // الجدول
+    document.getElementById('analyticsBarcodeBody').innerHTML = movements.map(m => {
+      const qty = m.kilo ? (m.cartons?m.cartons+'ك×'+m.kilo+'كجم':m.kilo+'كجم') : (m.total||'-');
+      const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '-';
+      return `<tr>
+        <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:3px 8px;border-radius:6px;font-size:12px">${m.from}</span></td>
+        <td><span style="background:rgba(16,185,129,0.15);color:#34d399;padding:3px 8px;border-radius:6px;font-size:12px">${m.to}</span></td>
+        <td style="text-align:center">${m.cartons||0}</td>
+        <td style="text-align:center">${m.boxes||0}</td>
+        <td style="text-align:center">${m.pieces||0}</td>
+        <td style="text-align:center">${m.kilo?m.kilo+'كجم':'-'}</td>
+        <td style="font-weight:700;color:#818cf8;text-align:center">${qty}</td>
+        <td>${m.date}</td>
+        <td style="color:#94a3b8;font-size:11px">${time}</td>
+        <td>${m.user}</td>
+      </tr>`;
+    }).join('');
+  },
+
+  clearSearch() {
+    const input = document.getElementById('analyticsBarcodeInput');
+    if(input) input.value='';
+    document.getElementById('analyticsBarcodeResult').style.display='none';
+    document.getElementById('analyticsNoResult').style.display='none';
+  },
+
+  exportAll() {
+    const filtered = this.getFiltered();
+    if(!filtered.length) { UI.toast('لا توجد بيانات للتصدير','warning'); return; }
+    const rows = [];
+    filtered.forEach(t => {
+      (t.items||[]).forEach(item => {
+        rows.push({
+          'من فرع': t.from, 'إلى فرع': t.to,
+          'الباركود': item.barcode, 'اسم الصنف': item.name||getProductName(item.barcode)||'-',
+          'كراتين': item.cartons||0, 'علب': item.boxes||0, 'قطع': item.pieces||0,
+          'كيلو': item.kilo||0, 'الإجمالي': item.total||0, 'الانتهاء': item.expire||'-',
+          'التاريخ': t.date, 'المستخدم': t.user
+        });
+      });
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'TransferAnalytics');
+    XLSX.writeFile(wb, 'transfer_analytics_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير تحليل التحويلات');
+    UI.toast('✅ تم التصدير','success');
+  },
+
+  init() { this.renderAll(); }
+};
+
+
     // ========================= واجهة المستخدم (UI) =========================
     const UI = {
        
@@ -9008,6 +9522,7 @@ breaks: "الاستئذانات",
 products: "التواريخ",
 system: "النظام",
 transfers: "التحويلات",
+"transfer-analytics": "تحليل التحويلات",
 excel: "تصدير Excel",
 edit: "التعديل",
 prices: "الأسعار",
@@ -9150,6 +9665,9 @@ if(tab === "incentives"){
   const incDate = document.getElementById('incDate');
   if(incDate && !incDate.value) incDate.value = new Date().toISOString().slice(0,10);
   IncentiveService.render();
+}
+if(tab === "transfer-analytics"){
+  TransferAnalytics.renderAll();
 }
 if(tab === "empdata"){
   // نجلب من Firebase دائماً لضمان أحدث البيانات
