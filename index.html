@@ -10786,7 +10786,7 @@ applyEditColVisibility();
         renderPenalties() {
             let body = document.getElementById("penaltiesBody"); if (!body) return;
             let html = "";
-            State.penalties.sort((a, b) => new Date(b.date + " " + (b.time || "00:00")) - new Date(a.date + " " + (a.time || "00:00"))).forEach(p => {
+            State.penalties.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(p => {
                 let canEdit = hasPermission("edit") || hasPermission("all");
                 html += `<tr>
 <td>${p.name}</td>
@@ -10797,8 +10797,8 @@ applyEditColVisibility();
 <td>${p.date}</td>
 <td>${p.time || "-"}</td>
 <td>${p.createdBy || "-"}</td>
-<td>${canEdit ? `<td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="openEditPenaltyById('${p.id}')">✏</button>` : ""}</td>
-<td>${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑</button>` : ""}</td>
+<td class="edit-col">${canEdit ? `<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="openEditPenaltyById('${p.id}')">✏ تعديل</button>` : ""}</td>
+<td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
             body.innerHTML = html;
