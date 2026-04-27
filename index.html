@@ -5152,6 +5152,52 @@ document.addEventListener('keydown', function(e) {
 // دالة موحدة لتحويل الوقت → HH:MM
 // تتعامل مع: أرقام عربية، AM/PM، ص/م، timestamp
 // ════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════
+// حساب الفرق بين وقتين مع دعم الوردية الليلية
+// ════════════════════════════════════════════════
+function calcTimeDiff(inVal, outVal) {
+  // ترجع: { valid, diffMins, nextDay, display, error }
+  if(!inVal || !outVal) return { valid: false, diffMins: 0, nextDay: false, display: "", error: "" };
+
+  const [ih,im] = inVal.split(":").map(Number);
+  const [oh,om] = outVal.split(":").map(Number);
+  const inMins  = ih*60+im;
+  const outMins = oh*60+om;
+
+  let diffMins = outMins - inMins;
+  let nextDay  = false;
+
+  if(diffMins <= 0) {
+    // وردية ليلية - الخروج اليوم التالي
+    diffMins = (24*60 - inMins) + outMins;
+    nextDay  = true;
+  }
+
+  if(diffMins > 24*60) {
+    return { valid: false, diffMins: 0, nextDay: false,
+      display: "", error: "⚠️ الفرق أكتر من 24 ساعة — تأكد من الأوقات" };
+  }
+
+  const h = Math.floor(diffMins/60), m = diffMins%60;
+  const timeStr = h + ":" + String(m).padStart(2,"0") + " ساعة";
+  const nightStr = nextDay ? " 🌙 (وردية ليلية)" : "";
+
+  return { valid: true, diffMins, nextDay,
+    display: "⏱ " + timeStr + nightStr, error: "" };
+}
+
+// حساب timestamp الخروج مع مراعاة الوردية الليلية
+function calcOutTimestamp(date, inVal, outVal) {
+  const [oh,om] = outVal.split(":").map(Number);
+  const [ih,im] = inVal.split(":").map(Number);
+  const d = new Date(date);
+  d.setHours(oh, om, 0, 0);
+  // لو الخروج قبل الدخول = اليوم التالي
+  if((oh*60+om) <= (ih*60+im)) d.setDate(d.getDate() + 1);
+  return d;
+}
+
 function parseTimeToHHMM(t) {
   if(!t && t !== 0) return "";
   // timestamp رقمي
@@ -6669,13 +6715,17 @@ function calcCompanyDuration() {
   const warn = document.getElementById("editCompanyWarning");
   const prev = document.getElementById("editCompanyDuration");
   if(!inV||!outV) { if(warn)warn.style.display="none"; if(prev)prev.style.display="none"; return; }
-  const [ih,im]=inV.split(":").map(Number);
-  const [oh,om]=outV.split(":").map(Number);
-  const diff=(oh*60+om)-(ih*60+im);
-  if(diff<=0){ if(warn)warn.style.display="block"; if(prev)prev.style.display="none"; return; }
-  if(warn)warn.style.display="none";
-  const h=Math.floor(diff/60),m=diff%60;
-  if(prev){ prev.style.display="block"; prev.textContent="⏱ مدة الزيارة: "+h+"س "+String(m).padStart(2,"0")+"د"; }
+
+  const result = calcTimeDiff(inV, outV);
+
+  if(!result.valid) {
+    if(warn){ warn.style.display="block"; warn.textContent=result.error; }
+    if(prev) prev.style.display="none";
+    return;
+  }
+  if(warn) warn.style.display="none";
+  const h=Math.floor(result.diffMins/60), m=result.diffMins%60;
+  if(prev){ prev.style.display="block"; prev.textContent="⏱ مدة الزيارة: "+h+"س "+String(m).padStart(2,"0")+"د"+(result.nextDay?" 🌙":""); }
 }
 
 function saveEditCompany() {
@@ -6693,9 +6743,8 @@ function saveEditCompany() {
 
   // تحقق من الأوقات
   if(inV && outV) {
-    const [ih,im]=inV.split(":").map(Number);
-    const [oh,om]=outV.split(":").map(Number);
-    if((oh*60+om)<=(ih*60+im)){ UI.toast("وقت الخروج يجب أن يكون بعد وقت الدخول","error"); return; }
+    const diff = calcTimeDiff(inV, outV);
+    if(!diff.valid){ UI.toast(diff.error || "الوقت غير صحيح","error"); return; }
   }
 
   const updates = {
@@ -6750,13 +6799,13 @@ function calcVehicleDuration() {
   const outV = document.getElementById("editVehicleOut")?.value;
   const prev = document.getElementById("editVehicleDuration");
   if(!inV || !outV || !prev) { if(prev) prev.style.display="none"; return; }
-  const [ih,im] = inV.split(":").map(Number);
-  const [oh,om] = outV.split(":").map(Number);
-  const diff = (oh*60+om) - (ih*60+im);
-  if(diff <= 0) { prev.style.display="none"; return; }
-  const h=Math.floor(diff/60), m=diff%60;
+
+  const result = calcTimeDiff(inV, outV);
+  if(!result.valid) { prev.style.display="none"; return; }
+
+  const h=Math.floor(result.diffMins/60), m=result.diffMins%60;
   prev.style.display = "block";
-  prev.textContent   = "⏱ مدة الوجود: "+h+"س "+String(m).padStart(2,"0")+"د";
+  prev.textContent   = "⏱ مدة الوجود: "+h+"س "+String(m).padStart(2,"0")+"د"+(result.nextDay?" 🌙":"");
 }
 
 function saveEditVehicle() {
@@ -6781,11 +6830,9 @@ function saveEditVehicle() {
   };
 
   if(outV) {
-    const [oh,om] = outV.split(":").map(Number);
-    if((oh*60+om) <= (ih*60+im)) {
-      UI.toast("وقت الخروج يجب أن يكون بعد وقت الدخول","error"); return;
-    }
-    const newOut = new Date(date); newOut.setHours(oh,om,0,0);
+    const diff = calcTimeDiff(inV, outV);
+    if(!diff.valid) { UI.toast(diff.error || "الوقت غير صحيح","error"); return; }
+    const newOut = calcOutTimestamp(date, inV, outV);
     updates.timeOut = newOut.getTime();
   }
 
@@ -7274,21 +7321,22 @@ function calcBreakDuration() {
   const warn = document.getElementById("editBreakWarning");
   const prev = document.getElementById("editBreakPreview");
   if(!inV||!outV) { if(warn)warn.style.display="none"; if(prev)prev.style.display="none"; return; }
-  const [ih,im]=[...inV.split(":").map(Number)];
-  const [oh,om]=[...outV.split(":").map(Number)];
-  const diff=(oh*60+om)-(ih*60+im);
-  if(diff<=0) {
-    if(warn)warn.style.display="block";
-    if(prev)prev.style.display="none";
+
+  const result = calcTimeDiff(inV, outV);
+
+  if(!result.valid) {
+    if(warn) { warn.style.display="block"; warn.textContent=result.error; }
+    if(prev) prev.style.display="none";
     return;
   }
-  if(warn)warn.style.display="none";
-  const h=Math.floor(diff/60),m=diff%60;
+
+  if(warn) warn.style.display="none";
+  const diff = result.diffMins;
   const color = diff>=30?"#f87171":diff>=15?"#fbbf24":"#34d399";
   if(prev) {
     prev.style.display="block";
     prev.style.color=color;
-    prev.textContent="⏱ مدة الاستئذان: "+h+(m?":"+String(m).padStart(2,"0"):"")+" دقيقة"+(diff>=30?" 🚨":"");
+    prev.textContent="⏱ مدة الاستئذان: "+diff+" دقيقة"+(diff>=30?" 🚨":"")+(result.nextDay?" 🌙":"");
   }
 }
 
@@ -7314,9 +7362,9 @@ function saveEditBreak() {
   };
 
   if(outV) {
-    const [oh,om]=outV.split(":").map(Number);
-    if((oh*60+om)<=(ih*60+im)) { UI.toast("وقت الرجوع يجب أن يكون بعد وقت الاستئذان","error"); return; }
-    const newReturn=new Date(date); newReturn.setHours(oh,om,0,0);
+    const diff = calcTimeDiff(inV, outV);
+    if(!diff.valid) { UI.toast(diff.error || "الوقت غير صحيح","error"); return; }
+    const newReturn = calcOutTimestamp(date, inV, outV);
     updates.returnTime      = newReturn.toLocaleTimeString("ar-EG");
     updates.returnTimestamp = newReturn.getTime();
     updates.duration        = newReturn.getTime()-newBreak.getTime();
@@ -7395,38 +7443,28 @@ document.getElementById("editModal").style.display = "flex"
 }
 
 function validateEditTimes() {
-  const inVal  = document.getElementById("editIn")?.value
-  const outVal = document.getElementById("editOut")?.value
-  const warn   = document.getElementById("editTimeWarning")
-  const preview= document.getElementById("editHoursPreview")
+  const inVal  = document.getElementById("editIn")?.value;
+  const outVal = document.getElementById("editOut")?.value;
+  const warn   = document.getElementById("editTimeWarning");
+  const preview= document.getElementById("editHoursPreview");
 
   if(!inVal || !outVal) {
-    if(warn) warn.style.display = "none"
-    if(preview) preview.style.display = "none"
-    return true
+    if(warn) warn.style.display = "none";
+    if(preview) preview.style.display = "none";
+    return true;
   }
 
-  const [ih,im] = inVal.split(":").map(Number)
-  const [oh,om] = outVal.split(":").map(Number)
-  const inMins  = ih*60+im
-  const outMins = oh*60+om
+  const result = calcTimeDiff(inVal, outVal);
 
-  if(outMins <= inMins) {
-    if(warn) warn.style.display = "block"
-    if(preview) preview.style.display = "none"
-    return false
+  if(!result.valid) {
+    if(warn) { warn.style.display = "block"; warn.textContent = result.error; }
+    if(preview) preview.style.display = "none";
+    return false;
   }
 
-  if(warn) warn.style.display = "none"
-
-  // معاينة ساعات العمل
-  const diffMins = outMins - inMins
-  const h = Math.floor(diffMins/60), m = diffMins%60
-  if(preview) {
-    preview.style.display = "block"
-    preview.textContent = "⏱ ساعات العمل: " + h + ":" + String(m).padStart(2,"0") + " ساعة"
-  }
-  return true
+  if(warn) warn.style.display = "none";
+  if(preview) { preview.style.display = "block"; preview.textContent = result.display; }
+  return true;
 }
 
 
@@ -7480,13 +7518,19 @@ if(timeIn){
 }
 
 if(editData.checkOut && timeOut){
-  const [h,m] = timeOut.split(":").map(Number)
-  const newOut = new Date(date)
-  newOut.setHours(h, m, 0, 0)
+  const [ih2,im2] = timeIn.split(":").map(Number)
+  const [oh,om]   = timeOut.split(":").map(Number)
+  const newOut    = new Date(date)
+  newOut.setHours(oh, om, 0, 0)
+
+  // لو وقت الخروج قبل وقت الدخول = وردية ليلية → أضف يوم
+  if((oh*60+om) <= (ih2*60+im2)) {
+    newOut.setDate(newOut.getDate() + 1)
+  }
 
   updates.push(
     db.ref("attendance/"+editData.checkOut.id).update({
-      date: date,
+      date: newOut.toLocaleDateString("ar-EG"),
       timeDisplay: newOut.toLocaleTimeString("ar-EG"),
       timestamp: newOut.getTime(),
       editedBy: editedBy,
