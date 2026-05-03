@@ -5455,7 +5455,8 @@ const ArchiveService = {
         const raw = snap.val() || {};
         const arr = Object.entries(raw).map(([id, val]) => ({
           ...val,
-          _id: id  // نضيف _id دائماً
+          _id: id,  // للتوافق مع _deleteRecords
+          id:  id   // للتوافق مع State
         }));
         resolve(arr);
       }, reject);
@@ -5634,11 +5635,17 @@ const ArchiveService = {
       UI.toast("❌ لا توجد بيانات - يرجى الضغط على معاينة أولاً","error"); return;
     }
 
-    // تأكيد إن الـ _id موجود في كل العناصر
-    const validItems = this._filtered.filter(item => item._id && item._id.length > 0);
+    // توحيد: نقبل _id أو id (Firebase listener يحفظ بـ id, fetchData بـ _id)
+    const getKey = (item) => item._id || item.id || null;
+    const validItems = this._filtered.filter(item => getKey(item));
+    
     if(validItems.length === 0) {
-      UI.toast("❌ خطأ: لا يمكن تحديد معرّفات السجلات","error"); return;
+      UI.toast("❌ خطأ: لا يمكن تحديد معرّفات السجلات - جرّب معاينة مرة أخرى","error");
+      return;
     }
+    
+    console.info(`[Archive] حذف ${validItems.length} سجل من ${col}`);
+    console.info(`[Archive] مثال _id: ${getKey(validItems[0])}`);
 
     try {
       const BATCH = 50;
@@ -5646,11 +5653,23 @@ const ArchiveService = {
 
       for(let i = 0; i < validItems.length; i += BATCH) {
         const batch    = validItems.slice(i, i + BATCH);
-        const promises = batch.map(item => db.ref(col + "/" + item._id).remove());
+        const promises = batch.map(item => {
+          const key = getKey(item);
+          return db.ref(col + "/" + key).remove();
+        });
         await Promise.all(promises);
         deleted += batch.length;
         UI.toast(`🗑️ جارٍ الحذف... ${deleted}/${validItems.length}`, "info");
       }
+
+      // تحقق من نجاح الحذف - نجيب عينة من Firebase
+      try {
+        const firstKey = getKey(validItems[0]);
+        const checkSnap = await db.ref(col + "/" + firstKey).once("value");
+        if(checkSnap.exists()) {
+          UI.toast("⚠️ تحذير: بعض السجلات لم تُحذف - تحقق من صلاحيات Firebase","warning");
+        }
+      } catch(e) {}
 
       // تسجيل في archiveLogs
       db.ref("archiveLogs").push({
@@ -5669,12 +5688,24 @@ const ArchiveService = {
 
       UI.toast(`✅ تم حذف ${deleted} سجل من "${colName}" بنجاح`, "success");
 
-      // تحديث State لو موجودة
+      // تحديث State فوراً بدون انتظار Firebase listener
+      // (الـ listener بيجي متأخر وبيعيد تحميل البيانات القديمة)
       if(State[col]) {
         State[col] = (State[col] || []).filter(item => {
           const ts = this.getTimestamp(item);
+          if(!ts) return true; // لو مفيش timestamp - ابقيه
           return ts < range.from || ts > range.to;
         });
+        // إعادة render الصفحة الحالية بعد تحديث State
+        const colRenderMap = {
+          attendance: () => { UI.renderAttendance(); UI.renderInsideEmployees(); },
+          breaks:     () => UI.renderBreaks(),
+          companies:  () => UI.renderCompanies(),
+          vehicles:   () => UI.renderVehicles(),
+          penalties:  () => UI.renderPenalties(),
+          systemLogs: () => UI.renderSystemLogs(),
+        };
+        if(colRenderMap[col]) setTimeout(() => colRenderMap[col](), 500);
       }
 
       // reset
