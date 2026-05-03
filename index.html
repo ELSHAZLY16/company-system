@@ -5389,8 +5389,9 @@ const ArchiveService = {
       const month = parseInt(document.getElementById("archiveMonth")?.value || new Date().getMonth()+1);
       const year  = parseInt(document.getElementById("archiveYear")?.value  || new Date().getFullYear());
       const from  = new Date(year, month-1, 1).getTime();
-      const to    = new Date(year, month, 0, 23, 59, 59).getTime();
-      return { from, to, label: `${month}/${year}` };
+      const to    = new Date(year, month, 0, 23, 59, 59, 999).getTime();
+      const monthNames = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+      return { from, to, label: `${monthNames[month]} ${year}` };
     }
     if(mode === "range") {
       const fromStr = document.getElementById("archiveDateFrom")?.value;
@@ -5423,7 +5424,40 @@ const ArchiveService = {
   // فلترة بالتاريخ
   filterByDate(data, range) {
     return data.filter(item => {
-      const ts = item.timestamp || item.loginTs || item.breakTimestamp || 0;
+      // كل collection عندها field مختلف للـ timestamp
+      let ts = 0;
+
+      // attendance, penalties, companies, transfers, systemLogs
+      if(item.timestamp && typeof item.timestamp === 'number') ts = item.timestamp;
+
+      // breaks: deviceBreakTime أدق من breakTimestamp (ServerValue قد يكون object)
+      else if(item.deviceBreakTime && typeof item.deviceBreakTime === 'number') ts = item.deviceBreakTime;
+      else if(item.breakTimestamp && typeof item.breakTimestamp === 'number') ts = item.breakTimestamp;
+
+      // vehicles: timeIn هو الـ ServerValue timestamp
+      else if(item.timeIn && typeof item.timeIn === 'number') ts = item.timeIn;
+
+      // loginLogs
+      else if(item.loginTs && typeof item.loginTs === 'number') ts = item.loginTs;
+
+      // archiveLogs
+      else if(item.deletedTs) ts = item.deletedTs;
+
+      // fallback: لو كل timestamp fields فاضية، نحاول نحوّل date string لـ timestamp
+      if(!ts && item.date) {
+        try {
+          // date بصيغة DD/MM/YYYY أو YYYY-MM-DD
+          const dateStr = item.date;
+          if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+            const [d,m,y] = dateStr.split('/').map(Number);
+            ts = new Date(y, m-1, d).getTime();
+          } else {
+            ts = new Date(dateStr).getTime();
+          }
+          if(isNaN(ts)) ts = 0;
+        } catch(e) { ts = 0; }
+      }
+
       if(!ts) return false;
       return ts >= range.from && ts <= range.to;
     });
@@ -5443,9 +5477,13 @@ const ArchiveService = {
     }
 
     try {
-      // جلب من State أولاً لو موجودة
-      let data = State[col] || [];
-      if(!data.length) {
+      // دايماً نجيب من Firebase عشان نضمن أحدث بيانات
+      // بعض collections مش في State (loginLogs, archiveLogs)
+      let data;
+      const stateCollections = ['attendance','breaks','companies','vehicles','penalties','leaves','incentives','transfers','systemLogs'];
+      if(stateCollections.includes(col) && State[col]?.length > 0) {
+        data = State[col].map(item => ({ _id: item.id || item._id || '', ...item }));
+      } else {
         data = await this.fetchData(col);
       }
 
@@ -5549,9 +5587,14 @@ const ArchiveService = {
     const rows = data.map(item => {
       const clean = { ...item };
       delete clean._id;
-      // تحويل timestamps
-      ['timestamp','loginTs','breakTimestamp','returnTimestamp'].forEach(k => {
-        if(clean[k]) clean[k] = new Date(clean[k]).toLocaleString("ar-EG");
+      // تحويل كل timestamps لتواريخ مقروءة
+      const tsFields = ['timestamp','loginTs','breakTimestamp','returnTimestamp',
+                        'deviceBreakTime','deviceReturnTime','timeIn','timeOut',
+                        'loginTime','deletedTs','receivedTs','reviewedTs'];
+      tsFields.forEach(k => {
+        if(clean[k] && typeof clean[k] === 'number' && clean[k] > 1000000000000) {
+          clean[k] = new Date(clean[k]).toLocaleString("ar-EG");
+        }
       });
       return clean;
     });
@@ -5578,10 +5621,26 @@ const ArchiveService = {
     UI.toast("🗑️ جارٍ الحذف...", "info");
 
     try {
-      const promises = this._filtered.map(item =>
-        db.ref(col + "/" + item._id).remove()
-      );
-      await Promise.all(promises);
+      // تأكيد إن البيانات المفلترة موجودة
+      if(!this._filtered || !this._filtered.length) {
+        UI.toast("❌ لا توجد بيانات للحذف - يرجى الضغط على معاينة أولاً", "error");
+        return;
+      }
+
+      // حذف على دفعات لتفادي timeout
+      const BATCH_SIZE = 50;
+      const items = this._filtered;
+      for(let i = 0; i < items.length; i += BATCH_SIZE) {
+        const batch = items.slice(i, i + BATCH_SIZE);
+        const promises = batch.map(item => {
+          if(!item._id) return Promise.resolve();
+          return db.ref(col + "/" + item._id).remove();
+        });
+        await Promise.all(promises);
+        // إظهار progress
+        const done = Math.min(i + BATCH_SIZE, items.length);
+        UI.toast(`🗑️ جارٍ الحذف... ${done}/${items.length}`, "info");
+      }
 
       // تسجيل في سجل الأرشيف
       const logEntry = {
