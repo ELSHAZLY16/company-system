@@ -5362,6 +5362,8 @@ const ArchiveService = {
 
   _data: [],
   _filtered: [],
+  _lastRange: null,
+  _lastCol: null,
 
   collectionNames: {
     attendance:  "سجل الحضور",
@@ -5373,24 +5375,24 @@ const ArchiveService = {
     loginLogs:   "سجل تسجيل الدخول"
   },
 
-  // تبديل وضع الفلتر
   toggleMode() {
     const mode = document.getElementById("archiveMode")?.value;
-    document.getElementById("archiveModeMonth").style.display  = mode==="month"  ? "grid" : "none";
-    document.getElementById("archiveModeRange").style.display  = mode==="range"  ? "grid" : "none";
-    document.getElementById("archiveModeBefore").style.display = mode==="before" ? "block": "none";
+    document.getElementById("archiveModeMonth").style.display  = mode==="month"  ? "grid"  : "none";
+    document.getElementById("archiveModeRange").style.display  = mode==="range"  ? "grid"  : "none";
+    document.getElementById("archiveModeBefore").style.display = mode==="before" ? "block" : "none";
+    this._filtered = []; // reset عند تغيير الوضع
     this.updateStats();
   },
 
-  // جلب الفترة الزمنية المحددة
   getDateRange() {
     const mode = document.getElementById("archiveMode")?.value || "month";
+    const monthNames = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
     if(mode === "month") {
       const month = parseInt(document.getElementById("archiveMonth")?.value || new Date().getMonth()+1);
       const year  = parseInt(document.getElementById("archiveYear")?.value  || new Date().getFullYear());
       const from  = new Date(year, month-1, 1).getTime();
       const to    = new Date(year, month, 0, 23, 59, 59, 999).getTime();
-      const monthNames = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
       return { from, to, label: `${monthNames[month]} ${year}` };
     }
     if(mode === "range") {
@@ -5398,145 +5400,165 @@ const ArchiveService = {
       const toStr   = document.getElementById("archiveDateTo")?.value;
       if(!fromStr || !toStr) return null;
       const from = new Date(fromStr).getTime();
-      const to   = new Date(toStr + "T23:59:59").getTime();
+      const to   = new Date(toStr + "T23:59:59.999").getTime();
+      if(from > to) { UI.toast("تاريخ البداية يجب أن يكون قبل تاريخ النهاية","error"); return null; }
       return { from, to, label: `${fromStr} → ${toStr}` };
     }
     if(mode === "before") {
       const beforeStr = document.getElementById("archiveDateBefore")?.value;
       if(!beforeStr) return null;
-      const to = new Date(beforeStr).getTime();
+      const to = new Date(beforeStr).getTime() - 1;
       return { from: 0, to, label: `قبل ${beforeStr}` };
     }
     return null;
   },
 
-  // جلب البيانات من Firebase
-  async fetchData(collection) {
-    return new Promise((resolve, reject) => {
-      db.ref(collection).once("value", snap => {
-        const raw = snap.val() || {};
-        const arr = Object.entries(raw).map(([id, val]) => ({ _id: id, ...val }));
-        resolve(arr);
-      }, reject);
-    });
+  // استخراج timestamp من أي سجل بغض النظر عن نوع الـ collection
+  getTimestamp(item) {
+    // attendance, penalties, companies, transfers, systemLogs, archiveLogs
+    if(item.timestamp && typeof item.timestamp === 'number' && item.timestamp > 1000000000000) return item.timestamp;
+    // breaks
+    if(item.deviceBreakTime && typeof item.deviceBreakTime === 'number') return item.deviceBreakTime;
+    if(item.breakTimestamp  && typeof item.breakTimestamp  === 'number') return item.breakTimestamp;
+    // vehicles
+    if(item.timeIn && typeof item.timeIn === 'number') return item.timeIn;
+    // loginLogs
+    if(item.loginTs && typeof item.loginTs === 'number') return item.loginTs;
+    // fallback: نحوّل date string لـ timestamp
+    const dateStr = item.date || item.dateAr || "";
+    if(dateStr) {
+      try {
+        if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
+          const [d,m,y] = dateStr.split('/').map(Number);
+          const ts = new Date(y, m-1, d).getTime();
+          if(!isNaN(ts)) return ts;
+        }
+        const ts = new Date(dateStr).getTime();
+        if(!isNaN(ts)) return ts;
+      } catch(e) {}
+    }
+    return 0;
   },
 
-  // فلترة بالتاريخ
   filterByDate(data, range) {
     return data.filter(item => {
-      // كل collection عندها field مختلف للـ timestamp
-      let ts = 0;
-
-      // attendance, penalties, companies, transfers, systemLogs
-      if(item.timestamp && typeof item.timestamp === 'number') ts = item.timestamp;
-
-      // breaks: deviceBreakTime أدق من breakTimestamp (ServerValue قد يكون object)
-      else if(item.deviceBreakTime && typeof item.deviceBreakTime === 'number') ts = item.deviceBreakTime;
-      else if(item.breakTimestamp && typeof item.breakTimestamp === 'number') ts = item.breakTimestamp;
-
-      // vehicles: timeIn هو الـ ServerValue timestamp
-      else if(item.timeIn && typeof item.timeIn === 'number') ts = item.timeIn;
-
-      // loginLogs
-      else if(item.loginTs && typeof item.loginTs === 'number') ts = item.loginTs;
-
-      // archiveLogs
-      else if(item.deletedTs) ts = item.deletedTs;
-
-      // fallback: لو كل timestamp fields فاضية، نحاول نحوّل date string لـ timestamp
-      if(!ts && item.date) {
-        try {
-          // date بصيغة DD/MM/YYYY أو YYYY-MM-DD
-          const dateStr = item.date;
-          if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)) {
-            const [d,m,y] = dateStr.split('/').map(Number);
-            ts = new Date(y, m-1, d).getTime();
-          } else {
-            ts = new Date(dateStr).getTime();
-          }
-          if(isNaN(ts)) ts = 0;
-        } catch(e) { ts = 0; }
-      }
-
+      const ts = this.getTimestamp(item);
       if(!ts) return false;
       return ts >= range.from && ts <= range.to;
     });
   },
 
-  // تحديث الإحصائيات
+  // جلب البيانات من Firebase مع الـ _id
+  fetchData(collection) {
+    return new Promise((resolve, reject) => {
+      db.ref(collection).once("value", snap => {
+        const raw = snap.val() || {};
+        const arr = Object.entries(raw).map(([id, val]) => ({
+          ...val,
+          _id: id  // نضيف _id دائماً
+        }));
+        resolve(arr);
+      }, reject);
+    });
+  },
+
+  // تحديث الإحصائيات وتحميل البيانات
   async updateStats() {
     const col   = document.getElementById("archiveCollection")?.value;
     const range = this.getDateRange();
-    const statsEl = document.getElementById("archiveStats");
-    const previewSection = document.getElementById("archivePreviewSection");
+    const statsEl       = document.getElementById("archiveStats");
+    const previewSection= document.getElementById("archivePreviewSection");
 
+    // إخفاء الإحصائيات لو مفيش اختيار
     if(!col || !range) {
       if(statsEl) statsEl.style.display = "none";
       if(previewSection) previewSection.style.display = "none";
+      this._filtered = [];
       return;
     }
 
+    // إذا تغيّر الـ collection أو الـ range — نعيد التحميل دائماً من Firebase
+    const needRefetch = col !== this._lastCol || JSON.stringify(range) !== JSON.stringify(this._lastRange);
+
     try {
-      // دايماً نجيب من Firebase عشان نضمن أحدث بيانات
-      // بعض collections مش في State (loginLogs, archiveLogs)
       let data;
-      const stateCollections = ['attendance','breaks','companies','vehicles','penalties','leaves','incentives','transfers','systemLogs'];
-      if(stateCollections.includes(col) && State[col]?.length > 0) {
-        data = State[col].map(item => ({ _id: item.id || item._id || '', ...item }));
-      } else {
+      if(needRefetch) {
+        UI.toast("⏳ جارٍ تحميل البيانات...", "info");
+        // دائماً من Firebase للدقة - لأن State قد لا تحتوي الـ _id الصحيح
         data = await this.fetchData(col);
+        this._data    = data;
+        this._lastCol = col;
+        this._lastRange = range;
+      } else {
+        data = this._data;
       }
 
-      this._data = data;
+      // تطبيق الفلتر
       this._filtered = this.filterByDate(data, range);
 
-      const count   = this._filtered.length;
-      const sizeKB  = Math.round(JSON.stringify(this._filtered).length / 1024);
-      const dates   = this._filtered.map(i => i.timestamp||i.loginTs||0).filter(Boolean);
-      const minDate = dates.length ? new Date(Math.min(...dates)).toLocaleDateString("ar-EG") : "-";
-      const maxDate = dates.length ? new Date(Math.max(...dates)).toLocaleDateString("ar-EG") : "-";
+      const count  = this._filtered.length;
+      const sizeKB = Math.round(JSON.stringify(this._filtered).length / 1024);
 
+      // عرض الإحصائيات
       if(statsEl) {
         statsEl.style.display = "block";
-        document.getElementById("archiveCount").textContent  = count;
-        document.getElementById("archiveSizeKB").textContent = sizeKB;
-        document.getElementById("archiveDateRange").textContent = count ? `${minDate} — ${maxDate}` : "—";
-        document.getElementById("archiveCount").style.color = count > 0 ? "#f87171" : "#34d399";
+        const countEl = document.getElementById("archiveCount");
+        const sizeEl  = document.getElementById("archiveSizeKB");
+        const rangeEl = document.getElementById("archiveDateRange");
+        if(countEl) { countEl.textContent = count; countEl.style.color = count > 0 ? "#f87171" : "#34d399"; }
+        if(sizeEl)  sizeEl.textContent  = sizeKB;
+        if(rangeEl) rangeEl.textContent = range.label;
       }
+
+      if(count === 0) {
+        UI.toast("لا توجد سجلات في هذا النطاق", "info");
+        if(previewSection) previewSection.style.display = "none";
+      }
+
     } catch(err) {
-      UI.toast("❌ خطأ في جلب البيانات: " + err.message, "error");
+      UI.toast("❌ خطأ في تحميل البيانات: " + err.message, "error");
     }
   },
 
-  // معاينة
+  // معاينة أول 5 سجلات
   async preview() {
     if(!hasPermission("all") && !hasPermission("archive")) {
       UI.toast("ليس لديك صلاحية الأرشفة","error"); return;
     }
+
     await this.updateStats();
-    const preview = this._filtered.slice(0, 5);
+
     const previewSection = document.getElementById("archivePreviewSection");
-    const tbody = document.getElementById("archivePreviewBody");
+    const tbody          = document.getElementById("archivePreviewBody");
     if(!previewSection || !tbody) return;
-    if(!preview.length) {
-      UI.toast("لا توجد سجلات في هذا النطاق","warning"); return;
+
+    if(!this._filtered.length) {
+      UI.toast("لا توجد سجلات في هذا النطاق","warning");
+      if(previewSection) previewSection.style.display = "none";
+      return;
     }
+
+    const preview = this._filtered.slice(0, 5);
     tbody.innerHTML = preview.map(item => {
-      const ts = item.timestamp||item.loginTs||0;
-      const dateStr = ts ? new Date(ts).toLocaleDateString("ar-EG") : (item.date||"-");
-      const timeStr = ts ? new Date(ts).toLocaleTimeString("ar-EG") : (item.timeDisplay||"-");
+      const ts  = this.getTimestamp(item);
+      const dateStr = ts ? new Date(ts).toLocaleDateString("ar-EG")  : (item.date||"-");
+      const timeStr = ts ? new Date(ts).toLocaleTimeString("ar-EG")  : (item.timeDisplay||"-");
+      const name    = item.name || item.username || item.company || item.plate || "-";
+      const detail  = item.action || item.type || item.reason || item.code || "-";
       return `<tr>
-        <td style="font-size:11px">${item._id?.slice(-8)||"-"}</td>
-        <td>${item.name||item.username||item.company||"-"}</td>
-        <td>${item.code||item.action||"-"}</td>
+        <td style="font-family:monospace;font-size:10px;color:#64748b">${item._id?.slice(-6)||"-"}</td>
+        <td style="font-weight:700">${name}</td>
+        <td style="font-size:12px">${detail}</td>
         <td style="font-size:11px">${dateStr}</td>
-        <td style="font-size:11px">${timeStr}</td>
+        <td style="font-size:11px;color:#94a3b8">${timeStr}</td>
       </tr>`;
     }).join("");
+
     previewSection.style.display = "block";
+    UI.toast(`✅ تم تحميل ${this._filtered.length} سجل`, "success");
   },
 
-  // تصدير Excel فقط
+  // تصدير Excel فقط بدون حذف
   exportOnly() {
     if(!hasPermission("all") && !hasPermission("archive")) {
       UI.toast("ليس لديك صلاحية","error"); return;
@@ -5544,7 +5566,7 @@ const ArchiveService = {
     if(!this._filtered.length) {
       UI.toast("يرجى الضغط على معاينة أولاً","warning"); return;
     }
-    this._exportExcel(false);
+    this._exportExcel();
   },
 
   // تصدير ثم حذف
@@ -5553,124 +5575,116 @@ const ArchiveService = {
       UI.toast("ليس لديك صلاحية الأرشفة والحذف","error"); return;
     }
     if(!this._filtered.length) {
-      UI.toast("يرجى الضغط على معاينة أولاً","warning"); return;
+      UI.toast("يرجى الضغط على معاينة أولاً للتأكد من البيانات","warning"); return;
     }
-    const col   = document.getElementById("archiveCollection")?.value;
-    const range = this.getDateRange();
-    const count = this._filtered.length;
+
+    const col     = document.getElementById("archiveCollection")?.value;
+    const range   = this.getDateRange();
+    const count   = this._filtered.length;
     const colName = this.collectionNames[col] || col;
 
     showConfirm(
-      `⚠️ تأكيد الحذف النهائي
-
-سيتم:
-1. تنزيل نسخة احتياطية Excel
-2. حذف ${count} سجل من "${colName}"
-
-النطاق: ${range?.label}
-
-هذا الإجراء لا يمكن التراجع عنه!`,
+      `⚠️ تأكيد الحذف النهائي\n\nالبيانات: ${colName}\nالنطاق: ${range?.label}\nعدد السجلات: ${count} سجل\n\n1. سيتم تنزيل نسخة احتياطية Excel\n2. ثم حذف ${count} سجل نهائياً من Firebase\n\nلا يمكن التراجع!`,
       () => {
         this._exportExcel(true);
       }
     );
   },
 
-  // Excel export
-  _exportExcel(thenDelete) {
+  // تصدير Excel
+  _exportExcel(thenDelete = false) {
     const col     = document.getElementById("archiveCollection")?.value;
     const range   = this.getDateRange();
     const colName = this.collectionNames[col] || col;
-    const data    = this._filtered;
 
-    // تحويل البيانات لـ Excel
-    const rows = data.map(item => {
-      const clean = { ...item };
-      delete clean._id;
-      // تحويل كل timestamps لتواريخ مقروءة
-      const tsFields = ['timestamp','loginTs','breakTimestamp','returnTimestamp',
-                        'deviceBreakTime','deviceReturnTime','timeIn','timeOut',
-                        'loginTime','deletedTs','receivedTs','reviewedTs'];
-      tsFields.forEach(k => {
-        if(clean[k] && typeof clean[k] === 'number' && clean[k] > 1000000000000) {
-          clean[k] = new Date(clean[k]).toLocaleString("ar-EG");
+    const rows = this._filtered.map(item => {
+      const clean = {};
+      // نسخ البيانات بدون _id
+      Object.keys(item).forEach(k => {
+        if(k === '_id') return;
+        const val = item[k];
+        // تحويل timestamps لتواريخ مقروءة
+        if(typeof val === 'number' && val > 1000000000000) {
+          clean[k] = new Date(val).toLocaleString("ar-EG");
+        } else {
+          clean[k] = val;
         }
       });
       return clean;
     });
 
+    const filename = `archive_${col}_${(range?.label||'').replace(/[\/ →]/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, colName.slice(0,31));
-
-    // اسم الملف
-    const filename = `archive_${col}_${range?.label?.replace(/[\/→ ]/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
     XLSX.writeFile(wb, filename);
 
     UI.toast("📊 تم تنزيل النسخة الاحتياطية", "success");
 
     if(thenDelete) {
-      // انتظار ثانية عشان يكمل التنزيل
-      setTimeout(() => this._deleteRecords(col, range, data.length), 1500);
+      setTimeout(() => this._deleteRecords(col, range, this._filtered.length), 2000);
     }
   },
 
-  // حذف السجلات
+  // حذف السجلات على دفعات
   async _deleteRecords(col, range, count) {
     const colName = this.collectionNames[col] || col;
-    UI.toast("🗑️ جارٍ الحذف...", "info");
+
+    if(!this._filtered.length) {
+      UI.toast("❌ لا توجد بيانات - يرجى الضغط على معاينة أولاً","error"); return;
+    }
+
+    // تأكيد إن الـ _id موجود في كل العناصر
+    const validItems = this._filtered.filter(item => item._id && item._id.length > 0);
+    if(validItems.length === 0) {
+      UI.toast("❌ خطأ: لا يمكن تحديد معرّفات السجلات","error"); return;
+    }
 
     try {
-      // تأكيد إن البيانات المفلترة موجودة
-      if(!this._filtered || !this._filtered.length) {
-        UI.toast("❌ لا توجد بيانات للحذف - يرجى الضغط على معاينة أولاً", "error");
-        return;
-      }
+      const BATCH = 50;
+      let deleted  = 0;
 
-      // حذف على دفعات لتفادي timeout
-      const BATCH_SIZE = 50;
-      const items = this._filtered;
-      for(let i = 0; i < items.length; i += BATCH_SIZE) {
-        const batch = items.slice(i, i + BATCH_SIZE);
-        const promises = batch.map(item => {
-          if(!item._id) return Promise.resolve();
-          return db.ref(col + "/" + item._id).remove();
-        });
+      for(let i = 0; i < validItems.length; i += BATCH) {
+        const batch    = validItems.slice(i, i + BATCH);
+        const promises = batch.map(item => db.ref(col + "/" + item._id).remove());
         await Promise.all(promises);
-        // إظهار progress
-        const done = Math.min(i + BATCH_SIZE, items.length);
-        UI.toast(`🗑️ جارٍ الحذف... ${done}/${items.length}`, "info");
+        deleted += batch.length;
+        UI.toast(`🗑️ جارٍ الحذف... ${deleted}/${validItems.length}`, "info");
       }
 
-      // تسجيل في سجل الأرشيف
-      const logEntry = {
-        col, colName, count,
-        range: range?.label || "-",
+      // تسجيل في archiveLogs
+      db.ref("archiveLogs").push({
+        col, colName,
+        count:     deleted,
+        range:     range?.label || "-",
         deletedBy: State.currentUser?.username || "-",
         deletedAt: new Date().toLocaleString("ar-EG"),
         timestamp: Date.now(),
-        device:    State._deviceInfo?.device || "-",
+        device:    State._deviceInfo?.device   || "-",
         location:  State._deviceInfo?.locDisplay || "-"
-      };
-      db.ref("archiveLogs").push(logEntry);
+      });
 
       // تسجيل في سجل النظام
-      SystemLog.add("ArchiveDelete", col, `حذف ${count} سجل — ${range?.label}`);
+      SystemLog.add("ArchiveDelete", col, `حذف ${deleted} سجل — ${range?.label}`);
 
-      UI.toast(`✅ تم حذف ${count} سجل من "${colName}" بنجاح`, "success");
+      UI.toast(`✅ تم حذف ${deleted} سجل من "${colName}" بنجاح`, "success");
 
-      // تحديث State
+      // تحديث State لو موجودة
       if(State[col]) {
-        State[col] = State[col].filter(item => {
-          const ts = item.timestamp || item.loginTs || 0;
+        State[col] = (State[col] || []).filter(item => {
+          const ts = this.getTimestamp(item);
           return ts < range.from || ts > range.to;
         });
       }
 
-      // تحديث الصفحة
+      // reset
       this._filtered = [];
-      this.loadArchiveLogs();
+      this._data     = [];
+      this._lastCol  = null;
+
+      // تحديث الإحصائيات وسجل الأرشيف
       this.updateStats();
+      this.loadArchiveLogs();
 
     } catch(err) {
       UI.toast("❌ خطأ في الحذف: " + err.message, "error");
@@ -5697,16 +5711,18 @@ const ArchiveService = {
     });
   },
 
-  // تهيئة الصفحة
   init() {
-    // تعيين الشهر الحالي تلقائياً
     const monthSel = document.getElementById("archiveMonth");
     if(monthSel) monthSel.value = new Date().getMonth() + 1;
     const yearSel = document.getElementById("archiveYear");
     if(yearSel) yearSel.value = new Date().getFullYear();
+    // reset كل شيء عند فتح الصفحة
+    this._filtered = [];
+    this._data     = [];
+    this._lastCol  = null;
     this.loadArchiveLogs();
   }
-};
+};;
 
 function setFilter(btn,range){
 
