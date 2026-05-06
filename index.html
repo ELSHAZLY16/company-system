@@ -153,7 +153,218 @@ body.light-mode {
   --primary:        #4f46e5;
   --toast-bg:       rgba(255,255,255,0.97);
   --toast-border:   #cbd5e1;
+  --shadow:         0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg:      0 8px 32px rgba(0,0,0,0.15);
+
+  /* متغيرات إضافية للعناصر الـ hardcoded */
+  --modal-bg:       #ffffff;
+  --modal-overlay:  rgba(0,0,0,0.45);
+  --header-bg:      rgba(255,255,255,0.92);
+  --header-border:  rgba(99,102,241,0.2);
+  --input-focus-bg: #f0f4ff;
+  --th-bg:          rgba(99,102,241,0.1);
+  --th-color:       #6366f1;
+  --row-hover:      rgba(99,102,241,0.05);
+  --inline-dark-bg: rgba(0,0,0,0.04);
+  --inline-dark-border: rgba(0,0,0,0.1);
+  --glass-inner:    rgba(0,0,0,0.03);
 }
+
+/* ── Header ── */
+body.light-mode .dashboard-header {
+  background: var(--header-bg);
+  border-bottom-color: var(--header-border);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+/* ── Table headers ── */
+body.light-mode th {
+  background: rgba(99,102,241,0.1);
+  color: #4f46e5;
+}
+body.light-mode tr:hover td { background: rgba(99,102,241,0.05); }
+body.light-mode td { border-bottom-color: #e2e8f0; }
+
+/* ── Input focus ── */
+body.light-mode input:focus,
+body.light-mode select:focus,
+body.light-mode textarea:focus {
+  background: var(--input-focus-bg);
+}
+
+/* ── Modals (كل الـ modals اللي عندها background:#1e293b hardcoded) ── */
+body.light-mode [style*="background:#1e293b"],
+body.light-mode [style*="background: #1e293b"] {
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+body.light-mode [style*="background:rgba(0,0,0,0.75)"],
+body.light-mode [style*="background: rgba(0,0,0,0.75)"],
+body.light-mode [style*="background:rgba(0,0,0,0.7)"],
+body.light-mode [style*="background: rgba(0,0,0,0.7)"] {
+  background: rgba(15,23,42,0.5) !important;
+}
+body.light-mode [style*="background:rgba(0,0,0,0.65)"],
+body.light-mode [style*="background: rgba(0,0,0,0.65)"] {
+  background: rgba(15,23,42,0.45) !important;
+}
+body.light-mode [style*="background:rgba(0,0,0,0.4)"],
+body.light-mode [style*="background: rgba(0,0,0,0.4)"],
+body.light-mode [style*="background:rgba(0,0,0,0.3)"],
+body.light-mode [style*="background: rgba(0,0,0,0.3)"] {
+  background: rgba(0,0,0,0.04) !important;
+}
+body.light-mode [style*="background:rgba(0,0,0,0.25)"],
+body.light-mode [style*="background: rgba(0,0,0,0.25)"] {
+  background: rgba(0,0,0,0.03) !important;
+}
+
+/* ── Inline borders ── */
+body.light-mode [style*="border:1px solid rgba(255,255,255,0.15)"],
+body.light-mode [style*="border: 1px solid rgba(255,255,255,0.15)"],
+body.light-mode [style*="border:1px solid rgba(255,255,255,0.1)"],
+body.light-mode [style*="border: 1px solid rgba(255,255,255,0.1)"] {
+  border-color: #e2e8f0 !important;
+}
+
+/* ── Inline text colors في الـ modals ── */
+body.light-mode [style*="background:#1e293b"] label,
+body.light-mode [style*="background:#1e293b"] h3,
+body.light-mode [style*="background:#1e293b"] div,
+body.light-mode [style*="background:#1e293b"] span,
+body.light-mode [style*="background:#1e293b"] p {
+  color: inherit;
+}
+body.light-mode [style*="color:#94a3b8"] { color: #64748b !important; }
+body.light-mode [style*="color:#64748b"] { color: #94a3b8 !important; }
+
+/* ── Inputs داخل modals اللي عندها inline style ── */
+body.light-mode [style*="background:#1e293b"] input,
+body.light-mode [style*="background:#1e293b"] select,
+body.light-mode [style*="background:#1e293b"] textarea {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* ── glass-card داخل modal ── */
+body.light-mode [style*="background:rgba(255,255,255,0.05)"],
+body.light-mode [style*="background: rgba(255,255,255,0.05)"] {
+  background: rgba(0,0,0,0.03) !important;
+}
+body.light-mode [style*="background:rgba(255,255,255,0.06)"],
+body.light-mode [style*="background: rgba(255,255,255,0.06)"] {
+  background: rgba(0,0,0,0.04) !important;
+}
+body.light-mode [style*="background:rgba(255,255,255,0.08)"],
+body.light-mode [style*="background: rgba(255,255,255,0.08)"] {
+  background: rgba(0,0,0,0.04) !important;
+}
+
+/* ── dark bg في الـ stat cards داخل الصفحات ── */
+body.light-mode [style*="background:rgba(0,0,0,0.08)"] { background: rgba(0,0,0,0.03) !important; }
+body.light-mode [style*="background:rgba(0,0,0,0.2)"]  { background: rgba(0,0,0,0.04) !important; }
+
+/* ── Header اللي فيه #0b132b hardcoded ── */
+body.light-mode [style*="background:#0b132b"],
+body.light-mode [style*="background: #0b132b"],
+body.light-mode [style*="background:#0f172a"],
+body.light-mode [style*="background: #0f172a"] {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* ── perm-box و confirmModal داخل modals ── */
+body.light-mode .perm-box { background: #ffffff; }
+body.light-mode #confirmModal > div,
+body.light-mode [id$="Modal"] > div { background: #ffffff; }
+
+/* ── filter buttons ── */
+body.light-mode .filter-btn {
+  background: rgba(0,0,0,0.06);
+  color: #374151;
+  border-color: #e2e8f0;
+}
+body.light-mode .filter-btn.active {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  color: #fff;
+  border-color: transparent;
+}
+body.light-mode .filter-btn:hover {
+  background: rgba(99,102,241,0.12);
+  color: #4f46e5;
+}
+
+/* ── glass-card hover ── */
+body.light-mode .glass-card:hover { border-color: rgba(99,102,241,0.3); }
+body.light-mode .glass-card { box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+
+/* ── stat-value gradient يفضل مرئي في الـ light ── */
+body.light-mode .stat-value {
+  background: linear-gradient(135deg,#4f46e5,#7c3aed);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── toast ── */
+body.light-mode .toast { box-shadow: 0 8px 24px rgba(0,0,0,0.15); }
+
+/* ── badge تظل مرئية ── */
+body.light-mode .badge-success { background: rgba(16,185,129,0.15); }
+body.light-mode .badge-warning { background: rgba(245,158,11,0.15); }
+body.light-mode .badge-danger  { background: rgba(239,68,68,0.15); }
+body.light-mode .badge-info    { background: rgba(59,130,246,0.15); }
+
+/* ── ملخص يومي و info cards ── */
+body.light-mode [style*="background:rgba(99,102,241,0.08)"],
+body.light-mode [style*="background: rgba(99,102,241,0.08)"] {
+  background: rgba(99,102,241,0.06) !important;
+  border-color: rgba(99,102,241,0.2) !important;
+}
+body.light-mode [style*="background:rgba(99,102,241,0.1)"],
+body.light-mode [style*="background: rgba(99,102,241,0.1)"] {
+  background: rgba(99,102,241,0.08) !important;
+}
+body.light-mode [style*="background:rgba(16,185,129,0.1)"],
+body.light-mode [style*="background: rgba(16,185,129,0.1)"] {
+  background: rgba(16,185,129,0.08) !important;
+}
+body.light-mode [style*="background:rgba(245,158,11,0.1)"],
+body.light-mode [style*="background: rgba(245,158,11,0.1)"] {
+  background: rgba(245,158,11,0.08) !important;
+}
+body.light-mode [style*="background:rgba(239,68,68,0.1)"],
+body.light-mode [style*="background: rgba(239,68,68,0.1)"] {
+  background: rgba(239,68,68,0.08) !important;
+}
+
+/* ── user badge ── */
+body.light-mode .user-badge {
+  background: rgba(99,102,241,0.1);
+  color: #4f46e5;
+}
+
+/* ── #themeToggle ── */
+body.light-mode #themeToggle {
+  background: rgba(0,0,0,0.06);
+  border-color: #e2e8f0;
+  color: #374151;
+}
+
+/* ── الـ attEmpPreview ── */
+body.light-mode #attEmpPreview {
+  background: rgba(99,102,241,0.06) !important;
+  border-color: rgba(99,102,241,0.25) !important;
+}
+
+/* ── breakAlertBanner ── */
+body.light-mode #breakAlertBanner {
+  background: rgba(239,68,68,0.08);
+}
+
+/* ── scrollbar in light mode ── */
+body.light-mode * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
 
 /* ============================================================
    Reset + Base
@@ -246,6 +457,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background var(--transition), border-color var(--transition);
 }
 .header-left, .header-right {
   display: flex;
@@ -556,8 +768,44 @@ tr:hover td { background: rgba(99,102,241,0.08); }
 .toast.warning { border-color: var(--warning); box-shadow: 0 8px 24px rgba(245,158,11,0.25); }
 
 /* ============================================================
-   Modals
+   Modal Box — class موحد للـ modals بدل inline background
    ============================================================ */
+.modal-box {
+  background: #1e293b;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  color: var(--text-main);
+  transition: background var(--transition), border-color var(--transition);
+}
+body.light-mode .modal-box {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+}
+.modal-box input,
+.modal-box select,
+.modal-box textarea {
+  background: var(--bg-input);
+  color: var(--text-main);
+  border-color: var(--border-light);
+}
+.modal-box label { color: var(--text-soft); }
+.modal-box h3   { color: var(--text-main); }
+
+/* ============================================================
+   Modal Overlay
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+body.light-mode .modal-overlay { background: rgba(15,23,42,0.5); }
+
 .perm-modal {
   position: fixed;
   inset: 0;
@@ -3470,7 +3718,7 @@ function bindPricesEvents() {
 <input 
 type="date"
 id="breakDate"
-style="padding:10px;border-radius:12px;background:#0b132b;color:white;border:none"
+style="padding:10px;border-radius:12px;background:var(--bg-input);color:var(--text-main);border:1px solid var(--border-light)"
 onchange="UI.renderBreaks()"
 />
 
@@ -3897,7 +4145,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- ══════ Modal إضافة يدوية البازار ══════ -->
   <div id="fpBazarAddModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:28px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto">
+    <div class="modal-box" style="border-radius:16px;padding:28px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto">
       <h3 style="margin:0 0 20px;color:#34d399">➕ إضافة سجل يدوي — البازار</h3>
       <div style="display:grid;gap:14px">
         <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الموظف</label>
@@ -3928,7 +4176,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- ══════ Modal تعديل سجل البازار (دخول + خروج معاً) ══════ -->
   <div id="fpBazarEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto">
+    <div class="modal-box" style="border-radius:16px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto">
       <h3 style="margin:0 0 6px;color:#f59e0b">✏️ تعديل سجل — البازار</h3>
       <div id="fpBazarEditEmpInfo" style="font-size:13px;color:#94a3b8;margin-bottom:18px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px"></div>
       <input type="hidden" id="fpBazarEditKeyIn">
@@ -3964,7 +4212,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- ══════ Modal حذف يوم كامل البازار ══════ -->
   <div id="fpBazarDeleteDayModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:28px;width:90%;max-width:420px">
+    <div class="modal-box" style="border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:28px;width:90%;max-width:420px">
       <h3 style="margin:0 0 14px;color:#f87171">🗑️ حذف يوم كامل — البازار</h3>
       <div style="display:grid;gap:14px">
         <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الموظف</label>
@@ -3982,7 +4230,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- ══════ Modal سجل التعديلات البازار ══════ -->
   <div id="fpBazarEditLogModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:24px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto">
+    <div class="modal-box" style="border-radius:16px;padding:24px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 style="margin:0;color:#94a3b8">📝 سجل التعديلات — البازار</h3>
         <button onclick="document.getElementById('fpBazarEditLogModal').style.display='none'" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:inherit">✖ إغلاق</button>
@@ -4107,7 +4355,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- Modal إضافة يدوية الصباح -->
   <div id="fpSabahAddModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:28px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto">
+    <div class="modal-box" style="border-radius:16px;padding:28px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto">
       <h3 style="margin:0 0 20px;color:#34d399">➕ إضافة سجل يدوي — الصباح</h3>
       <div style="display:grid;gap:14px">
         <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الموظف</label>
@@ -4135,7 +4383,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- Modal تعديل سجل الصباح (دخول + خروج معاً) -->
   <div id="fpSabahEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto">
+    <div class="modal-box" style="border-radius:16px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto">
       <h3 style="margin:0 0 6px;color:#f59e0b">✏️ تعديل سجل — الصباح</h3>
       <div id="fpSabahEditEmpInfo" style="font-size:13px;color:#94a3b8;margin-bottom:18px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px"></div>
       <input type="hidden" id="fpSabahEditKeyIn">
@@ -4167,7 +4415,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- Modal حذف يوم كامل الصباح -->
   <div id="fpSabahDeleteDayModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:28px;width:90%;max-width:420px">
+    <div class="modal-box" style="border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:28px;width:90%;max-width:420px">
       <h3 style="margin:0 0 14px;color:#f87171">🗑️ حذف يوم كامل — الصباح</h3>
       <div style="display:grid;gap:14px">
         <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الموظف</label>
@@ -4185,7 +4433,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- Modal سجل التعديلات الصباح -->
   <div id="fpSabahEditLogModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:16px;padding:24px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto">
+    <div class="modal-box" style="border-radius:16px;padding:24px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 style="margin:0;color:#94a3b8">📝 سجل التعديلات — الصباح</h3>
         <button onclick="document.getElementById('fpSabahEditLogModal').style.display='none'" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:inherit">✖ إغلاق</button>
@@ -4485,7 +4733,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
           <input id="incEmpCode" placeholder="ابحث بالكود أو الاسم"
             oninput="onIncEmpInput(this.value)"
             style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:#fff;font-family:inherit;box-sizing:border-box">
-          <div id="incEmpSuggestions" style="position:absolute;background:#1e293b;width:100%;border:1px solid rgba(255,255,255,0.1);border-radius:8px;display:none;max-height:180px;overflow-y:auto;z-index:100;top:100%;right:0"></div>
+          <div id="incEmpSuggestions" style="position:absolute;background:var(--bg-suggestions);width:100%;border:1px solid var(--border-light);border-radius:8px;display:none;max-height:180px;overflow-y:auto;z-index:100;top:100%;right:0"></div>
         </div>
         <input id="incEmpName" readonly placeholder="اسم الموظف"
           style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:#94a3b8;font-family:inherit;box-sizing:border-box;margin-top:6px">
@@ -5210,7 +5458,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
     <h3 style="margin-bottom:20px;">✏️ تعديل بيانات الموظف</h3>
     <input type="hidden" id="editEmployeeId">
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-      <div><label>كود الموظف</label><input type="number" id="editEmployeeCode" placeholder="الكود" readonly style="background:#1e293b;"></div>
+      <div><label>كود الموظف</label><input type="number" id="editEmployeeCode" placeholder="الكود" readonly style="background:var(--bg-input);opacity:0.7;"></div>
       <div><label>الاسم</label><input id="editEmployeeName" placeholder="اسم الموظف"></div>
       <div><label>الوظيفة</label><input id="editEmployeeJob" placeholder="الوظيفة"></div>
       <div><label>الفرع</label><input id="editEmployeeBranch" placeholder="الفرع"></div>
@@ -10717,7 +10965,7 @@ function showBarcodeTransferHistory(barcode, productName) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
   overlay.innerHTML = `
-    <div style="background:#1e293b;border-radius:16px;width:100%;max-width:600px;max-height:85vh;overflow:auto;padding:24px;direction:rtl">
+    <div class="modal-box" style="border-radius:16px;width:100%;max-width:600px;max-height:85vh;overflow:auto;padding:24px;direction:rtl">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
         <h3 style="margin:0;color:#fff">📦 تحويلات: ${productName||barcode}</h3>
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:rgba(239,68,68,0.3);border:none;color:#f87171;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:18px">✕</button>
