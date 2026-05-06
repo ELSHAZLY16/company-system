@@ -13066,7 +13066,36 @@ document.getElementById("productsExpireSoon").innerText = soon
             });
             body.innerHTML = html || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b">لا يوجد موظفون داخل العمل</td></tr>';
         },
-        renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
+        renderSystemLogs() {
+            let body = document.getElementById("systemLogsBody");
+            if (!body) return;
+            const search = document.getElementById("logsSearch")?.value?.toLowerCase().trim() || "";
+            let html = "";
+            State.systemLogs
+              .filter(l => {
+                if (!search) return true;
+                const action = (SystemLogService.translate(l.action)||"").toLowerCase();
+                const name   = (l.name||"").toLowerCase();
+                const code   = String(l.code||"");
+                const user   = (l.user||"").toLowerCase();
+                const date   = (l.date||"").toLowerCase();
+                return action.includes(search) || name.includes(search) ||
+                       code.includes(search)   || user.includes(search) ||
+                       date.includes(search);
+              })
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .forEach(l => {
+                html += `<tr>
+<td>${SystemLogService.translate(l.action)}</td>
+<td>${l.name}</td>
+<td>${l.code}</td>
+<td>${l.date}</td>
+<td>${l.timeDisplay}</td>
+<td>${l.user}</td>
+</tr>`;
+              });
+            body.innerHTML = html || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">لا توجد نتائج</td></tr>';
+        },
         
 renderBreaks(){
 
