@@ -1873,9 +1873,7 @@ body.light-mode #tab-prices {
 
 /* إخفاء أعمدة التعديل/الحذف لمن ليس لديه صلاحية */
 .no-edit-perm .editColumnHeader,
-.no-edit-perm .edit-col,
-.hide-edit-cols .editColumnHeader,
-.hide-edit-cols .edit-col {
+.no-edit-perm .edit-col {
   display: none !important;
 }
 </style>
@@ -2093,7 +2091,7 @@ font-size:14px
 <th>كيلو</th>
 <th>الإجمالي</th>
 <th>الانتهاء</th>
-<th class="edit-col">حذف</th>
+<th>حذف</th>
 
 </tr>
 
@@ -2198,89 +2196,126 @@ onclick="TransferService.exportExcel()">
 </div>
 
         <div id="tab-products" class="tab-content" style="display:none;">
-            <div class="glass-card" style="padding:25px;">
-                <h3><span>📦</span> إدارة التواريخ</h3>
-                <div class="stats-grid" style="margin-top:20px">
-                    <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⚠️</span><h3>قليل</h3><p class="stat-value" id="productsLow">0</p></div>
-                    <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📅</span><h3>منتهي</h3><p class="stat-value" id="productsExpired">0</p></div>
-                    <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⏰</span><h3>قريب الانتهاء</h3><p class="stat-value" id="productsExpireSoon">0</p></div>
-                </div>
-                
-                <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px; margin:20px 0;">
-                    <div><label>باركود الصنف</label><div style="display:flex; gap:10px"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1" oninput="onProductBarcodeInput(this.value)"><button class="btn-primary" onclick="ProductService.scanBarcode()">📷</button></div></div>
-                    <div><label>اسم الصنف</label><input id="productName" placeholder="اسم المنتج"></div>
-
-                    <div>
-<label>الفرع</label>
-<select id="productBranch">
-<option value="">اختر الفرع</option>
-<option value="البازار">فرع البازار</option>
-<option value="الصباح">فرع الصباح</option>
-<option value="باب40">مخزن باب 40</option>
-<option value="الثلاجة">الثلاجة</option>
-</select>
-</div>
-
-                    <div><label>الكمية</label><input id="productQuantity" type="number" placeholder="مثال: كمية الصنف 100"></div>
-                    
-<div>
-<label>سعر التكلفة</label>
-<input
-type="text"
-inputmode="decimal"
-id="productCost"
-placeholder="سعر التكلفة"
-oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')">
-</div>
-
-<div>
-<label>سعر البيع</label>
-<input
-type="text"
-inputmode="decimal"
-id="productPrice"
-placeholder="سعر البيع"
-oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')">
-</div>
-                    
-                    <div><label>تاريخ الانتهاء</label><input id="productExpire" type="date"></div>
-                    <div><label>&nbsp;</label><button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" style="width:100%" onclick="ProductService.add()">➕ تسجيل الصنف</button></div>
-                </div>
-                
-                <div style="display:flex; gap:10px; margin:10px 0">
-                    <input id="productSearch" placeholder="بحث بالباركود أو الاسم" style="flex:1;min-width:120px;" oninput="UI.renderProducts()">
-
-<select id="productBranchFilter" onchange="UI.renderProducts()"
-style="padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:var(--bg-input,#0f172a);color:var(--text-main,#fff);font-family:inherit;font-size:13px;min-width:120px;">
-<option value="">🏬 كل الفروع</option>
-<option value="البازار">فرع البازار</option>
-<option value="الصباح">فرع الصباح</option>
-<option value="باب40">مخزن باب 40</option>
-<option value="الثلاجة">الثلاجة</option>
-</select>
-
-<button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="ProductService.exportExcel()"><span>📊</span> تصدير Excel</button>
-                </div>
-                
-                <div class="table-container">
-                    <table><thead><tr>
-<th>الباركود</th>
-<th>الصنف</th>
-<th>الفرع</th>
-<th>الكمية</th>
-<th>التكلفة</th>
-<th>البيع</th>
-<th>الانتهاء</th>
-<th>المتبقي</th>
-<th>الحالة</th>
-<th>المستخدم</th>
-<th class="edit-col">سحب</th>
-<th class="edit-col">تعديل</th>
-<th class="edit-col">حذف</th>
-
-                    </tr></thead><tbody id="productsBody"></tbody></table>
-                </div>
+          <div class="glass-card" style="padding:16px;margin-bottom:12px">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+              <h3 style="margin:0"><span>📦</span> إدارة التواريخ</h3>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button onclick="ProductService.syncPricesFromSheet()"
+                  style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">
+                  🔄 تحديث الأسعار
+                </button>
+                <button onclick="ProductService.exportExcel()"
+                  style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;padding:7px 12px;cursor:pointer;font-family:inherit;font-size:12px">
+                  📊 Excel
+                </button>
+              </div>
             </div>
+
+            <!-- Stat Cards -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+              <div class="glass-card stat-card" style="padding:10px">
+                <h3 style="font-size:11px">⚠️ قليل</h3>
+                <p class="stat-value" id="productsLow" style="font-size:22px">0</p>
+              </div>
+              <div class="glass-card stat-card" style="padding:10px">
+                <h3 style="font-size:11px">📅 منتهي</h3>
+                <p class="stat-value" id="productsExpired" style="font-size:22px">0</p>
+              </div>
+              <div class="glass-card stat-card" style="padding:10px">
+                <h3 style="font-size:11px">⏰ قريب</h3>
+                <p class="stat-value" id="productsExpireSoon" style="font-size:22px">0</p>
+              </div>
+            </div>
+
+            <!-- فورم الإضافة — responsive -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+              <div style="grid-column:1/-1">
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">باركود الصنف</label>
+                <div style="display:flex;gap:8px">
+                  <input id="productBarcode" placeholder="امسح أو اكتب الباركود" style="flex:1" oninput="onProductBarcodeInput(this.value)">
+                  <button class="btn-primary" onclick="ProductService.scanBarcode()" style="padding:8px 12px;white-space:nowrap">📷</button>
+                </div>
+              </div>
+              <div style="grid-column:1/-1">
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">اسم الصنف</label>
+                <input id="productName" placeholder="اسم المنتج" style="width:100%;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">الفرع</label>
+                <select id="productBranch" style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+                  <option value="">اختر الفرع</option>
+                  <option value="البازار">البازار</option>
+                  <option value="الصباح">الصباح</option>
+                  <option value="باب40">باب 40</option>
+                  <option value="الثلاجة">الثلاجة</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">الكمية</label>
+                <input id="productQuantity" type="number" placeholder="الكمية" style="width:100%;box-sizing:border-box">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">سعر التكلفة</label>
+                <input type="text" inputmode="decimal" id="productCost" placeholder="0.00" style="width:100%;box-sizing:border-box"
+                  oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">سعر البيع</label>
+                <input type="text" inputmode="decimal" id="productPrice" placeholder="0.00" style="width:100%;box-sizing:border-box"
+                  oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')">
+              </div>
+              <div>
+                <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">تاريخ الانتهاء</label>
+                <input id="productExpire" type="date" style="width:100%;box-sizing:border-box">
+              </div>
+              <div style="display:flex;align-items:flex-end">
+                <button onclick="ProductService.add()"
+                  style="width:100%;padding:10px;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;font-weight:700">
+                  ➕ تسجيل
+                </button>
+              </div>
+            </div>
+
+            <!-- بحث وفلتر -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+              <input id="productSearch" placeholder="🔍 بحث بالباركود أو الاسم"
+                style="flex:2;min-width:140px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit"
+                oninput="UI.renderProducts()">
+              <select id="productBranchFilter" onchange="UI.renderProducts()"
+                style="flex:1;min-width:110px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                <option value="">🏬 كل الفروع</option>
+                <option value="البازار">البازار</option>
+                <option value="الصباح">الصباح</option>
+                <option value="باب40">باب 40</option>
+                <option value="الثلاجة">الثلاجة</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- الجدول — scroll أفقي فقط -->
+          <div class="glass-card" style="padding:0;overflow:hidden">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+              <table style="width:100%;border-collapse:collapse;min-width:600px;font-size:13px">
+                <thead><tr>
+                  <th style="padding:10px 8px;white-space:nowrap">الباركود</th>
+                  <th style="padding:10px 8px;white-space:nowrap;min-width:120px">الصنف</th>
+                  <th style="padding:10px 8px;white-space:nowrap">الفرع</th>
+                  <th style="padding:10px 8px;white-space:nowrap">الكمية</th>
+                  <th style="padding:10px 8px;white-space:nowrap">التكلفة</th>
+                  <th style="padding:10px 8px;white-space:nowrap">البيع</th>
+                  <th style="padding:10px 8px;white-space:nowrap">الانتهاء</th>
+                  <th style="padding:10px 8px;white-space:nowrap">المتبقي</th>
+                  <th style="padding:10px 8px;white-space:nowrap">الحالة</th>
+                  <th style="padding:10px 8px;white-space:nowrap">المُضيف</th>
+                  <th style="padding:10px 8px;white-space:nowrap;min-width:100px">وقت الإضافة</th>
+                  <th class="edit-col" style="padding:10px 8px;white-space:nowrap">سحب</th>
+                  <th class="edit-col" style="padding:10px 8px;white-space:nowrap">تعديل</th>
+                  <th class="edit-col" style="padding:10px 8px;white-space:nowrap">حذف</th>
+                </tr></thead>
+                <tbody id="productsBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <div id="barcodeScanner" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:#000; z-index:9999;">
@@ -4124,58 +4159,35 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
     </div>
   </div>
 
-  <!-- سجل الحضور + فلاتر محسّنة -->
+  <!-- سجل الحضور + فلاتر -->
   <div class="glass-card" style="padding:20px;margin-bottom:16px">
     <h3 style="margin-bottom:14px">📋 سجل حضور بصمة البازار</h3>
 
-    <!-- صف 1: بحث + تواريخ -->
+    <!-- بحث + تاريخ من / إلى -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
       <input id="fpBazarSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="FingerprintBazarService.render()"
-        style="flex:2;min-width:150px;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
-      <input type="date" id="fpBazarDate" onchange="FingerprintBazarService.render()"
-        style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+        style="flex:2;min-width:150px;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
       <input type="date" id="fpBazarDateFrom" onchange="FingerprintBazarService.render()"
         style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+      <span style="color:var(--text-muted);font-size:12px">إلى</span>
       <input type="date" id="fpBazarDateTo" onchange="FingerprintBazarService.render()"
         style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
     </div>
 
-    <!-- صف 2: فلاتر -->
+    <!-- فلتر الحركة + أزرار الفترة -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-      <!-- فلتر الموظف -->
-      <select id="fpBazarFilterEmp" onchange="FingerprintBazarService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;min-width:140px">
-        <option value="">👤 كل الموظفين</option>
-      </select>
-      <!-- فلتر الوظيفة -->
-      <select id="fpBazarFilterJob" onchange="FingerprintBazarService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;min-width:130px">
-        <option value="">💼 كل الوظائف</option>
-      </select>
-      <!-- فلتر نوع الحركة -->
       <select id="fpBazarFilterAction" onchange="FingerprintBazarService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+        style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
         <option value="">🔄 حضور + انصراف</option>
         <option value="CheckIn">✅ حضور فقط</option>
         <option value="CheckOut">👋 انصراف فقط</option>
       </select>
-      <!-- فلتر الحالة -->
-      <select id="fpBazarFilterStatus" onchange="FingerprintBazarService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
-        <option value="">📌 كل الحالات</option>
-        <option value="complete">✅ مكتمل</option>
-        <option value="ongoing">🟡 جارٍ (لم ينصرف)</option>
-        <option value="late">🔴 متأخر</option>
-      </select>
-      <!-- أزرار الفترة الزمنية -->
       <button class="filter-btn active" onclick="setFpBazarFilter(this,'day')">اليوم</button>
       <button class="filter-btn" onclick="setFpBazarFilter(this,'week')">أسبوع</button>
       <button class="filter-btn" onclick="setFpBazarFilter(this,'month')">شهر</button>
       <button class="filter-btn" onclick="setFpBazarFilter(this,'all')">الكل</button>
       <button onclick="FingerprintBazarService.clearFilters()"
-        style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">
-        ✖ مسح الفلاتر
-      </button>
+        style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">✖ مسح</button>
     </div>
 
     <!-- الجدول المحسّن -->
@@ -4187,7 +4199,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
           <th>الدخول</th><th>الانصراف</th>
           <th>المطلوب</th><th>الفعلي</th><th>التأخير</th>
           <th>المصدر</th><th>ملاحظة</th>
-          <th class="edit-col">تعديل</th><th class="edit-col">حذف</th>
+          <th>تعديل</th><th>حذف</th>
         </tr></thead>
         <tbody id="fpBazarAttBody"></tbody>
       </table>
@@ -4345,50 +4357,35 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
     </div>
   </div>
 
-  <!-- سجل الحضور + فلاتر محسّنة -->
+  <!-- سجل الحضور + فلاتر -->
   <div class="glass-card" style="padding:20px;margin-bottom:16px">
     <h3 style="margin-bottom:14px">📋 سجل حضور بصمة الصباح</h3>
 
+    <!-- بحث + تاريخ من / إلى -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
       <input id="fpSabahSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="FingerprintSabahService.render()"
-        style="flex:2;min-width:150px;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
-      <input type="date" id="fpSabahDate" onchange="FingerprintSabahService.render()"
-        style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+        style="flex:2;min-width:150px;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
       <input type="date" id="fpSabahDateFrom" onchange="FingerprintSabahService.render()"
         style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+      <span style="color:var(--text-muted);font-size:12px">إلى</span>
       <input type="date" id="fpSabahDateTo" onchange="FingerprintSabahService.render()"
         style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
     </div>
+
+    <!-- فلتر الحركة + أزرار الفترة -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-      <select id="fpSabahFilterEmp" onchange="FingerprintSabahService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;min-width:140px">
-        <option value="">👤 كل الموظفين</option>
-      </select>
-      <select id="fpSabahFilterJob" onchange="FingerprintSabahService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;min-width:130px">
-        <option value="">💼 كل الوظائف</option>
-      </select>
       <select id="fpSabahFilterAction" onchange="FingerprintSabahService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+        style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
         <option value="">🔄 حضور + انصراف</option>
         <option value="CheckIn">✅ حضور فقط</option>
         <option value="CheckOut">👋 انصراف فقط</option>
-      </select>
-      <select id="fpSabahFilterStatus" onchange="FingerprintSabahService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
-        <option value="">📌 كل الحالات</option>
-        <option value="complete">✅ مكتمل</option>
-        <option value="ongoing">🟡 جارٍ (لم ينصرف)</option>
-        <option value="late">🔴 متأخر</option>
       </select>
       <button class="filter-btn active" onclick="setFpSabahFilter(this,'day')">اليوم</button>
       <button class="filter-btn" onclick="setFpSabahFilter(this,'week')">أسبوع</button>
       <button class="filter-btn" onclick="setFpSabahFilter(this,'month')">شهر</button>
       <button class="filter-btn" onclick="setFpSabahFilter(this,'all')">الكل</button>
       <button onclick="FingerprintSabahService.clearFilters()"
-        style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">
-        ✖ مسح الفلاتر
-      </button>
+        style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px">✖ مسح</button>
     </div>
 
     <div class="table-container">
@@ -4399,7 +4396,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
           <th>الدخول</th><th>الانصراف</th>
           <th>المطلوب</th><th>الفعلي</th><th>التأخير</th>
           <th>المصدر</th><th>ملاحظة</th>
-          <th class="edit-col">تعديل</th><th class="edit-col">حذف</th>
+          <th>تعديل</th><th>حذف</th>
         </tr></thead>
         <tbody id="fpSabahAttBody"></tbody>
       </table>
@@ -4879,7 +4876,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
           <th>السبب</th>
           <th>التاريخ</th>
           <th>بواسطة</th>
-          <th class="edit-col">حذف</th>
+          <th>حذف</th>
         </tr>
       </thead>
       <tbody id="incBody"></tbody>
@@ -5097,10 +5094,10 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
           <th style="white-space:nowrap">من</th>
           <th style="white-space:nowrap">إلى</th>
           <th style="white-space:nowrap">ساعات العمل</th>
-          <th class="edit-col" style="white-space:nowrap">تعديل</th>
-          <th class="edit-col" style="white-space:nowrap">كشف</th>
-          <th class="edit-col" style="white-space:nowrap;color:#fb923c">سلفة</th>
-          <th class="edit-col" style="white-space:nowrap">حذف</th>
+          <th style="white-space:nowrap">تعديل</th>
+          <th style="white-space:nowrap">كشف</th>
+          <th style="white-space:nowrap;color:#fb923c">سلفة</th>
+          <th style="white-space:nowrap">حذف</th>
         </tr>
       </thead>
       <tbody id="empdataBody"></tbody>
@@ -5172,7 +5169,12 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <label class="permission-card"><input type="checkbox" id="selectAllPerms" value="all" hidden><span>👑</span><span>كل الصلاحيات</span></label>
                 </div>
                 <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" style="width:100%" onclick="UserService.add()">➕ إضافة مستخدم</button>
-                <div class="table-container"><table><thead><tr><th>اسم المستخدم</th><th>الصلاحيات</th><th class="editColumnHeader edit-col">تعديل</th><th>حذف</th></tr></thead><tbody id="usersBody"></tbody></table></div>
+                <div style="margin:10px 0">
+                  <input id="userSearch" placeholder="🔍 بحث باسم المستخدم أو الصلاحية"
+                    oninput="UI.renderUsers()"
+                    style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
+                </div>
+                <div class="table-container"><table><thead><tr><th>اسم المستخدم</th><th>الصلاحيات</th><th class="editColumnHeader edit-col">تعديل</th><th class="edit-col">حذف</th></tr></thead><tbody id="usersBody"></tbody></table></div>
             </div>
         </div>
 
@@ -5605,7 +5607,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 <th>علب</th>
 <th>قطع</th>
 <th>الانتهاء</th>
-<th class="edit-col">حذف</th>
+<th>حذف</th>
 </tr>
 
 </thead>
@@ -6063,7 +6065,7 @@ const SalaryService = {
     const dailyHours = Number(emp.workHoursPerDay) || 8;
     // أجر الساعة = الراتب ÷ 30 يوم ÷ ساعات العمل اليومية
     const hourlyRate = salary > 0 && dailyHours > 0 ? salary / 30 / dailyHours : 0;
-    // أجر اليوم = أجر الساعة × ساعات العمل اليومية = الراتب ÷ 30
+    // أجر اليوم = الراتب ÷ 30
     const dailyRate  = salary / 30;
 
     const monthStart = new Date(year, month-1, 1).getTime();
@@ -6071,44 +6073,48 @@ const SalaryService = {
     const inRange    = ts => ts && ts >= monthStart && ts <= monthEnd;
 
     // ════════════════════════════════════════════
-    // الحضور — من State.attendance
-    // الهيكل: { checkIn: {timestamp, timeDisplay}, checkOut: {timestamp}, code }
+    // الحضور — دمج CheckIn وCheckOut من State.attendance
+    // كل سجل هو حركة مستقلة (CheckIn أو CheckOut)
     // ════════════════════════════════════════════
-    const attRecords = (State.attendance || []).filter(a => {
-      const ts = a.checkIn?.timestamp || a.timestamp || 0;
-      const code = String(a.code || a.checkIn?.code || '');
-      return code === String(empCode) && inRange(ts);
-    });
+    const empAtt = (State.attendance || []).filter(a => {
+      const code = String(a.code || '');
+      // استبعاد البصمة من حساب الراتب اليدوي
+      if(['fingerprint-bazar','fingerprint-sabah','fingerprint'].includes(a.source)) return false;
+      return code === String(empCode) && inRange(a.timestamp);
+    }).sort((a,b) => (a.timestamp||0) - (b.timestamp||0));
 
-    // أيام الحضور الفريدة
-    const presentDaysSet = new Set(
-      attRecords.map(a => {
-        const ts = a.checkIn?.timestamp || a.timestamp || 0;
-        return new Date(ts).toISOString().slice(0,10);
-      })
-    );
-    const presentDays = presentDaysSet.size;
-
-    // إجمالي ساعات العمل الفعلية من الفارق بين checkIn و checkOut
-    let totalWorkMins = 0;
-    attRecords.forEach(a => {
-      if(a.checkIn?.timestamp && a.checkOut?.timestamp) {
-        const diff = a.checkOut.timestamp - a.checkIn.timestamp;
-        if(diff > 0 && diff < 86400000) totalWorkMins += Math.floor(diff/60000);
-      } else {
-        // fallback من timeDisplay
-        const inT  = a.checkIn?.timeDisplay?.slice(0,5)  || '';
-        const outT = a.checkOut?.timeDisplay?.slice(0,5) || '';
-        if(inT && outT) {
-          const [ih,im] = inT.split(':').map(Number);
-          const [oh,om] = outT.split(':').map(Number);
-          let m = (oh*60+om)-(ih*60+im);
-          if(m < 0) m += 24*60;
-          if(m > 0 && m < 1440) totalWorkMins += m;
-        }
+    // دمج CheckIn/CheckOut في أزواج
+    const dayPairs = {}; // key = date string
+    const stack    = [];
+    empAtt.forEach(a => {
+      const day = new Date(a.timestamp).toISOString().slice(0,10);
+      if(a.action === 'CheckIn') {
+        stack.push({day, checkIn: a, checkOut: null});
+      } else if(a.action === 'CheckOut') {
+        // اربط بآخر CheckIn مفتوح لنفس الموظف
+        const open = [...stack].reverse().find(r => !r.checkOut);
+        if(open) open.checkOut = a;
       }
     });
-    const twH = Math.floor(totalWorkMins/60);
+
+    // أيام الحضور الفريدة + إجمالي الساعات الفعلية
+    const presentDaysSet = new Set();
+    let totalWorkMins = 0;
+
+    stack.forEach(pair => {
+      presentDaysSet.add(pair.day);
+      if(pair.checkIn && pair.checkOut) {
+        const diff = pair.checkOut.timestamp - pair.checkIn.timestamp;
+        if(diff > 0 && diff < 86400000) totalWorkMins += Math.floor(diff / 60000);
+      } else if(pair.checkIn) {
+        // CheckIn بدون CheckOut — احسب من timeDisplay لو موجود
+        const inT = (pair.checkIn.timeDisplay || '').match(/(\d{1,2}):(\d{2})/);
+        // مش هنحسب وقت غير مكتمل
+      }
+    });
+
+    const presentDays = presentDaysSet.size;
+    const twH = Math.floor(totalWorkMins / 60);
     const twM = totalWorkMins % 60;
     const totalWorkStr = twH + ':' + String(twM).padStart(2,'0') + ' س';
 
@@ -6116,140 +6122,147 @@ const SalaryService = {
     const diffMins     = totalWorkMins - requiredMins;
     const dH = Math.abs(Math.floor(diffMins/60));
     const dM = Math.abs(diffMins%60);
-    const workDiffStr  = (diffMins>=0?'+':'-') + dH + ':' + String(dM).padStart(2,'0') + ' س';
+    const workDiffStr = (diffMins>=0?'+':'-') + dH + ':' + String(dM).padStart(2,'0') + ' س';
 
     // ════════════════════════════════════════════
-    // التأخير — بناءً على checkIn الفعلي vs ميعاد العمل
+    // التأخير
     // ════════════════════════════════════════════
     const expectedIn = emp.checkIn || emp.workStart || '';
     let lateCount = 0, totalLateDeduct = 0;
-    if(expectedIn) {
+
+    stack.forEach(pair => {
+      if(!pair.checkIn) return;
+      const inMatch = (pair.checkIn.timeDisplay || '').match(/(\d{1,2}):(\d{2})/);
+      if(!inMatch) return;
+      const actH = parseInt(inMatch[1]), actM = parseInt(inMatch[2]);
+
+      // لو مفيش ميعاد رسمي — مش نحسب تأخير
+      if(!expectedIn) return;
+
       const [expH, expM] = expectedIn.split(':').map(Number);
-      attRecords.forEach(a => {
-        const inTime = a.checkIn?.timeDisplay?.slice(0,5) || '';
-        if(!inTime) return;
-        const [actH, actM] = inTime.split(':').map(Number);
-        const lateMin = (actH*60+actM) - (expH*60+expM);
-        if(lateMin <= 5) return; // أقل من 5 دقائق مش تأخير
-        if(a.latePermission === true) return; // بإذن
-        lateCount++;
-        totalLateDeduct += this.calcLatePenalty(lateMin, false, dailyHours, hourlyRate);
-      });
-    }
+      const lateMin = (actH*60+actM) - (expH*60+expM);
+      if(lateMin <= 5) return;                            // أقل من 5 دقائق مش تأخير
+      if(pair.checkIn.latePermission === true) return;   // تأخير بإذن
+      lateCount++;
+      totalLateDeduct += this.calcLatePenalty(lateMin, false, dailyHours, hourlyRate);
+    });
 
     // ════════════════════════════════════════════
-    // الإجازات — من State.leaves
-    // فقط الموافق عليها (status === "موافق")
-    // الهيكل: { code, leaveDate, status, timestamp }
+    // الإجازات الموافق عليها
     // ════════════════════════════════════════════
     const approvedLeaves = (State.leaves || []).filter(l => {
-      const code   = String(l.code || '');
-      const status = l.status || '';
-      // فلترة بتاريخ الإجازة نفسها
-      const leaveTs = l.leaveDate ? new Date(l.leaveDate).getTime() : (l.timestamp || 0);
+      const code    = String(l.code || '');
+      const status  = l.status || '';
+      const leaveTs = l.leaveDate
+        ? new Date(l.leaveDate).getTime()
+        : (l.timestamp || 0);
       return code === String(empCode) && status === 'موافق' && inRange(leaveTs);
     });
     const leaveDaysTaken = approvedLeaves.length;
-    const leaveEntitled  = 2; // يومين شهرياً
+    const leaveEntitled  = 2;
     const leaveRemaining = Math.max(0, leaveEntitled - leaveDaysTaken);
-    // بدل إجازة = الأيام المتبقية × أجر اليوم (الراتب ÷ 30)
-    const leaveBonus = leaveRemaining * dailyRate; // dailyRate = salary/30
+    const leaveBonus     = leaveRemaining * dailyRate;
 
-    // الغياب = 30 - أيام الحضور - أيام الإجازة الموافق عليها
+    // الغياب = 30 - حضور - إجازات موافق
     const workingDays  = 30;
     const absentDays   = Math.max(0, workingDays - presentDays - leaveDaysTaken);
     const absentDeduct = absentDays * dailyRate;
 
     // ════════════════════════════════════════════
-    // الجزاءات — من State.penalties
-    // الهيكل: { code, hours, timestamp }
-    // hours = عدد ساعات الجزاء
+    // الجزاءات
     // ════════════════════════════════════════════
-    // الجزاءات — هيكل البيانات: { code, hours, timestamp, reason }
     const penRecords = (State.penalties || []).filter(p => {
-      const code = String(p.code || '').trim();
-      const ts   = Number(p.timestamp || p.ts || 0);
-      const dateTs = p.date ? new Date(p.date + 'T12:00:00').getTime() : 0;
+      const code  = String(p.code || '').trim();
+      const ts    = Number(p.timestamp || p.ts || 0);
+      const dateTs= p.date ? new Date(p.date + 'T12:00:00').getTime() : 0;
       return code === String(empCode).trim() && inRange(ts || dateTs);
     });
-    // الجزاء = ساعات × أجر الساعة
-    const penaltyTotal = penRecords.reduce((s, p) => {
+    const penaltyTotal = penRecords.reduce((s,p) => {
       const hrs = parseFloat(p.hours) || 0;
       return s + (hrs > 0 ? hrs * hourlyRate : (Number(p.amount)||0));
     }, 0);
 
     // ════════════════════════════════════════════
-    // الاستئذانات — من State.breaks
+    // الاستئذانات
     // ════════════════════════════════════════════
     const breakRecords = (State.breaks || []).filter(b =>
       String(b.code) === String(empCode) && inRange(b.deviceBreakTime || b.timestamp || 0)
     );
-    // إجمالي دقائق الاستئذان في اليوم لكل يوم منفصل
     const breaksByDay = {};
     breakRecords.forEach(b => {
-      const ts = b.deviceBreakTime || b.timestamp || 0;
+      const ts  = b.deviceBreakTime || b.timestamp || 0;
       const day = new Date(ts).toISOString().slice(0,10);
       const dur = Number(b.durationMins || b.duration || 0);
       breaksByDay[day] = (breaksByDay[day] || 0) + dur;
     });
     const totalBreakMins = Object.values(breaksByDay).reduce((s,d) => s+d, 0);
-    // خصم الاستئذانات: لو فاق 30 دقيقة في يوم → نص يوم خصم
     let breakDeduct = 0;
     Object.values(breaksByDay).forEach(dayMins => {
-      if(dayMins >= 31) breakDeduct += dailyRate / 2; // نص يوم
+      if(dayMins >= 31) breakDeduct += dailyRate / 2;
     });
 
     // ════════════════════════════════════════════
-    // الحوافز — من State.incentives
+    // الحوافز
     // ════════════════════════════════════════════
-    // الحوافز — هيكل البيانات: { code, amount, unit:'جنيه'|'ساعة', type, ts, date }
     const incentiveRecords = (State.incentives || []).filter(i => {
-      const code = String(i.code || '').trim();
-      // ts هو timestamp الحافز (مش timestamp)
-      const ts   = Number(i.ts || i.timestamp || 0);
-      // فلتر بالتاريخ لو ts مش موجود
+      const code   = String(i.code || '').trim();
+      const ts     = Number(i.ts || i.timestamp || 0);
       const dateTs = i.date ? new Date(i.date + 'T12:00:00').getTime() : 0;
-      const usedTs = ts || dateTs;
-      return code === String(empCode).trim() && inRange(usedTs);
+      return code === String(empCode).trim() && inRange(ts || dateTs);
     });
-    // الحوافز: unit='ساعة' → amount × hourlyRate | unit='جنيه' → amount مباشرة
-    const incentiveTotal = incentiveRecords.reduce((s, i) => {
+    const incentiveTotal = incentiveRecords.reduce((s,i) => {
       const amt = Number(i.amount) || 0;
-      if(i.unit === 'ساعة') {
-        return s + (amt * hourlyRate); // عدد ساعات × أجر الساعة
-      }
-      return s + amt; // مبلغ جنيه مباشرة
+      if(i.unit === 'ساعة') return s + (amt * hourlyRate);       // ساعات × أجر الساعة
+      if(i.unit === 'يوم')  return s + (amt * dailyHours * hourlyRate); // أيام × ساعات اليوم × أجر الساعة
+      return s + amt; // جنيه مباشرة
     }, 0);
 
     // ════════════════════════════════════════════
-    // السلف — من State.advances
+    // السلف
     // ════════════════════════════════════════════
-    // السلف - مقارنة الكود كـ string
-    const allAdvances = State.advances || [];
-    const advanceRecords = allAdvances.filter(a => {
+    const advanceRecords = (State.advances || []).filter(a => {
       const aCode = String(a.code || '').trim();
-      const eCode = String(empCode).trim();
       const ts    = Number(a.timestamp) || 0;
-      return aCode === eCode && inRange(ts);
+      return aCode === String(empCode).trim() && inRange(ts);
     });
     const advanceTotal = advanceRecords.reduce((s,a) => s + (Number(a.amount)||0), 0);
 
     // ════════════════════════════════════════════
-    // صافي القبض
+    // صافي الراتب — يسمح بالسالب لو السلف تجاوزت الراتب
     // ════════════════════════════════════════════
-    const totalDeduct = totalLateDeduct + penaltyTotal + absentDeduct + breakDeduct;
-    const totalAdd    = incentiveTotal + leaveBonus;
-    const netSalary   = Math.max(0, salary - totalDeduct - advanceTotal + totalAdd);
+    const actualEarned  = totalWorkMins > 0
+      ? (totalWorkMins / 60) * hourlyRate
+      : presentDays * dailyRate;
+
+    const totalDeduct   = totalLateDeduct + penaltyTotal + absentDeduct + breakDeduct;
+    const totalAdd      = incentiveTotal + leaveBonus;
+    // بدون Math.max — يخلي الصافي يطلع سالب لو السلف أكبر
+    const netSalary     = actualEarned - totalDeduct - advanceTotal + totalAdd;
 
     return {
-      emp:        { code:empCode, name:emp.name, salary, dailyHours, hourlyRate:hourlyRate.toFixed(2), dailyRate:dailyRate.toFixed(2) },
-      attendance: { presentDays, absentDays, lateCount, totalWorkStr, workDiffStr, totalWorkMins, requiredMins, surplus:diffMins>=0 },
-      advances:   { records:advanceRecords, total:advanceTotal },
-      deductions: { lateDeduct:totalLateDeduct.toFixed(2), penalties:penaltyTotal.toFixed(2), absentDeduct:absentDeduct.toFixed(2), breakDeduct:breakDeduct.toFixed(2), advances:advanceTotal, total:(totalDeduct+advanceTotal).toFixed(2) },
-      additions:  { incentives:incentiveTotal, leaveBonus:leaveBonus.toFixed(2), total:totalAdd.toFixed(2) },
-      leaves:     { entitled:leaveEntitled, takenDays:leaveDaysTaken, remaining:leaveRemaining, approved:approvedLeaves },
-      breaks:     { count:breakRecords.length, totalMins:totalBreakMins, deduct:breakDeduct, byDay:breaksByDay },
-      netSalary:  netSalary.toFixed(2),
+      emp:        { code:empCode, name:emp.name, salary, dailyHours,
+                    hourlyRate: hourlyRate.toFixed(2),
+                    dailyRate:  dailyRate.toFixed(2) },
+      attendance: { presentDays, absentDays, lateCount,
+                    totalWorkStr, workDiffStr,
+                    totalWorkMins, requiredMins,
+                    surplus: diffMins >= 0,
+                    actualEarned: actualEarned.toFixed(2) },
+      advances:   { records: advanceRecords, total: advanceTotal },
+      deductions: { lateDeduct:   totalLateDeduct.toFixed(2),
+                    penalties:    penaltyTotal.toFixed(2),
+                    absentDeduct: absentDeduct.toFixed(2),
+                    breakDeduct:  breakDeduct.toFixed(2),
+                    advances:     advanceTotal,
+                    total:        (totalDeduct + advanceTotal).toFixed(2) },
+      additions:  { incentives: incentiveTotal,
+                    leaveBonus: leaveBonus.toFixed(2),
+                    total:      totalAdd.toFixed(2) },
+      leaves:     { entitled: leaveEntitled, takenDays: leaveDaysTaken,
+                    remaining: leaveRemaining, approved: approvedLeaves },
+      breaks:     { count: breakRecords.length, totalMins: totalBreakMins,
+                    deduct: breakDeduct, byDay: breaksByDay },
+      netSalary:  netSalary.toFixed(2),  // قد يكون سالب لو السلف تجاوزت الراتب
       grossSalary: salary
     };
   },
@@ -6297,16 +6310,19 @@ const SalaryService = {
       
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
         <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:#94a3b8">الراتب الأساسي</div>
-          <div style="font-size:20px;font-weight:900;color:#818cf8">${fmt(r.grossSalary)} ج</div>
+          <div style="font-size:11px;color:#94a3b8">الأجر الفعلي (${r.attendance.totalWorkStr})</div>
+          <div style="font-size:20px;font-weight:900;color:#818cf8">${fmt(r.attendance.actualEarned)} ج</div>
+          <div style="font-size:10px;color:#64748b;margin-top:2px">أجر الساعة: ${fmt(r.emp.hourlyRate)} ج</div>
         </div>
         <div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.2);border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:11px;color:#94a3b8">أجر الساعة</div>
-          <div style="font-size:20px;font-weight:900;color:#34d399">${r.emp.hourlyRate} ج</div>
+          <div style="font-size:11px;color:#94a3b8">إجمالي الإضافات</div>
+          <div style="font-size:20px;font-weight:900;color:#34d399">+ ${fmt(r.additions.total)} ج</div>
+          <div style="font-size:10px;color:#64748b;margin-top:2px">حوافز + بدل إجازة</div>
         </div>
-        <div style="background:${Number(r.netSalary) < r.grossSalary ? 'rgba(239,68,68,0.1)':'rgba(16,185,129,0.1)'};border:1px solid ${Number(r.netSalary) < r.grossSalary ? 'rgba(239,68,68,0.3)':'rgba(16,185,129,0.3)'};border-radius:10px;padding:12px;text-align:center">
+        <div style="background:${Number(r.netSalary) < 0 ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.1)'};border:1px solid ${Number(r.netSalary) < 0 ? 'rgba(239,68,68,0.4)':'rgba(16,185,129,0.3)'};border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#94a3b8">صافي القبض</div>
-          <div style="font-size:24px;font-weight:900;color:${Number(r.netSalary) < r.grossSalary ? '#f87171':'#34d399'}">${fmt(r.netSalary)} ج</div>
+          <div style="font-size:24px;font-weight:900;color:${Number(r.netSalary) < 0 ? '#ef4444':'#34d399'}">${Number(r.netSalary) < 0 ? '⚠️ ' : ''}${fmt(r.netSalary)} ج</div>
+          ${Number(r.netSalary) < 0 ? '<div style="font-size:10px;color:#ef4444;margin-top:2px">مديونية</div>' : ''}
         </div>
       </div>
 
@@ -6325,6 +6341,10 @@ const SalaryService = {
           <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px">
             <span style="color:#64748b">الفرق عن المطلوب</span>
             <span style="color:${r.attendance.surplus ? '#34d399' : '#f87171'};font-weight:700">${r.attendance.workDiffStr}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;margin-top:4px;border-top:1px solid rgba(255,255,255,0.1);font-size:13px">
+            <span style="color:#a78bfa">💰 أجر الساعات الفعلية (${(r.attendance.totalWorkMins/60).toFixed(1)}س × ${fmt(r.emp.hourlyRate)} ج)</span>
+            <span style="color:#a78bfa;font-weight:700">${fmt(r.attendance.actualEarned)} ج</span>
           </div>
         </div>
 
@@ -6350,10 +6370,64 @@ const SalaryService = {
           <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px"><span>المأخوذ</span><span style="color:#34d399;font-weight:700">${r.leaves.takenDays} يوم</span></div>
           <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:700"><span>متبقي (بدل نقدي)</span><span style="color:#fbbf24">${r.leaves.remaining} يوم = ${fmt(r.additions.leaveBonus)} ج</span></div>
         </div>
+
+        <!-- جدول السلف مع تعديل وحذف -->
+        <div style="background:rgba(251,146,60,0.05);border:1px solid rgba(251,146,60,0.2);border-radius:10px;padding:12px;grid-column:1/-1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-weight:700;color:#fb923c;font-size:12px">💰 السلف (${month}/${year}) — إجمالي: ${fmt(r.deductions.advances)} ج</div>
+            <button onclick="AdvanceService.add('${code}','${r.emp.name||code}')"
+              style="background:rgba(251,146,60,0.2);border:1px solid rgba(251,146,60,0.4);color:#fb923c;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">
+              ➕ إضافة سلفة
+            </button>
+          </div>
+          ${r.advances.records.length === 0
+            ? '<div style="text-align:center;color:#64748b;font-size:13px;padding:10px">لا توجد سلف هذا الشهر</div>'
+            : `<div class="table-container" style="max-height:200px;overflow-y:auto">
+              <table style="font-size:12px">
+                <thead><tr>
+                  <th>#</th><th>التاريخ</th><th>المبلغ</th><th>ملاحظة</th><th>بواسطة</th>
+                  <th class="edit-col">تعديل</th><th class="edit-col">حذف</th>
+                </tr></thead>
+                <tbody>
+                  ${r.advances.records.map((adv,i) => `<tr>
+                    <td style="text-align:center">${i+1}</td>
+                    <td>${adv.date||'-'}</td>
+                    <td style="color:#fb923c;font-weight:700">${fmt(adv.amount)} ج</td>
+                    <td style="color:#94a3b8">${adv.note||'-'}</td>
+                    <td style="font-size:11px;color:#64748b">${adv.addedBy||'-'}</td>
+                    <td class="edit-col">
+                      <button onclick="AdvanceService.edit('${adv.id}')"
+                        style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:5px;padding:3px 8px;cursor:pointer;font-family:inherit;font-size:11px">
+                        ✏️
+                      </button>
+                    </td>
+                    <td class="edit-col">
+                      <button onclick="AdvanceService.delete('${adv.id}','${(adv.name||'').replace(/'/g,'')}')"
+                        style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:5px;padding:3px 8px;cursor:pointer;font-family:inherit;font-size:11px">
+                        🗑️
+                      </button>
+                    </td>
+                  </tr>`).join('')}
+                  <tr style="background:rgba(251,146,60,0.1);font-weight:700">
+                    <td colspan="2" style="text-align:center">الإجمالي</td>
+                    <td style="color:#fb923c">${fmt(r.deductions.advances)} ج</td>
+                    <td colspan="4"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>`
+          }
+        </div>
       </div>
 
       <div style="margin-top:14px;background:rgba(0,0,0,0.3);border-radius:10px;padding:12px;text-align:center;font-size:12px;color:#64748b">
-        ${fmt(r.grossSalary)} (أساسي) + ${fmt(r.additions.total)} (إضافات) - ${fmt(r.deductions.total)} (خصومات) = <strong style="color:${Number(r.netSalary) < r.grossSalary ? '#f87171':'#34d399'};font-size:16px"> ${fmt(r.netSalary)} ج</strong>
+        <span style="color:#818cf8">${fmt(r.attendance.actualEarned)} ج</span> (أجر فعلي)
+        + <span style="color:#34d399">${fmt(r.additions.total)} ج</span> (إضافات)
+        − <span style="color:#f87171">${fmt(r.deductions.total)} ج</span> (خصومات)
+        = <strong style="color:${Number(r.netSalary) < 0 ? '#ef4444':'#34d399'};font-size:16px">
+          ${Number(r.netSalary) < 0 ? '⚠️ ' : ''}${fmt(r.netSalary)} ج
+        </strong>
+        ${Number(r.netSalary) < 0 ? '<div style="color:#ef4444;font-size:11px;margin-top:4px">⚠️ مديونية — تُحسب من الشهر القادم</div>' : ''}
       </div>
     `;
   },
@@ -6463,7 +6537,7 @@ const SalaryService = {
     .net-box .formula{font-size:10px;color:#64748b;line-height:1.8}
     .net-box .net-val{text-align:center}
     .net-box .net-label{font-size:9px;color:#64748b;margin-bottom:2px}
-    .net-box .net-amount{font-size:26px;font-weight:900;color:${Number(r.netSalary)<r.grossSalary?'#dc2626':'#16a34a'}}
+    .net-box .net-amount{font-size:26px;font-weight:900;color:${Number(r.netSalary)<0?'#dc2626':Number(r.netSalary)<r.grossSalary?'#dc2626':'#16a34a'}}
     .net-box .currency{font-size:12px;font-weight:600;color:#64748b}
 
     /* ── Advances Section ── */
@@ -6502,7 +6576,7 @@ const SalaryService = {
 <div class="emp-info">
   <div class="emp-cell"><div class="lbl">كود الموظف</div><div class="val">${r.emp.code}</div></div>
   <div class="emp-cell"><div class="lbl">الاسم</div><div class="val">${r.emp.name}</div></div>
-  <div class="emp-cell"><div class="lbl">الراتب الأساسي</div><div class="val">${fmt(r.grossSalary)} ج</div></div>
+  <div class="emp-cell"><div class="lbl">الراتب الأساسي (مرجعي)</div><div class="val">${fmt(r.grossSalary)} ج</div></div>
   <div class="emp-cell"><div class="lbl">أجر الساعة</div><div class="val">${r.emp.hourlyRate} ج/س</div></div>
 </div>
 
@@ -6540,6 +6614,12 @@ const SalaryService = {
     </tr>
   </thead>
   <tbody>
+    <tr style="background:#f0f4ff">
+      <td style="font-weight:700">⏱ الأجر الفعلي</td>
+      <td class="text-center">${(r.attendance.totalWorkMins/60).toFixed(2)} س × ${fmt(r.emp.hourlyRate)} ج/س</td>
+      <td class="text-center"><span class="badge badge-add">أساس</span></td>
+      <td class="text-center amt-neu" style="font-weight:700">${fmt(r.attendance.actualEarned)}</td>
+    </tr>
     
     <tr>
       <td style="font-weight:700">💼 الراتب الأساسي</td>
@@ -6557,7 +6637,7 @@ const SalaryService = {
     
     <tr>
       <td>🏖️ بدل إجازة</td>
-      <td class="text-center">${r.leaves.remaining} يوم × ${r.emp.dailyRate} ج</td>
+      <td class="text-center">${r.leaves.remaining} يوم × ${fmt(r.emp.dailyRate)} ج</td>
       <td class="text-center"><span class="badge badge-add">إضافة</span></td>
       <td class="text-center amt-add">${fmt(r.additions.leaveBonus)}</td>
     </tr>
@@ -6571,7 +6651,7 @@ const SalaryService = {
     
     <tr>
       <td>❌ خصم الغياب</td>
-      <td class="text-center">${r.attendance.absentDays} يوم × ${r.emp.dailyRate} ج</td>
+      <td class="text-center">${r.attendance.absentDays} يوم × ${fmt(r.emp.dailyRate)} ج</td>
       <td class="text-center"><span class="badge badge-sub">خصم</span></td>
       <td class="text-center amt-sub">(${fmt(r.deductions.absentDeduct)})</td>
     </tr>
@@ -6582,6 +6662,7 @@ const SalaryService = {
       <td class="text-center"><span class="badge badge-sub">خصم</span></td>
       <td class="text-center amt-sub">(${fmt(r.deductions.breakDeduct)})</td>
     </tr>
+
     <tr>
       <td>⚠️ جزاءات</td>
       <td class="text-center">قرار إداري</td>
@@ -6590,35 +6671,38 @@ const SalaryService = {
     </tr>
     
     <tr>
-      <td>☕ خصم الاستئذانات</td>
-      <td class="text-center">${r.breaks.count} استئذان (${r.breaks.totalMins} د) — ${Object.values(r.breaks.byDay||{}).filter(d=>d>=31).length} يوم تجاوز 30 د</td>
-      <td class="text-center"><span class="badge badge-sub">خصم</span></td>
-      <td class="text-center amt-sub">(${fmt(r.deductions.breakDeduct)})</td>
-    </tr>
-    <tr>
       <td>💰 سلف مدفوعة</td>
       <td class="text-center">${r.advances?.records?.length || 0} سلفة</td>
       <td class="text-center"><span class="badge badge-sub">خصم</span></td>
       <td class="text-center amt-ora">(${fmt(r.deductions.advances)})</td>
     </tr>
+
     <tr class="total-row">
       <td style="font-size:13px">📊 صافي المستحق</td>
-      <td class="text-center" colspan="2">${fmt(r.grossSalary)} + ${fmt(r.additions.total)} - ${fmt(r.deductions.total)} (تأخير ${fmt(r.deductions.lateDeduct)} + استئذانات ${fmt(r.deductions.breakDeduct)} + غياب ${fmt(r.deductions.absentDeduct)} + جزاءات ${fmt(r.deductions.penalties)} + سلف ${fmt(r.deductions.advances)})</td>
-      <td class="text-center" style="font-size:15px;color:${Number(r.netSalary)<r.grossSalary?'#dc2626':'#16a34a'}">${fmt(r.netSalary)}</td>
+      <td class="text-center" colspan="2">
+        ${fmt(r.attendance.actualEarned)} (أجر فعلي)
+        + ${fmt(r.additions.total)} (إضافات)
+        − ${fmt(r.deductions.total)} (خصومات)
+      </td>
+      <td class="text-center" style="font-size:15px;color:${Number(r.netSalary)<0?'#dc2626':Number(r.netSalary)<r.grossSalary?'#ea580c':'#16a34a'}">
+        ${Number(r.netSalary)<0?'(':''}${fmt(r.netSalary)}${Number(r.netSalary)<0?')':''}
+      </td>
     </tr>
   </tbody>
 </table>
 
 <div class="net-box">
   <div class="formula">
-    <div>✅ الراتب الأساسي: <strong>${fmt(r.grossSalary)} ج</strong></div>
+    <div>⏱ أجر ساعات فعلية: <strong>${fmt(r.attendance.actualEarned)} ج</strong>
+      <span style="font-size:9px;color:#64748b"> (${(r.attendance.totalWorkMins/60).toFixed(1)}س × ${fmt(r.emp.hourlyRate)} ج/س)</span>
+    </div>
     <div>➕ إجمالي الإضافات: <strong style="color:#16a34a">${fmt(r.additions.total)} ج</strong></div>
     <div>➖ إجمالي الخصومات: <strong style="color:#dc2626">${fmt(r.deductions.total)} ج</strong></div>
   </div>
   <div class="net-val">
     <div class="net-label">صافي القبض</div>
-    <div class="net-amount">${fmt(r.netSalary)}</div>
-    <div class="currency">جنيه مصري</div>
+    <div class="net-amount">${Number(r.netSalary)<0?'(':''}${fmt(r.netSalary)}${Number(r.netSalary)<0?')':''}</div>
+    <div class="currency">${Number(r.netSalary)<0?'مديونية':'جنيه مصري'}</div>
   </div>
 </div>
 
@@ -6707,9 +6791,19 @@ ${(r.advances?.records?.length > 0) ? `
 const AdvanceService = {
 
   add(empCode, empName) {
-    // بناء modal السلفة
-    const existing = document.getElementById('advModal');
-    if(existing) existing.remove();
+    this._openModal(empCode, empName, null);
+  },
+
+  edit(advId) {
+    const adv = (State.advances||[]).find(a => a.id === advId);
+    if(!adv) { UI.toast('لم تُعثر على السلفة','error'); return; }
+    this._openModal(adv.code, adv.name, adv);
+  },
+
+  _openModal(empCode, empName, existing) {
+    const isEdit = !!existing;
+    const old = document.getElementById('advModal');
+    if(old) old.remove();
 
     const modal = document.createElement('div');
     modal.id = 'advModal';
@@ -6718,7 +6812,7 @@ const AdvanceService = {
       <div style="background:#0f172a;border:1px solid rgba(251,146,60,0.4);border-radius:14px;width:min(400px,92vw);overflow:hidden">
         <div style="background:linear-gradient(135deg,rgba(251,146,60,0.3),rgba(234,88,12,0.2));padding:14px 18px;display:flex;justify-content:space-between;align-items:center">
           <div>
-            <div style="font-weight:700;font-size:15px">💰 إضافة سلفة</div>
+            <div style="font-weight:700;font-size:15px">${isEdit?'✏️ تعديل سلفة':'💰 إضافة سلفة'}</div>
             <div style="font-size:12px;color:#fb923c;margin-top:2px">${empName}</div>
           </div>
           <button onclick="document.getElementById('advModal').remove()"
@@ -6727,23 +6821,23 @@ const AdvanceService = {
         <div style="padding:18px;display:flex;flex-direction:column;gap:12px">
           <div>
             <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:5px">المبلغ (جنيه) *</label>
-            <input id="advAmount" type="number" min="1" placeholder="0.00"
-              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(251,146,60,0.4);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;font-size:16px;text-align:center">
+            <input id="advAmount" type="number" min="1" placeholder="0.00" value="${isEdit?(existing.amount||''):''}"
+              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(251,146,60,0.4);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;font-size:16px;text-align:center;box-sizing:border-box">
           </div>
           <div>
             <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:5px">تاريخ السلفة</label>
-            <input id="advDate" type="date" value="${new Date().toISOString().slice(0,10)}"
-              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+            <input id="advDate" type="date" value="${isEdit?(existing.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10)}"
+              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
           </div>
           <div>
             <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:5px">ملاحظة</label>
-            <input id="advNote" type="text" placeholder="اختياري"
-              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
+            <input id="advNote" type="text" placeholder="اختياري" value="${isEdit?(existing.note||''):''}"
+              style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
           </div>
           <div style="display:flex;gap:8px;margin-top:4px">
-            <button onclick="AdvanceService.save(this.dataset.code, this.dataset.name)" data-code="${empCode}" data-name="${empName}"
+            <button onclick="AdvanceService.save('${empCode}','${empName}','${isEdit?existing.id:''}')"
               style="flex:1;padding:11px;background:linear-gradient(135deg,#fb923c,#ea580c);border:none;color:#fff;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px">
-              💰 تسجيل السلفة
+              ${isEdit?'💾 حفظ التعديل':'💰 تسجيل السلفة'}
             </button>
             <button onclick="document.getElementById('advModal').remove()"
               style="padding:11px 16px;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;cursor:pointer;font-family:inherit">
@@ -6756,8 +6850,8 @@ const AdvanceService = {
     setTimeout(() => document.getElementById('advAmount')?.focus(), 100);
   },
 
-  save(empCode, empName) {
-    const amount = parseFloat(document.getElementById('advAmount')?.value);
+  save(empCode, empName, editId) {
+    const amount  = parseFloat(document.getElementById('advAmount')?.value);
     const dateVal = document.getElementById('advDate')?.value;
     const note    = document.getElementById('advNote')?.value || '';
 
@@ -6765,28 +6859,49 @@ const AdvanceService = {
       UI.toast('أدخل مبلغ صحيح', 'error'); return;
     }
 
-    // timestamp من التاريخ المختار (منتصف اليوم)
-    const ts = dateVal ? new Date(dateVal + 'T12:00:00').getTime() : Date.now();
-
-    const empCodeFinal = String(empCode).trim();
-    const empNameFinal = String(empName).trim();
+    const ts     = dateVal ? new Date(dateVal + 'T12:00:00').getTime() : Date.now();
     const record = {
-      code:     empCodeFinal,
-      name:     empNameFinal,
-      amount,
-      note,
-      date:     dateVal || new Date().toISOString().slice(0,10),
+      code:      String(empCode).trim(),
+      name:      String(empName).trim(),
+      amount, note,
+      date:      dateVal || new Date().toISOString().slice(0,10),
       timestamp: ts,
-      addedBy:  State.currentUser?.username || '-'
+      addedBy:   State.currentUser?.username || '-'
     };
 
-    db.ref('advances').push(record).then(ref => {
-      // إضافة للـ State فوراً بدون انتظار listener
-      if(!State.advances) State.advances = [];
-      State.advances.push({ id: ref.key, ...record });
-      document.getElementById('advModal')?.remove();
-      UI.toast(`✅ تم تسجيل سلفة ${Number(amount).toLocaleString('ar-EG')} ج لـ ${empNameFinal}`, 'success');
-    }).catch(err => UI.toast('❌ ' + err.message, 'error'));
+    if(editId) {
+      // تعديل سلفة موجودة
+      db.ref('advances/' + editId).update(record).then(() => {
+        const idx = (State.advances||[]).findIndex(a => a.id === editId);
+        if(idx !== -1) State.advances[idx] = { id: editId, ...record };
+        document.getElementById('advModal')?.remove();
+        UI.toast(`✅ تم تعديل السلفة`, 'success');
+        SystemLog.add('EditAdvance', record.code, record.name);
+        // تحديث الكشف لو مفتوح
+        if(SalaryService._currentEmpCode) SalaryService.openReport(SalaryService._currentEmpCode);
+      }).catch(err => UI.toast('❌ ' + err.message, 'error'));
+    } else {
+      // إضافة سلفة جديدة
+      db.ref('advances').push(record).then(ref => {
+        if(!State.advances) State.advances = [];
+        State.advances.push({ id: ref.key, ...record });
+        document.getElementById('advModal')?.remove();
+        UI.toast(`✅ تم تسجيل سلفة ${Number(amount).toLocaleString('ar-EG')} ج لـ ${record.name}`, 'success');
+        SystemLog.add('AddAdvance', record.code, record.name);
+        if(SalaryService._currentEmpCode) SalaryService.openReport(SalaryService._currentEmpCode);
+      }).catch(err => UI.toast('❌ ' + err.message, 'error'));
+    }
+  },
+
+  delete(advId, empName) {
+    showConfirm(`حذف سلفة: ${empName}؟`, () => {
+      db.ref('advances/' + advId).remove().then(() => {
+        State.advances = (State.advances||[]).filter(a => a.id !== advId);
+        UI.toast('🗑️ تم حذف السلفة', 'warning');
+        SystemLog.add('DeleteAdvance', advId, empName||'-');
+        if(SalaryService._currentEmpCode) SalaryService.openReport(SalaryService._currentEmpCode);
+      }).catch(err => UI.toast('❌ ' + err.message, 'error'));
+    });
   }
 };
 
@@ -8265,11 +8380,18 @@ p.barcode === barcode && p.expire === expire
 );
         if (existing) {
             let newQty = (existing.quantity || 0) + qty;
-            db.ref("products/" + existing.id).update({ quantity: newQty });
+            const now = new Date();
+            db.ref("products/" + existing.id).update({
+              quantity: newQty,
+              lastAddedAt: now.toLocaleString('ar-EG'),
+              lastAddedBy: State.currentUser?.username || '-',
+              lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP
+            });
             SystemLog.add("ProductIncrease", barcode, name);
             UI.toast("تم زيادة الكمية", "success");
         } else {
             if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; }
+            const now = new Date();
             let data = {
                 barcode: barcode,
                 name: name,
@@ -8278,7 +8400,10 @@ p.barcode === barcode && p.expire === expire
                 cost: cost,
                 price: price,
                 expire: expire,
-                user: State.currentUser.username,
+                user: State.currentUser?.username || '-',
+                addedAt: now.toLocaleString('ar-EG'),
+                addedDate: now.toISOString().slice(0,10),
+                addedTime: now.toTimeString().slice(0,5),
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
             db.ref("products/" + barcode).set(data);
@@ -8306,6 +8431,42 @@ el.value = "";
 
 // رجوع المؤشر للباركود
 document.getElementById("productBarcode").focus();
+    },
+
+    syncPricesFromSheet() {
+      const baz = window.S?.getBaz?.();
+      if(!baz || baz.size === 0) {
+        UI.toast('⚠️ لم يتم رفع شيت الأسعار بعد — اذهب لصفحة الأسعار أولاً', 'warning');
+        return;
+      }
+      let updated = 0;
+      const promises = [];
+      State.products.forEach(p => {
+        const found = baz.get(String(p.barcode));
+        if(!found) return;
+        const newCost  = found.costPrice || 0;
+        const newPrice = found.sellPrice || 0;
+        if(!newCost && !newPrice) return;
+        // تحديث فقط لو في فرق
+        if(newCost === p.cost && newPrice === p.price) return;
+        promises.push(
+          db.ref('products/' + p.id).update({
+            cost:  newCost  || p.cost,
+            price: newPrice || p.price,
+            priceUpdatedAt: new Date().toLocaleString('ar-EG'),
+            priceUpdatedBy: State.currentUser?.username || '-'
+          })
+        );
+        updated++;
+      });
+      if(promises.length === 0) {
+        UI.toast('✅ كل الأسعار محدّثة بالفعل', 'success');
+        return;
+      }
+      Promise.all(promises).then(() => {
+        UI.toast(`✅ تم تحديث أسعار ${updated} صنف من شيت الأسعار`, 'success');
+        SystemLog.add('SyncPrices', '-', `تحديث ${updated} صنف`);
+      }).catch(e => UI.toast('❌ ' + e.message, 'error'));
     },
 
     remove(barcode) {
@@ -10552,19 +10713,19 @@ const EmpDataService = {
           <td style="color:#34d399;text-align:center">${d.checkIn || '-'}</td>
           <td style="color:#f87171;text-align:center">${d.checkOut || '-'}</td>
           <td style="color:#f59e0b;font-weight:700;text-align:center">${workHoursStr}</td>
-          <td class="edit-col" style="text-align:center">
+          <td style="text-align:center">
             <button onclick="EmpDataService.editEmployee('${emp.code}','${emp.code}','${emp.name}','${emp.job||''}','${emp.branch||''}')"
               style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap">✏ تعديل</button>
           </td>
-          <td class="edit-col" style="text-align:center">
+          <td style="text-align:center">
             <button onclick="SalaryService.openReport('${emp.code}')"
               style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap">📊 كشف</button>
           </td>
-          <td class="edit-col" style="text-align:center">
+          <td style="text-align:center">
             <button onclick="AdvanceService.add('${emp.code}','${emp.name}')"
               style="background:rgba(251,146,60,0.2);border:1px solid rgba(251,146,60,0.3);color:#fb923c;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap">💰 سلفة</button>
           </td>
-          <td class="edit-col" style="text-align:center">
+          <td style="text-align:center">
             <button onclick="EmpDataService.deleteEmployee('${emp.code}','${emp.name}')"
               style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:12px;white-space:nowrap">🗑 حذف</button>
           </td>
@@ -10572,7 +10733,6 @@ const EmpDataService = {
       }).join('');
 
     body.innerHTML = rows || '<tr><td colspan="16" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
-    applyEditColVisibility();
     // تحديث العداد
     const empCount = _empMap ? Object.keys(_empMap).length : 0;
     ['totalEmpCount','empCount'].forEach(id => {
@@ -10960,10 +11120,16 @@ const IncentiveService = {
     const totalHours = filtered
       .filter(r => r.unit === 'ساعة')
       .reduce((s, r) => s + (r.amount || 0), 0);
+    const totalDays = filtered
+      .filter(r => r.unit === 'يوم')
+      .reduce((s, r) => s + (r.amount || 0), 0);
     const uniqueEmps  = new Set(filtered.map(r => r.code)).size;
+    const totalSummary = totalAmount.toLocaleString('ar-EG') + ' ج'
+      + (totalHours ? ' + ' + totalHours + ' س' : '')
+      + (totalDays  ? ' + ' + totalDays  + ' ي' : '');
     if(stats) stats.innerHTML = [
       { label: 'إجمالي الحوافز', val: filtered.length, color: '#818cf8', icon: '🏆' },
-      { label: 'إجمالي المبلغ',  val: totalAmount.toLocaleString('ar-EG') + ' ج' + (totalHours ? ' + ' + totalHours + ' س' : ''), color: '#34d399', icon: '💰' },
+      { label: 'إجمالي المبلغ',  val: totalSummary, color: '#34d399', icon: '💰' },
       { label: 'عدد الموظفين',   val: uniqueEmps, color: '#f59e0b', icon: '👥' }
     ].map(s => `<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;text-align:center;border:1px solid rgba(255,255,255,0.08)">
       <div style="font-size:20px">${s.icon}</div>
@@ -10981,8 +11147,8 @@ const IncentiveService = {
       <td style="font-size:12px;color:#94a3b8;max-width:150px">${r.note || '-'}</td>
       <td>${r.date || '-'}</td>
       <td style="font-size:12px">${r.by || '-'}</td>
-      <td class="edit-col">${hasPermission('edit')||hasPermission('all') ? `<button onclick="IncentiveService.delete('${r.id}','${r.name}')"
-        style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button>` : ''}</td>
+      <td>${hasPermission('edit')||hasPermission('all') ? `<button onclick="IncentiveService.delete('${r.id}','${r.name}')"
+        style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button>` : '-'}</td>
     </tr>`).join('');
   },
 
@@ -11526,40 +11692,27 @@ const FingerprintBazarService = {
 
   // ─── getFiltered ───────────────────────────────
   getFiltered() {
-    const range     = this._range;
-    const search    = document.getElementById('fpBazarSearch')?.value?.toLowerCase() || '';
-    const selDate   = document.getElementById('fpBazarDate')?.value || '';
-    const dateFrom  = document.getElementById('fpBazarDateFrom')?.value || '';
-    const dateTo    = document.getElementById('fpBazarDateTo')?.value || '';
-    const filterEmp = document.getElementById('fpBazarFilterEmp')?.value || '';
-    const filterJob = document.getElementById('fpBazarFilterJob')?.value || '';
-    const filterAct = document.getElementById('fpBazarFilterAction')?.value || '';
-    const now       = new Date();
+    const range    = this._range;
+    const search   = document.getElementById('fpBazarSearch')?.value?.toLowerCase().trim() || '';
+    const dateFrom = document.getElementById('fpBazarDateFrom')?.value || '';
+    const dateTo   = document.getElementById('fpBazarDateTo')?.value || '';
+    const filterAct= document.getElementById('fpBazarFilterAction')?.value || '';
+    const now      = new Date();
 
     return State.attendance.filter(a => {
       if (!this._isBazar(a)) return false;
-      // فلتر نوع الحركة
       if (filterAct && a.action !== filterAct) return false;
-      // فلتر الموظف
-      if (filterEmp && String(a.code) !== String(filterEmp)) return false;
-      // فلتر الوظيفة
-      if (filterJob) {
-        const empJ = getEmpData(a.code)?.job || a.job || '';
-        if (empJ !== filterJob) return false;
-      }
-      const tDate = new Date(a.timestamp || 0);
-      // فلتر التاريخ المحدد
-      if (selDate) { if (tDate.toISOString().slice(0,10) !== selDate) return false; }
-      else if (dateFrom || dateTo) {
-        const d = tDate.toISOString().slice(0,10);
-        if (dateFrom && d < dateFrom) return false;
-        if (dateTo   && d > dateTo)   return false;
+      if (search && !(a.name||'').toLowerCase().includes(search) && !String(a.code||'').includes(search)) return false;
+      const d = new Date(a.timestamp || 0);
+      const ds = d.toISOString().slice(0,10);
+      if (dateFrom || dateTo) {
+        if (dateFrom && ds < dateFrom) return false;
+        if (dateTo   && ds > dateTo)   return false;
       } else {
-        if (range==='day'  && tDate.toDateString() !== now.toDateString()) return false;
-        if (range==='week' ) { const w=new Date(); w.setDate(now.getDate()-7); if(tDate<w) return false; }
-        if (range==='month') { const m=new Date(); m.setMonth(now.getMonth()-1); if(tDate<m) return false; }
+        if (range==='day'  && d.toDateString() !== now.toDateString()) return false;
+        if (range==='week' ) { const w=new Date(); w.setDate(now.getDate()-7); if(d<w) return false; }
+        if (range==='month') { const m=new Date(); m.setMonth(now.getMonth()-1); if(d<m) return false; }
       }
-      if (search) return (a.name||'').toLowerCase().includes(search) || String(a.code||'').includes(search);
       return true;
     });
   },
@@ -11914,12 +12067,10 @@ const FingerprintBazarService = {
 
   // ─── مسح الفلاتر ──────────────────────────────
   clearFilters() {
-    ['fpBazarSearch','fpBazarDate','fpBazarDateFrom','fpBazarDateTo'].forEach(id=>{
+    ['fpBazarSearch','fpBazarDateFrom','fpBazarDateTo'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
-    ['fpBazarFilterEmp','fpBazarFilterJob','fpBazarFilterAction','fpBazarFilterStatus'].forEach(id=>{
-      const el=document.getElementById(id); if(el) el.value='';
-    });
+    const actEl=document.getElementById('fpBazarFilterAction'); if(actEl) actEl.value='';
     this._range='day';
     document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active'));
     const first=document.querySelector('#tab-fingerprint-bazar .filter-btn');
@@ -11974,7 +12125,7 @@ function fpBazarEditPreview(){
 function setFpBazarFilter(btn, range) {
   document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const dt=document.getElementById('fpBazarDate'); if(dt) dt.value='';
+  ['fpBazarDateFrom','fpBazarDateTo'].forEach(id=>{const el=document.getElementById(id);if(el) el.value='';});
   FingerprintBazarService._range=range;
   FingerprintBazarService.render();
 }
@@ -12016,31 +12167,25 @@ const FingerprintSabahService = {
 
   getFiltered() {
     const range=this._range;
-    const search=document.getElementById('fpSabahSearch')?.value?.toLowerCase()||'';
-    const selDate=document.getElementById('fpSabahDate')?.value||'';
+    const search=document.getElementById('fpSabahSearch')?.value?.toLowerCase().trim()||'';
     const dateFrom=document.getElementById('fpSabahDateFrom')?.value||'';
     const dateTo=document.getElementById('fpSabahDateTo')?.value||'';
-    const filterEmp=document.getElementById('fpSabahFilterEmp')?.value||'';
-    const filterJob=document.getElementById('fpSabahFilterJob')?.value||'';
     const filterAct=document.getElementById('fpSabahFilterAction')?.value||'';
     const now=new Date();
     return State.attendance.filter(a=>{
       if(!this._isSabah(a)) return false;
       if(filterAct&&a.action!==filterAct) return false;
-      if(filterEmp&&String(a.code)!==String(filterEmp)) return false;
-      if(filterJob){ const j=getEmpData(a.code)?.job||a.job||''; if(j!==filterJob) return false; }
-      const tDate=new Date(a.timestamp||0);
-      if(selDate){ if(tDate.toISOString().slice(0,10)!==selDate) return false; }
-      else if(dateFrom||dateTo){
-        const d=tDate.toISOString().slice(0,10);
-        if(dateFrom&&d<dateFrom) return false;
-        if(dateTo&&d>dateTo) return false;
+      if(search&&!(a.name||'').toLowerCase().includes(search)&&!String(a.code||'').includes(search)) return false;
+      const d=new Date(a.timestamp||0);
+      const ds=d.toISOString().slice(0,10);
+      if(dateFrom||dateTo){
+        if(dateFrom&&ds<dateFrom) return false;
+        if(dateTo&&ds>dateTo) return false;
       } else {
-        if(range==='day'&&tDate.toDateString()!==now.toDateString()) return false;
-        if(range==='week'){const w=new Date();w.setDate(now.getDate()-7);if(tDate<w) return false;}
-        if(range==='month'){const m=new Date();m.setMonth(now.getMonth()-1);if(tDate<m) return false;}
+        if(range==='day'&&d.toDateString()!==now.toDateString()) return false;
+        if(range==='week'){const w=new Date();w.setDate(now.getDate()-7);if(d<w) return false;}
+        if(range==='month'){const m=new Date();m.setMonth(now.getMonth()-1);if(d<m) return false;}
       }
-      if(search) return (a.name||'').toLowerCase().includes(search)||String(a.code||'').includes(search);
       return true;
     });
   },
@@ -12319,8 +12464,8 @@ const FingerprintSabahService = {
   },
 
   clearFilters() {
-    ['fpSabahSearch','fpSabahDate','fpSabahDateFrom','fpSabahDateTo'].forEach(id=>{const el=document.getElementById(id);if(el) el.value='';});
-    ['fpSabahFilterEmp','fpSabahFilterJob','fpSabahFilterAction','fpSabahFilterStatus'].forEach(id=>{const el=document.getElementById(id);if(el) el.value='';});
+    ['fpSabahSearch','fpSabahDateFrom','fpSabahDateTo'].forEach(id=>{const el=document.getElementById(id);if(el) el.value='';});
+    const actEl2=document.getElementById('fpSabahFilterAction'); if(actEl2) actEl2.value='';
     this._range='day';
     document.querySelectorAll('#tab-fingerprint-sabah .filter-btn').forEach(b=>b.classList.remove('active'));
     const first=document.querySelector('#tab-fingerprint-sabah .filter-btn'); if(first) first.classList.add('active');
@@ -12346,8 +12491,6 @@ const FingerprintSabahService = {
   },
 
   init() {
-    const dt=document.getElementById('fpSabahDate');
-    if(dt&&!dt.value) dt.value=new Date().toISOString().slice(0,10);
     this.render();
     setInterval(()=>{
       if(document.getElementById('tab-fingerprint-sabah')?.style.display!=='none') this.render();
@@ -12370,7 +12513,7 @@ function fpSabahEditPreview(){
 function setFpSabahFilter(btn, range) {
   document.querySelectorAll('#tab-fingerprint-sabah .filter-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const dt=document.getElementById('fpSabahDate'); if(dt) dt.value='';
+  ['fpSabahDateFrom','fpSabahDateTo'].forEach(id=>{const el=document.getElementById(id);if(el) el.value='';});
   FingerprintSabahService._range=range;
   FingerprintSabahService.render();
 }
@@ -12932,82 +13075,30 @@ rowStyle='style="background:rgba(245,158,11,.15)"'
 html += `
 
 <tr ${rowStyle}>
-
-<td>${p.barcode}</td>
-<td>${p.name || getProductName(p.barcode) || "-"}</td>
-<td>${p.branch || "-"}</td>
-<td>${p.quantity}</td>
-<td style="color:#94a3b8">${(()=>{
-  let c = p.cost;
-  if(!c && p.barcode) {
-    try {
-      const ps = window.S;
-      if(ps && ps.getBaz) {
-        const bm = ps.getBaz();
-        const safe = String(p.barcode).replace(/[.#$[\]]/g,'_');
-        const found = bm && (bm.get(String(p.barcode)) || bm.get(safe));
-        if(found && found.costPrice) c = found.costPrice;
-      }
-    } catch(_) {}
-  }
-  return c ? Number(c).toLocaleString('ar-EG') : '-';
-})()}</td>
-<td style="color:#34d399;font-weight:600">${(()=>{
-  let pr = p.price;
-  if(!pr && p.barcode) {
-    try {
-      const ps = window.S;
-      if(ps && ps.getBaz) {
-        const bm = ps.getBaz();
-        const safe = String(p.barcode).replace(/[.#$[\]]/g,'_');
-        const found = bm && (bm.get(String(p.barcode)) || bm.get(safe));
-        if(found && found.sellPrice) pr = found.sellPrice;
-      }
-    } catch(_) {}
-  }
-  return pr ? Number(pr).toLocaleString('ar-EG') : '-';
-})()}</td>
-<td>${p.expire || "-"}</td>
-<td>${remaining}</td>
-
-<td>
-<span class="badge ${badge}">
-${status}
-</span>
-</td>
-
-<td>${p.user || "-"}</td>
-
-<td class="edit-col">
-
-<button
-style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px"
-onclick="ProductService.remove('${p.barcode}')">
-
-➖ سحب
-
-</button>
-
-</td>
-
-<td class="edit-col">
-${hasPermission("edit") || hasPermission("all") ? `
-<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px"
-onclick='editProduct("${p.id}")'>
-✏
-</button>
-` : ""}
-</td>
-
-<td class="edit-col">
-${hasPermission("edit") || hasPermission("all") ? `
-<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px"
-onclick='deleteProduct("${p.id}")'>
-🗑
-</button>
-` : ""}
-</td>
-
+  <td style="font-family:monospace;font-size:12px;color:#818cf8">${p.barcode}</td>
+  <td style="font-weight:600">${p.name || getProductName(p.barcode) || "-"}</td>
+  <td style="font-size:12px;text-align:center">${p.branch || "-"}</td>
+  <td style="font-weight:700;text-align:center;color:${(p.quantity||0)===0?'#ef4444':(p.quantity||0)<=10?'#f59e0b':'#34d399'}">${p.quantity}</td>
+  <td style="color:#94a3b8;text-align:center">${(()=>{
+    const baz = window.S?.getBaz?.();
+    const found = baz?.get(String(p.barcode));
+    const c = (found?.costPrice) || p.cost;
+    return c ? Number(c).toLocaleString('ar-EG') + ' ج' : '-';
+  })()}</td>
+  <td style="color:#34d399;font-weight:600;text-align:center">${(()=>{
+    const baz = window.S?.getBaz?.();
+    const found = baz?.get(String(p.barcode));
+    const pr = (found?.sellPrice) || p.price;
+    return pr ? Number(pr).toLocaleString('ar-EG') + ' ج' : '-';
+  })()}</td>
+  <td style="font-size:12px;text-align:center">${p.expire || "-"}</td>
+  <td style="text-align:center;font-weight:700;color:${!p.expire?'#64748b':remaining<=0?'#ef4444':remaining<=30?'#f59e0b':'#34d399'}">${remaining !== '-' ? remaining : '-'}</td>
+  <td style="text-align:center"><span class="badge ${badge}">${status}</span></td>
+  <td style="font-size:12px;color:#94a3b8">${p.user || "-"}</td>
+  <td style="font-size:11px;color:#64748b;white-space:nowrap">${p.addedAt ? p.addedAt : p.lastAddedAt ? '<span style="color:#f59e0b;font-size:10px">آخر إضافة: </span>' + p.lastAddedAt : '-'}</td>
+  <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="ProductService.remove('${p.barcode}')">➖ سحب</button></td>
+  <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='editProduct("${p.id}")'>✏️</button>`:""}</td>
+  <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='deleteProduct("${p.id}")'>🗑️</button>`:""}</td>
 </tr>
 
 `
@@ -13050,6 +13141,7 @@ document.getElementById("productsExpireSoon").innerText = soon
                 if(match){const late=(parseInt(match[1])*60+parseInt(match[2]))-(eh*60+em);lateStr=late>5?`<span style="color:#f59e0b;font-weight:700">${late}د</span>`:'<span style="color:#34d399">—</span>';}
               }
               const canEdit = hasPermission("edit")||hasPermission("all");
+              const canCheckout = hasPermission("attendance")||hasPermission("edit")||hasPermission("all");
               html+=`<tr>
 <td style="font-weight:700">${a.name}</td>
 <td style="color:#818cf8">${a.code}</td>
@@ -13057,7 +13149,7 @@ document.getElementById("productsExpireSoon").innerText = soon
 <td style="color:#34d399">${a.timeDisplay}</td>
 <td>${lateStr}</td>
 <td style="color:${durColor};font-weight:700">${TimeUtils.format(duration)}</td>
-<td>${canEdit?`<button onclick="attQuickCheckout('${a.code}','${a.name}')"
+<td>${canCheckout?`<button onclick="attQuickCheckout('${a.code}','${a.name}')"
   style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">
   👋 خروج
 </button>`:''}
@@ -13066,36 +13158,7 @@ document.getElementById("productsExpireSoon").innerText = soon
             });
             body.innerHTML = html || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b">لا يوجد موظفون داخل العمل</td></tr>';
         },
-        renderSystemLogs() {
-            let body = document.getElementById("systemLogsBody");
-            if (!body) return;
-            const search = document.getElementById("logsSearch")?.value?.toLowerCase().trim() || "";
-            let html = "";
-            State.systemLogs
-              .filter(l => {
-                if (!search) return true;
-                const action = (SystemLogService.translate(l.action)||"").toLowerCase();
-                const name   = (l.name||"").toLowerCase();
-                const code   = String(l.code||"");
-                const user   = (l.user||"").toLowerCase();
-                const date   = (l.date||"").toLowerCase();
-                return action.includes(search) || name.includes(search) ||
-                       code.includes(search)   || user.includes(search) ||
-                       date.includes(search);
-              })
-              .sort((a, b) => b.timestamp - a.timestamp)
-              .forEach(l => {
-                html += `<tr>
-<td>${SystemLogService.translate(l.action)}</td>
-<td>${l.name}</td>
-<td>${l.code}</td>
-<td>${l.date}</td>
-<td>${l.timeDisplay}</td>
-<td>${l.user}</td>
-</tr>`;
-              });
-            body.innerHTML = html || '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">لا توجد نتائج</td></tr>';
-        },
+        renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
         
 renderBreaks(){
 
@@ -13627,25 +13690,26 @@ totalBox.innerText = filtered.length;
         renderAttendance() { ReportService.render(); },
         renderUsers() {
 let permNames = {
-attendance: "الحضور",
-vehicles: "العربيات",
-penalties: "الجزاءات",
-leaves: "الإجازات",
-employees: "الموظفين",
-users: "المستخدمين",
-breaks: "الاستئذانات",
-products: "التواريخ",
-system: "النظام",
-transfers: "التحويلات",
-"transfer-analytics": "تحليل التحويلات",
-fingerprint: "بصمة البازار",
-"fingerprint-sabah": "بصمة الصباح",
-excel: "تصدير Excel",
-edit: "التعديل",
-prices: "الأسعار",
+attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات",
+leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين",
+breaks: "الاستئذانات", products: "التواريخ", system: "النظام",
+transfers: "التحويلات", "transfer-analytics": "تحليل التحويلات",
+fingerprint: "بصمة البازار", "fingerprint-sabah": "بصمة الصباح",
+excel: "تصدير Excel", edit: "التعديل", prices: "الأسعار",
 all: "كل الصلاحيات"
-};            let tbody = document.getElementById("usersBody"); tbody.innerHTML = State.users.map((u, index) => { let perms = `<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;justify-items:center;max-width:220px;margin:auto">
-${u.permissions.map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
+};
+const search = document.getElementById("userSearch")?.value?.toLowerCase().trim() || "";
+const filtered = State.users.map((u, index) => ({u, index})).filter(({u}) => {
+  if(!search) return true;
+  if((u.username||"").toLowerCase().includes(search)) return true;
+  // بحث في الصلاحيات
+  return (u.permissions||[]).some(p => (permNames[p]||p).toLowerCase().includes(search));
+});
+let tbody = document.getElementById("usersBody");
+if(!tbody) return;
+tbody.innerHTML = filtered.length ? filtered.map(({u, index}) => {
+let perms = `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-width:240px;margin:auto">
+${(u.permissions||[]).map(p => `<span class="badge badge-info">${permNames[p] || p}</span>`).join("")}
 </div>`;
 const lastLoginInfo = u.lastLogin ? `
   <div style="font-size:11px;color:#94a3b8;margin-top:4px">
@@ -13656,9 +13720,10 @@ const lastLoginInfo = u.lastLogin ? `
 return `<tr>
   <td><span style="font-weight:700">${u.username}</span>${lastLoginInfo}</td>
   <td>${perms}</td>
-  <td><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.openPerms(State.users[${index}])">✏ تعديل</button></td>
-  <td><button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.delete(${index})">🗑 حذف</button></td>
-</tr>`; }).join("");
+  <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.openPerms(State.users[${index}])">✏ تعديل</button></td>
+  <td class="edit-col"><button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.delete(${index})">🗑 حذف</button></td>
+</tr>`;}).join("")
+: `<tr><td colspan="4" style="text-align:center;padding:20px;color:#64748b">لا توجد نتائج${search ? ' للبحث: "'+search+'"' : ''}</td></tr>`;
             document.getElementById("usersCount").innerText = State.users.length;
         },
         
