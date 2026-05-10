@@ -77,7 +77,6 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -344,8 +343,51 @@ body.light-mode [style*="background: rgba(239,68,68,0.1)"] {
   background: rgba(239,68,68,0.08) !important;
 }
 
-/* ── user badge ── */
-body.light-mode .user-badge {
+/* ── كشف الراتب — responsive ── */
+#srBody { direction: rtl; }
+#srBody table {
+  width: 100%;
+  font-size: 12px;
+}
+#srBody .table-container,
+#srBody > div > div[style*="overflow"] {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── جدول الموظفين — تضغيط الأعمدة على الموبايل ── */
+#empdataBody td,
+#empdataBody th,
+#tab-employees th,
+#tab-employees td {
+  white-space: nowrap;
+}
+@media (max-width: 768px) {
+  #tab-employees .table-container,
+  .glass-card .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: 60vh;
+  }
+  /* إخفاء أعمدة أقل أهمية على الموبايل */
+  #empdataBody td:nth-child(7),   /* بطاقة */
+  #empdataBody td:nth-child(8),   /* هاتف */
+  #empdataBody td:nth-child(9),   /* تعيين */
+  table thead th:nth-child(7),
+  table thead th:nth-child(8),
+  table thead th:nth-child(9) {
+    /* مش هنخفيهم بالكامل — بس نضغطهم */
+    font-size: 9px;
+    padding: 4px 2px;
+    max-width: 50px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  /* stat cards في الكشف */
+  #srBody > div > div[style*="grid"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
   background: rgba(99,102,241,0.1);
   color: #4f46e5;
 }
@@ -738,6 +780,16 @@ label {
   overflow-y: auto;
   margin-top: 12px;
   max-height: 420px;
+  -webkit-overflow-scrolling: touch;
+  /* Scroll indicator */
+  background:
+    linear-gradient(to right, var(--bg-card) 30%, rgba(255,255,255,0)),
+    linear-gradient(to left,  var(--bg-card) 30%, rgba(255,255,255,0)) 100% 0,
+    linear-gradient(to right, rgba(0,0,0,0.08), transparent),
+    linear-gradient(to left,  rgba(0,0,0,0.08), transparent) 100% 0;
+  background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+  background-repeat: no-repeat;
+  background-attachment: local, local, scroll, scroll;
 }
 table {
   width: 100%;
@@ -748,21 +800,21 @@ table {
 thead { border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
 th {
   background: rgba(99,102,241,0.15);
-  padding: 10px 8px;
+  padding: 8px 6px;
   text-align: center;
   color: #a78bfa;
   font-weight: 600;
   font-size: 11px;
   white-space: nowrap;
-  height: 36px;
+  height: 34px;
   letter-spacing: 0.3px;
 }
 td {
-  padding: 6px 8px;
+  padding: 5px 6px;
   text-align: center;
   font-size: 12px;
   border-bottom: 1px solid var(--border);
-  height: 34px;
+  height: 32px;
   white-space: nowrap;
   transition: background var(--transition);
 }
@@ -771,6 +823,18 @@ tr:hover td { background: rgba(99,102,241,0.08); }
   padding: 4px 8px;
   font-size: 11px;
   border-radius: 6px;
+}
+
+/* ── جداول الموبايل — تضغيط عام ── */
+@media (max-width: 768px) {
+  th { font-size: 10px; padding: 6px 4px; height: 30px; }
+  td { font-size: 11px; padding: 4px 4px; height: 28px; }
+  .table-container button { padding: 3px 6px; font-size: 10px; }
+  .table-container { max-height: 360px; }
+}
+@media (max-width: 480px) {
+  th { font-size: 9px; padding: 5px 3px; }
+  td { font-size: 10px; padding: 3px 3px; }
 }
 
 /* ============================================================
@@ -6309,7 +6373,7 @@ const SalaryService = {
 
     body.innerHTML = `
       
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px">
         <div style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:11px;color:#94a3b8">الأجر الفعلي (${r.attendance.totalWorkStr})</div>
           <div style="font-size:20px;font-weight:900;color:#818cf8">${fmt(r.attendance.actualEarned)} ج</div>
@@ -6384,7 +6448,8 @@ const SalaryService = {
           ${r.advances.records.length === 0
             ? '<div style="text-align:center;color:#64748b;font-size:13px;padding:10px">لا توجد سلف هذا الشهر</div>'
             : `<div class="table-container" style="max-height:200px;overflow-y:auto">
-              <table style="font-size:12px">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:12px">
+              <table style="font-size:12px;min-width:500px">
                 <thead><tr>
                   <th>#</th><th>التاريخ</th><th>المبلغ</th><th>ملاحظة</th><th>بواسطة</th>
                   <th class="edit-col">تعديل</th><th class="edit-col">حذف</th>
@@ -6416,7 +6481,7 @@ const SalaryService = {
                   </tr>
                 </tbody>
               </table>
-            </div>`
+            </div></div>`
           }
         </div>
       </div>
@@ -6605,6 +6670,7 @@ const SalaryService = {
 </div>
 
 <div class="section-title">تفاصيل الاستحقاقات والخصومات</div>
+<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
 <table>
   <thead>
     <tr>
@@ -6691,6 +6757,7 @@ const SalaryService = {
     </tr>
   </tbody>
 </table>
+</div>
 
 <div class="net-box">
   <div class="formula">
@@ -7599,10 +7666,6 @@ console.log("counter error",e)
 
 UI.toast(action === "CheckIn" ? "✅ تم تسجيل الحضور" : "👋 تم تسجيل الانصراف", action === "CheckIn" ? "success" : "warning");
 
-// إشعار FCM
-if(typeof notifyAttendance === 'function') {
-  notifyAttendance(action, emp?.name||code, code, new Date().toLocaleTimeString('ar-EG'));
-}
 
 // feedback بصري على الزر
 let btn = document.getElementById("attRegBtn");
@@ -8307,7 +8370,6 @@ document.getElementById("companyReason").value = last.reason
             let penalty = { code, name: emp.name, hours, manager, reason, date: now.toLocaleDateString("ar-EG"), time: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
             db.ref("penalties").push(penalty).then(() => UI.renderPenalties());
             UI.toast("تم تسجيل الجزاء", "warning");
-            if(typeof notifyPenalty === 'function') notifyPenalty(emp.name, hours, reason);
             
             UI.clearInputs("#tab-penalties")
             
@@ -8330,8 +8392,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
             let leave = { code, name: emp.name, leaveDate: date, requestDate: now.toLocaleDateString("ar-EG"), requestTime: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, requestedBy: State.currentUser.username, manager, notes, status: "قيد المراجعة" };
             let ref = db.ref("leaves").push(); leave.id = ref.key; ref.set(leave).then(() => {
               UI.toast("تم تقديم طلب الإجازة", "success");
-              if(typeof notifyLeave === 'function') notifyLeave(emp.name, date, State.currentUser.username);
-            });
+              });
             
             UI.clearInputs("#tab-leaves")
             
@@ -8389,9 +8450,9 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
         if (!branch) { UI.toast("اختر الفرع أولاً", "error"); document.getElementById("productBranch").focus(); return; }
         if (!qty) qty = 1;
 
-        let existing = State.products.find(p => 
-p.barcode === barcode && p.expire === expire
-);
+        let existing = State.products.find(p =>
+            p.barcode === barcode && p.expire === expire && p.branch === branch
+        );
         if (existing) {
             let newQty = (existing.quantity || 0) + qty;
             const now = new Date();
@@ -8402,7 +8463,7 @@ p.barcode === barcode && p.expire === expire
               lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP
             });
             SystemLog.add("ProductIncrease", barcode, name);
-            UI.toast("تم زيادة الكمية", "success"); if(typeof notifyProduct==="function") notifyProduct("add", name||barcode, qty, State.currentUser?.username||"-");
+            UI.toast("✅ تم زيادة الكمية — " + (existing.name||barcode) + " (" + newQty + ")", "success");
         } else {
             if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; }
             const now = new Date();
@@ -8420,9 +8481,10 @@ p.barcode === barcode && p.expire === expire
                 addedTime: now.toTimeString().slice(0,5),
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
-            db.ref("products/" + barcode).set(data);
+            // push() عشان كل batch (باركود + تاريخ انتهاء مختلف) يبقى سجل مستقل
+            db.ref("products").push(data);
             SystemLog.add("ProductAdd", barcode, name);
-            UI.toast("تم تسجيل صنف جديد", "success");
+            UI.toast("✅ تم إضافة صنف جديد — " + name, "success");
         }
         
         // مسح الحقول بعد الإضافة
@@ -8487,19 +8549,37 @@ document.getElementById("productBarcode").focus();
         let qty = prompt("كم عدد القطع المسحوبة؟");
         if (!qty) return;
         qty = Number(qty);
-        let product = State.products.find(p => p.barcode === barcode);
-        if (!product) {
-            UI.toast("المنتج غير موجود", "error");
-            return;
+        if(!qty || qty <= 0) { UI.toast("كمية غير صحيحة", "error"); return; }
+
+        // جلب كل batches نفس الباركود مرتبة بالأقدم انتهاءً أولاً
+        let batches = State.products
+            .filter(p => p.barcode === barcode && (p.quantity||0) > 0)
+            .sort((a,b) => {
+                if(!a.expire) return 1;
+                if(!b.expire) return -1;
+                return new Date(a.expire) - new Date(b.expire);
+            });
+
+        if(!batches.length) { UI.toast("المنتج غير موجود أو نفدت الكمية", "error"); return; }
+
+        // إجمالي الكمية المتاحة
+        const totalQty = batches.reduce((s,p) => s + (p.quantity||0), 0);
+        if(qty > totalQty) { UI.toast("الكمية المطلوبة (" + qty + ") أكبر من المتاح (" + totalQty + ")", "error"); return; }
+
+        // سحب بالترتيب من الأقدم
+        let remaining = qty;
+        const updates = [];
+        for(const batch of batches) {
+            if(remaining <= 0) break;
+            const take    = Math.min(remaining, batch.quantity||0);
+            const newQty  = (batch.quantity||0) - take;
+            updates.push(db.ref("products/" + batch.id).update({ quantity: newQty }));
+            remaining -= take;
         }
-        let newQty = (product.quantity || 0) - qty;
-        if (newQty < 0) {
-            UI.toast("الكمية غير كافية", "error");
-            return;
-        }
-        db.ref("products/" + product.id).update({ quantity: newQty });
-        UI.toast("تم سحب الكمية", "warning"); if(typeof notifyProduct==="function") notifyProduct("remove", product?.name||barcode, qty, State.currentUser?.username||"-");
-        SystemLog.add("ProductRemove", barcode, "سحب صنف");
+        Promise.all(updates).then(() => {
+            UI.toast("تم سحب " + qty + " قطعة", "warning");
+            SystemLog.add("ProductRemove", barcode, "سحب " + qty + " قطعة");
+        });
     },
 
     scanBarcode(targetInput="productBarcode") {
@@ -9956,7 +10036,6 @@ UI.renderTransfers()
 
 UI.toast("تم حفظ التحويل","success")
 SystemLog.add("TransferSaved", State.currentUser?.username || "-", "حفظ تحويل")
-if(typeof notifyTransfer === 'function') notifyTransfer(to, State.transferItems.length, State.currentUser?.username||'-');
 TransferService.clearDraft()
 
 State.transferItems = []
@@ -11088,7 +11167,6 @@ const IncentiveService = {
         this.clearForm();
         SystemLog.add('Incentive', code, type + ': ' + amount + ' ' + (record.unit||'جنيه'));
         UI.toast('✅ تم تسجيل الحافز لـ ' + record.name, 'success');
-        if(typeof notifyIncentive === 'function') notifyIncentive(record.name, amount, record.unit||'جنيه', type);
       })
       .catch(err => UI.toast('❌ ' + err.message, 'error'));
   },
@@ -15803,12 +15881,12 @@ function initPricesModule() {
 
 </script>
 
-<div id="salaryReportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;overflow-y:auto;padding:20px">
-  <div style="background:#0f172a;border:1px solid rgba(99,102,241,0.3);border-radius:16px;width:min(700px,95vw);max-height:90vh;overflow-y:auto">
-    <div style="background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.2));padding:16px 20px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+<div id="salaryReportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:flex-start;justify-content:center;overflow-y:auto;padding:10px">
+  <div style="background:#0f172a;border:1px solid rgba(99,102,241,0.3);border-radius:16px;width:min(700px,96vw);margin:auto;max-height:none">
+    <div style="background:linear-gradient(135deg,rgba(99,102,241,0.3),rgba(139,92,246,0.2));padding:12px 14px;border-radius:16px 16px 0 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;position:sticky;top:0;z-index:3">
       <div>
-        <h3 style="margin:0;font-size:16px">📊 كشف الراتب</h3>
-        <div id="srEmpInfo" style="font-size:12px;color:#94a3b8;margin-top:2px"></div>
+        <h3 style="margin:0;font-size:15px">📊 كشف الراتب</h3>
+        <div id="srEmpInfo" style="font-size:11px;color:#94a3b8;margin-top:2px"></div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <select id="srMonth" onchange="SalaryService.renderReport()" style="padding:5px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:12px">
@@ -15820,73 +15898,14 @@ function initPricesModule() {
         <select id="srYear" onchange="SalaryService.renderReport()" style="padding:5px;border-radius:6px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:12px">
           <option value="2025">2025</option><option value="2026">2026</option>
         </select>
-        <button onclick="SalaryService.exportReport()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px">📥 Excel</button>
-        <button onclick="SalaryService.printReport()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;padding:5px 12px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px">🖨️ طباعة</button>
+        <button onclick="SalaryService.exportReport()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">📥</button>
+        <button onclick="SalaryService.printReport()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px">🖨️</button>
         <button onclick="document.getElementById('salaryReportModal').style.display='none'" style="background:rgba(239,68,68,0.2);border:none;color:#f87171;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px">✕</button>
       </div>
     </div>
-    <div id="srBody" style="padding:16px"></div>
+    <div id="srBody" style="padding:12px;overflow-x:hidden"></div>
   </div>
 </div>
-
-<!-- FCM Notifications -->
-<script>
-var NotifService = {
-  _messaging: null, _token: null,
-  _vapidKey: '7oJq57ZiJ-XnWGfjXcNzRoqLMnY3QpW6Dn5MaRIFB68',
-  init: async function() {
-    if(!('serviceWorker' in navigator) || !('Notification' in window)) return;
-    try {
-      var swBase = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
-      var reg = await navigator.serviceWorker.register(swBase + 'firebase-messaging-sw.js', { scope: swBase });
-      this._messaging = firebase.messaging();
-      var self = this;
-      this._messaging.onMessage(function(p) { self._showToast(p); });
-      await this._getToken(reg);
-    } catch(e) { console.error('[FCM]', e); }
-  },
-  _getToken: async function(reg) {
-    try {
-      var perm = await Notification.requestPermission();
-      if(perm !== 'granted') return;
-      var token = await this._messaging.getToken({ vapidKey: this._vapidKey, serviceWorkerRegistration: reg });
-      if(token) { this._token = token; await this._saveToken(token); }
-    } catch(e) {}
-  },
-  _saveToken: async function(token) {
-    var u = (State.currentUser && State.currentUser.username) || 'unknown';
-    await db.ref('fcmTokens/' + u.replace(/[.#$\[\]]/g, '_')).set({ token: token, user: u, updatedAt: new Date().toLocaleString('ar-EG') });
-  },
-  send: async function(ev) {
-    try {
-      await db.ref('notifications').push(Object.assign({}, ev, { createdAt: Date.now(), sentBy: (State.currentUser && State.currentUser.username) || '-', delivered: false }));
-    } catch(e) {}
-  },
-  _showToast: function(payload) {
-    var n = payload.notification || {};
-    if(UI && UI.toast) UI.toast((n.title || '') + (n.body ? ' - ' + n.body : ''), 'info');
-  }
-};
-
-function notifyAttendance(action, empName, empCode, timeDisplay) {
-  NotifService.send({ type: 'attendance', title: action === 'CheckIn' ? 'تسجيل حضور' : 'تسجيل انصراف', body: empName + ' - ' + timeDisplay, data: { tab: 'attendance' } });
-}
-function notifyLeave(empName, leaveDate, requestedBy) {
-  NotifService.send({ type: 'leave', title: 'طلب اجازة جديد', body: empName + ' - ' + leaveDate, data: { tab: 'leaves' } });
-}
-function notifyPenalty(empName, hours, reason) {
-  NotifService.send({ type: 'penalty', title: 'جزاء جديد', body: empName + ' - ' + hours + ' ساعة', data: { tab: 'penalties' } });
-}
-function notifyIncentive(empName, amount, unit, itype) {
-  NotifService.send({ type: 'incentive', title: 'حافز جديد', body: empName + ' - ' + amount + ' ' + unit, data: { tab: 'incentives' } });
-}
-function notifyTransfer(company, itemCount, user) {
-  NotifService.send({ type: 'transfer', title: 'تحويل جديد', body: company + ' - ' + itemCount + ' صنف', data: { tab: 'transfers' } });
-}
-function notifyProduct(action, productName, qty, user) {
-  NotifService.send({ type: 'product', title: action === 'add' ? 'اضافة منتج' : 'سحب من المخزون', body: productName + ' - الكمية: ' + qty, data: { tab: 'products' } });
-}
-</script>
 
 </body>
 </html>
