@@ -6,6 +6,12 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="البازار">
+    <link rel="manifest" href="manifest.json">
     <title>علوش البازار - نظام إدارة الحضور</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
@@ -1978,7 +1984,7 @@ body.light-mode #tab-prices {
         <div style="position:relative; margin-bottom:22px;">
             <label>كلمة المرور</label>
             <input type="password" id="password" placeholder="أدخل كلمة المرور" style="padding-left:44px;" onkeydown="if(event.key==='Enter')AuthService.login()">
-            <span style="position:absolute; left:14px; bottom:11px; cursor:pointer; color:#94a3b8; font-size:15px; transition:color 0.2s;">👁️</span>
+            <span id="togglePassword" onclick="const p=document.getElementById('password');const s=document.getElementById('togglePassword');if(p.type==='password'){p.type='text';s.textContent='🙈';}else{p.type='password';s.textContent='👁️';}" style="position:absolute;left:14px;bottom:11px;cursor:pointer;color:#94a3b8;font-size:15px;transition:color 0.2s;user-select:none">👁️</span>
         </div>
         <button id="loginBtn" class="btn-primary" style="width:100%; height:46px; font-size:15px; font-weight:700; letter-spacing:0.5px;" onclick="AuthService.login()">
             <span>🚪</span> دخول النظام
@@ -2004,13 +2010,14 @@ font-size:14px
 ">
 🌙
 </button>
+        <div id="networkBadge" style="font-size:11px;padding:4px 10px;border-radius:12px;background:rgba(16,185,129,0.2);color:#34d399;font-weight:600;transition:all 0.3s;cursor:default">📶 متصل</div>
         
     </div>
 
     <div class="stats-grid">
         <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">☕</span><h3>الاستئذانات</h3><p class="stat-value" id="breakCount">0</p></div>
         <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">🔏</span><h3>الحضور</h3><p class="stat-value" id="attCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📦</span><h3>التواريخ</h3><p class="stat-value" id="productsCount">0</p></div>
+        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📦</span><h3>التواريخ</h3><p class="stat-value" id="productsCount">0</p><p style="font-size:10px;color:#64748b;margin:0">صنف فريد | إجمالي: <span id="productsTotalQty">0</span></p></div>
         <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">👥</span><h3>الموظفين</h3><p class="stat-value" id="empCount">0</p></div>
         <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📋</span><h3>الإجازات</h3><p class="stat-value" id="leavesCount">0</p></div>
         <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⚖️</span><h3>الجزاءات</h3><p class="stat-value" id="penaltiesCount">0</p></div>
@@ -2345,18 +2352,33 @@ onclick="TransferService.exportExcel()">
               </div>
             </div>
 
-            <!-- بحث وفلتر -->
+            <!-- بحث وفلاتر -->
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
               <input id="productSearch" placeholder="🔍 بحث بالباركود أو الاسم"
                 style="flex:2;min-width:140px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit"
                 oninput="UI.renderProducts()">
               <select id="productBranchFilter" onchange="UI.renderProducts()"
-                style="flex:1;min-width:110px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                style="flex:1;min-width:100px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
                 <option value="">🏬 كل الفروع</option>
                 <option value="البازار">البازار</option>
                 <option value="الصباح">الصباح</option>
                 <option value="باب40">باب 40</option>
                 <option value="الثلاجة">الثلاجة</option>
+              </select>
+              <select id="productStatusFilter" onchange="UI.renderProducts()"
+                style="flex:1;min-width:110px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                <option value="">📊 كل الحالات</option>
+                <option value="متوفر">✅ متوفر</option>
+                <option value="قليل">⚠️ قليل</option>
+                <option value="منتهي">❌ منتهي</option>
+                <option value="قريب الانتهاء">⏰ قريب الانتهاء</option>
+                <option value="نفد">🚫 نفد</option>
+              </select>
+              <select id="productSourceFilter" onchange="UI.renderProducts()"
+                style="flex:1;min-width:100px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                <option value="">📋 كل المصادر</option>
+                <option value="يدوي">✍️ يدوي</option>
+                <option value="تحويل">📦 تحويل</option>
               </select>
             </div>
           </div>
@@ -4802,19 +4824,18 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
 <h3><span>⚖️</span> سجل الجزاءات</h3>
-
 <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="PenaltyService.exportExcel()">
 <span>📊</span> تصدير Excel
 </button>
-
+</div>
+<div style="margin-bottom:10px">
+  <input id="penaltiesSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="UI.renderPenalties()"
+    style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
 </div>
 
 <div class="table-container">
-
-<table>
-
+<table style="min-width:650px">
 <thead>
-
 <tr>
 <th>الموظف</th>
 <th>الكود</th>
@@ -4827,12 +4848,10 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <th class="editColumnHeader edit-col">تعديل</th>
 <th class="editColumnHeader edit-col">حذف</th>
 </tr>
-
 </thead>
-
 <tbody id="penaltiesBody"></tbody>
-
 </table>
+</div>
 
 </div>
 
@@ -4967,6 +4986,17 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="LeaveService.add()">تقديم الطلب</button></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><span>📅</span> سجل طلبات الإجازات</h3><button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="LeaveService.exportExcel()"><span>📊</span> تصدير Excel</button></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+                  <input id="leavesSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="UI.renderLeaves()"
+                    style="flex:2;min-width:140px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+                  <select id="leavesStatusFilter" onchange="UI.renderLeaves()"
+                    style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                    <option value="">📋 كل الحالات</option>
+                    <option value="قيد المراجعة">⏳ قيد المراجعة</option>
+                    <option value="موافق">✅ موافق</option>
+                    <option value="مرفوض">❌ مرفوض</option>
+                  </select>
+                </div>
                 <div class="table-container"><table>
                     
 <thead><tr>
@@ -5030,7 +5060,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   </div>
 </div>
                 <input id="logsSearch" placeholder="🔍 بحث بالمستخدم أو الحركة أو الاسم"
-  oninput="UI.renderSystemLogs()"
+  oninput="clearTimeout(window._logsTimer);window._logsTimer=setTimeout(()=>UI.renderSystemLogs(),300)"
   style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;margin-bottom:10px">
 <div class="table-container"><table>
   <thead><tr>
@@ -5278,6 +5308,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                   <option value="incentives">🎁 سجل الحوافز</option>
                   <option value="transfers">🔄 سجل التحويلات</option>
                   <option value="loginLogs">🔐 سجل تسجيل الدخول</option>
+                  <option value="products_expired">🗑️ التواريخ المنتهية (صفحة التواريخ)</option>
                 </select>
               </div>
               <div>
@@ -5915,7 +5946,8 @@ const ArchiveService = {
     loginLogs:'سجل الدخول',
     leaves:'الإجازات',
     incentives:'الحوافز',
-    transfers:'التحويلات'
+    transfers:'التحويلات',
+    products_expired:'التواريخ المنتهية'
   },
 
   toggleMode() {
@@ -5972,10 +6004,33 @@ const ArchiveService = {
 
   async updateStats() {
     const col=document.getElementById('archiveCollection')?.value;
-    const range=this.getDateRange();
     const statsEl=document.getElementById('archiveStats');
     const previewSection=document.getElementById('archivePreviewSection');
-    if(!col||!range) { if(statsEl) statsEl.style.display='none'; this._filtered=[]; return; }
+    if(!col) { if(statsEl) statsEl.style.display='none'; this._filtered=[]; return; }
+
+    // معالجة خاصة للتواريخ المنتهية
+    if(col === 'products_expired') {
+      const today = new Date(); today.setHours(0,0,0,0);
+      this._filtered = (State.products||[]).filter(p => {
+        if(!p.expire) return false;
+        const exp = new Date(p.expire); exp.setHours(0,0,0,0);
+        return exp < today;
+      });
+      this._data = this._filtered;
+      const count = this._filtered.length;
+      const sizeKB = Math.round(JSON.stringify(this._filtered).length/1024);
+      if(statsEl) {
+        statsEl.style.display='block';
+        const ce=document.getElementById('archiveCount'); if(ce){ce.textContent=count;ce.style.color=count>0?'#f87171':'#34d399';}
+        const se=document.getElementById('archiveSizeKB'); if(se) se.textContent=sizeKB;
+        const re=document.getElementById('archiveDateRange'); if(re) re.textContent='التواريخ المنتهية';
+      }
+      if(!count && previewSection) previewSection.style.display='none';
+      return;
+    }
+
+    const range=this.getDateRange();
+    if(!range) { if(statsEl) statsEl.style.display='none'; this._filtered=[]; return; }
     try {
       if(col!==this._lastCol || JSON.stringify(range)!==JSON.stringify(this._lastRange)) {
         UI.toast('⏳ جارٍ تحميل البيانات...','info');
@@ -6047,6 +6102,10 @@ const ArchiveService = {
   async _deleteRecords(col, range, count) {
     const colName=this.collectionNames[col]||col;
     if(!this._filtered.length) { UI.toast('❌ لا توجد بيانات','error'); return; }
+
+    // حذف التواريخ المنتهية من products
+    const realCol = col === 'products_expired' ? 'products' : col;
+
     const getKey=item=>item._id||item.id||null;
     const valid=this._filtered.filter(item=>getKey(item));
     if(!valid.length) { UI.toast('❌ خطأ في معرّفات السجلات','error'); return; }
@@ -6054,7 +6113,7 @@ const ArchiveService = {
       const BATCH=50; let deleted=0;
       for(let i=0;i<valid.length;i+=BATCH) {
         const batch=valid.slice(i,i+BATCH);
-        await Promise.all(batch.map(item=>db.ref(col+'/'+getKey(item)).remove()));
+        await Promise.all(batch.map(item=>db.ref(realCol+'/'+getKey(item)).remove()));
         deleted+=batch.length;
         UI.toast(`🗑️ جارٍ الحذف... ${deleted}/${valid.length}`,'info');
       }
@@ -6904,6 +6963,7 @@ ${(r.advances?.records?.length > 0) ? `
 </div>
 
 <div class="print-date">طُبع بتاريخ ${new Date().toLocaleString('ar-EG')} — نظام علوش البازار</div>
+
 
 
 
@@ -13477,19 +13537,19 @@ body.innerHTML = html
 },
         renderProducts(){
 
-let search = document.getElementById("productSearch")?.value?.toLowerCase() || ""
+let search       = document.getElementById("productSearch")?.value?.toLowerCase().trim() || ""
 let branchFilter = document.getElementById("productBranchFilter")?.value || ""
+let statusFilter = document.getElementById("productStatusFilter")?.value || ""
+let sourceFilter = document.getElementById("productSourceFilter")?.value || ""
 
 let html = ""
-
-let low=0
-let expired=0
-let soon=0
+let low=0, expired=0, soon=0
 
 State.products
 .filter(p =>
-(p.name?.toLowerCase().includes(search) || p.barcode?.includes(search)) &&
-(!branchFilter || (p.branch||"") === branchFilter)
+  (!search || (p.name?.toLowerCase().includes(search) || String(p.barcode||'').includes(search))) &&
+  (!branchFilter || (p.branch||"") === branchFilter) &&
+  (!sourceFilter || (p.source||"يدوي") === sourceFilter)
 )
 
 // ترتيب المنتجات حسب الأقرب انتهاء
@@ -13550,6 +13610,10 @@ rowStyle='style="background:rgba(245,158,11,.15)"'
 
 }
 
+// فلتر الحالة
+if(statusFilter && status !== statusFilter) return;
+
+
 html += `
 
 <tr ${rowStyle}>
@@ -13589,11 +13653,22 @@ html += `
 
 })
 
-document.getElementById("productsBody").innerHTML = html
+document.getElementById("productsBody").innerHTML = html || '<tr><td colspan="15" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>'  
 
-document.getElementById("productsLow").innerText = low
-document.getElementById("productsExpired").innerText = expired
+document.getElementById("productsLow").innerText        = low
+document.getElementById("productsExpired").innerText    = expired
 document.getElementById("productsExpireSoon").innerText = soon
+
+// تحديث الكارت الرئيسي بالأصناف الفريدة والكمية الإجمالية
+const allProds = State.products.filter(p =>
+  (!branchFilter || (p.branch||'') === branchFilter)
+);
+const uniqueBarcodes = new Set(allProds.map(p => p.barcode)).size;
+const totalQty = allProds.reduce((s,p) => s+(Number(p.quantity)||0), 0);
+const countEl = document.getElementById("productsCount");
+const qtyEl   = document.getElementById("productsTotalQty");
+if(countEl) countEl.innerText = uniqueBarcodes;
+if(qtyEl)   qtyEl.innerText   = totalQty;
 
 },
         renderInsideEmployees() {
@@ -13642,7 +13717,23 @@ document.getElementById("productsExpireSoon").innerText = soon
             });
             body.innerHTML = html || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b">لا يوجد موظفون داخل العمل</td></tr>';
         },
-        renderSystemLogs() { let body = document.getElementById("systemLogsBody"); if (!body) return; let html = ""; State.systemLogs.sort((a, b) => b.timestamp - a.timestamp).forEach(l => { html += `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`; }); body.innerHTML = html; },
+        renderSystemLogs() {
+            let body = document.getElementById("systemLogsBody"); if (!body) return;
+            const q = (document.getElementById("logsSearch")?.value||"").toLowerCase().trim();
+            const filtered = State.systemLogs
+              .filter(l => !q ||
+                (l.action||"").toLowerCase().includes(q) ||
+                (l.name||"").toLowerCase().includes(q)  ||
+                (l.code||"").toLowerCase().includes(q)  ||
+                (l.user||"").toLowerCase().includes(q)  ||
+                (l.date||"").toLowerCase().includes(q)
+              )
+              .sort((a,b) => b.timestamp - a.timestamp)
+              .slice(0, 200);  // عرض أول 200 نتيجة فقط لتحسين الأداء
+            body.innerHTML = filtered.length
+              ? filtered.map(l => `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`).join("")
+              : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
+        },
         
 renderBreaks(){
 
@@ -14002,7 +14093,15 @@ applyEditColVisibility();
             let body = document.getElementById("leavesBody"); if (!body) return;
             let html = "";
             const canEdit = hasPermission("edit") || hasPermission("all");
-            State.leaves.sort((a, b) => new Date(b.requestDate + " " + b.requestTime) - new Date(a.requestDate + " " + a.requestTime)).forEach(l => {
+            const lSearch  = (document.getElementById("leavesSearch")?.value||"").toLowerCase().trim();
+            const lStatus  = document.getElementById("leavesStatusFilter")?.value || "";
+            State.leaves
+              .filter(l =>
+                (!lSearch || (l.name||"").toLowerCase().includes(lSearch) || String(l.code||"").includes(lSearch)) &&
+                (!lStatus || l.status === lStatus)
+              )
+              .sort((a, b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0))
+              .forEach(l => {
                 const statusColor = l.status==="موافق"?"#34d399":l.status==="مرفوض"?"#f87171":"#fbbf24";
                 html += `<tr>
 <td style="font-weight:700">${l.name}</td>
@@ -14024,14 +14123,18 @@ applyEditColVisibility();
 <td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="deleteLeaveRecord('${l.id}','${(l.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
-            body.innerHTML = html;
+            body.innerHTML = html || '<tr><td colspan="11" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
             applyEditColVisibility();
             document.getElementById("leavesCount").innerText = State.leaves.length;
         },
         renderPenalties() {
             let body = document.getElementById("penaltiesBody"); if (!body) return;
             let html = "";
-            State.penalties.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).forEach(p => {
+            const pSearch = (document.getElementById("penaltiesSearch")?.value||"").toLowerCase().trim();
+            State.penalties
+              .filter(p => !pSearch || (p.name||"").toLowerCase().includes(pSearch) || String(p.code||"").includes(pSearch))
+              .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+              .forEach(p => {
                 let canEdit = hasPermission("edit") || hasPermission("all");
                 html += `<tr>
 <td>${p.name}</td>
@@ -14494,7 +14597,15 @@ UI.renderTransfers()
                 { ref: "vehicles", stateKey: "vehicles", render: () => UI.renderVehicles() },
                 { ref: "penalties", stateKey: "penalties", render: () => UI.renderPenalties() },
                 { ref: "leaves", stateKey: "leaves", render: () => UI.renderLeaves() },
-                { ref: "products",  stateKey: "products",  render: () => { UI.renderProducts(); document.getElementById("productsCount").innerText = State.products.length; } },
+                { ref: "products",  stateKey: "products",  render: () => {
+          UI.renderProducts();
+          // عدد الباركودات الفريدة (مش كل السجلات)
+          const uniqueBarcodes = new Set(State.products.map(p => p.barcode)).size;
+          const totalQty = State.products.reduce((s,p) => s + (Number(p.quantity)||0), 0);
+          document.getElementById("productsCount").innerText = uniqueBarcodes;
+          const qtyEl = document.getElementById("productsTotalQty");
+          if(qtyEl) qtyEl.innerText = totalQty;
+        } },
                 { ref: "advances",  stateKey: "advances",  render: () => {} }
             ];
             db.ref("fingerprintBazar").on("value", snap => {
@@ -16268,6 +16379,180 @@ function initPricesModule() {
     <div id="srBody" style="padding:12px;overflow-x:hidden"></div>
   </div>
 </div>
+
+
+<!-- ═══════════════════════════════════════════════════
+     PWA — Service Worker + Offline + Background Sync
+     ═══════════════════════════════════════════════════ -->
+<script>
+// ── تسجيل Service Worker ──────────────────────────────
+if ('serviceWorker' in navigator) {
+  const swBase = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
+  navigator.serviceWorker.register(swBase + 'sw.js', { scope: swBase })
+    .then(reg => {
+      console.log('[PWA] SW registered');
+
+      // تحديث تلقائي لو في نسخة جديدة
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // في تحديث جديد — نعلم المستخدم
+            if(typeof UI !== 'undefined') {
+              UI.toast('🔄 تحديث جديد متاح — أعد التحميل لتطبيقه', 'info');
+            }
+          }
+        });
+      });
+    })
+    .catch(err => console.warn('[PWA] SW registration failed:', err));
+
+  // استقبال رسائل من SW
+  navigator.serviceWorker.addEventListener('message', event => {
+    const { type, actions, count } = event.data || {};
+    if (type === 'SYNC_PENDING' && actions && actions.length > 0) {
+      console.log(`[PWA] Syncing ${count} offline actions...`);
+      OfflineDB.syncAll(actions);
+    }
+  });
+}
+
+// ── IndexedDB — حفظ البيانات أوف لاين ────────────────
+const OfflineDB = {
+  _db: null,
+  DB_NAME:    'allosh-offline',
+  STORE_NAME: 'pending-actions',
+
+  async open() {
+    if (this._db) return this._db;
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.DB_NAME, 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id', autoIncrement: true });
+          store.createIndex('collection', 'collection', { unique: false });
+        }
+      };
+      req.onsuccess = e => { this._db = e.target.result; resolve(this._db); };
+      req.onerror   = e => reject(e.target.error);
+    });
+  },
+
+  async save(collection, data) {
+    const db    = await this.open();
+    const tx    = db.transaction(this.STORE_NAME, 'readwrite');
+    const store = tx.objectStore(this.STORE_NAME);
+    return new Promise((resolve, reject) => {
+      const req = store.add({ collection, data, savedAt: Date.now() });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror   = e => reject(e.target.error);
+    });
+  },
+
+  async getAll() {
+    const db    = await this.open();
+    const tx    = db.transaction(this.STORE_NAME, 'readonly');
+    const store = tx.objectStore(this.STORE_NAME);
+    return new Promise((resolve, reject) => {
+      const req = store.getAll();
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror   = e => reject(e.target.error);
+    });
+  },
+
+  async delete(id) {
+    const db    = await this.open();
+    const tx    = db.transaction(this.STORE_NAME, 'readwrite');
+    const store = tx.objectStore(this.STORE_NAME);
+    return new Promise((resolve, reject) => {
+      const req = store.delete(id);
+      req.onsuccess = () => resolve();
+      req.onerror   = e => reject(e.target.error);
+    });
+  },
+
+  // رفع كل البيانات المحلية لـ Firebase لما النت يرجع
+  async syncAll(actions) {
+    if (!actions || !actions.length) return;
+    let synced = 0, failed = 0;
+
+    for (const action of actions) {
+      try {
+        // رفع على Firebase
+        await db.ref(action.collection).push(action.data);
+        // حذف من الـ IndexedDB
+        await this.delete(action.id);
+        // إبلاغ الـ SW
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'ACTION_SYNCED', id: action.id });
+        }
+        synced++;
+      } catch (err) {
+        console.error('[OfflineDB] Failed to sync action:', action.id, err);
+        failed++;
+      }
+    }
+
+    if (synced > 0) {
+      if (typeof UI !== 'undefined') UI.toast(`✅ تم رفع ${synced} عملية محفوظة أوف لاين`, 'success');
+      console.log(`[OfflineDB] Synced: ${synced}, Failed: ${failed}`);
+    }
+  }
+};
+
+// ── مراقبة حالة الشبكة ───────────────────────────────
+window.addEventListener('online', async () => {
+  console.log('[PWA] Back online — checking pending actions...');
+  if (typeof UI !== 'undefined') UI.toast('📶 عاد الاتصال بالإنترنت', 'success');
+
+  // تسجيل Background Sync
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.sync.register('allosh-sync');
+  } else {
+    // Fallback — sync مباشرة
+    const pending = await OfflineDB.getAll();
+    if (pending.length > 0) OfflineDB.syncAll(pending);
+  }
+});
+
+window.addEventListener('offline', () => {
+  console.log('[PWA] Gone offline');
+  if (typeof UI !== 'undefined') UI.toast('📵 انقطع الاتصال — البيانات تُحفظ محلياً', 'warning');
+});
+
+// ── دالة مساعدة — حفظ في Firebase أو IndexedDB ──────
+async function saveOrQueue(collection, data) {
+  if (navigator.onLine) {
+    // النت شغّال — ارفع مباشرة
+    return db.ref(collection).push(data);
+  } else {
+    // أوف لاين — احفظ محلياً
+    await OfflineDB.save(collection, data);
+    if (typeof UI !== 'undefined') UI.toast('💾 تم الحفظ محلياً — سيُرفع عند عودة الإنترنت', 'warning');
+    return Promise.resolve();
+  }
+}
+
+// ── مؤشر حالة الشبكة في الـ UI ──────────────────────
+function updateNetworkBadge() {
+  const badge = document.getElementById('networkBadge');
+  if (!badge) return;
+  if (navigator.onLine) {
+    badge.style.background = 'rgba(16,185,129,0.2)';
+    badge.style.color      = '#34d399';
+    badge.textContent      = '📶 متصل';
+  } else {
+    badge.style.background = 'rgba(239,68,68,0.2)';
+    badge.style.color      = '#f87171';
+    badge.textContent      = '📵 أوف لاين';
+  }
+}
+window.addEventListener('online',  updateNetworkBadge);
+window.addEventListener('offline', updateNetworkBadge);
+window.addEventListener('load',    updateNetworkBadge);
+</script>
 
 </body>
 </html>
