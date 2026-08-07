@@ -2015,15 +2015,16 @@ font-size:14px
     </div>
 
     <div class="stats-grid">
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">☕</span><h3>الاستئذانات</h3><p class="stat-value" id="breakCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">🔏</span><h3>الحضور</h3><p class="stat-value" id="attCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📦</span><h3>التواريخ</h3><p class="stat-value" id="productsCount">0</p><p style="font-size:10px;color:#64748b;margin:0">صنف فريد | إجمالي: <span id="productsTotalQty">0</span></p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">👥</span><h3>الموظفين</h3><p class="stat-value" id="empCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📋</span><h3>الإجازات</h3><p class="stat-value" id="leavesCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⚖️</span><h3>الجزاءات</h3><p class="stat-value" id="penaltiesCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">🚛</span><h3>عربيات داخل</h3><p class="stat-value" id="vehiclesInsideCount">0</p></div>
-        <div class="glass-card stat-card"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⚙️</span><h3>المستخدمين</h3><p class="stat-value" id="usersCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="breaks"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">☕</span><h3>الاستئذانات</h3><p class="stat-value" id="breakCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="attendance"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">🔏</span><h3>الحضور</h3><p class="stat-value" id="attCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="products"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📦</span><h3>التواريخ</h3><p class="stat-value" id="productsCount">0</p><p style="font-size:10px;color:#64748b;margin:0">صنف فريد | إجمالي: <span id="productsTotalQty">0</span></p></div>
+        <div class="glass-card stat-card" data-perm="empdata"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">👥</span><h3>الموظفين</h3><p class="stat-value" id="empCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="leaves"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">📋</span><h3>الإجازات</h3><p class="stat-value" id="leavesCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="penalties"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⚖️</span><h3>الجزاءات</h3><p class="stat-value" id="penaltiesCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="vehicles"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">🚛</span><h3>عربيات داخل</h3><p class="stat-value" id="vehiclesInsideCount">0</p></div>
+        <div class="glass-card stat-card" data-perm="users"><span class="stat-icon" style="font-style:normal;font-size:44px;position:absolute;bottom:-2px;left:0;right:0;text-align:center;opacity:0.18;pointer-events:none;">⚙️</span><h3>المستخدمين</h3><p class="stat-value" id="usersCount">0</p></div>
     </div>
+
 
     <div style="text-align:center;">
         <div class="tabs-wrapper">
@@ -3947,22 +3948,57 @@ onchange="UI.renderBreaks()"
 <div class="glass-card" style="padding:20px;margin-top:16px;margin-bottom:16px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
     <h3>📊 ملخص استئذانات الموظفين</h3>
-    <button onclick="BreakService.exportSummaryExcel()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
+    <button onclick="UI.exportSummaryExcel()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700">
       📊 تصدير Excel
     </button>
   </div>
+
+  <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+    <input id="summarySearch" placeholder="🔍 بحث بالاسم أو الكود"
+      oninput="UI.renderSummary()"
+      style="flex:1;min-width:180px;padding:8px;border-radius:8px;border:none">
+    <div class="attendance-filters" id="summaryRangeBtns">
+      <button class="filter-btn" onclick="setSummaryFilter(this,'day')">اليوم</button>
+      <button class="filter-btn" onclick="setSummaryFilter(this,'week')">أسبوع</button>
+      <button class="filter-btn active" onclick="setSummaryFilter(this,'month')">شهر</button>
+      <button class="filter-btn" onclick="setSummaryFilter(this,'all')">كل الوقت</button>
+    </div>
+  </div>
+
   <div class="table-container">
     <table>
       <thead><tr>
-        <th>الموظف</th><th>الكود</th>
-        <th>عدد الاستئذانات</th><th>إجمالي الوقت</th>
+        <th style="cursor:pointer" onclick="sortSummaryBy('name')">الموظف ⇅</th>
+        <th style="cursor:pointer" onclick="sortSummaryBy('code')">الكود ⇅</th>
+        <th style="cursor:pointer" onclick="sortSummaryBy('count')">عدد الاستئذانات ⇅</th>
+        <th style="cursor:pointer" onclick="sortSummaryBy('totalMs')">إجمالي الوقت ⇅</th>
+        <th style="cursor:pointer" onclick="sortSummaryBy('avgMs')">متوسط المدة ⇅</th>
         <th>صلاة</th><th>حمام</th><th>أكل</th><th>مكالمة</th><th>مهمة</th><th>أخرى</th>
         <th>أكثر نوع</th>
+        <th style="cursor:pointer" onclick="sortSummaryBy('lastTimestamp')">آخر استئذان ⇅</th>
+        <th>تفاصيل</th>
       </tr></thead>
       <tbody id="breakSummaryBody"></tbody>
+      <tfoot id="breakSummaryFoot"></tfoot>
     </table>
   </div>
 </div>
+
+<div id="breakDetailModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-start;justify-content:center;z-index:99999;overflow-y:auto;padding:16px" onclick="if(event.target===this)closeBreakDetailModal()">
+  <div class="glass-card" style="padding:25px;width:95%;max-width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 id="breakDetailTitle" style="margin:0">📋 تفاصيل الاستئذانات</h3>
+      <button onclick="closeBreakDetailModal()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;width:32px;height:32px;cursor:pointer">✕</button>
+    </div>
+    <div class="table-container" style="max-height:400px">
+      <table>
+        <thead><tr><th>التاريخ</th><th>النوع</th><th>من</th><th>إلى</th><th>المدة</th></tr></thead>
+        <tbody id="breakDetailBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 
 <div class="glass-card" style="padding:20px; margin-top:20px">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>🚨 30 دقيقة استئذان</h3><button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="BreakService.exportOver30Excel()"><span>📊</span> تصدير Excel</button></div>
@@ -5062,6 +5098,12 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                 <input id="logsSearch" placeholder="🔍 بحث بالمستخدم أو الحركة أو الاسم"
   oninput="clearTimeout(window._logsTimer);window._logsTimer=setTimeout(()=>UI.renderSystemLogs(),300)"
   style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;margin-bottom:10px">
+<div class="attendance-filters" id="logsRangeBtns" style="margin-bottom:10px">
+  <button class="filter-btn active" onclick="setLogFilter(this,'day')">اليوم</button>
+  <button class="filter-btn" onclick="setLogFilter(this,'week')">أسبوع</button>
+  <button class="filter-btn" onclick="setLogFilter(this,'month')">شهر</button>
+  <button class="filter-btn" onclick="setLogFilter(this,'all')">كل السجل</button>
+</div>
 <div class="table-container"><table>
   <thead><tr>
     <th>الحركة</th>
@@ -5696,6 +5738,32 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 
 <h3 style="margin-bottom:15px">✏ تعديل التحويل</h3>
 
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px">
+
+<div>
+<label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">من فرع</label>
+<select id="editTransferFrom" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+<option value="">اختر الفرع</option>
+<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="باب40">مخزن باب 40</option>
+<option value="الثلاجة">الثلاجة</option>
+</select>
+</div>
+
+<div>
+<label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">إلى فرع</label>
+<select id="editTransferTo" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+<option value="">اختر الفرع</option>
+<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="باب40">مخزن باب 40</option>
+<option value="الثلاجة">الثلاجة</option>
+</select>
+</div>
+
+</div>
+
 <div class="table-container" style="max-height:300px">
 
 <table>
@@ -6117,7 +6185,12 @@ const ArchiveService = {
         deleted+=batch.length;
         UI.toast(`🗑️ جارٍ الحذف... ${deleted}/${valid.length}`,'info');
       }
-      db.ref('archiveLogs').push({col,colName,count:deleted,range:range?.label||'-',deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),timestamp:Date.now()});
+      try {
+        await db.ref('archiveLogs').push({col,colName,count:deleted,range:range?.label||'-',deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),timestamp:Date.now()});
+      } catch(logErr) {
+        console.error('[Archive] فشل تسجيل عملية الأرشفة في السجل:', logErr);
+        UI.toast('⚠️ تم الحذف لكن فشل تسجيله في سجل الأرشفة: '+logErr.message,'warning');
+      }
       SystemLog.add('ArchiveDelete',col,`حذف ${deleted} سجل — ${range?.label}`);
       UI.toast(`✅ تم حذف ${deleted} سجل من "${colName}"`, 'success');
       if(State[col]) State[col]=(State[col]||[]).filter(item=>{const ts=this.getTimestamp(item);return !ts||ts<range.from||ts>range.to;});
@@ -6133,6 +6206,11 @@ const ArchiveService = {
       const logs=[]; snap.forEach(c=>logs.unshift({id:c.key,...c.val()}));
       tbody.innerHTML=logs.length?logs.map(l=>`<tr><td style="font-size:11px">${l.deletedAt||'-'}</td><td style="font-weight:700">${l.deletedBy||'-'}</td><td>${l.colName||l.col||'-'}</td><td style="text-align:center;color:#f87171;font-weight:700">${l.count||0}</td><td style="font-size:11px">${l.range||'-'}</td><td><span class="badge badge-success">✅ تم</span></td></tr>`).join('')
       :'<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">لا توجد عمليات أرشفة سابقة</td></tr>';
+    }, err => {
+      console.error('[Archive] فشل تحميل سجل عمليات الأرشفة:', err);
+      const tbody=document.getElementById('archiveLogsBody');
+      if(tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#f87171">❌ فشل تحميل السجل: ${err.message}</td></tr>`;
+      UI.toast('❌ فشل تحميل سجل الأرشفة: '+err.message,'error');
     });
   },
 
@@ -7114,6 +7192,33 @@ function attClearRangeBtns(){
   State.reportRange = "all"
 }
 
+function setLogFilter(btn,range){
+  document.querySelectorAll("#logsRangeBtns .filter-btn").forEach(b=>b.classList.remove("active"))
+  btn.classList.add("active")
+  State.logsRange = range
+  UI.renderSystemLogs()
+}
+
+function setSummaryFilter(btn,range){
+  document.querySelectorAll("#summaryRangeBtns .filter-btn").forEach(b=>b.classList.remove("active"))
+  btn.classList.add("active")
+  State.summaryRange = range
+  UI.renderSummary()
+}
+
+function sortSummaryBy(key){
+  if(State.summarySort.key === key){
+    State.summarySort.dir *= -1
+  } else {
+    State.summarySort = { key, dir: (key==="name"||key==="code") ? 1 : -1 }
+  }
+  UI.renderSummary()
+}
+
+function closeBreakDetailModal(){
+  document.getElementById("breakDetailModal").style.display = "none"
+}
+
 function attClearAllFilters(){
   document.getElementById("attendanceSearch").value=""
   document.getElementById("attendanceDate").value=""
@@ -7468,6 +7573,9 @@ const DeviceInfo = {
         serverOffset: 0,
         currentUser: null,
         reportRange: "day",
+        logsRange: "day",
+        summaryRange: "month",
+        summarySort: { key: "totalMs", dir: -1 },
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -7736,7 +7844,7 @@ const AttendanceService = {
         }
 
         // تسجيل الحركة
-        db.ref("attendance").push(data)
+        saveOrQueue("attendance", data)
 
         // تسجيل في سجل النظام
         SystemLog.add(action, code, emp.name)
@@ -7812,7 +7920,7 @@ function attQuickCheckout(code, name) {
   showConfirm(`تسجيل خروج: ${name}؟`, ()=>{
     const now = new Date(TimeUtils.now());
     const emp = getEmpData(code) || {};
-    db.ref("attendance").push({
+    saveOrQueue("attendance", {
       code, name,
       action: "CheckOut",
       date: now.toLocaleDateString("ar-EG"),
@@ -7824,6 +7932,31 @@ function attQuickCheckout(code, name) {
       SystemLog.add("CheckOut", code, name);
       UI.renderInsideEmployees();
       ReportService.render();
+    }).catch(e=>UI.toast("❌ "+e.message,"error"));
+  });
+}
+
+// رجوع سريع من جدول سجل الاستئذانات
+function breakQuickReturn(id, code, name) {
+  showConfirm(`تسجيل رجوع: ${name}؟`, ()=>{
+    const openBreakObj = State.breaks.find(b => String(b.id) === String(id));
+    if(!openBreakObj || openBreakObj.returnTimestamp){
+      UI.toast("لا يوجد استئذان مفتوح", "error");
+      return;
+    }
+    const start = openBreakObj.deviceBreakTime || openBreakObj.breakTimestamp;
+    const end = TimeUtils.now();
+    const duration = Math.max(0, end - start);
+    db.ref("breaks/" + id).update({
+      returnTime: new Date(end).toLocaleTimeString("ar-EG"),
+      returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
+      deviceReturnTime: end,
+      duration: duration,
+      status: "closed"
+    }).then(()=>{
+      UI.toast(`🔄 تم تسجيل رجوع ${name}`, "success");
+      SystemLog.add("Return", code, name);
+      UI.renderBreaks();
     }).catch(e=>UI.toast("❌ "+e.message,"error"));
   });
 }
@@ -8148,7 +8281,7 @@ user: State.currentUser.username
 
 }
 
-db.ref("breaks").push(data).then(() => UI.renderBreaks());
+saveOrQueue("breaks", data).then(() => UI.renderBreaks());
 
 SystemLog.add("Break", code, emp.name);
 
@@ -8287,7 +8420,7 @@ if(!duration && b.deviceBreakTime){
 duration = TimeUtils.now() - b.deviceBreakTime
 }
 
-if(duration){
+if(duration && b.type !== "صلاة"){
 
 if(!totals[b.code]){
 totals[b.code] = {
@@ -9552,6 +9685,16 @@ document.querySelectorAll("table").forEach(t => {
   _canEdit ? t.classList.remove("no-edit-perm") : t.classList.add("no-edit-perm")
 })
 
+/* إخفاء كروت العدادات أعلى الشاشة حسب الصلاحيات */
+document.querySelectorAll("[data-perm]").forEach(card => {
+  let perm = card.dataset.perm
+  if(perms.includes("all") || perms.includes(perm)){
+    card.style.display = ""
+  }else{
+    card.style.display = "none"
+  }
+})
+
 /* إخفاء كل الصفحات */
 
 document.querySelectorAll(".tab-content").forEach(t=>{
@@ -9562,15 +9705,23 @@ document.querySelectorAll(".tab-btn").forEach(b=>{
 b.classList.remove("active")
 })
 
-/* فتح أول صفحة مسموح بها */
+/* فتح آخر صفحة كان عليها المستخدم، أو أول صفحة مسموح بها لو مفيش */
 
 if(firstTab){
 
-let tabBtn = document.querySelector(`.tab-btn[data-tab="${firstTab}"]`)
-let tabPage = document.getElementById("tab-" + firstTab)
+let savedTab = null
+try{ savedTab = localStorage.getItem("activeTab") }catch(e){}
 
-if(tabBtn) tabBtn.classList.add("active")
-if(tabPage) tabPage.style.display="block"
+let targetTab = firstTab
+if(savedTab){
+  let savedBtn = document.querySelector(`.tab-btn[data-tab="${savedTab}"]`)
+  if(savedBtn && savedBtn.style.display !== "none"){
+    targetTab = savedTab
+  }
+}
+
+let tabBtn = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`)
+if(tabBtn) tabBtn.click()
 
 }
 
@@ -9874,23 +10025,6 @@ function deleteBreakRecord(id) {
             SystemLog.add("DeleteBreak", rec?.code || "-", empName);
             UI.renderBreaks();
         }).catch(() => UI.toast("❌ خطأ في الحذف", "error"));
-    });
-}
-
-function deleteAttendanceRecord(data) {
-    showConfirm("هل تريد حذف هذا السجل؟", () => {
-        let promises = [];
-        if (data.checkIn && data.checkIn.id) {
-            promises.push(db.ref("attendance/" + data.checkIn.id).remove());
-        }
-        if (data.checkOut && data.checkOut.id) {
-            promises.push(db.ref("attendance/" + data.checkOut.id).remove());
-        }
-        Promise.all(promises).then(() => {
-            UI.toast("تم حذف السجل بنجاح", "warning");
-            SystemLog.add("DeleteAttendance", data.checkIn?.code || "-", data.checkIn?.name || "-");
-            UI.renderAttendance();
-        }).catch(() => UI.toast("خطأ في الحذف", "error"));
     });
 }
 
@@ -10450,13 +10584,20 @@ function saveTransferEdit(){
 
   if(newItems.length === 0) { UI.toast('لا توجد أصناف للحفظ', 'error'); return; }
 
+  const newFrom = document.getElementById('editTransferFrom')?.value || t.from;
+  const newTo   = document.getElementById('editTransferTo')?.value || t.to;
+  if(newFrom && newTo && newFrom === newTo) {
+    UI.toast('لا يمكن التحويل لنفس الفرع', 'error');
+    return;
+  }
+
   const tid = editingTransferId;
   closeTransferEdit();
 
-  db.ref('transfers/' + tid).update({ items: newItems })
+  db.ref('transfers/' + tid).update({ items: newItems, from: newFrom, to: newTo })
     .then(() => {
       const stateT = State.transfers.find(x => x.id === tid);
-      if(stateT) { stateT.items = newItems; }
+      if(stateT) { stateT.items = newItems; stateT.from = newFrom; stateT.to = newTo; }
       UI.renderTransfers();
       UI.toast('✅ تم حفظ التعديل (' + newItems.length + ' صنف)', 'success');
       SystemLog.add('EditTransfer', State.currentUser?.username || '-', newItems.length + ' صنف');
@@ -10732,6 +10873,11 @@ let t = State.transfers.find(x=>x.id===id)
 if(!t) return
 
 editingTransferId = id
+
+const fromSel = document.getElementById("editTransferFrom")
+const toSel = document.getElementById("editTransferTo")
+if(fromSel) fromSel.value = t.from || ""
+if(toSel) toSel.value = t.to || ""
 
 let body = document.getElementById("editTransferItems")
 
@@ -13720,6 +13866,8 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
         renderSystemLogs() {
             let body = document.getElementById("systemLogsBody"); if (!body) return;
             const q = (document.getElementById("logsSearch")?.value||"").toLowerCase().trim();
+            const now = new Date(TimeUtils.now());
+            const range = State.logsRange || "day";
             const filtered = State.systemLogs
               .filter(l => !q ||
                 (l.action||"").toLowerCase().includes(q) ||
@@ -13728,8 +13876,15 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
                 (l.user||"").toLowerCase().includes(q)  ||
                 (l.date||"").toLowerCase().includes(q)
               )
-              .sort((a,b) => b.timestamp - a.timestamp)
-              .slice(0, 200);  // عرض أول 200 نتيجة فقط لتحسين الأداء
+              .filter(l => {
+                if(range === "all") return true;
+                const d = new Date(l.timestamp || 0);
+                if(range === "day")   return d.toDateString() === now.toDateString();
+                if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
+                if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+                return true;
+              })
+              .sort((a,b) => b.timestamp - a.timestamp);
             body.innerHTML = filtered.length
               ? filtered.map(l => `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`).join("")
               : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
@@ -13857,7 +14012,10 @@ html += `
 <td>${b.code}</td>
 <td>${b.type || "-"}</td>
 <td>${b.breakTime || "-"}</td>
-<td>${b.returnTime || "-"}</td>
+<td>${b.returnTime || `<button onclick="breakQuickReturn('${b.id}','${b.code}','${b.name}')"
+  style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">
+  🔄 رجوع
+</button>`}</td>
 <td ${durStyle}>${durationText}</td>
 <td>${b.date}</td>
 <td>${b.user}</td>
@@ -13883,9 +14041,9 @@ onclick='deleteBreakRecord("${b.id}")'>
 </tr>
 `
 
-/* حساب مجموع الاستئذان */
+/* حساب مجموع الاستئذان (بدون احتساب إذن الصلاة) */
 
-if(duration){
+if(duration && b.type !== "صلاة"){
 
 if(!totals[b.code]){
 totals[b.code] = {
@@ -13937,6 +14095,7 @@ if(box) box.innerText = openBreaks.length
 const nowTs = TimeUtils.now();
 const over30Now = State.breaks.filter(b => {
   if(b.returnTimestamp) return false;
+  if(b.type === "صلاة") return false;
   const start = b.deviceBreakTime || b.breakTimestamp || 0;
   return (nowTs - start) >= 1800000;
 });
@@ -13958,15 +14117,30 @@ this.renderSummary();
 
 renderSummary() {
   const body = document.getElementById("breakSummaryBody");
+  const foot = document.getElementById("breakSummaryFoot");
   if(!body) return;
 
+  const q = (document.getElementById("summarySearch")?.value||"").toLowerCase().trim();
+  const range = State.summaryRange || "month";
+  const now = new Date(TimeUtils.now());
+
+  const scoped = State.breaks.filter(b => {
+    if(range === "all") return true;
+    const d = new Date(b.breakTimestamp || b.deviceBreakTime || 0);
+    if(range === "day")   return d.toDateString() === now.toDateString();
+    if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
+    if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+    return true;
+  });
+
   const empMap = {};
-  State.breaks.forEach(b => {
+  scoped.forEach(b => {
     const code = String(b.code);
     if(!empMap[code]) empMap[code] = {
       name: b.name, code,
-      count: 0, totalMs: 0,
-      types: { "صلاة":0,"حمام":0,"أكل":0,"مكالمة":0,"خروج مهمة":0,"أخرى":0 }
+      count: 0, totalMs: 0, totalMsExcl: 0,
+      types: { "صلاة":0,"حمام":0,"أكل":0,"مكالمة":0,"خروج مهمة":0,"أخرى":0 },
+      lastTimestamp: 0, lastType: "-", lastDate: "-"
     };
     const e = empMap[code];
     e.count++;
@@ -13974,26 +14148,52 @@ renderSummary() {
       ? b.deviceReturnTime - b.deviceBreakTime : 0);
     e.totalMs += dur;
     const t = b.type || "أخرى";
+    if(t !== "صلاة") e.totalMsExcl += dur;
     if(e.types[t] !== undefined) e.types[t]++;
     else e.types["أخرى"]++;
+    const ts = b.deviceBreakTime || b.breakTimestamp || 0;
+    if(ts >= e.lastTimestamp){
+      e.lastTimestamp = ts;
+      e.lastType = t;
+      e.lastDate = b.date || "-";
+    }
   });
 
-  const sorted = Object.values(empMap).sort((a,b)=>b.totalMs-a.totalMs);
-  if(!sorted.length) {
-    body.innerHTML='<tr><td colspan="11" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+  let list = Object.values(empMap).map(e => ({ ...e, avgMs: e.count ? e.totalMs / e.count : 0 }));
+
+  if(q){
+    list = list.filter(e =>
+      (e.name||"").toLowerCase().includes(q) || (e.code||"").toLowerCase().includes(q)
+    );
+  }
+
+  const { key, dir } = State.summarySort || { key:"totalMs", dir:-1 };
+  list.sort((a,b) => {
+    let av = a[key], bv = b[key];
+    if(typeof av === "string") return av.localeCompare(bv,"ar") * dir;
+    return (av - bv) * dir;
+  });
+
+  if(!list.length) {
+    body.innerHTML='<tr><td colspan="14" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+    if(foot) foot.innerHTML = "";
     return;
   }
 
-  body.innerHTML = sorted.map(e => {
+  const fmtDur = ms => {
+    const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000);
+    return h+"س "+m+"د";
+  };
+
+  body.innerHTML = list.map(e => {
     const topType = Object.entries(e.types).sort((a,b)=>b[1]-a[1])[0];
-    const h=Math.floor(e.totalMs/3600000), m=Math.floor((e.totalMs%3600000)/60000);
-    const durStr = h+"س "+m+"د";
-    const color = e.totalMs>=3600000?"#f87171":e.totalMs>=1800000?"#fbbf24":"#e2e8f0";
+    const color = e.totalMsExcl>=3600000?"#f87171":e.totalMsExcl>=1800000?"#fbbf24":"#e2e8f0";
     return `<tr>
       <td style="font-weight:700">${e.name}</td>
       <td style="color:#818cf8">${e.code}</td>
       <td style="text-align:center;font-weight:700;color:#818cf8">${e.count}</td>
-      <td style="text-align:center;font-weight:700;color:${color}">${durStr}</td>
+      <td style="text-align:center;font-weight:700;color:${color}">${fmtDur(e.totalMs)}</td>
+      <td style="text-align:center;color:#94a3b8">${fmtDur(e.avgMs)}</td>
       <td style="text-align:center">${e.types["صلاة"]||"-"}</td>
       <td style="text-align:center">${e.types["حمام"]||"-"}</td>
       <td style="text-align:center">${e.types["أكل"]||"-"}</td>
@@ -14001,30 +14201,96 @@ renderSummary() {
       <td style="text-align:center">${e.types["خروج مهمة"]||"-"}</td>
       <td style="text-align:center">${e.types["أخرى"]||"-"}</td>
       <td style="text-align:center"><span class="badge badge-info" style="font-size:11px">${topType?.[0]||"-"}</span></td>
+      <td style="text-align:center;font-size:12px">${e.lastDate!=="-" ? e.lastDate+" ("+e.lastType+")" : "-"}</td>
+      <td style="text-align:center"><button onclick="UI.showEmployeeDetails('${e.code}')" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">📋 عرض</button></td>
     </tr>`;
   }).join('');
+
+  if(foot){
+    const totalCount = list.reduce((s,e)=>s+e.count,0);
+    const totalMs = list.reduce((s,e)=>s+e.totalMs,0);
+    const avgAll = list.length ? totalMs/list.length : 0;
+    foot.innerHTML = `<tr style="font-weight:700;background:rgba(255,255,255,0.04)">
+      <td colspan="2">الإجمالي (${list.length} موظف)</td>
+      <td style="text-align:center;color:#818cf8">${totalCount}</td>
+      <td style="text-align:center">${fmtDur(totalMs)}</td>
+      <td style="text-align:center;color:#94a3b8">${fmtDur(avgAll)}</td>
+      <td colspan="9"></td>
+    </tr>`;
+  }
+},
+
+showEmployeeDetails(code){
+  const range = State.summaryRange || "month";
+  const now = new Date(TimeUtils.now());
+  const recs = State.breaks.filter(b => {
+    if(String(b.code) !== String(code)) return false;
+    if(range === "all") return true;
+    const d = new Date(b.breakTimestamp || b.deviceBreakTime || 0);
+    if(range === "day")   return d.toDateString() === now.toDateString();
+    if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
+    if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+    return true;
+  }).sort((a,b) => (b.deviceBreakTime||0) - (a.deviceBreakTime||0));
+
+  const emp = recs[0];
+  document.getElementById("breakDetailTitle").textContent =
+    "📋 تفاصيل استئذانات " + (emp?.name || code);
+
+  const body = document.getElementById("breakDetailBody");
+  if(!recs.length){
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">لا توجد استئذانات في هذه الفترة</td></tr>';
+  } else {
+    body.innerHTML = recs.map(b => {
+      const dur = b.duration || (b.deviceReturnTime && b.deviceBreakTime ? b.deviceReturnTime-b.deviceBreakTime : 0);
+      const h=Math.floor(dur/3600000), m=Math.floor((dur%3600000)/60000);
+      return `<tr>
+        <td>${b.date||"-"}</td>
+        <td>${b.type||"-"}</td>
+        <td>${b.breakTime||"-"}</td>
+        <td>${b.returnTime||"-"}</td>
+        <td>${dur ? h+"س "+m+"د" : "-"}</td>
+      </tr>`;
+    }).join('');
+  }
+  document.getElementById("breakDetailModal").style.display = "flex";
 },
 
 exportSummaryExcel() {
   if(!checkExcelPermission()) return;
+  const range = State.summaryRange || "month";
+  const now = new Date(TimeUtils.now());
+  const scoped = State.breaks.filter(b => {
+    if(range === "all") return true;
+    const d = new Date(b.breakTimestamp || b.deviceBreakTime || 0);
+    if(range === "day")   return d.toDateString() === now.toDateString();
+    if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
+    if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+    return true;
+  });
   const empMap = {};
-  State.breaks.forEach(b => {
+  scoped.forEach(b => {
     const code = String(b.code);
     if(!empMap[code]) empMap[code] = {
       name:b.name, code, count:0, totalMs:0,
-      types:{"صلاة":0,"حمام":0,"أكل":0,"مكالمة":0,"خروج مهمة":0,"أخرى":0}
+      types:{"صلاة":0,"حمام":0,"أكل":0,"مكالمة":0,"خروج مهمة":0,"أخرى":0},
+      lastTimestamp:0, lastType:"-", lastDate:"-"
     };
     const e=empMap[code]; e.count++;
     const dur=b.duration||(b.deviceReturnTime&&b.deviceBreakTime?b.deviceReturnTime-b.deviceBreakTime:0);
     e.totalMs+=dur;
     const t=b.type||"أخرى";
     if(e.types[t]!==undefined) e.types[t]++; else e.types["أخرى"]++;
+    const ts = b.deviceBreakTime || b.breakTimestamp || 0;
+    if(ts >= e.lastTimestamp){ e.lastTimestamp=ts; e.lastType=t; e.lastDate=b.date||"-"; }
   });
   const rows=Object.values(empMap).sort((a,b)=>b.totalMs-a.totalMs).map(e=>({
     "الموظف":e.name,"الكود":e.code,"عدد الاستئذانات":e.count,
     "إجمالي الوقت (دقيقة)":Math.round(e.totalMs/60000),
+    "متوسط المدة (دقيقة)": e.count ? Math.round(e.totalMs/e.count/60000) : 0,
     "صلاة":e.types["صلاة"],"حمام":e.types["حمام"],"أكل":e.types["أكل"],
-    "مكالمة":e.types["مكالمة"],"خروج مهمة":e.types["خروج مهمة"],"أخرى":e.types["أخرى"]
+    "مكالمة":e.types["مكالمة"],"خروج مهمة":e.types["خروج مهمة"],"أخرى":e.types["أخرى"],
+    "آخر استئذان": e.lastDate!=="-" ? e.lastDate+" ("+e.lastType+")" : "-"
   }));
   const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new();
@@ -14264,15 +14530,8 @@ onclick='deleteCompanyRecord("${c.id}","${c.company || ""}")'>
 body.innerHTML = html
 },
         renderEmployees() {
-            document.getElementById("empCount").innerText = State.employees.length;
-            let body = document.getElementById("employeesBody"); if (!body) return;
-            let search = document.getElementById("employeeSearch")?.value?.toLowerCase() || "";
-            let filtered = State.employees.filter(emp => !search || (emp.name && emp.name.toLowerCase().includes(search)) || (emp.code && emp.code.toString().includes(search)) || (emp.job && emp.job.toLowerCase().includes(search)));
-            let html = ""; filtered.sort((a, b) => a.code - b.code).forEach(emp => { html += `<tr><td>${emp.code}</td><td>${emp.name}</td><td>${emp.job || "-"}</td><td>${emp.branch || "-"}</td><td>${emp.status || "خارج العمل"}</td><td><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="EmployeeService.edit('${emp.id}')">✏ تعديل</button></td><td><button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="EmployeeService.delete('${emp.id}')">🗑 حذف</button></td></tr>`; });
-            body.innerHTML = html; let totalBox = document.getElementById("totalEmpCount");
-if(totalBox){
-totalBox.innerText = filtered.length;
-} document.getElementById("empCount").innerText = filtered.length;
+            const empCountEl = document.getElementById("empCount");
+            if(empCountEl) empCountEl.innerText = State.employees.length;
         },
         renderAttendance() { ReportService.render(); },
         renderUsers() {
@@ -14441,6 +14700,7 @@ if(!tabEl) return; // الصفحة غير موجودة
 tabEl.style.display = "block"
 
 btn.classList.add("active")
+try{ localStorage.setItem("activeTab", tab); }catch(e){}
 
 if(tab === "pricing"){
   setTimeout(() => {
@@ -14471,12 +14731,6 @@ if(tab === "fingerprint-bazar"){
 }
 if(tab === "fingerprint-sabah"){
   FingerprintSabahService.init();
-}
-if(tab === "archive"){
-  if(!hasPermission("all") && !hasPermission("archive")) {
-    UI.toast("ليس لديك صلاحية","error"); return;
-  }
-  ArchiveService.init();
 }
 if(tab === "archive"){
   if(!hasPermission("all") && !hasPermission("archive")) {
@@ -16528,8 +16782,14 @@ async function saveOrQueue(collection, data) {
     // النت شغّال — ارفع مباشرة
     return db.ref(collection).push(data);
   } else {
-    // أوف لاين — احفظ محلياً
-    await OfflineDB.save(collection, data);
+    // أوف لاين — استبدال أي timestamp سيرفر بوقت الجهاز عشان يتخزن صح محليًا
+    const offlineData = Object.assign({}, data);
+    Object.keys(offlineData).forEach(k => {
+      if (offlineData[k] && typeof offlineData[k] === 'object' && offlineData[k]['.sv'] === 'timestamp') {
+        offlineData[k] = Date.now();
+      }
+    });
+    await OfflineDB.save(collection, offlineData);
     if (typeof UI !== 'undefined') UI.toast('💾 تم الحفظ محلياً — سيُرفع عند عودة الإنترنت', 'warning');
     return Promise.resolve();
   }
