@@ -2205,6 +2205,22 @@ id="transferDate"
 style="width:130px;padding:8px;border-radius:8px;border:none"
 onchange="UI.renderTransfers()">
 
+<select id="transferBranchFilter" onchange="UI.renderTransfers()"
+  style="padding:8px;border-radius:8px;border:none">
+<option value="">كل الفروع</option>
+<option value="البازار">فرع البازار</option>
+<option value="الصباح">فرع الصباح</option>
+<option value="باب40">مخزن باب 40</option>
+<option value="الثلاجة">الثلاجة</option>
+</select>
+
+<select id="transferDirFilter" onchange="UI.renderTransfers()"
+  style="padding:8px;border-radius:8px;border:none">
+<option value="">من/إلى (أي اتجاه)</option>
+<option value="from">من الفرع</option>
+<option value="to">إلى الفرع</option>
+</select>
+
 <div class="attendance-filters">
 
 <button class="filter-btn active"
@@ -2380,6 +2396,13 @@ onclick="TransferService.exportExcel()">
                 <option value="">📋 كل المصادر</option>
                 <option value="يدوي">✍️ يدوي</option>
                 <option value="تحويل">📦 تحويل</option>
+              </select>
+              <select id="productExpirySoonFilter" onchange="UI.renderProducts()"
+                style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                <option value="">⏰ قرّب على الانتهاء؟</option>
+                <option value="7">خلال 7 أيام</option>
+                <option value="15">خلال 15 يوم</option>
+                <option value="30">خلال 30 يوم</option>
               </select>
             </div>
           </div>
@@ -4864,9 +4887,15 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <span>📊</span> تصدير Excel
 </button>
 </div>
-<div style="margin-bottom:10px">
+<div style="margin-bottom:10px;display:flex;gap:10px;flex-wrap:wrap">
   <input id="penaltiesSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="UI.renderPenalties()"
-    style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
+    style="flex:1;min-width:180px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
+  <div class="attendance-filters" id="penaltiesRangeBtns">
+    <button class="filter-btn" onclick="setPenaltiesFilter(this,'day')">اليوم</button>
+    <button class="filter-btn" onclick="setPenaltiesFilter(this,'week')">أسبوع</button>
+    <button class="filter-btn" onclick="setPenaltiesFilter(this,'month')">شهر</button>
+    <button class="filter-btn active" onclick="setPenaltiesFilter(this,'all')">الكل</button>
+  </div>
 </div>
 
 <div class="table-container">
@@ -4887,6 +4916,21 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 </thead>
 <tbody id="penaltiesBody"></tbody>
 </table>
+</div>
+
+</div>
+
+<div class="glass-card" style="padding:20px;margin-top:16px">
+  <h3 style="margin-bottom:14px">📊 ملخص الجزاءات حسب الموظف</h3>
+  <div class="table-container">
+    <table>
+      <thead><tr>
+        <th>الموظف</th><th>الكود</th><th>عدد الجزاءات</th><th>إجمالي الساعات</th><th>آخر جزاء</th>
+      </tr></thead>
+      <tbody id="penaltiesSummaryBody"></tbody>
+      <tfoot id="penaltiesSummaryFoot"></tfoot>
+    </table>
+  </div>
 </div>
 
 </div>
@@ -5032,6 +5076,12 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <option value="موافق">✅ موافق</option>
                     <option value="مرفوض">❌ مرفوض</option>
                   </select>
+                  <div class="attendance-filters" id="leavesRangeBtns">
+                    <button class="filter-btn" onclick="setLeavesFilter(this,'day')">اليوم</button>
+                    <button class="filter-btn" onclick="setLeavesFilter(this,'week')">أسبوع</button>
+                    <button class="filter-btn" onclick="setLeavesFilter(this,'month')">شهر</button>
+                    <button class="filter-btn active" onclick="setLeavesFilter(this,'all')">الكل</button>
+                  </div>
                 </div>
                 <div class="table-container"><table>
                     
@@ -5051,6 +5101,19 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 </tr></thead>
                 
                 <tbody id="leavesBody"></tbody></table></div>
+            </div>
+
+            <div class="glass-card" style="padding:20px;margin-top:16px">
+              <h3 style="margin-bottom:14px">📊 ملخص الإجازات حسب الموظف</h3>
+              <div class="table-container">
+                <table>
+                  <thead><tr>
+                    <th>الموظف</th><th>الكود</th><th>عدد الطلبات</th><th>موافق</th><th>مرفوض</th><th>قيد المراجعة</th><th>آخر إجازة</th>
+                  </tr></thead>
+                  <tbody id="leavesSummaryBody"></tbody>
+                  <tfoot id="leavesSummaryFoot"></tfoot>
+                </table>
+              </div>
             </div>
         </div>
 
@@ -5776,6 +5839,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 <th>كراتين</th>
 <th>علب</th>
 <th>قطع</th>
+<th>كيلو</th>
 <th>الانتهاء</th>
 <th>حذف</th>
 </tr>
@@ -5797,6 +5861,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
     <input id="newItemCartons" type="number" min="0" placeholder="كراتين" style="width:70px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
     <input id="newItemBoxes" type="number" min="0" placeholder="علب" style="width:65px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
     <input id="newItemPieces" type="number" min="0" placeholder="قطع" style="width:65px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+    <input id="newItemKilo" type="number" min="0" step="0.01" placeholder="كيلو" style="width:65px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
     <input id="newItemExpire" type="date" style="width:130px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
     <button onclick="addItemToEditTransfer()" style="padding:8px 16px;background:rgba(16,185,129,0.25);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;cursor:pointer;font-weight:700;white-space:nowrap">+ إضافة</button>
   </div>
@@ -7206,6 +7271,30 @@ function setSummaryFilter(btn,range){
   UI.renderSummary()
 }
 
+function setPenaltiesFilter(btn,range){
+  document.querySelectorAll("#penaltiesRangeBtns .filter-btn").forEach(b=>b.classList.remove("active"))
+  btn.classList.add("active")
+  State.penaltiesRange = range
+  UI.renderPenalties()
+}
+
+function setLeavesFilter(btn,range){
+  document.querySelectorAll("#leavesRangeBtns .filter-btn").forEach(b=>b.classList.remove("active"))
+  btn.classList.add("active")
+  State.leavesRange = range
+  UI.renderLeaves()
+}
+
+function _inRange(ts, range){
+  if(range === "all") return true;
+  const now = new Date(TimeUtils.now());
+  const d = new Date(ts || 0);
+  if(range === "day")   return d.toDateString() === now.toDateString();
+  if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
+  if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+  return true;
+}
+
 function sortSummaryBy(key){
   if(State.summarySort.key === key){
     State.summarySort.dir *= -1
@@ -7576,6 +7665,8 @@ const DeviceInfo = {
         logsRange: "day",
         summaryRange: "month",
         summarySort: { key: "totalMs", dir: -1 },
+        penaltiesRange: "all",
+        leavesRange: "all",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -10568,10 +10659,12 @@ function saveTransferEdit(){
     const cartons = Number(numInputs[0]?.value) || 0;
     const boxes   = Number(numInputs[1]?.value) || 0;
     const pieces  = Number(numInputs[2]?.value) || 0;
+    const kilo    = Number(numInputs[3]?.value) || 0;
     const expire  = row.querySelector('input[type=date]')?.value || '';
     // نفس منطق calcTransferTotal
     let total = 0;
-    if(cartons && boxes && pieces)       total = cartons * boxes * pieces;
+    if(kilo > 0)                          total = kilo;
+    else if(cartons && boxes && pieces)       total = cartons * boxes * pieces;
     else if(cartons && boxes && !pieces) total = cartons * boxes;
     else if(cartons && !boxes && pieces) total = cartons * pieces;
     else if(!cartons && boxes && pieces) total = boxes * pieces;
@@ -10579,7 +10672,7 @@ function saveTransferEdit(){
     else if(!cartons && boxes && !pieces)total = boxes;
     else if(!cartons && !boxes && pieces)total = pieces;
 
-    newItems.push({ barcode, name, cartons, boxes, pieces, expire, total });
+    newItems.push({ barcode, name, cartons, boxes, pieces, kilo, expire, total });
   });
 
   if(newItems.length === 0) { UI.toast('لا توجد أصناف للحفظ', 'error'); return; }
@@ -10608,7 +10701,7 @@ function closeTransferEdit(){
   document.getElementById("editTransferModal").style.display = "none";
   editingTransferId = null;
   // مسح حقول الإضافة
-  ['newItemBarcode','newItemName','newItemCartons','newItemBoxes','newItemPieces','newItemExpire'].forEach(id => {
+  ['newItemBarcode','newItemName','newItemCartons','newItemBoxes','newItemPieces','newItemKilo','newItemExpire'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
@@ -10638,10 +10731,12 @@ function addItemToEditTransfer() {
   const cartons = Number(document.getElementById('newItemCartons')?.value) || 0;
   const boxes   = Number(document.getElementById('newItemBoxes')?.value)   || 0;
   const pieces  = Number(document.getElementById('newItemPieces')?.value)  || 0;
+  const kilo    = Number(document.getElementById('newItemKilo')?.value)    || 0;
   const expire  = document.getElementById('newItemExpire')?.value || '';
     // نفس منطق calcTransferTotal
     let total = 0;
-    if(cartons && boxes && pieces)       total = cartons * boxes * pieces;
+    if(kilo > 0)                          total = kilo;
+    else if(cartons && boxes && pieces)       total = cartons * boxes * pieces;
     else if(cartons && boxes && !pieces) total = cartons * boxes;
     else if(cartons && !boxes && pieces) total = cartons * pieces;
     else if(!cartons && boxes && pieces) total = boxes * pieces;
@@ -10662,12 +10757,13 @@ function addItemToEditTransfer() {
     <td><input class="transfer-input" type="number" min="0" value="${cartons}" id="editCartons${newIndex}"></td>
     <td><input class="transfer-input" type="number" min="0" value="${boxes}"   id="editBoxes${newIndex}"></td>
     <td><input class="transfer-input" type="number" min="0" value="${pieces}"  id="editPieces${newIndex}"></td>
+    <td><input class="transfer-input" type="number" min="0" step="0.01" value="${kilo}" id="editKilo${newIndex}"></td>
     <td><input class="transfer-input" type="date"   value="${expire}"          id="editExpire${newIndex}"></td>
     <td><button onclick="this.closest('tr').remove();renumberEditRows()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button></td>`;
   tbody.appendChild(newRow);
 
   // مسح حقول الإضافة
-  ['newItemBarcode','newItemName','newItemCartons','newItemBoxes','newItemPieces','newItemExpire'].forEach(id => {
+  ['newItemBarcode','newItemName','newItemCartons','newItemBoxes','newItemPieces','newItemKilo','newItemExpire'].forEach(id => {
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
@@ -10681,7 +10777,7 @@ function renumberEditRows() {
   if(!tbody) return;
   tbody.querySelectorAll('tr').forEach((row, i) => {
     const inputs = row.querySelectorAll('input');
-    const idMap = ['editBarcode','editCartons','editBoxes','editPieces','editExpire'];
+    const idMap = ['editBarcode','editCartons','editBoxes','editPieces','editKilo','editExpire'];
     inputs.forEach((inp, j) => { if(idMap[j]) inp.id = idMap[j] + i; });
     const nameTd = row.querySelector('td[id^="editName"]');
     if(nameTd) nameTd.id = 'editName' + i;
@@ -10927,6 +11023,15 @@ type="number"
 min="0"
 value="${i.pieces}"
 id="editPieces${index}">
+</td>
+
+<td>
+<input class="transfer-input"
+type="number"
+min="0"
+step="0.01"
+value="${i.kilo || 0}"
+id="editKilo${index}">
 </td>
 
 <td>
@@ -13542,8 +13647,8 @@ if(!body) return
 
 let search = document.getElementById("transferSearch")?.value?.toLowerCase() || ""
 let selectedDate = document.getElementById("transferDate")?.value
-let branchFilter = ""
-let dirFilter = ""
+let branchFilter = document.getElementById("transferBranchFilter")?.value || ""
+let dirFilter = document.getElementById("transferDirFilter")?.value || ""
 
 let now = new Date()
 let html=""
@@ -13687,6 +13792,7 @@ let search       = document.getElementById("productSearch")?.value?.toLowerCase(
 let branchFilter = document.getElementById("productBranchFilter")?.value || ""
 let statusFilter = document.getElementById("productStatusFilter")?.value || ""
 let sourceFilter = document.getElementById("productSourceFilter")?.value || ""
+let expirySoonFilter = document.getElementById("productExpirySoonFilter")?.value || ""
 
 let html = ""
 let low=0, expired=0, soon=0
@@ -13695,7 +13801,12 @@ State.products
 .filter(p =>
   (!search || (p.name?.toLowerCase().includes(search) || String(p.barcode||'').includes(search))) &&
   (!branchFilter || (p.branch||"") === branchFilter) &&
-  (!sourceFilter || (p.source||"يدوي") === sourceFilter)
+  (!sourceFilter || (p.source||"يدوي") === sourceFilter) &&
+  (!expirySoonFilter || (() => {
+    if(!p.expire) return false
+    let d = getRemainingDays(p.expire)
+    return d >= 0 && d <= Number(expirySoonFilter)
+  })())
 )
 
 // ترتيب المنتجات حسب الأقرب انتهاء
@@ -14361,12 +14472,15 @@ applyEditColVisibility();
             const canEdit = hasPermission("edit") || hasPermission("all");
             const lSearch  = (document.getElementById("leavesSearch")?.value||"").toLowerCase().trim();
             const lStatus  = document.getElementById("leavesStatusFilter")?.value || "";
-            State.leaves
+            const lRange   = State.leavesRange || "all";
+            const scoped = State.leaves
               .filter(l =>
                 (!lSearch || (l.name||"").toLowerCase().includes(lSearch) || String(l.code||"").includes(lSearch)) &&
-                (!lStatus || l.status === lStatus)
+                (!lStatus || l.status === lStatus) &&
+                _inRange(l.timestamp, lRange)
               )
-              .sort((a, b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0))
+              .sort((a, b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0));
+            scoped
               .forEach(l => {
                 const statusColor = l.status==="موافق"?"#34d399":l.status==="مرفوض"?"#f87171":"#fbbf24";
                 html += `<tr>
@@ -14389,17 +14503,62 @@ applyEditColVisibility();
 <td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="deleteLeaveRecord('${l.id}','${(l.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
-            body.innerHTML = html || '<tr><td colspan="11" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
+            body.innerHTML = html || '<tr><td colspan="12" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
             applyEditColVisibility();
             document.getElementById("leavesCount").innerText = State.leaves.length;
+            this.renderLeavesSummary(scoped);
+        },
+
+        renderLeavesSummary(scoped) {
+          const body = document.getElementById("leavesSummaryBody");
+          const foot = document.getElementById("leavesSummaryFoot");
+          if(!body) return;
+          const list = scoped || State.leaves.filter(l => _inRange(l.timestamp, State.leavesRange||"all"));
+          const map = {};
+          list.forEach(l=>{
+            const code = String(l.code);
+            if(!map[code]) map[code] = { name:l.name, code, count:0, approved:0, rejected:0, pending:0, lastTs:0, lastDate:"-", lastStatus:"-" };
+            const e = map[code];
+            e.count++;
+            if(l.status==="موافق") e.approved++;
+            else if(l.status==="مرفوض") e.rejected++;
+            else e.pending++;
+            if((l.timestamp||0) >= e.lastTs){ e.lastTs=l.timestamp||0; e.lastDate=l.leaveDate||"-"; e.lastStatus=l.status||"-"; }
+          });
+          const rows = Object.values(map).sort((a,b)=>b.count-a.count);
+          if(!rows.length){
+            body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:#64748b">لا توجد بيانات</td></tr>';
+            if(foot) foot.innerHTML = "";
+            return;
+          }
+          body.innerHTML = rows.map(e=>`<tr>
+            <td style="font-weight:700">${e.name}</td>
+            <td style="color:#818cf8">${e.code}</td>
+            <td style="text-align:center;font-weight:700">${e.count}</td>
+            <td style="text-align:center;color:#34d399">${e.approved||"-"}</td>
+            <td style="text-align:center;color:#f87171">${e.rejected||"-"}</td>
+            <td style="text-align:center;color:#fbbf24">${e.pending||"-"}</td>
+            <td style="font-size:12px">${e.lastDate!=="-" ? e.lastDate+" ("+e.lastStatus+")" : "-"}</td>
+          </tr>`).join('');
+          if(foot){
+            const totalCount = rows.reduce((s,e)=>s+e.count,0);
+            foot.innerHTML = `<tr style="font-weight:700;background:rgba(255,255,255,0.04)">
+              <td colspan="2">الإجمالي (${rows.length} موظف)</td>
+              <td style="text-align:center">${totalCount}</td>
+              <td colspan="4"></td>
+            </tr>`;
+          }
         },
         renderPenalties() {
             let body = document.getElementById("penaltiesBody"); if (!body) return;
             let html = "";
             const pSearch = (document.getElementById("penaltiesSearch")?.value||"").toLowerCase().trim();
-            State.penalties
+            const pRange = State.penaltiesRange || "all";
+            const scoped = State.penalties
               .filter(p => !pSearch || (p.name||"").toLowerCase().includes(pSearch) || String(p.code||"").includes(pSearch))
-              .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+              .filter(p => _inRange(p.timestamp, pRange))
+              .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            scoped
               .forEach(p => {
                 let canEdit = hasPermission("edit") || hasPermission("all");
                 html += `<tr>
@@ -14415,9 +14574,49 @@ applyEditColVisibility();
 <td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
-            body.innerHTML = html;
+            body.innerHTML = html || '<tr><td colspan="10" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
 applyEditColVisibility();
             document.getElementById("penaltiesCount").innerText = State.penalties.length;
+            this.renderPenaltiesSummary(scoped);
+        },
+
+        renderPenaltiesSummary(scoped) {
+          const body = document.getElementById("penaltiesSummaryBody");
+          const foot = document.getElementById("penaltiesSummaryFoot");
+          if(!body) return;
+          const list = scoped || State.penalties.filter(p => _inRange(p.timestamp, State.penaltiesRange||"all"));
+          const map = {};
+          list.forEach(p=>{
+            const code = String(p.code);
+            if(!map[code]) map[code] = { name:p.name, code, count:0, hours:0, lastTs:0, lastDate:"-", lastReason:"-" };
+            const e = map[code];
+            e.count++;
+            e.hours += Number(p.hours)||0;
+            if((p.timestamp||0) >= e.lastTs){ e.lastTs=p.timestamp||0; e.lastDate=p.date||"-"; e.lastReason=p.reason||"-"; }
+          });
+          const rows = Object.values(map).sort((a,b)=>b.count-a.count);
+          if(!rows.length){
+            body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">لا توجد بيانات</td></tr>';
+            if(foot) foot.innerHTML = "";
+            return;
+          }
+          body.innerHTML = rows.map(e=>`<tr>
+            <td style="font-weight:700">${e.name}</td>
+            <td style="color:#818cf8">${e.code}</td>
+            <td style="text-align:center;font-weight:700;color:#f87171">${e.count}</td>
+            <td style="text-align:center">${e.hours}</td>
+            <td style="font-size:12px">${e.lastDate!=="-" ? e.lastDate+" ("+e.lastReason+")" : "-"}</td>
+          </tr>`).join('');
+          if(foot){
+            const totalCount = rows.reduce((s,e)=>s+e.count,0);
+            const totalHours = rows.reduce((s,e)=>s+e.hours,0);
+            foot.innerHTML = `<tr style="font-weight:700;background:rgba(255,255,255,0.04)">
+              <td colspan="2">الإجمالي (${rows.length} موظف)</td>
+              <td style="text-align:center;color:#f87171">${totalCount}</td>
+              <td style="text-align:center">${totalHours}</td>
+              <td></td>
+            </tr>`;
+          }
         },
         
         renderCompanies(){
