@@ -2388,7 +2388,7 @@ onclick="TransferService.exportExcel()">
                 <option value="متوفر">✅ متوفر</option>
                 <option value="قليل">⚠️ قليل</option>
                 <option value="منتهي">❌ منتهي</option>
-                <option value="قريب الانتهاء">⏰ قريب الانتهاء</option>
+                <option value="قريب الانتهاء" selected>⏰ قريب الانتهاء</option>
                 <option value="نفد">🚫 نفد</option>
               </select>
               <select id="productSourceFilter" onchange="UI.renderProducts()"
@@ -3773,27 +3773,27 @@ function bindPricesEvents() {
 
             <!-- STAT CARDS -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
-              <div class="glass-card stat-card">
+              <div class="glass-card stat-card" data-perm="attendance">
                 <span class="stat-icon">🟢</span><h3>داخل الآن</h3>
                 <p class="stat-value" id="attStatInside">0</p>
               </div>
-              <div class="glass-card stat-card">
+              <div class="glass-card stat-card" data-perm="attendance">
                 <span class="stat-icon">✅</span><h3>حضور اليوم</h3>
                 <p class="stat-value" id="attStatTodayIn">0</p>
               </div>
-              <div class="glass-card stat-card">
+              <div class="glass-card stat-card" data-perm="attendance">
                 <span class="stat-icon">👋</span><h3>انصراف اليوم</h3>
                 <p class="stat-value" id="attStatTodayOut">0</p>
               </div>
-              <div class="glass-card stat-card">
+              <div class="glass-card stat-card" data-perm="attendance">
                 <span class="stat-icon">⚠️</span><h3>متأخرون</h3>
                 <p class="stat-value" id="attStatLate">0</p>
               </div>
-              <div class="glass-card stat-card">
+              <div class="glass-card stat-card" data-perm="attendance">
                 <span class="stat-icon">⏱️</span><h3>إجمالي الساعات</h3>
                 <p class="stat-value" id="attStatHours" style="font-size:18px">0:00</p>
               </div>
-              <div class="glass-card stat-card">
+              <div class="glass-card stat-card" data-perm="attendance">
                 <span class="stat-icon">📋</span><h3>إجمالي السجلات</h3>
                 <p class="stat-value" id="attStatTotal">0</p>
               </div>
@@ -3907,6 +3907,23 @@ function bindPricesEvents() {
         </div>
 
         <div id="tab-breaks" class="tab-content" style="display:none;">
+
+            <!-- STAT CARDS -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+              <div class="glass-card stat-card" style="padding:10px" data-perm="breaks">
+                <h3 style="font-size:11px">☕ في استئذان الآن</h3>
+                <p class="stat-value" id="breakStatOpen" style="font-size:22px">0</p>
+              </div>
+              <div class="glass-card stat-card" style="padding:10px" data-perm="breaks">
+                <h3 style="font-size:11px">📋 استئذانات اليوم</h3>
+                <p class="stat-value" id="breakStatToday" style="font-size:22px">0</p>
+              </div>
+              <div class="glass-card stat-card" style="padding:10px" data-perm="breaks">
+                <h3 style="font-size:11px">🔄 رجعوا اليوم</h3>
+                <p class="stat-value" id="breakStatReturned" style="font-size:22px">0</p>
+              </div>
+            </div>
+
             <div class="glass-card" style="padding:25px;">
                 <h3 style="margin-bottom:20px">☕ تسجيل استئذان</h3>
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
@@ -4069,6 +4086,22 @@ onclick="setBreakFilter(this,'all')">
         </div>
 
         <div id="tab-vehicles" class="tab-content" style="display:none;">
+
+            <!-- STAT CARDS -->
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+              <div class="glass-card stat-card" style="padding:10px" data-perm="vehicles">
+                <h3 style="font-size:11px">🚛 داخل الآن</h3>
+                <p class="stat-value" id="vehStatInside" style="font-size:22px">0</p>
+              </div>
+              <div class="glass-card stat-card" style="padding:10px" data-perm="vehicles">
+                <h3 style="font-size:11px">📥 دخلت اليوم</h3>
+                <p class="stat-value" id="vehStatTodayIn" style="font-size:22px">0</p>
+              </div>
+              <div class="glass-card stat-card" style="padding:10px" data-perm="vehicles">
+                <h3 style="font-size:11px">📤 خرجت اليوم</h3>
+                <p class="stat-value" id="vehStatTodayOut" style="font-size:22px">0</p>
+              </div>
+            </div>
             <div class="glass-card" style="padding:25px;">
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
                     <div><label>رقم اللوحة</label><div style="display:flex; align-items:center; gap:10px"><input id="plateLetters" placeholder="أ ب ج" maxlength="5"
@@ -4079,13 +4112,23 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
                     <div><label>ملاحظات</label><textarea id="vehicleNotes" placeholder="مثال: اسم السواق - لون العربية - أمر توريد - تحصيل"></textarea></div>
                     <div><label>&nbsp;</label><button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" style="width:100%" onclick="VehicleService.register()">🚪 تسجيل دخول</button></div>
                 </div>
+
+                <div class="glass-card" style="padding:16px;margin-top:16px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2)">
+                  <h3 style="margin-bottom:10px">🚛 عربيات داخل الآن (<span id="vehiclesInsideNowCount">0</span>)</h3>
+                  <div class="table-container">
+                    <table><thead><tr>
+                      <th>اللوحة</th><th>الشركة</th><th>النوع</th><th>وقت الدخول</th><th>خروج سريع</th>
+                    </tr></thead><tbody id="vehiclesInsideNowBody"></tbody></table>
+                  </div>
+                </div>
+
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3>🚚 سجل العربيات</h3><button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="VehicleService.exportExcel()"><span>📊</span> تصدير Excel</button></div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin:10px 0;align-items:center">
   <input id="vehicleSearch" placeholder="🔍 بحث برقم اللوحة أو الشركة" style="flex:1;min-width:150px" oninput="UI.renderVehicles()">
   <input type="date" id="vehicleDate" style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit" onchange="UI.renderVehicles()">
   <select id="vehicleStatusFilter" style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit" onchange="UI.renderVehicles()">
     <option value="">🚛 كل العربيات</option>
-    <option value="inside">داخلة الآن</option>
+    <option value="inside" selected>داخلة الآن</option>
     <option value="outside">خرجت</option>
   </select>
 </div>
@@ -4290,12 +4333,12 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- STAT CARDS -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
-    <div class="glass-card stat-card"><span class="stat-icon">🟢</span><h3>داخل الآن</h3><p class="stat-value" id="fpBazarInsideCount">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">✅</span><h3>حضور اليوم</h3><p class="stat-value" id="fpBazarTodayIn">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">👋</span><h3>انصراف اليوم</h3><p class="stat-value" id="fpBazarTodayOut">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">⚠️</span><h3>متأخرون اليوم</h3><p class="stat-value" id="fpBazarLateCount">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">⏱️</span><h3>إجمالي الساعات</h3><p class="stat-value" id="fpBazarTotalHoursCard" style="font-size:18px">0:00</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">📋</span><h3>إجمالي السجلات</h3><p class="stat-value" id="fpBazarTotalCount">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon">🟢</span><h3>داخل الآن</h3><p class="stat-value" id="fpBazarInsideCount">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon">✅</span><h3>حضور اليوم</h3><p class="stat-value" id="fpBazarTodayIn">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon">👋</span><h3>انصراف اليوم</h3><p class="stat-value" id="fpBazarTodayOut">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon">⚠️</span><h3>متأخرون اليوم</h3><p class="stat-value" id="fpBazarLateCount">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon">⏱️</span><h3>إجمالي الساعات</h3><p class="stat-value" id="fpBazarTotalHoursCard" style="font-size:18px">0:00</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon">📋</span><h3>إجمالي السجلات</h3><p class="stat-value" id="fpBazarTotalCount">0</p></div>
   </div>
 
   <!-- داخل العمل الآن -->
@@ -4490,12 +4533,12 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
   <!-- STAT CARDS -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
-    <div class="glass-card stat-card"><span class="stat-icon">🟢</span><h3>داخل الآن</h3><p class="stat-value" id="fpSabahInsideCount">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">✅</span><h3>حضور اليوم</h3><p class="stat-value" id="fpSabahTodayIn">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">👋</span><h3>انصراف اليوم</h3><p class="stat-value" id="fpSabahTodayOut">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">⚠️</span><h3>متأخرون اليوم</h3><p class="stat-value" id="fpSabahLateCount">0</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">⏱️</span><h3>إجمالي الساعات</h3><p class="stat-value" id="fpSabahTotalHoursCard" style="font-size:18px">0:00</p></div>
-    <div class="glass-card stat-card"><span class="stat-icon">📋</span><h3>إجمالي السجلات</h3><p class="stat-value" id="fpSabahTotalCount">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint-sabah"><span class="stat-icon">🟢</span><h3>داخل الآن</h3><p class="stat-value" id="fpSabahInsideCount">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint-sabah"><span class="stat-icon">✅</span><h3>حضور اليوم</h3><p class="stat-value" id="fpSabahTodayIn">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint-sabah"><span class="stat-icon">👋</span><h3>انصراف اليوم</h3><p class="stat-value" id="fpSabahTodayOut">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint-sabah"><span class="stat-icon">⚠️</span><h3>متأخرون اليوم</h3><p class="stat-value" id="fpSabahLateCount">0</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint-sabah"><span class="stat-icon">⏱️</span><h3>إجمالي الساعات</h3><p class="stat-value" id="fpSabahTotalHoursCard" style="font-size:18px">0:00</p></div>
+    <div class="glass-card stat-card" data-perm="fingerprint-sabah"><span class="stat-icon">📋</span><h3>إجمالي السجلات</h3><p class="stat-value" id="fpSabahTotalCount">0</p></div>
   </div>
 
   <!-- داخل العمل الآن -->
@@ -4653,6 +4696,18 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
 <div id="tab-companies" class="tab-content" style="display:none;">
 
+  <!-- STAT CARDS -->
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">
+    <div class="glass-card stat-card" style="padding:10px" data-perm="companies">
+      <h3 style="font-size:11px">🏢 داخل الآن</h3>
+      <p class="stat-value" id="compStatInside" style="font-size:22px">0</p>
+    </div>
+    <div class="glass-card stat-card" style="padding:10px" data-perm="companies">
+      <h3 style="font-size:11px">📋 زيارات اليوم</h3>
+      <p class="stat-value" id="compStatToday" style="font-size:22px">0</p>
+    </div>
+  </div>
+
 <div class="glass-card" style="padding:25px;">
 
 <h3 style="margin-bottom:20px">
@@ -4769,7 +4824,7 @@ oninput="UI.renderCompanies()">
 <select id="companyStatusFilter" onchange="UI.renderCompanies()"
 style="padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit">
 <option value="">🏢 كل الزيارات</option>
-<option value="inside">داخل الآن</option>
+<option value="inside" selected>داخل الآن</option>
 <option value="outside">خرج</option>
 </select>
 
@@ -4910,6 +4965,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <th>التاريخ</th>
 <th>الوقت</th>
 <th>المستخدم</th>
+<th>إذن</th>
 <th class="editColumnHeader edit-col">تعديل</th>
 <th class="editColumnHeader edit-col">حذف</th>
 </tr>
@@ -4929,6 +4985,18 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
       </tr></thead>
       <tbody id="penaltiesSummaryBody"></tbody>
       <tfoot id="penaltiesSummaryFoot"></tfoot>
+    </table>
+  </div>
+</div>
+
+<div class="glass-card" style="padding:20px;margin-top:16px">
+  <h3 style="margin-bottom:14px">🔓 سجل الإعفاءات من الخصم التلقائي</h3>
+  <div class="table-container">
+    <table>
+      <thead><tr>
+        <th>الموظف</th><th>الكود</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th>
+      </tr></thead>
+      <tbody id="penaltyExemptLogBody"></tbody>
     </table>
   </div>
 </div>
@@ -5349,6 +5417,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="incentives" hidden><span>🏆</span><span>الحوافز</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="penalties" hidden><span>⚖️</span><span>الجزاءات</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="permit" hidden><span>🔓</span><span>إذن (إعفاء من الخصم)</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="leaves" hidden><span>📅</span><span>الإجازات</span></label>
                     
        <label class="permission-card">
@@ -5909,6 +5978,7 @@ onclick="closeTransferEdit()">
         <label><input type="checkbox" value="vehicles"> العربيات</label>
         <label><input type="checkbox" value="incentives"> الحوافز</label>
         <label><input type="checkbox" value="penalties"> الجزاءات</label>
+        <label><input type="checkbox" value="permit"> إذن (إعفاء من الخصم)</label>
         <label><input type="checkbox" value="leaves"> الإجازات</label>
         
         <label><input type="checkbox" value="leaveApprove"> طلبات الإجازة</label>
@@ -6294,22 +6364,21 @@ const ArchiveService = {
 // ════════════════════════════════════════════════════════════
 const SalaryService = {
 
-  // قواعد خصم التأخير
-  // أقل من 30 دقيقة = ربع ساعة عمل يومية
-  // 30-60 دقيقة     = ربع ساعة عمل يومية
-  // أكثر من 60 دقيقة = نص ساعة عمل يومية
-  // بإذن             = بدون خصم
+  // قواعد الخصم الموحّدة (تُستخدم في كشف الراتب والجزاء التلقائي معًا):
+  // تأخير 31-59 دقيقة  = نص يوم عمل
+  // تأخير 60 دقيقة فأكثر = يوم عمل كامل
+  // بإذن = بدون خصم
 
   // حساب خصم التأخير بالدقائق
   calcLatePenalty(lateMinutes, hasPermission, dailyHours, hourlyRate) {
     if(hasPermission || lateMinutes <= 0) return 0;
     let deductHours = 0;
-    if(lateMinutes >= 61) {
-      // تأخير 61 دقيقة فأكثر → نص ساعات اليوم
-      deductHours = dailyHours / 2;
+    if(lateMinutes >= 60) {
+      // تأخير 60 دقيقة فأكثر → يوم عمل كامل
+      deductHours = dailyHours;
     } else if(lateMinutes >= 31) {
-      // تأخير 31-60 دقيقة → ربع ساعات اليوم
-      deductHours = dailyHours / 4;
+      // تأخير 31-59 دقيقة → نص يوم عمل
+      deductHours = dailyHours / 2;
     } else {
       // أقل من 31 دقيقة → بدون خصم
       deductHours = 0;
@@ -6335,7 +6404,7 @@ const SalaryService = {
   calcMonthSummary(empCode, month, year) {
     const emp        = State.empData?.[String(empCode)] || {};
     const salary     = Number(emp.salary)     || 0;
-    const dailyHours = Number(emp.workHoursPerDay) || 8;
+    const dailyHours = getEmpDailyHours(emp);
     // أجر الساعة = الراتب ÷ 30 يوم ÷ ساعات العمل اليومية
     const hourlyRate = salary > 0 && dailyHours > 0 ? salary / 30 / dailyHours : 0;
     // أجر اليوم = الراتب ÷ 30
@@ -6485,19 +6554,25 @@ const SalaryService = {
     // الاستئذانات
     // ════════════════════════════════════════════
     const breakRecords = (State.breaks || []).filter(b =>
-      String(b.code) === String(empCode) && inRange(b.deviceBreakTime || b.timestamp || 0)
+      String(b.code) === String(empCode) && inRange(b.deviceBreakTime || b.timestamp || 0) && b.type !== "صلاة"
     );
     const breaksByDay = {};
+    const breaksByDayDates = {};
     breakRecords.forEach(b => {
       const ts  = b.deviceBreakTime || b.timestamp || 0;
       const day = new Date(ts).toISOString().slice(0,10);
-      const dur = Number(b.durationMins || b.duration || 0);
-      breaksByDay[day] = (breaksByDay[day] || 0) + dur;
+      // ⚠️ b.duration مخزّنة بالميلي ثانية — لازم تتحول لدقائق (durationMins مش موجودة فعليًا في البيانات)
+      const durMins = (Number(b.duration) || 0) / 60000;
+      breaksByDay[day] = (breaksByDay[day] || 0) + durMins;
+      breaksByDayDates[day] = b.date || "";
     });
     const totalBreakMins = Object.values(breaksByDay).reduce((s,d) => s+d, 0);
     let breakDeduct = 0;
-    Object.values(breaksByDay).forEach(dayMins => {
-      if(dayMins >= 31) breakDeduct += dailyRate / 2;
+    Object.entries(breaksByDay).forEach(([day, dayMins]) => {
+      // 35 دقيقة فأكثر (بدون الصلاة) = نص يوم عمل، إلا لو معفى
+      if(dayMins >= 35 && !AutoDeductionService.isExempt(empCode, breaksByDayDates[day], "break")){
+        breakDeduct += dailyRate / 2;
+      }
     });
 
     // ════════════════════════════════════════════
@@ -7667,6 +7742,8 @@ const DeviceInfo = {
         summarySort: { key: "totalMs", dir: -1 },
         penaltiesRange: "all",
         leavesRange: "all",
+        autoExemptions: {},
+        penaltyExemptLog: [],
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -7937,6 +8014,11 @@ const AttendanceService = {
         // تسجيل الحركة
         saveOrQueue("attendance", data)
 
+        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة
+        if(action === "CheckIn"){
+            AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
+        }
+
         // تسجيل في سجل النظام
         SystemLog.add(action, code, emp.name)
 
@@ -8048,6 +8130,7 @@ function breakQuickReturn(id, code, name) {
       UI.toast(`🔄 تم تسجيل رجوع ${name}`, "success");
       SystemLog.add("Return", code, name);
       UI.renderBreaks();
+      setTimeout(()=>AutoDeductionService.checkBreakOverage(code, openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG")), 500)
     }).catch(e=>UI.toast("❌ "+e.message,"error"));
   });
 }
@@ -8077,24 +8160,57 @@ function attUpdateEmpPreview(code) {
 }
     const ReportService = {
         setRange(range) { State.reportRange = range; UI.renderAttendance(); },
+
+        // فلترة ودمج دخول/خروج — نفس المنطق بالظبط المستخدم في العرض والتصدير مع بعض
+        // (استخدام stack بمفتاح كائن JS بيحل مشكلة اختلاف نوع الكود number/string تلقائيًا)
+        _getFilteredRows() {
+            let search = document.getElementById("attendanceSearch")?.value?.toLowerCase().trim() || "";
+            let dateFrom = document.getElementById("attendanceDate")?.value || "";
+            let dateTo   = document.getElementById("attendanceDateTo")?.value || "";
+            let filterJob = document.getElementById("attFilterJob")?.value || "";
+            let filterEmp = document.getElementById("attFilterEmp")?.value || "";
+            let now = new Date(TimeUtils.now());
+
+            let filtered = State.attendance.filter(a => {
+              if(a.source === 'fingerprint-bazar' || a.source === 'fingerprint-sabah' || a.source === 'fingerprint') return false;
+              if(filterEmp && String(a.code) !== String(filterEmp)) return false;
+              if(filterJob) { const j = getEmpData(a.code)?.job || ''; if(j !== filterJob) return false; }
+
+              const matchSearch = !search ||
+                (a.name?.toLowerCase().includes(search)) ||
+                String(a.code||'').includes(search);
+              if(!matchSearch) return false;
+
+              let date = new Date(a.timestamp);
+              const d = date.toISOString().slice(0,10);
+
+              if(dateFrom || dateTo) {
+                if(dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
+                if(dateFrom) return d >= dateFrom;
+                if(dateTo)   return d <= dateTo;
+              }
+
+              if(search && State.reportRange === "day") return true;
+
+              if(State.reportRange === "day")   return date.toDateString() === now.toDateString();
+              if(State.reportRange === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return date>=w; }
+              if(State.reportRange === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return date>=m; }
+              return true; // all
+            });
+
+            let stack = {}, rows = [];
+            filtered.sort((a,b)=>a.timestamp-b.timestamp).forEach(a=>{
+              if(a.action==="CheckIn"){if(!stack[a.code]) stack[a.code]=[];stack[a.code].push({code:a.code,name:a.name,date:a.date,checkIn:a,checkOut:null});}
+              if(a.action==="CheckOut"){let arr=stack[a.code];if(arr&&arr.length){let last=arr[arr.length-1];if(!last.checkOut){last.checkOut=a;rows.push(last);arr.pop();}}}
+            });
+            Object.values(stack).forEach(list=>{let last=list[list.length-1];if(last) rows.push(last);});
+            return rows;
+        },
+
         exportExcel() {
             if (!checkExcelPermission()) return;
-            let rowsData = [];
-            const dateFrom = document.getElementById("attendanceDate")?.value||"";
-            const dateTo   = document.getElementById("attendanceDateTo")?.value||"";
-            const filterJob = document.getElementById("attFilterJob")?.value||"";
-            const filterEmp = document.getElementById("attFilterEmp")?.value||"";
-            State.attendance.filter(a => {
-              if(['fingerprint-bazar','fingerprint-sabah','fingerprint'].includes(a.source)) return false;
-              if(filterEmp && String(a.code)!==String(filterEmp)) return false;
-              if(filterJob){ const j=getEmpData(a.code)?.job||''; if(j!==filterJob) return false; }
-              if(dateFrom||dateTo){ const d=new Date(a.timestamp).toISOString().slice(0,10); if(dateFrom&&d<dateFrom) return false; if(dateTo&&d>dateTo) return false; }
-              return true;
-            }).sort((a,b)=>a.timestamp-b.timestamp).forEach(a => {
-                if (a.action === "CheckIn") rowsData.push({ code: a.code, name: a.name, date: a.date, checkIn: a, checkOut: null });
-                if (a.action === "CheckOut") { let open = rowsData.slice().reverse().find(r => r.code === a.code && !r.checkOut); if (open) open.checkOut = a; }
-            });
-            let rows = rowsData.map(r => ({
+            // نفس البيانات المعروضة بالظبط (نفس البحث + نفس فلتر الفترة/التاريخ/الوظيفة/الموظف)
+            let rows = this._getFilteredRows().map(r => ({
               'الموظف': r.name, 'الكود': r.code, 'الوظيفة': getEmpJob(r.code),
               'التاريخ': r.date,
               'الدخول': r.checkIn?.timeDisplay||"-", 'الخروج': r.checkOut?.timeDisplay||"-",
@@ -8121,53 +8237,10 @@ function attUpdateEmpPreview(code) {
               });
             }
 
-            let search = document.getElementById("attendanceSearch")?.value?.toLowerCase().trim() || "";
-            let dateFrom = document.getElementById("attendanceDate")?.value || "";
-            let dateTo   = document.getElementById("attendanceDateTo")?.value || "";
-            let filterJob = document.getElementById("attFilterJob")?.value || "";
-            let filterEmp = document.getElementById("attFilterEmp")?.value || "";
-            let now = new Date(TimeUtils.now());
-
-            let filtered = State.attendance.filter(a => {
-              if(a.source === 'fingerprint-bazar' || a.source === 'fingerprint-sabah' || a.source === 'fingerprint') return false;
-              if(filterEmp && String(a.code) !== String(filterEmp)) return false;
-              if(filterJob) { const j = getEmpData(a.code)?.job || ''; if(j !== filterJob) return false; }
-
-              // فلتر البحث بالاسم/الكود
-              const matchSearch = !search ||
-                (a.name?.toLowerCase().includes(search)) ||
-                String(a.code||'').includes(search);
-              if(!matchSearch) return false;
-
-              let date = new Date(a.timestamp);
-              const d = date.toISOString().slice(0,10);
-
-              // لو فيه نطاق تواريخ — يتجاهل فلتر الفترة
-              if(dateFrom || dateTo) {
-                if(dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
-                if(dateFrom) return d >= dateFrom;
-                if(dateTo)   return d <= dateTo;
-              }
-
-              // لو ما فيش تاريخ — يطبق فلتر الفترة (اليوم/أسبوع/شهر/كل)
-              // لو في بحث بالاسم والفلتر "اليوم" — يعرض كل السجلات للموظف ده
-              if(search && State.reportRange === "day") return true;
-
-              if(State.reportRange === "day")   return date.toDateString() === now.toDateString();
-              if(State.reportRange === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return date>=w; }
-              if(State.reportRange === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return date>=m; }
-              return true; // all
-            });
-
-            // دمج دخول/خروج
-            let stack = {}, rows = [];
-            filtered.sort((a,b)=>a.timestamp-b.timestamp).forEach(a=>{
-              if(a.action==="CheckIn"){if(!stack[a.code]) stack[a.code]=[];stack[a.code].push({code:a.code,name:a.name,date:a.date,checkIn:a,checkOut:null});}
-              if(a.action==="CheckOut"){let arr=stack[a.code];if(arr&&arr.length){let last=arr[arr.length-1];if(!last.checkOut){last.checkOut=a;rows.push(last);arr.pop();}}}
-            });
-            Object.values(stack).forEach(list=>{let last=list[list.length-1];if(last) rows.push(last);});
+            let rows = this._getFilteredRows();
 
             // stat cards
+            const now = new Date(TimeUtils.now());
             const todayStr = now.toDateString();
             const todayAtt = State.attendance.filter(a=>!['fingerprint-bazar','fingerprint-sabah','fingerprint'].includes(a.source) && new Date(a.timestamp||0).toDateString()===todayStr);
             const todayIn  = todayAtt.filter(a=>a.action==="CheckIn").length;
@@ -8270,7 +8343,7 @@ user: State.currentUser.username
             let vehicle = State.vehicles.find(v => v.id === id);
             showConfirm("تسجيل خروج العربية؟", () => { db.ref("vehicles/" + id).update({ timeOut: firebase.database.ServerValue.TIMESTAMP }); UI.toast("تم خروج العربية", "warning"); SystemLog.add("VehicleOut", vehicle.plate, "🚚 عربية"); });
         },
-        exportExcel() { if (!checkExcelPermission()) return; let rows = State.vehicles.map(v => ({ اللوحة: v.plate, الشركة: v.company, النوع: v.type, الدخول: new Date(v.timeIn).toLocaleString("ar-EG"), الخروج: v.timeOut ? new Date(v.timeOut).toLocaleString("ar-EG") : "داخل الموقع" })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "vehicles"); XLSX.writeFile(wb, "vehicles_report.xlsx");
+        exportExcel() { if (!checkExcelPermission()) return; let rows = UI.getFilteredVehicles().map(v => ({ اللوحة: v.plate, الشركة: v.company, النوع: v.type, الدخول: new Date(v.timeIn).toLocaleString("ar-EG"), الخروج: v.timeOut ? new Date(v.timeOut).toLocaleString("ar-EG") : "داخل الموقع" })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "vehicles"); XLSX.writeFile(wb, "vehicles_report.xlsx");
 SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير تقرير العربيات") }
     };
 
@@ -8426,6 +8499,8 @@ status:"closed"
 
 UI.renderBreaks()
 
+setTimeout(()=>AutoDeductionService.checkBreakOverage(code, openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG")), 500)
+
 })
 
 UI.toast("تم تسجيل الرجوع","success")
@@ -8473,7 +8548,7 @@ exportExcel() {
 
 if (!checkExcelPermission()) return;
 
-let rows = State.breaks.map(b => ({
+let rows = UI.getFilteredBreaks().map(b => ({
 الموظف: b.name,
 الكود: b.code,
 نوع_الاستئذان: b.type || "-",
@@ -8701,11 +8776,149 @@ document.getElementById("companyReason").value = last.reason
 
 }
 
+},
+
+quickExit(id){
+
+let c = State.companies.find(x=>x.id===id)
+if(!c) return
+
+showConfirm(`تسجيل خروج: ${c.company} (${c.person})؟`, ()=>{
+
+let now = new Date(TimeUtils.now())
+
+db.ref("companies/"+id).update({
+timeOut: now.toLocaleTimeString("ar-EG")
+}).then(()=>{
+
+SystemLog.add("CompanyOut", c.nationalId, c.company)
+UI.toast("تم تسجيل خروج الشركة","warning")
+UI.renderCompanies()
+
+})
+
+})
+
 }
 
 }
 
     // ========================= خدمة الجزاءات (Penalties) =========================
+    // ========================= خدمة الخصم التلقائي (تأخير / تجاوز استئذان) =========================
+    const AutoDeductionService = {
+        // حساب ساعات الخصم بناءً على دقائق التأخير
+        // 31-59 دقيقة → نص يوم | 60 دقيقة فأكثر → يوم كامل
+        calcLateHours(lateMinutes, dailyHours) {
+            if(lateMinutes >= 60) return dailyHours;
+            if(lateMinutes >= 31) return dailyHours / 2;
+            return 0;
+        },
+
+        // حساب ساعات خصم تجاوز الاستئذان (بدون الصلاة)
+        // 35 دقيقة فأكثر (إجمالي اليوم) → نص يوم
+        calcBreakHours(breakMinutesExclPrayer, dailyHours) {
+            if(breakMinutesExclPrayer >= 35) return dailyHours / 2;
+            return 0;
+        },
+
+        isExempt(code, dateStr, type) {
+            const key = `${code}_${dateStr}_${type}`;
+            return !!(State.autoExemptions && State.autoExemptions[key]);
+        },
+
+        // منع تكرار إنشاء نفس الجزاء التلقائي أكتر من مرة لنفس اليوم/النوع
+        hasAutoPenaltyToday(code, dateStr, type) {
+            return State.penalties.some(p => p.code === String(code) && p.date === dateStr && p.autoType === type);
+        },
+
+        createAutoPenalty(code, name, hours, reasonText, autoType, dateStr) {
+            if(this.isExempt(code, dateStr, autoType)) return;
+            if(this.hasAutoPenaltyToday(code, dateStr, autoType)) return;
+            if(!hours || hours <= 0) return;
+            const penalty = {
+                code: String(code), name,
+                hours: Number(hours.toFixed(2)),
+                manager: "تلقائي",
+                reason: reasonText,
+                date: dateStr,
+                time: new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"),
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                createdBy: "النظام (تلقائي)",
+                auto: true,
+                autoType: autoType
+            };
+            db.ref("penalties").push(penalty).then(() => {
+                UI.toast(`⚠️ تم تسجيل جزاء تلقائي: ${reasonText} — ${name}`, "warning");
+                SystemLog.add("AutoPenalty", code, `${reasonText} (${name})`);
+            });
+        },
+
+        // إعفاء (إلغاء الخصم) — بيحذف الجزاء التلقائي الحالي (لو موجود) ويمنع إعادة إنشائه لنفس اليوم
+        exempt(code, dateStr, type, penaltyId) {
+            if(!hasPermission("all") && !hasPermission("permit")){
+                UI.toast("❌ الإعفاء من الخصم يتطلب صلاحية إذن", "error");
+                return;
+            }
+            const key = `${code}_${dateStr}_${type}`;
+            const p = State.penalties.find(x => x.id === penaltyId);
+
+            db.ref("autoDeductExemptions/" + key).set({
+                code: String(code), date: dateStr, type,
+                by: State.currentUser?.username || "-",
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+
+            // نقل الجزاء لسجل الإعفاءات بدل ما يتحذف نهائي — عشان يبقى فيه أثر واضح
+            if(p){
+                db.ref("penaltyExemptLog").push({
+                    name: p.name, code: p.code, hours: p.hours,
+                    reason: p.reason, penaltyDate: p.date,
+                    exemptedBy: State.currentUser?.username || "-",
+                    exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+            }
+            if(penaltyId) db.ref("penalties/" + penaltyId).remove();
+
+            // لو تأخير: نعلّم سجل الحضور نفسه بإذن عشان كشف الراتب يستثنيه برضو
+            if(type === "late"){
+                const rec = State.attendance.find(a => String(a.code) === String(code) && a.date === dateStr && a.action === "CheckIn");
+                if(rec) db.ref("attendance/" + rec.id).update({ latePermission: true });
+            }
+            UI.toast("✅ تم الإعفاء من الخصم", "success");
+            SystemLog.add("PenaltyExempt", code, type + " — " + dateStr);
+        },
+
+        // فحص تأخير الحضور وإنشاء جزاء تلقائي عند الحاجة
+        checkLateCheckIn(emp, checkInTimestamp, dateStr) {
+            const expected = emp.checkIn || emp.workStart || "";
+            if(!expected) return;
+            const [expH, expM] = expected.split(":").map(Number);
+            if(isNaN(expH)) return;
+            const d = new Date(checkInTimestamp);
+            const expectedMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), expH, expM || 0).getTime();
+            const lateMinutes = Math.round((checkInTimestamp - expectedMs) / 60000);
+            if(lateMinutes < 31) return;
+            const dailyHours = getEmpDailyHours(emp);
+            const hours = this.calcLateHours(lateMinutes, dailyHours);
+            this.createAutoPenalty(emp.code, emp.name, hours, `تأخير ${lateMinutes} دقيقة`, "late", dateStr);
+        },
+
+        // فحص إجمالي الاستئذان اليومي (بدون الصلاة) وإنشاء جزاء تلقائي عند الحاجة
+        checkBreakOverage(code, dateStr) {
+            const emp = getEmpData(code) || State.employees.find(e => String(e.code) === String(code));
+            if(!emp) return;
+            const totalMs = State.breaks
+                .filter(b => String(b.code) === String(code) && b.date === dateStr && b.type !== "صلاة")
+                .reduce((sum, b) => sum + (b.duration || (b.deviceReturnTime && b.deviceBreakTime ? b.deviceReturnTime - b.deviceBreakTime : 0)), 0);
+            const totalMinutes = Math.round(totalMs / 60000);
+            if(totalMinutes < 35) return;
+            const dailyHours = getEmpDailyHours(emp);
+            const hours = this.calcBreakHours(totalMinutes, dailyHours);
+            this.createAutoPenalty(code, emp.name, hours, `تجاوز استئذان ${totalMinutes} دقيقة`, "break", dateStr);
+        }
+    };
+
     const PenaltyService = {
         add() {
             if (!State.currentUser || (!hasPermission("penalties") && !hasPermission("all"))) { UI.toast("ليس لديك صلاحية تسجيل الجزاءات", "error"); return; }
@@ -8723,8 +8936,55 @@ document.getElementById("companyReason").value = last.reason
             
             SystemLog.add("Penalty", code, emp.name);
         },
-        exportExcel() { if (!checkExcelPermission()) return; let rows = State.penalties.map(p => ({ الموظف: p.name, الكود: p.code, الساعات: p.hours, السبب: p.reason, المدير: p.manager, التاريخ: p.date })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "penalties"); XLSX.writeFile(wb, "penalties_report.xlsx");
-SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير تقرير الجزاءات") }
+        exportExcel() {
+          if (!checkExcelPermission()) return;
+
+          // ورقة 1: جدول الجزاءات (بنفس فلتر البحث/الفترة المطبّق حاليًا في الجدول)
+          const pSearch = (document.getElementById("penaltiesSearch")?.value||"").toLowerCase().trim();
+          const pRange  = State.penaltiesRange || "all";
+          const scoped = State.penalties
+            .filter(p => !pSearch || (p.name||"").toLowerCase().includes(pSearch) || String(p.code||"").includes(pSearch))
+            .filter(p => _inRange(p.timestamp, pRange))
+            .sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+          const mainRows = scoped.map(p => ({
+            "الموظف": p.name, "الكود": p.code, "الساعات": p.hours,
+            "السبب": p.reason, "المدير": p.manager, "التاريخ": p.date,
+            "الوقت": p.time || "-", "المستخدم": p.createdBy || "-",
+            "نوع الجزاء": p.auto ? "تلقائي (" + (p.autoType === "late" ? "تأخير" : "تجاوز استئذان") + ")" : "يدوي"
+          }));
+
+          // ورقة 2: ملخص الجزاءات حسب الموظف (بنفس الفترة)
+          const map = {};
+          scoped.forEach(p=>{
+            const code = String(p.code);
+            if(!map[code]) map[code] = { name:p.name, code, count:0, hours:0, lastTs:0, lastDate:"-", lastReason:"-" };
+            const e = map[code];
+            e.count++;
+            e.hours += Number(p.hours)||0;
+            if((p.timestamp||0) >= e.lastTs){ e.lastTs=p.timestamp||0; e.lastDate=p.date||"-"; e.lastReason=p.reason||"-"; }
+          });
+          const summaryRows = Object.values(map).sort((a,b)=>b.count-a.count).map(e => ({
+            "الموظف": e.name, "الكود": e.code, "عدد الجزاءات": e.count,
+            "إجمالي الساعات": e.hours,
+            "آخر جزاء": e.lastDate!=="-" ? e.lastDate+" ("+e.lastReason+")" : "-"
+          }));
+
+          // ورقة 3: سجل الإعفاءات من الخصم التلقائي
+          const exemptRows = [...(State.penaltyExemptLog||[])]
+            .sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))
+            .map(r => ({
+              "الموظف": r.name, "الكود": r.code, "السبب الأصلي": r.reason || "-",
+              "الساعات": r.hours, "تاريخ الجزاء": r.penaltyDate || "-",
+              "أُعفي بواسطة": r.exemptedBy || "-", "وقت الإعفاء": r.exemptedAt || "-"
+            }));
+
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mainRows.length ? mainRows : [{"لا توجد بيانات":""}]), "الجزاءات");
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows.length ? summaryRows : [{"لا توجد بيانات":""}]), "ملخص حسب الموظف");
+          XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exemptRows.length ? exemptRows : [{"لا توجد بيانات":""}]), "سجل الإعفاءات");
+          XLSX.writeFile(wb, "penalties_report_" + new Date().toISOString().slice(0,10) + ".xlsx");
+          SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير تقرير الجزاءات الكامل");
+        }
     };
 
     // ========================= خدمة الإجازات (Leaves) =========================
@@ -10462,7 +10722,7 @@ if (!checkExcelPermission()) return
 
 let rows = []
 
-State.transfers.forEach(t=>{
+UI.getFilteredTransfers().forEach(t=>{
 
 t.items.forEach(i=>{
 
@@ -10474,6 +10734,7 @@ rows.push({
 كراتين:i.cartons,
 علب:i.boxes,
 قطع:i.pieces,
+كيلو:i.kilo || 0,
 الإجمالي:i.total,
 تاريخ_الانتهاء:i.expire,
 التاريخ:t.date,
@@ -10941,6 +11202,7 @@ function exportTransferExcel(id){
       "كراتين": i.cartons || 0,
       "علب": i.boxes || 0,
       "قطع": i.pieces || 0,
+      "كيلو": i.kilo || 0,
       "الإجمالي": i.total || 0,
       "تاريخ الانتهاء": i.expire || ""
     });
@@ -11192,6 +11454,22 @@ if(!State.empData || Array.isArray(State.empData)) State.empData = {};
 // دالة مساعدة: تجيب قائمة الموظفين دائماً من State.employees
 
 // دالة: تجيب بيانات موظف من empData (المصدر الوحيد)
+// حساب عدد ساعات عمل الموظف اليومية — بالأولوية من معاد الحضور/الانصراف الفعلي (الأدق)،
+// وإلا يرجع لحقل "ساعات العمل اليومي" المُدخل يدويًا، وإلا 8 ساعات كافتراضي
+function getEmpDailyHours(emp) {
+  if(!emp) return 8;
+  if(emp.checkIn && emp.checkOut) {
+    const [inH, inM]  = emp.checkIn.split(':').map(Number);
+    const [outH, outM] = emp.checkOut.split(':').map(Number);
+    if(!isNaN(inH) && !isNaN(outH)) {
+      let mins = (outH*60 + outM) - (inH*60 + inM);
+      if(mins <= 0) mins += 24*60; // شيفت بيعدي منتصف الليل
+      if(mins > 0) return mins / 60;
+    }
+  }
+  return Number(emp.workHoursPerDay) || 8;
+}
+
 function getEmpData(code) {
   const c = String(code).trim();
   const n = String(Number(c));
@@ -11438,7 +11716,7 @@ const EmpDataService = {
   // تصدير Excel
   exportExcel() {
     const data = getEmpList().map(emp => {
-      const d = (State.empData && State.empData[emp.code]) ? State.empData[emp.code] : emp;
+      const d = getEmpData(emp.code) || emp;
       let workHours = '';
       if(d.checkIn && d.checkOut) {
         const [inH,inM]   = d.checkIn.split(':').map(Number);
@@ -11447,16 +11725,22 @@ const EmpDataService = {
         if(mins < 0) mins += 24*60;
         workHours = parseFloat((mins/60).toFixed(2));
       }
+      const dailyHoursForRate = workHours || Number(d.workHoursPerDay) || 8;
+      const hourlyRate = d.salary > 0 && dailyHoursForRate > 0
+        ? Math.round((d.salary / 30 / dailyHoursForRate) * 100) / 100
+        : (d.hourlyRate || 0);
       return {
         'الكود':          emp.code,
         'الاسم':          emp.name,
+        'الوظيفة':        d.job || '',
         'الراتب (جنيه)': d.salary || 0,
+        'أجر الساعة':     hourlyRate,
         'رقم البطاقة':   d.nationalId || '',
         'رقم الهاتف':    d.phone || '',
         'تاريخ التعيين': d.hireDate || '',
         'وقت الحضور':    d.checkIn || '',
         'وقت الانصراف':  d.checkOut || '',
-        'ساعات العمل':   workHours || ''
+        'ساعات العمل':   workHours || d.workHoursPerDay || ''
       };
     });
     const ws = XLSX.utils.json_to_sheet(data);
@@ -13640,10 +13924,7 @@ const TransferAnalytics = {
     // ========================= واجهة المستخدم (UI) =========================
     const UI = {
        
-renderTransfers(){
-
-let body = document.getElementById("transfersBody")
-if(!body) return
+getFilteredTransfers(){
 
 let search = document.getElementById("transferSearch")?.value?.toLowerCase() || ""
 let selectedDate = document.getElementById("transferDate")?.value
@@ -13651,9 +13932,8 @@ let branchFilter = document.getElementById("transferBranchFilter")?.value || ""
 let dirFilter = document.getElementById("transferDirFilter")?.value || ""
 
 let now = new Date()
-let html=""
 
-let filtered = State.transfers.filter(t=>{
+return State.transfers.filter(t=>{
 let date = new Date(t.timestamp)
 
 // فلتر التاريخ
@@ -13690,8 +13970,19 @@ let matchBranch = !branchFilter || (
 
 return matchSearch && matchBranch
 })
-
 .sort((a,b)=>b.timestamp-a.timestamp)
+
+},
+
+renderTransfers(){
+
+let body = document.getElementById("transfersBody")
+if(!body) return
+
+let filtered = this.getFilteredTransfers()
+let html=""
+
+
 
 filtered.forEach(t=>{
 
@@ -13948,13 +14239,22 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
             inside.sort((a,b)=>b.timestamp-a.timestamp).forEach(a=>{
               const duration = TimeUtils.now() - a.timestamp;
               const durColor = duration>36000000?'#f87171':duration>28800000?'#fbbf24':'#34d399';
-              // حساب التأخير
-              const exp = getEmpData(a.code)?.checkIn;
+              // حساب التأخير (بالاعتماد على الـ timestamp الفعلي، أدق وأضمن من تحليل نص الوقت المعروض)
+              const empD = getEmpData(a.code);
+              const exp = empD?.checkIn;
               let lateStr = '-';
               if(exp){
-                const [eh,em]=exp.split(':').map(Number);
-                const match=(a.timeDisplay||'').match(/(\d{1,2}):(\d{2})/);
-                if(match){const late=(parseInt(match[1])*60+parseInt(match[2]))-(eh*60+em);lateStr=late>5?`<span style="color:#f59e0b;font-weight:700">${late}د</span>`:'<span style="color:#34d399">—</span>';}
+                const [eh,em] = exp.split(':').map(Number);
+                if(!isNaN(eh)){
+                  const d = new Date(a.timestamp);
+                  const expectedMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em||0).getTime();
+                  const lateMinVal = Math.round((a.timestamp - expectedMs) / 60000);
+                  if(lateMinVal > 5){
+                    lateStr = `<span style="color:#f59e0b;font-weight:700">${lateMinVal}د</span>`;
+                  } else {
+                    lateStr = '<span style="color:#34d399">—</span>';
+                  }
+                }
               }
               const canEdit = hasPermission("edit")||hasPermission("all");
               const canCheckout = hasPermission("attendance")||hasPermission("edit")||hasPermission("all");
@@ -14001,29 +14301,17 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
               : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
         },
         
-renderBreaks(){
-
-let body = document.getElementById("breaksBody")
-if(!body) return
-
-/* البحث */
+getFilteredBreaks(){
 
 let search =
 document.getElementById("breakHistorySearch")?.value?.toLowerCase() || ""
-
-/* التاريخ */
 
 let selectedDate =
 document.getElementById("breakDate")?.value
 
 let now = new Date(TimeUtils.now())
 
-let html = ""
-let totals = {}
-
-/* فلترة البيانات */
-
-let filtered = State.breaks.filter(b=>{
+return State.breaks.filter(b=>{
 
 let date = new Date(b.breakTimestamp || b.deviceBreakTime || Date.now())
 
@@ -14059,10 +14347,33 @@ if(
 return true
 
 })
+.sort((a,b)=>(b.breakTimestamp || b.deviceBreakTime || 0)-(a.breakTimestamp || a.deviceBreakTime || 0))
 
-/* ترتيب الأحدث */
+},
 
-filtered.sort((a,b)=>(b.breakTimestamp || b.deviceBreakTime || 0)-(a.breakTimestamp || a.deviceBreakTime || 0))
+renderBreaks(){
+
+let body = document.getElementById("breaksBody")
+if(!body) return
+
+/* كروت العداد أعلى الصفحة */
+{
+  const todayStr = new Date(TimeUtils.now()).toDateString()
+  const todayBreaks = State.breaks.filter(b => new Date(b.breakTimestamp || b.deviceBreakTime || 0).toDateString() === todayStr)
+  const openNow = State.breaks.filter(b => !b.returnTimestamp).length
+  const returnedToday = todayBreaks.filter(b => b.returnTimestamp).length
+  const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
+  setEl('breakStatOpen', openNow)
+  setEl('breakStatToday', todayBreaks.length)
+  setEl('breakStatReturned', returnedToday)
+}
+
+let html = ""
+let totals = {}
+
+/* فلترة البيانات (نفس الفلاتر المستخدمة في التصدير بالظبط) */
+
+let filtered = this.getFilteredBreaks()
 
 /* رسم جدول الاستئذانات */
 
@@ -14410,13 +14721,11 @@ exportSummaryExcel() {
   SystemLog.add("ExportExcel",State.currentUser?.username||"-","تصدير ملخص الاستئذانات");
 },
 
-renderVehicles() {
-            document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
-            let body = document.getElementById("activeVehiclesBody"); if (!body) return;
+getFilteredVehicles() {
             let search = document.getElementById("vehicleSearch")?.value || "", q = search.replace(/\s/g, "").replace(/\|/g, "").toLowerCase();
             const selDate = document.getElementById("vehicleDate")?.value || "";
             const statusF  = document.getElementById("vehicleStatusFilter")?.value || "";
-            let results = State.vehicles.filter(v => {
+            return State.vehicles.filter(v => {
               const plateMatch = v.plate?.replace(/\s/g,"").replace(/\|/g,"").toLowerCase().includes(q);
               const compMatch  = (v.company||"").toLowerCase().includes(q);
               if(!plateMatch && !compMatch) return false;
@@ -14427,9 +14736,15 @@ renderVehicles() {
                 if(d !== selDate) return false;
               }
               return true;
-            });
+            }).sort((a, b) => b.timeIn - a.timeIn);
+},
+
+renderVehicles() {
+            document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
+            let body = document.getElementById("activeVehiclesBody"); if (!body) return;
+            let results = this.getFilteredVehicles();
             if (results.length === 0) { body.innerHTML = `<tr><td colspan="12" style="padding:20px;font-weight:bold;color:#f87171">لا توجد عربيات بهذا البحث</td></tr>`; return; }
-            let html = ""; results.sort((a, b) => b.timeIn - a.timeIn).forEach(v => {
+            let html = ""; results.forEach(v => {
                 const inDate  = new Date(v.timeIn).toLocaleDateString("ar-EG");
                 const inTime  = new Date(v.timeIn).toLocaleTimeString("ar-EG");
                 const outDate = v.timeOut ? new Date(v.timeOut).toLocaleDateString("ar-EG") : "";
@@ -14465,6 +14780,33 @@ renderVehicles() {
                 });
             body.innerHTML = html; document.getElementById("vehiclesInsideCount").innerText = State.vehicles.filter(v => !v.timeOut).length;
 applyEditColVisibility();
+this.renderVehiclesInsideNow();
+        },
+
+        renderVehiclesInsideNow() {
+          const body = document.getElementById("vehiclesInsideNowBody");
+          if(!body) return;
+          const inside = State.vehicles.filter(v => !v.timeOut).sort((a,b)=>b.timeIn-a.timeIn);
+          const countEl = document.getElementById("vehiclesInsideNowCount");
+          if(countEl) countEl.innerText = inside.length;
+
+          /* كروت العداد أعلى الصفحة */
+          const todayStr = new Date(TimeUtils.now()).toDateString()
+          const todayIn = State.vehicles.filter(v => new Date(v.timeIn||0).toDateString() === todayStr).length
+          const todayOut = State.vehicles.filter(v => v.timeOut && new Date(v.timeOut||0).toDateString() === todayStr).length
+          const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
+          setEl('vehStatInside', inside.length)
+          setEl('vehStatTodayIn', todayIn)
+          setEl('vehStatTodayOut', todayOut)
+
+          body.innerHTML = inside.length ? inside.map(v => `<tr>
+            <td style="font-weight:700;letter-spacing:1px">${v.plate}</td>
+            <td>${v.company || "-"}</td>
+            <td>${v.type || "-"}</td>
+            <td style="font-size:12px;color:#34d399">${new Date(v.timeIn).toLocaleTimeString("ar-EG")}</td>
+            <td><button onclick="VehicleService.exit('${v.id}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🚪 خروج</button></td>
+          </tr>`).join('')
+          : '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">لا توجد عربيات داخل الآن</td></tr>';
         },
         renderLeaves() {
             let body = document.getElementById("leavesBody"); if (!body) return;
@@ -14570,11 +14912,12 @@ applyEditColVisibility();
 <td>${p.date}</td>
 <td>${p.time || "-"}</td>
 <td>${p.createdBy || "-"}</td>
+<td>${p.auto && (hasPermission("all")||hasPermission("permit")) ? `<button onclick="AutoDeductionService.exempt('${p.code}','${p.date}','${p.autoType}','${p.id}')" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔓 إذن</button>` : (p.auto ? `<span class="badge badge-warning" style="font-size:11px">تلقائي</span>` : "-")}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="openEditPenaltyById('${p.id}')">✏ تعديل</button>` : ""}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
-            body.innerHTML = html || '<tr><td colspan="10" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
+            body.innerHTML = html || '<tr><td colspan="11" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
 applyEditColVisibility();
             document.getElementById("penaltiesCount").innerText = State.penalties.length;
             this.renderPenaltiesSummary(scoped);
@@ -14618,12 +14961,38 @@ applyEditColVisibility();
             </tr>`;
           }
         },
+
+        renderPenaltyExemptLog() {
+          const body = document.getElementById("penaltyExemptLogBody");
+          if(!body) return;
+          const rows = [...(State.penaltyExemptLog||[])].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+          body.innerHTML = rows.length ? rows.map(r => `<tr>
+            <td style="font-weight:700">${r.name}</td>
+            <td style="color:#818cf8">${r.code}</td>
+            <td>${r.reason||"-"}</td>
+            <td style="text-align:center">${r.hours}</td>
+            <td>${r.penaltyDate||"-"}</td>
+            <td style="color:#34d399">${r.exemptedBy||"-"}</td>
+            <td style="font-size:11px">${r.exemptedAt||"-"}</td>
+          </tr>`).join('')
+          : '<tr><td colspan="7" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
+        },
         
         renderCompanies(){
 
 let body = document.getElementById("companiesBody")
 
 if(!body) return
+
+/* كروت العداد أعلى الصفحة */
+{
+  const todayStr = new Date(TimeUtils.now()).toDateString()
+  const todayVisits = State.companies.filter(c => new Date(c.timestamp||0).toDateString() === todayStr).length
+  const insideNow = State.companies.filter(c => !c.timeOut).length
+  const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
+  setEl('compStatInside', insideNow)
+  setEl('compStatToday', todayVisits)
+}
 
 let search = document
 .getElementById("companySearch")?.value
@@ -14691,7 +15060,7 @@ filtered
 .forEach(c=>{
 const statusBadge = c.timeOut
   ? `<span class="badge badge-success">خرج</span>`
-  : `<span class="badge badge-warning" style="animation:pulse 2s infinite">داخل</span>`;
+  : `<button onclick="CompanyService.quickExit('${c.id}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px;animation:pulse 2s infinite">🚪 خروج</button>`;
 const duration = c.timeIn && c.timeOut
   ? (() => { const [ih,im]=(c.timeIn||"0:0").split(":").map(Number); const [oh,om]=(c.timeOut||"0:0").split(":").map(Number); const d=(oh*60+om)-(ih*60+im); return d>0?Math.floor(d/60)+"س "+String(d%60).padStart(2,"0")+"د":"-"; })()
   : "-";
@@ -15049,6 +15418,7 @@ UI.renderTransfers()
                 { ref: "systemLogs", stateKey: "systemLogs", render: () => UI.renderSystemLogs() },
                 { ref: "vehicles", stateKey: "vehicles", render: () => UI.renderVehicles() },
                 { ref: "penalties", stateKey: "penalties", render: () => UI.renderPenalties() },
+                { ref: "penaltyExemptLog", stateKey: "penaltyExemptLog", render: () => UI.renderPenaltyExemptLog() },
                 { ref: "leaves", stateKey: "leaves", render: () => UI.renderLeaves() },
                 { ref: "products",  stateKey: "products",  render: () => {
           UI.renderProducts();
@@ -15068,6 +15438,11 @@ UI.renderTransfers()
                 if(document.getElementById('tab-fingerprint-bazar')?.style.display !== 'none') {
                     FingerprintBazarService.render();
                 }
+            });
+            db.ref("autoDeductExemptions").on("value", snap => {
+                const map = {};
+                snap.forEach(c => { map[c.key] = c.val(); });
+                State.autoExemptions = map;
             });
             setTimeout(()=>BreakService.fixBreakDurations(),2000)
             collections.forEach(col => {
