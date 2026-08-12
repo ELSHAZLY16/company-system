@@ -454,6 +454,19 @@ body.light-mode input[type="time"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* إصلاح مشكلة اختيار التاريخ من الكمبيوتر: المتصفحات بتلخبط ترتيب اليوم/الشهر/السنة
+   وموضع أيقونة التقويم جوه صفحة RTL، فبنجبر اتجاه العنصر نفسه LTR عشان يشتغل صح
+   ويفضل شكله متوافق مع باقي الصفحة اللي RTL */
+input[type="date"], input[type="time"], input[type="datetime-local"] {
+  direction: ltr;
+  text-align: right;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  margin-left: 4px;
+}
+
 /* كل الـ spans والـ divs اللي عندها color:#fff داخل الـ glass-card في الـ light */
 body.light-mode .glass-card span[style*="color:#fff"],
 body.light-mode .glass-card span[style*="color: #fff"],
@@ -4024,6 +4037,16 @@ onchange="UI.renderBreaks()"
   </div>
 </div>
 
+<div class="glass-card" style="padding:20px;margin-top:16px">
+  <h3 style="margin-bottom:14px">🚨 تجاوزوا 30 دقيقة استئذان (بدون الصلاة — بنفس فترة الملخص أعلاه)</h3>
+  <div class="table-container">
+    <table>
+      <thead><tr><th>الموظف</th><th>الكود</th><th>إجمالي الاستئذان</th><th>آخر استئذان</th></tr></thead>
+      <tbody id="breaksOver30QuickBody"></tbody>
+    </table>
+  </div>
+</div>
+
 <div id="breakDetailModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-start;justify-content:center;z-index:99999;overflow-y:auto;padding:16px" onclick="if(event.target===this)closeBreakDetailModal()">
   <div class="glass-card" style="padding:25px;width:95%;max-width:520px">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -4039,50 +4062,6 @@ onchange="UI.renderBreaks()"
   </div>
 </div>
 
-
-<div class="glass-card" style="padding:20px; margin-top:20px">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;"><h3>🚨 30 دقيقة استئذان</h3><button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="BreakService.exportOver30Excel()"><span>📊</span> تصدير Excel</button></div>
-                
-<div style="display:flex;gap:10px;margin:10px 0;flex-wrap:wrap">
-
-<input id="break30Search"
-placeholder="بحث بالاسم أو الكود"
-style="flex:1;padding:8px;border-radius:8px;border:none"
-oninput="UI.renderBreaks()">
-
-<input type="date"
-id="break30Date"
-style="width:130px;padding:8px;border-radius:8px;border:none"
-onchange="UI.renderBreaks()">
-
-<div class="attendance-filters">
-
-<button class="filter-btn active"
-onclick="setBreakFilter(this,'day')">
-اليوم
-</button>
-
-<button class="filter-btn"
-onclick="setBreakFilter(this,'week')">
-أسبوع
-</button>
-
-<button class="filter-btn"
-onclick="setBreakFilter(this,'month')">
-شهر
-</button>
-
-<button class="filter-btn"
-onclick="setBreakFilter(this,'all')">
-كل السجلات
-</button>
-
-</div>
-
-</div>      
-
-                <div class="table-container" style="max-height:250px; overflow-y:auto;"><table><thead><tr><th>الموظف</th><th>الكود</th><th>إجمالي الاستئذان</th><th>التاريخ</th></tr></thead><tbody id="breaksOver30Body"></tbody></table></div>
-            </div>
         </div>
 
         <div id="tab-vehicles" class="tab-content" style="display:none;">
@@ -4893,6 +4872,22 @@ onclick="setCompanyFilter(this,'all')">
 
 <div id="tab-penalties" class="tab-content" style="display:none;">
 
+  <!-- STAT CARDS -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+    <div class="glass-card stat-card" style="padding:10px;cursor:pointer" data-perm="penalties" onclick="document.getElementById('penaltiesSummaryAnchor')?.scrollIntoView({behavior:'smooth'})">
+      <h3 style="font-size:11px">⚖️ جزاءات اليوم</h3>
+      <p class="stat-value" id="penStatToday" style="font-size:22px">0</p>
+    </div>
+    <div class="glass-card stat-card" style="padding:10px;cursor:pointer" data-perm="penalties" onclick="document.getElementById('penaltiesSummaryAnchor')?.scrollIntoView({behavior:'smooth'})">
+      <h3 style="font-size:11px">📅 جزاءات الشهر</h3>
+      <p class="stat-value" id="penStatMonth" style="font-size:22px">0</p>
+    </div>
+    <div class="glass-card stat-card" style="padding:10px;cursor:pointer" data-perm="penalties" onclick="document.getElementById('penaltiesSummaryAnchor')?.scrollIntoView({behavior:'smooth'})">
+      <h3 style="font-size:11px">👤 ملخص حسب الموظف</h3>
+      <p class="stat-value" id="penStatEmpCount" style="font-size:22px">0</p>
+    </div>
+  </div>
+
 <div class="glass-card" style="padding:25px;">
 
 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
@@ -4976,16 +4971,31 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
 </div>
 
-<div class="glass-card" style="padding:20px;margin-top:16px">
+<div id="penaltiesSummaryAnchor" class="glass-card" style="padding:20px;margin-top:16px">
   <h3 style="margin-bottom:14px">📊 ملخص الجزاءات حسب الموظف</h3>
   <div class="table-container">
     <table>
       <thead><tr>
-        <th>الموظف</th><th>الكود</th><th>عدد الجزاءات</th><th>إجمالي الساعات</th><th>آخر جزاء</th>
+        <th>الموظف</th><th>الكود</th><th>عدد الجزاءات</th><th>إجمالي الساعات</th><th>آخر جزاء</th><th>عرض</th>
       </tr></thead>
       <tbody id="penaltiesSummaryBody"></tbody>
       <tfoot id="penaltiesSummaryFoot"></tfoot>
     </table>
+  </div>
+</div>
+
+<div id="penaltyDetailModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-start;justify-content:center;z-index:99999;overflow-y:auto;padding:16px" onclick="if(event.target===this)closePenaltyDetailModal()">
+  <div class="glass-card" style="padding:25px;width:95%;max-width:560px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h3 id="penaltyDetailTitle" style="margin:0">⚖️ تفاصيل جزاءات الموظف</h3>
+      <button onclick="closePenaltyDetailModal()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;width:32px;height:32px;cursor:pointer">✕</button>
+    </div>
+    <div class="table-container" style="max-height:420px">
+      <table>
+        <thead><tr><th>التاريخ</th><th>الوقت</th><th>الساعات</th><th>السبب</th><th>المدير</th></tr></thead>
+        <tbody id="penaltyDetailBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -5062,6 +5072,12 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
       </div>
 
       <div>
+        <label style="font-size:13px;color:var(--txt2)">اسم المدير المسؤول عن القرار</label>
+        <input id="incManager" placeholder="اسم المدير اللي قرر الحافز"
+          style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
+      </div>
+
+      <div>
         <label style="font-size:13px;color:var(--txt2)">التاريخ</label>
         <input id="incDate" type="date"
           style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
@@ -5113,6 +5129,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
           <th>القيمة</th>
           <th>السبب</th>
           <th>التاريخ</th>
+          <th>المدير المسؤول</th>
           <th>بواسطة</th>
           <th>حذف</th>
         </tr>
@@ -5216,7 +5233,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
         <div id="tab-system" class="tab-content" style="display:none;">
             <div class="glass-card" style="padding:25px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-  <h3><span style="margin-left:8px;">📋</span> سجل النظام</h3>
+  <h3><span style="margin-left:8px;">📋</span> سجل النظام <span style="font-size:11px;color:#64748b;font-weight:400">إصدار الملف: <span id="appBuildBadge">-</span></span></h3>
   <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
     <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="SystemLogService.exportExcel()">
       <span style="margin-left:6px;">📊</span> تصدير Excel
@@ -5228,7 +5245,8 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 </div>
                 <input id="logsSearch" placeholder="🔍 بحث بالمستخدم أو الحركة أو الاسم"
   oninput="clearTimeout(window._logsTimer);window._logsTimer=setTimeout(()=>UI.renderSystemLogs(),300)"
-  style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;margin-bottom:10px">
+  style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;margin-bottom:6px">
+<div id="logsSearchIndicator" style="display:none;font-size:12px;margin-bottom:10px;padding:6px 10px;border-radius:6px"></div>
 <div class="attendance-filters" id="logsRangeBtns" style="margin-bottom:10px">
   <button class="filter-btn active" onclick="setLogFilter(this,'day')">اليوم</button>
   <button class="filter-btn" onclick="setLogFilter(this,'week')">أسبوع</button>
@@ -6500,14 +6518,10 @@ const SalaryService = {
     let lateCount = 0, totalLateDeduct = 0;
 
     if(expectedIn) {
-      const [expH, expM] = expectedIn.split(':').map(Number);
       Object.values(dayMap).forEach(pairs => {
         const firstIn = pairs.find(p => p.checkIn)?.checkIn;
         if(!firstIn) return;
-        const inMatch = (firstIn.timeDisplay || '').match(/(\d{1,2}):(\d{2})/);
-        if(!inMatch) return;
-        const actH = parseInt(inMatch[1]), actM = parseInt(inMatch[2]);
-        const lateMin = (actH*60+actM) - (expH*60+expM);
+        const lateMin = calcLateMinutes(firstIn.timestamp, expectedIn);
         if(lateMin <= 5) return;
         if(firstIn.latePermission === true) return;
         lateCount++;
@@ -7383,6 +7397,10 @@ function closeBreakDetailModal(){
   document.getElementById("breakDetailModal").style.display = "none"
 }
 
+function closePenaltyDetailModal(){
+  document.getElementById("penaltyDetailModal").style.display = "none"
+}
+
 function attClearAllFilters(){
   document.getElementById("attendanceSearch").value=""
   document.getElementById("attendanceDate").value=""
@@ -7418,7 +7436,8 @@ document.querySelectorAll("#tab-breaks .filter-btn")
 btn.classList.add("active")
 
 // مسح التاريخ
-document.getElementById("break30Date").value=""
+const breakDateEl = document.getElementById("breakDate")
+if(breakDateEl) breakDateEl.value=""
 
 State.breakRange = range
 
@@ -7744,6 +7763,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
+        appBuild: "2026-08-12.5",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8549,14 +8569,14 @@ exportExcel() {
 if (!checkExcelPermission()) return;
 
 let rows = UI.getFilteredBreaks().map(b => ({
-الموظف: b.name,
-الكود: b.code,
+الموظف: b.name || getEmpName(b.code) || b.code || "-",
+الكود: b.code || "-",
 نوع_الاستئذان: b.type || "-",
 وقت_الاستئذان: b.breakTime || "-",
 وقت_الرجوع: b.returnTime || "-",
 مدة_الاستئذان: b.duration ? TimeUtils.format(b.duration) : "-",
-التاريخ: b.date,
-المستخدم: b.user
+التاريخ: b.date || "-",
+المستخدم: b.user || "-"
 }));
 
 let ws = XLSX.utils.json_to_sheet(rows);
@@ -8893,15 +8913,52 @@ UI.renderCompanies()
         checkLateCheckIn(emp, checkInTimestamp, dateStr) {
             const expected = emp.checkIn || emp.workStart || "";
             if(!expected) return;
-            const [expH, expM] = expected.split(":").map(Number);
-            if(isNaN(expH)) return;
-            const d = new Date(checkInTimestamp);
-            const expectedMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), expH, expM || 0).getTime();
-            const lateMinutes = Math.round((checkInTimestamp - expectedMs) / 60000);
+            const lateMinutes = calcLateMinutes(checkInTimestamp, expected);
             if(lateMinutes < 31) return;
             const dailyHours = getEmpDailyHours(emp);
             const hours = this.calcLateHours(lateMinutes, dailyHours);
             this.createAutoPenalty(emp.code, emp.name, hours, `تأخير ${lateMinutes} دقيقة`, "late", dateStr);
+        },
+
+        // إعادة احتساب جزاء التأخير بعد تعديل وقت الحضور يدويًا من صفحة الحضور
+        // (بيحدّث الجزاء الموجود، يحذفه لو بقى مش مستحق، أو ينشئ واحد جديد لو بقى متأخر)
+        recalcLateForEdit(code, dateStr, newTimestamp) {
+            const emp = getEmpData(code) || State.employees.find(e => String(e.code) === String(code));
+            if(!emp) return;
+            const expected = emp.checkIn || emp.workStart || "";
+            const existing = State.penalties.find(p => String(p.code) === String(code) && p.date === dateStr && p.autoType === "late");
+            if(!expected){ if(existing) db.ref("penalties/"+existing.id).remove(); return; }
+            const lateMinutes = calcLateMinutes(newTimestamp, expected);
+            const isExempt = this.isExempt(code, dateStr, "late");
+
+            if(lateMinutes < 31 || isExempt){
+                // بقى في الميعاد (أو معفى) — إلغاء الجزاء لو كان موجود
+                if(existing){
+                    db.ref("penalties/"+existing.id).remove().then(()=>{
+                        UI.toast("✅ تم إلغاء جزاء التأخير بعد التعديل (بقى في الميعاد)", "success");
+                        SystemLog.add("PenaltyAutoCancel", code, "إلغاء بعد تعديل وقت الحضور");
+                    });
+                }
+                return;
+            }
+
+            // لسه متأخر (أو تغيّر مقدار التأخير) — إعادة حساب الساعات
+            const dailyHours = getEmpDailyHours(emp);
+            const hours = this.calcLateHours(lateMinutes, dailyHours);
+            const reasonText = `تأخير ${lateMinutes} دقيقة`;
+            if(existing){
+                db.ref("penalties/"+existing.id).update({
+                    hours: Number(hours.toFixed(2)),
+                    reason: reasonText,
+                    recalculated: true,
+                    recalculatedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG")
+                }).then(()=>{
+                    UI.toast(`🔄 تم تحديث جزاء التأخير تلقائيًا (${reasonText})`, "warning");
+                    SystemLog.add("PenaltyAutoRecalc", code, reasonText);
+                });
+            } else {
+                this.createAutoPenalty(code, emp.name, hours, reasonText, "late", dateStr);
+            }
         },
 
         // فحص إجمالي الاستئذان اليومي (بدون الصلاة) وإنشاء جزاء تلقائي عند الحاجة
@@ -10510,6 +10567,14 @@ Promise.all(updates).then(()=>{
   UI.toast("✅ تم تعديل سجل الحضور","success")
   SystemLog.add("EditAttendance", editData.checkIn?.code||"-", "تعديل بواسطة: "+editedBy)
   UI.renderAttendance()
+  // إعادة احتساب جزاء التأخير بعد تعديل وقت الحضور
+  if(timeIn){
+    const [h3,m3] = timeIn.split(":").map(Number)
+    const newInTs = new Date(date)
+    newInTs.setHours(h3, m3, 0, 0)
+    // استخدام نفس صيغة التاريخ المخزّنة في سجلات الجزاءات (ar-EG) للمطابقة الصحيحة
+    AutoDeductionService.recalcLateForEdit(editData.checkIn.code, newInTs.toLocaleDateString("ar-EG"), newInTs.getTime())
+  }
   closeEdit()
 }).catch(err => UI.toast("❌ " + err.message, "error"))
 
@@ -11470,6 +11535,23 @@ function getEmpDailyHours(emp) {
   return Number(emp.workHoursPerDay) || 8;
 }
 
+// حساب دقائق التأخير بشكل صحيح (بيتعامل صح مع الشيفتات اللي بتعدي منتصف الليل، وبيعتمد
+// على وقت الـ timestamp الفعلي مش على تحليل نص معروض، عشان يشتغل مهما كان شكل عرض الأرقام)
+// النتيجة: رقم موجب = تأخير بالدقايق | رقم سالب أو صفر = حضور في الميعاد أو مبكر
+function calcLateMinutes(actualTimestamp, expectedTimeStr) {
+  if(!expectedTimeStr || !actualTimestamp) return 0;
+  const [expH, expM] = expectedTimeStr.split(':').map(Number);
+  if(isNaN(expH)) return 0;
+  const d = new Date(actualTimestamp);
+  const actualMinOfDay = d.getHours()*60 + d.getMinutes();
+  const expectedMinOfDay = expH*60 + (expM||0);
+  let diff = actualMinOfDay - expectedMinOfDay;
+  // تصحيح حالة عبور منتصف الليل: لو الفرق أكبر من 12 ساعة، يبقى في الحقيقة العكس
+  if(diff > 720) diff -= 1440;
+  if(diff < -720) diff += 1440;
+  return diff;
+}
+
 function getEmpData(code) {
   const c = String(code).trim();
   const n = String(Number(c));
@@ -12027,6 +12109,7 @@ const IncentiveService = {
     const type   = document.getElementById('incType')?.value;
     const amount = Number(document.getElementById('incAmount')?.value) || 0;
     const note   = document.getElementById('incNote')?.value.trim();
+    const manager = document.getElementById('incManager')?.value.trim();
     const date   = document.getElementById('incDate')?.value;
 
     if(!code) { UI.toast('اختر الموظف أولاً', 'error'); return; }
@@ -12038,7 +12121,7 @@ const IncentiveService = {
     const record = {
       id, code, name: name || (emp ? emp.name : code),
       type: type || 'مالي',
-      amount, unit, note, date,
+      amount, unit, note, manager: manager || '-', date,
       by: State.currentUser?.username || '-',
       ts: Date.now()
     };
@@ -12056,7 +12139,7 @@ const IncentiveService = {
   },
 
   clearForm() {
-    ['incEmpCode','incEmpName','incNote','incDate'].forEach(id => {
+    ['incEmpCode','incEmpName','incNote','incManager','incDate'].forEach(id => {
       const el = document.getElementById(id); if(el) el.value = '';
     });
     const amt = document.getElementById('incAmount');
@@ -12115,7 +12198,7 @@ const IncentiveService = {
       <div style="font-size:11px;color:var(--txt2)">${s.label}</div>
     </div>`).join('');
 
-    if(!filtered.length) { body.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#64748b">لا توجد حوافز</td></tr>'; return; }
+    if(!filtered.length) { body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#64748b">لا توجد حوافز</td></tr>'; return; }
 
     body.innerHTML = filtered.map(r => `<tr>
       <td>${r.name || '-'}</td>
@@ -12124,6 +12207,7 @@ const IncentiveService = {
       <td style="color:#34d399;font-weight:700">${r.amount ? Number(r.amount).toLocaleString('ar-EG') + ' ' + (r.unit||'ج') : '-'}</td>
       <td style="font-size:12px;color:#94a3b8;max-width:150px">${r.note || '-'}</td>
       <td>${r.date || '-'}</td>
+      <td style="font-size:12px;color:#fbbf24">${r.manager || '-'}</td>
       <td style="font-size:12px">${r.by || '-'}</td>
       <td>${hasPermission('edit')||hasPermission('all') ? `<button onclick="IncentiveService.delete('${r.id}','${r.name}')"
         style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button>` : '-'}</td>
@@ -12149,6 +12233,7 @@ const IncentiveService = {
       'القيمة': (r.amount || 0) + ' ' + (r.unit || 'جنيه'),
       'السبب': r.note || '-',
       'التاريخ': r.date || '-',
+      'المدير المسؤول': r.manager || '-',
       'بواسطة': r.by || '-'
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -12635,10 +12720,7 @@ const FingerprintBazarService = {
     // ميعاد الدوام من السجل نفسه أولاً ثم empData كـ fallback
     const expected = a.expectedIn || getEmpData(a.code)?.checkIn || getEmpData(a.code)?.workStart || '';
     if(!expected || a.action !== 'CheckIn') return 0;
-    const [eh, em] = expected.split(':').map(Number);
-    const match = (a.timeDisplay || '').match(/(\d{1,2}):(\d{2})/);
-    if(!match) return 0;
-    const late = (parseInt(match[1])*60 + parseInt(match[2])) - (eh*60 + em);
+    const late = calcLateMinutes(a.timestamp, expected);
     return late > 5 ? late : 0;
   },
 
@@ -13213,10 +13295,7 @@ const FingerprintSabahService = {
   _lateMin(a) {
     const expected=this._empCheckIn(a.code);
     if(!expected||a.action!=='CheckIn') return 0;
-    const [eh,em]=expected.split(':').map(Number);
-    const match=(a.timeDisplay||'').match(/(\d{1,2}):(\d{2})/);
-    if(!match) return 0;
-    const late=(parseInt(match[1])*60+parseInt(match[2]))-(eh*60+em);
+    const late = calcLateMinutes(a.timestamp, expected);
     return late>5?late:0;
   },
   _populateSelects() {
@@ -14244,16 +14323,11 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
               const exp = empD?.checkIn;
               let lateStr = '-';
               if(exp){
-                const [eh,em] = exp.split(':').map(Number);
-                if(!isNaN(eh)){
-                  const d = new Date(a.timestamp);
-                  const expectedMs = new Date(d.getFullYear(), d.getMonth(), d.getDate(), eh, em||0).getTime();
-                  const lateMinVal = Math.round((a.timestamp - expectedMs) / 60000);
-                  if(lateMinVal > 5){
-                    lateStr = `<span style="color:#f59e0b;font-weight:700">${lateMinVal}د</span>`;
-                  } else {
-                    lateStr = '<span style="color:#34d399">—</span>';
-                  }
+                const lateMinVal = calcLateMinutes(a.timestamp, exp);
+                if(lateMinVal > 5){
+                  lateStr = `<span style="color:#f59e0b;font-weight:700">${lateMinVal}د</span>`;
+                } else {
+                  lateStr = '<span style="color:#34d399">—</span>';
                 }
               }
               const canEdit = hasPermission("edit")||hasPermission("all");
@@ -14281,11 +14355,11 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
             const range = State.logsRange || "day";
             const filtered = State.systemLogs
               .filter(l => !q ||
-                (l.action||"").toLowerCase().includes(q) ||
-                (l.name||"").toLowerCase().includes(q)  ||
-                (l.code||"").toLowerCase().includes(q)  ||
-                (l.user||"").toLowerCase().includes(q)  ||
-                (l.date||"").toLowerCase().includes(q)
+                String(l.action||"").toLowerCase().includes(q) ||
+                String(l.name||"").toLowerCase().includes(q)  ||
+                String(l.code||"").toLowerCase().includes(q)  ||
+                String(l.user||"").toLowerCase().includes(q)  ||
+                String(l.date||"").toLowerCase().includes(q)
               )
               .filter(l => {
                 if(range === "all") return true;
@@ -14296,6 +14370,26 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
                 return true;
               })
               .sort((a,b) => b.timestamp - a.timestamp);
+
+            // مؤشر واضح لنتيجة البحث
+            const indicator = document.getElementById("logsSearchIndicator");
+            if(indicator){
+              if(q){
+                indicator.style.display = "block";
+                if(filtered.length){
+                  indicator.style.background = "rgba(16,185,129,0.15)";
+                  indicator.style.color = "#34d399";
+                  indicator.textContent = `✅ تم العثور على ${filtered.length} نتيجة مطابقة لـ "${q}"`;
+                } else {
+                  indicator.style.background = "rgba(239,68,68,0.15)";
+                  indicator.style.color = "#f87171";
+                  indicator.textContent = `❌ لا توجد نتائج مطابقة لـ "${q}"`;
+                }
+              } else {
+                indicator.style.display = "none";
+              }
+            }
+
             body.innerHTML = filtered.length
               ? filtered.map(l => `<tr><td>${SystemLogService.translate(l.action)}</td><td>${l.name}</td><td>${l.code}</td><td>${l.date}</td><td>${l.timeDisplay}</td><td>${l.user}</td></tr>`).join("")
               : '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
@@ -14430,17 +14524,17 @@ let rowStyle = !b.returnTimestamp
 
 html += `
 <tr ${rowStyle}>
-<td>${b.name}</td>
-<td>${b.code}</td>
+<td>${b.name || "-"}</td>
+<td>${b.code || "-"}</td>
 <td>${b.type || "-"}</td>
 <td>${b.breakTime || "-"}</td>
-<td>${b.returnTime || `<button onclick="breakQuickReturn('${b.id}','${b.code}','${b.name}')"
+<td>${b.returnTime || `<button onclick="breakQuickReturn('${b.id}','${b.code}','${(b.name||getEmpName(b.code)||b.code||"").toString().replace(/'/g,"")}')"
   style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">
   🔄 رجوع
 </button>`}</td>
 <td ${durStyle}>${durationText}</td>
-<td>${b.date}</td>
-<td>${b.user}</td>
+<td>${b.date || "-"}</td>
+<td>${b.user || "-"}</td>
 
 <td class="edit-col">
 ${hasPermission("edit") || hasPermission("all") ? `
@@ -14484,30 +14578,6 @@ totals[b.code].total += duration
 
 body.innerHTML = html
 
-/* جدول تأخير 30 دقيقة */
-
-let overHtml = ""
-
-Object.values(totals)
-.sort((a,b)=>b.total-a.total)
-.forEach(e=>{
-
-if(e.total < 1800000) return
-
-overHtml += `
-<tr style="background:rgba(239,68,68,.15);color:#fca5a5;font-weight:bold">
-<td>${e.name}</td>
-<td>${e.code}</td>
-<td>${TimeUtils.format(e.total)}</td>
-<td>${e.date}</td>
-</tr>
-`
-
-})
-
-let overBody = document.getElementById("breaksOver30Body")
-if(overBody) overBody.innerHTML = overHtml
-
 /* العداد */
 let openBreaks = filtered.filter(b=>!b.returnTimestamp)
 let box = document.getElementById("breakCount")
@@ -14542,6 +14612,11 @@ renderSummary() {
   const foot = document.getElementById("breakSummaryFoot");
   if(!body) return;
 
+  const fmtDur = ms => {
+    const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000);
+    return h+"س "+m+"د";
+  };
+
   const q = (document.getElementById("summarySearch")?.value||"").toLowerCase().trim();
   const range = State.summaryRange || "month";
   const now = new Date(TimeUtils.now());
@@ -14559,7 +14634,7 @@ renderSummary() {
   scoped.forEach(b => {
     const code = String(b.code);
     if(!empMap[code]) empMap[code] = {
-      name: b.name, code,
+      name: b.name || getEmpName(code) || code, code,
       count: 0, totalMs: 0, totalMsExcl: 0,
       types: { "صلاة":0,"حمام":0,"أكل":0,"مكالمة":0,"خروج مهمة":0,"أخرى":0 },
       lastTimestamp: 0, lastType: "-", lastDate: "-"
@@ -14583,6 +14658,18 @@ renderSummary() {
 
   let list = Object.values(empMap).map(e => ({ ...e, avgMs: e.count ? e.totalMs / e.count : 0 }));
 
+  // قائمة المتجاوزين 30 دقيقة (بنفس فترة الملخص بالظبط — نفس البيانات، من غير أي تضارب)
+  {
+    const overBody = document.getElementById("breaksOver30QuickBody");
+    if(overBody){
+      const over30 = list.filter(e => e.totalMsExcl >= 1800000).sort((a,b)=>b.totalMsExcl-a.totalMsExcl);
+      overBody.innerHTML = over30.length ? over30.map(e => `<tr style="background:rgba(239,68,68,.12);color:#fca5a5;font-weight:bold">
+        <td>${e.name}</td><td>${e.code}</td><td>${fmtDur(e.totalMsExcl)}</td><td>${e.lastDate}</td>
+      </tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;padding:14px;color:#64748b">لا يوجد متجاوزين في هذه الفترة</td></tr>';
+    }
+  }
+
   if(q){
     list = list.filter(e =>
       (e.name||"").toLowerCase().includes(q) || (e.code||"").toLowerCase().includes(q)
@@ -14601,11 +14688,6 @@ renderSummary() {
     if(foot) foot.innerHTML = "";
     return;
   }
-
-  const fmtDur = ms => {
-    const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000);
-    return h+"س "+m+"د";
-  };
 
   body.innerHTML = list.map(e => {
     const topType = Object.entries(e.types).sort((a,b)=>b[1]-a[1])[0];
@@ -14694,7 +14776,7 @@ exportSummaryExcel() {
   scoped.forEach(b => {
     const code = String(b.code);
     if(!empMap[code]) empMap[code] = {
-      name:b.name, code, count:0, totalMs:0,
+      name: b.name || getEmpName(code) || code, code, count:0, totalMs:0,
       types:{"صلاة":0,"حمام":0,"أكل":0,"مكالمة":0,"خروج مهمة":0,"أخرى":0},
       lastTimestamp:0, lastType:"-", lastDate:"-"
     };
@@ -14894,6 +14976,18 @@ this.renderVehiclesInsideNow();
         renderPenalties() {
             let body = document.getElementById("penaltiesBody"); if (!body) return;
             let html = "";
+
+            /* كروت العداد أعلى الصفحة */
+            {
+              const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
+              const todayCount = State.penalties.filter(p => _inRange(p.timestamp, "day")).length;
+              const monthCount = State.penalties.filter(p => _inRange(p.timestamp, "month")).length;
+              const empCount = new Set(State.penalties.map(p => String(p.code))).size;
+              setEl('penStatToday', todayCount);
+              setEl('penStatMonth', monthCount);
+              setEl('penStatEmpCount', empCount);
+            }
+
             const pSearch = (document.getElementById("penaltiesSearch")?.value||"").toLowerCase().trim();
             const pRange = State.penaltiesRange || "all";
             const scoped = State.penalties
@@ -14931,7 +15025,7 @@ applyEditColVisibility();
           const map = {};
           list.forEach(p=>{
             const code = String(p.code);
-            if(!map[code]) map[code] = { name:p.name, code, count:0, hours:0, lastTs:0, lastDate:"-", lastReason:"-" };
+            if(!map[code]) map[code] = { name:p.name || getEmpName(code) || code, code, count:0, hours:0, lastTs:0, lastDate:"-", lastReason:"-" };
             const e = map[code];
             e.count++;
             e.hours += Number(p.hours)||0;
@@ -14939,7 +15033,7 @@ applyEditColVisibility();
           });
           const rows = Object.values(map).sort((a,b)=>b.count-a.count);
           if(!rows.length){
-            body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">لا توجد بيانات</td></tr>';
+            body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b">لا توجد بيانات</td></tr>';
             if(foot) foot.innerHTML = "";
             return;
           }
@@ -14949,6 +15043,7 @@ applyEditColVisibility();
             <td style="text-align:center;font-weight:700;color:#f87171">${e.count}</td>
             <td style="text-align:center">${e.hours}</td>
             <td style="font-size:12px">${e.lastDate!=="-" ? e.lastDate+" ("+e.lastReason+")" : "-"}</td>
+            <td style="text-align:center"><button onclick="UI.showPenaltyEmployeeDetails('${e.code}')" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">📋 عرض</button></td>
           </tr>`).join('');
           if(foot){
             const totalCount = rows.reduce((s,e)=>s+e.count,0);
@@ -14957,9 +15052,29 @@ applyEditColVisibility();
               <td colspan="2">الإجمالي (${rows.length} موظف)</td>
               <td style="text-align:center;color:#f87171">${totalCount}</td>
               <td style="text-align:center">${totalHours}</td>
-              <td></td>
+              <td></td><td></td>
             </tr>`;
           }
+        },
+
+        showPenaltyEmployeeDetails(code) {
+          const range = State.penaltiesRange || "all";
+          const recs = State.penalties
+            .filter(p => String(p.code) === String(code) && _inRange(p.timestamp, range))
+            .sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+          const emp = recs[0];
+          document.getElementById("penaltyDetailTitle").textContent =
+            "⚖️ تفاصيل جزاءات " + (emp?.name || getEmpName(code) || code);
+          const body = document.getElementById("penaltyDetailBody");
+          body.innerHTML = recs.length ? recs.map(p => `<tr>
+            <td>${p.date||"-"}</td>
+            <td style="font-size:12px">${p.time||"-"}</td>
+            <td style="text-align:center;font-weight:700;color:#f87171">${p.hours}</td>
+            <td style="font-size:12px">${p.reason||"-"}</td>
+            <td style="font-size:12px">${p.manager||"-"}</td>
+          </tr>`).join('')
+          : '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">لا توجد جزاءات في هذه الفترة</td></tr>';
+          document.getElementById("penaltyDetailModal").style.display = "flex";
         },
 
         renderPenaltyExemptLog() {
@@ -15186,7 +15301,8 @@ function setTransferFilter(btn, range) {
 function setBreak30Filter(btn, range) {
   document.querySelectorAll("#tab-breaks .break30-filter").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  document.getElementById("break30Date").value = "";
+  const breakDateEl = document.getElementById("breakDate");
+  if(breakDateEl) breakDateEl.value = "";
   State.breakRange = range;
   UI.renderBreaks();
 }
@@ -15213,6 +15329,9 @@ const exact = results.find(e=>String(e.code)===value);
 if(exact) attUpdateEmpPreview(value); else { const p=document.getElementById("attEmpPreview"); if(p) p.style.display="none"; }
 }) 
     document.addEventListener("DOMContentLoaded", function() { 
+        // رقم إصدار الملف (يتغيّر مع كل تحديث/تعديل يتم على الملف)
+        const bEl = document.getElementById('appBuildBadge');
+        if(bEl) bEl.textContent = State.appBuild;
         // تحديث الوقت كل ثانية بكفاءة
 setInterval(() => {
     // تحديث فقط لو صفحة الحضور ظاهرة
