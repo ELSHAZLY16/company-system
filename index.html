@@ -7855,7 +7855,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.14",
+        appBuild: "2026-08-12.15",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -17766,36 +17766,38 @@ const PenaltyNotify = {
     const body = `${p.name || p.code} — ${p.reason || 'جزاء'} (${p.hours} ساعة)`;
     this.show(title, body);
   },
-  // دالة الإظهار الموحّدة — بتجرّب SW الأول (أكتر ثباتًا خصوصًا لو فيه Service Worker شغال زي في GitHub Pages)،
-  // ولو فشل أو اتأخر، ترجع فورًا لـ Notification العادية بدل ما تعلّق أو تفشل بصمت
+  // دالة الإظهار الموحّدة — بتستنى الـ Service Worker يبقى جاهز فعليًا (مش بس تجرب وتستعجل)
+  // لأن أغلب متصفحات الموبايل بترفض new Notification() المباشرة لما يكون فيه SW نشط،
+  // وده اللي كان بيسبب فشل الإشعار حتى مع وجود الإذن
   async show(title, body) {
     if(!('Notification' in window) || Notification.permission !== 'granted') return;
 
     let usedSW = false;
     try {
       if(navigator.serviceWorker){
-        // مهلة قصوى نص ثانية، عشان لو getRegistration اتعلّق منرجعش نستنى للأبد
+        // .ready بتستنى فعليًا لحد ما يبقى فيه SW نشط وجاهز (مش استعلام لحظي زي getRegistration)
+        // بمهلة أمان 5 ثواني بس عشان الصفحة متعلقش لو حصل ظرف غير متوقع
         const reg = await Promise.race([
-          navigator.serviceWorker.getRegistration(),
-          new Promise(resolve => setTimeout(() => resolve(null), 500))
+          navigator.serviceWorker.ready,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 5000))
         ]);
-        if(reg && reg.active && typeof reg.showNotification === 'function'){
+        if(reg && typeof reg.showNotification === 'function'){
           await reg.showNotification(title, { body, tag: 'penalty-' + Date.now() });
           usedSW = true;
         }
       }
     } catch(err) {
-      console.warn('[PenaltyNotify] فشل الإشعار عبر Service Worker، هيتم المحاولة بالطريقة العادية:', err);
+      console.warn('[PenaltyNotify] الـ Service Worker مش جاهز أو فشل، هيتم المحاولة بالطريقة العادية:', err);
     }
 
     if(!usedSW){
       try {
         new Notification(title, { body });
       } catch(err) {
-        // بعض المتصفحات (خصوصًا لو فيه Service Worker نشط) بترفض new Notification()
-        // مباشرة وتطلب showNotification بس — نسجّل الخطأ للمتابعة بدل ما يفشل بصمت
+        // بعض متصفحات الموبايل (خصوصًا كروم أندرويد) بترفض new Notification() تمامًا
+        // لما يكون فيه SW مسجّل للصفحة، حتى لو مش جاهز وقت النداء ده بالظبط
         console.error('[PenaltyNotify] فشل عرض الإشعار نهائيًا:', err);
-        UI.toast('⚠️ تعذّر عرض إشعار الجهاز — راجع إعدادات إشعارات المتصفح لهذا الموقع', 'warning');
+        UI.toast('⚠️ تعذّر عرض الإشعار — جرّب تقفل التاب وتفتح الموقع تاني (عشان الـ Service Worker ياخد التحكم كامل) وبعدين اختبر تاني', 'warning');
       }
     }
   },
