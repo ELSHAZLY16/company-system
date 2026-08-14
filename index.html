@@ -2012,6 +2012,7 @@ body.light-mode #tab-prices {
           <button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button>
           <button id="pwaInstallBtn" onclick="PWAInstall.install()" style="display:none;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">📲 تثبيت التطبيق</button>
           <button id="notifyPermBtn" onclick="PenaltyNotify.requestPermission()" style="display:none;background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">🔔 تفعيل إشعارات الجزاءات</button>
+          <button onclick="PenaltyNotify.test()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">🔔 اختبار الإشعار</button>
         </div>
         <div class="header-center"><h2>علوش البازار</h2></div>
         <div class="header-right"><div id="userRoleBadge" class="user-badge"></div></div>
@@ -7854,7 +7855,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.13",
+        appBuild: "2026-08-12.14",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -17733,6 +17734,7 @@ const PenaltyNotify = {
     if('Notification' in window) {
       const btn = document.getElementById('notifyPermBtn');
       if(btn && Notification.permission === 'default') btn.style.display = 'inline-block';
+      if(btn && Notification.permission === 'granted') btn.style.display = 'none';
     }
     db.ref('penalties').on('child_added', snap => {
       if(!this.ready) return;
@@ -17741,7 +17743,7 @@ const PenaltyNotify = {
       this.notify(p);
     });
     // نأخر التفعيل شوية عشان نتخطى دفعة السجلات القديمة اللي بتوصل أول ما نفتح الصفحة
-    setTimeout(() => { this.ready = true; }, 4000);
+    setTimeout(() => { this.ready = true; console.log('[PenaltyNotify] جاهز لاستقبال جزاءات جديدة'); }, 4000);
   },
   requestPermission() {
     if(!('Notification' in window)) {
@@ -17753,7 +17755,7 @@ const PenaltyNotify = {
       if(perm === 'granted') {
         if(btn) btn.style.display = 'none';
         UI.toast('✅ تم تفعيل إشعارات الجزاءات', 'success');
-        new Notification('🔔 تم تفعيل الإشعارات', { body: 'هتوصلك إشعار فوري لأي جزاء جديد طول ما التطبيق فاتح.' });
+        this.show('🔔 تم تفعيل الإشعارات', 'هتوصلك إشعار فوري لأي جزاء جديد طول ما التطبيق فاتح.');
       } else {
         UI.toast('❌ تم رفض إذن الإشعارات من إعدادات المتصفح', 'error');
       }
@@ -17762,20 +17764,49 @@ const PenaltyNotify = {
   notify(p) {
     const title = '⚖️ جزاء جديد';
     const body = `${p.name || p.code} — ${p.reason || 'جزاء'} (${p.hours} ساعة)`;
-    if('Notification' in window && Notification.permission === 'granted') {
-      // نفضّل عبر Service Worker (أكثر ثباتًا لو التطبيق في الخلفية)
-      if(navigator.serviceWorker && navigator.serviceWorker.ready) {
-        navigator.serviceWorker.ready.then(reg => {
-          if(reg && reg.showNotification) {
-            reg.showNotification(title, { body, icon: 'icon-192.png', tag: 'penalty-' + Date.now() });
-          } else {
-            new Notification(title, { body });
-          }
-        }).catch(() => new Notification(title, { body }));
-      } else {
+    this.show(title, body);
+  },
+  // دالة الإظهار الموحّدة — بتجرّب SW الأول (أكتر ثباتًا خصوصًا لو فيه Service Worker شغال زي في GitHub Pages)،
+  // ولو فشل أو اتأخر، ترجع فورًا لـ Notification العادية بدل ما تعلّق أو تفشل بصمت
+  async show(title, body) {
+    if(!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    let usedSW = false;
+    try {
+      if(navigator.serviceWorker){
+        // مهلة قصوى نص ثانية، عشان لو getRegistration اتعلّق منرجعش نستنى للأبد
+        const reg = await Promise.race([
+          navigator.serviceWorker.getRegistration(),
+          new Promise(resolve => setTimeout(() => resolve(null), 500))
+        ]);
+        if(reg && reg.active && typeof reg.showNotification === 'function'){
+          await reg.showNotification(title, { body, tag: 'penalty-' + Date.now() });
+          usedSW = true;
+        }
+      }
+    } catch(err) {
+      console.warn('[PenaltyNotify] فشل الإشعار عبر Service Worker، هيتم المحاولة بالطريقة العادية:', err);
+    }
+
+    if(!usedSW){
+      try {
         new Notification(title, { body });
+      } catch(err) {
+        // بعض المتصفحات (خصوصًا لو فيه Service Worker نشط) بترفض new Notification()
+        // مباشرة وتطلب showNotification بس — نسجّل الخطأ للمتابعة بدل ما يفشل بصمت
+        console.error('[PenaltyNotify] فشل عرض الإشعار نهائيًا:', err);
+        UI.toast('⚠️ تعذّر عرض إشعار الجهاز — راجع إعدادات إشعارات المتصفح لهذا الموقع', 'warning');
       }
     }
+  },
+  test() {
+    if(!('Notification' in window)){
+      UI.toast('⚠️ المتصفح ده مش بيدعم إشعارات الجهاز', 'warning'); return;
+    }
+    if(Notification.permission !== 'granted'){
+      UI.toast('⚠️ لازم تفعّل إذن الإشعارات الأول', 'warning'); return;
+    }
+    this.show('🔔 إشعار تجريبي', 'لو وصلك ده، الإشعارات شغالة تمام ✅');
   }
 };
 document.addEventListener('DOMContentLoaded', () => {
