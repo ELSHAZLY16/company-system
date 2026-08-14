@@ -2011,6 +2011,7 @@ body.light-mode #tab-prices {
         <div class="header-left">
           <button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button>
           <button id="pwaInstallBtn" onclick="PWAInstall.install()" style="display:none;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">📲 تثبيت التطبيق</button>
+          <button id="notifyPermBtn" onclick="PenaltyNotify.requestPermission()" style="display:none;background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">🔔 تفعيل إشعارات الجزاءات</button>
         </div>
         <div class="header-center"><h2>علوش البازار</h2></div>
         <div class="header-right"><div id="userRoleBadge" class="user-badge"></div></div>
@@ -5157,6 +5158,36 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   </div>
 
 </div>
+
+<div class="glass-card" style="padding:25px;margin-top:16px;border:1px solid rgba(99,102,241,0.3)">
+  <h3 style="margin-bottom:6px">🎯 نظام المكافآت الشهري (تجريبي) — أفضل 9 موظفين</h3>
+  <p style="font-size:12px;color:#94a3b8;margin-bottom:16px">
+    حافز أساسي 200 جنيه شهريًا. يتخصم منه نسبيًا حسب جزاءات الشهر
+    (تأخير نص يوم = خصم 25% | تأخير يوم كامل = خصم 50% | تجاوز استئذان = خصم 25%، بحد أقصى خصم 100%).
+    ويزيد بمكافآت الالتزام الإيجابي: كل 30 دقيقة حضور قبل الميعاد = +5% | كل ساعة عمل إضافي فوق الرسمي = +10% |
+    كل 30 دقيقة انصراف بعد الميعاد الرسمي = +5% (بحد أقصى +60%).
+    النظام بيحسب الصافي المستحق لـ<b>كل</b> الموظفين، ويرشّح تلقائيًا <b>أفضل 9</b> (الأعلى صافي/الأقل خصومات) كفريق تجربة الشهر ده.
+  </p>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+    <button onclick="BonusPilotService.calcAndRender()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;padding:10px 16px;cursor:pointer;font-family:inherit;font-weight:700">
+      📊 حساب أفضل 9 موظفين لهذا الشهر
+    </button>
+  </div>
+
+  <div id="pilotGroupBox" style="margin-bottom:16px"></div>
+
+  <div class="table-container">
+    <table>
+      <thead><tr>
+        <th>الترتيب</th><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>الحافز الأساسي</th>
+        <th>التفاصيل</th><th>نسبة الخصم</th><th>نسبة المكافأة</th><th>الصافي المستحق</th><th>تسجيل</th>
+      </tr></thead>
+      <tbody id="pilotBonusBody"></tbody>
+    </table>
+  </div>
+</div>
+
 </div>
 
 <div id="tab-leaves" class="tab-content" style="display:none;">
@@ -5289,6 +5320,28 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <div class="glass-card" style="padding:25px">
 
   <h3 style="margin-bottom:20px"><span>📋</span> بيانات الموظفين</h3>
+
+  <div style="margin-bottom:14px">
+    <button onclick="EmpDataService.scanHistoricalAttendance()" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px">
+      🔍 فحص كل سجلات الحضور القديمة الآن
+    </button>
+  </div>
+
+  <div id="missingScheduleBox" style="display:none;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.35);border-radius:10px;padding:16px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h4 style="margin:0;color:#fbbf24">⚠️ موظفين ليهم حركة حضور لكن بدون معاد رسمي محدد (<span id="missingScheduleCount">0</span>)</h4>
+      <button onclick="EmpDataService.renderMissingSchedule()" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔄 تحديث</button>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+      الموظفين دول عملوا حضور/انصراف فعلي في التطبيق، لكن معاهمش معاد رسمي متسجل في بياناتهم — أضف الميعاد ليهم أو راجع حالتهم (شغال/استقال).
+    </p>
+    <div class="table-container" style="max-height:220px">
+      <table>
+        <thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>الناقص</th><th>آخر ظهور</th><th>إجراء</th></tr></thead>
+        <tbody id="missingScheduleBody"></tbody>
+      </table>
+    </div>
+  </div>
 
   <div id="empAddForm" class="glass-card" style="padding:18px;margin-bottom:18px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -7801,7 +7854,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.7",
+        appBuild: "2026-08-12.13",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8071,6 +8124,17 @@ const AttendanceService = {
 
         // تسجيل الحركة
         saveOrQueue("attendance", data)
+
+        // تنبيه لو الموظف ده معندوش معاد حضور/انصراف رسمي محدد في بياناته
+        if((action === "CheckIn" && !emp.checkIn) || (action === "CheckOut" && !emp.checkOut)){
+            UI.toast(`⚠️ ${emp.name} (${emp.code}) معندوش معاد ${action==="CheckIn"?"حضور":"انصراف"} رسمي محدد — يُفضّل إضافته من صفحة بيانات الموظفين`, "warning");
+            db.ref("missingScheduleAlerts/" + emp.code).set({
+                code: emp.code, name: emp.name,
+                missingCheckIn: !emp.checkIn, missingCheckOut: !emp.checkOut,
+                lastSeen: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
 
         // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة (أول تسجيل دخول لليوم بس،
         // عشان ميتحسبش تأخير غلط لو الموظف دخل وخرج وقتها رجع دخل تاني في نفس اليوم)
@@ -11650,6 +11714,97 @@ function getEmpName(code) {
 
 const EmpDataService = {
 
+  // فحص كل سجلات الحضور القديمة (مش بس الجديدة) ولقاء أي موظف بدون معاد رسمي محدد
+  scanHistoricalAttendance() {
+    UI.toast('🔍 جارٍ فحص كل سجلات الحضور القديمة...', 'info');
+    const found = {}; // code -> {missingCheckIn, missingCheckOut, lastSeen, name, code}
+    State.attendance.forEach(a => {
+      if(!a.code) return;
+      const emp = getEmpData(a.code);
+      const missingIn  = a.action === 'CheckIn'  && !(emp && emp.checkIn);
+      const missingOut = a.action === 'CheckOut' && !(emp && emp.checkOut);
+      if(!missingIn && !missingOut) return;
+
+      const key = String(a.code);
+      if(!found[key]) found[key] = {
+        code: a.code, name: a.name || getEmpName(a.code) || a.code,
+        missingCheckIn: false, missingCheckOut: false,
+        lastSeenTs: 0, lastSeen: ''
+      };
+      if(missingIn)  found[key].missingCheckIn  = true;
+      if(missingOut) found[key].missingCheckOut = true;
+      if((a.timestamp||0) >= found[key].lastSeenTs){
+        found[key].lastSeenTs = a.timestamp || 0;
+        found[key].lastSeen = a.date ? (a.date + ' ' + (a.timeDisplay||'')) : new Date(a.timestamp||0).toLocaleString('ar-EG');
+      }
+    });
+
+    const codes = Object.keys(found);
+    if(!codes.length){
+      UI.toast('✅ كل الموظفين اللي عندهم حركة حضور، عندهم معاد رسمي محدد', 'success');
+      this.renderMissingSchedule();
+      return;
+    }
+
+    const updates = {};
+    codes.forEach(code => {
+      const f = found[code];
+      updates['missingScheduleAlerts/' + code] = {
+        code: f.code, name: f.name,
+        missingCheckIn: f.missingCheckIn, missingCheckOut: f.missingCheckOut,
+        lastSeen: f.lastSeen,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+    });
+
+    db.ref().update(updates).then(() => {
+      UI.toast(`⚠️ لقينا ${codes.length} موظف بدون معاد رسمي محدد في السجل بأكمله`, 'warning');
+      this.renderMissingSchedule();
+    });
+  },
+
+  // عرض قائمة الموظفين اللي ليهم حركة حضور لكن بدون معاد رسمي محدد
+  renderMissingSchedule() {
+    db.ref('missingScheduleAlerts').once('value').then(snap => {
+      const val = snap.val() || {};
+      const box = document.getElementById('missingScheduleBox');
+      const body = document.getElementById('missingScheduleBody');
+      const countEl = document.getElementById('missingScheduleCount');
+      if(!box || !body) return;
+
+      // نتجاهل أي حد اتصلح ميعاده فعلاً (تنظيف تلقائي)
+      const list = Object.values(val).filter(v => {
+        const emp = getEmpData(v.code);
+        const stillMissing = (v.missingCheckIn && !(emp && emp.checkIn)) || (v.missingCheckOut && !(emp && emp.checkOut));
+        if(!stillMissing) db.ref('missingScheduleAlerts/' + v.code).remove();
+        return stillMissing;
+      });
+
+      if(countEl) countEl.textContent = list.length;
+      if(!list.length){ box.style.display = 'none'; return; }
+      box.style.display = 'block';
+
+      body.innerHTML = list.map(v => {
+        const missing = [v.missingCheckIn ? 'الحضور' : null, v.missingCheckOut ? 'الانصراف' : null].filter(Boolean).join(' و ');
+        return `<tr>
+          <td style="font-weight:700">${v.name}</td>
+          <td style="color:#818cf8">${v.code}</td>
+          <td style="font-size:12px">${getEmpJob(v.code)}</td>
+          <td style="color:#fbbf24">${missing}</td>
+          <td style="font-size:11px">${v.lastSeen || '-'}</td>
+          <td>
+            <button onclick="EmpDataService.openAdd('${v.code}')" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">✏ إضافة الميعاد</button>
+            <button onclick="EmpDataService.dismissMissingSchedule('${v.code}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">تجاهل</button>
+          </td>
+        </tr>`;
+      }).join('');
+    });
+  },
+
+  dismissMissingSchedule(code) {
+    db.ref('missingScheduleAlerts/' + code).remove().then(() => EmpDataService.renderMissingSchedule());
+  },
+
   // فتح modal الإضافة/التعديل
   openAdd(code) {
     // alias لـ showAddEmpForm
@@ -12154,6 +12309,139 @@ function selectIncEmp(code, name) {
   if(nameEl) nameEl.value = name;
   if(box)    box.style.display = 'none';
 }
+
+// ========================= نظام المكافآت الشهري (تجريبي) =========================
+const BonusPilotService = {
+  BASE_BONUS: 200,
+  TOP_N: 9,
+  MAX_BONUS_PCT: 60, // أقصى نسبة زيادة ممكنة من مكافآت الالتزام الإيجابي
+
+  // مكافآت الالتزام الإيجابي: حضر قبل معاده، اشتغل ساعات أكتر من الرسمي، مشي بعد الرسمي
+  _calcPositiveBonus(emp, code, monthStart) {
+    if(!emp || !emp.checkIn) return { bonusPct: 0, detail: "" };
+
+    const recs = State.attendance.filter(a => String(a.code) === String(code) && (a.timestamp||0) >= monthStart);
+    const byDate = {};
+    recs.forEach(a => {
+      if(!byDate[a.date]) byDate[a.date] = { checkIn: null, checkOut: null };
+      if(a.action === "CheckIn" && (!byDate[a.date].checkIn || a.timestamp < byDate[a.date].checkIn))
+        byDate[a.date].checkIn = a.timestamp;
+      if(a.action === "CheckOut" && (!byDate[a.date].checkOut || a.timestamp > byDate[a.date].checkOut))
+        byDate[a.date].checkOut = a.timestamp;
+    });
+
+    const dailyMinutes = getEmpDailyHours(emp) * 60;
+    let totalEarlyMin = 0, totalOvertimeMin = 0, totalLateDepartureMin = 0;
+
+    Object.values(byDate).forEach(d => {
+      if(d.checkIn){
+        const diff = calcLateMinutes(d.checkIn, emp.checkIn); // سالب = حضر قبل معاده
+        if(diff < 0) totalEarlyMin += Math.abs(diff);
+      }
+      if(d.checkIn && d.checkOut){
+        const worked = (d.checkOut - d.checkIn) / 60000;
+        if(worked > dailyMinutes) totalOvertimeMin += (worked - dailyMinutes);
+      }
+      if(d.checkOut && emp.checkOut){
+        const diffOut = calcLateMinutes(d.checkOut, emp.checkOut); // موجب = مشي بعد الرسمي
+        if(diffOut > 0) totalLateDepartureMin += diffOut;
+      }
+    });
+
+    // كل 30 دقيقة حضور مبكر = +5% | كل ساعة إضافي شغل = +10% | كل 30 دقيقة انصراف متأخر = +5%
+    let bonusPct = Math.floor(totalEarlyMin/30)*5 + Math.floor(totalOvertimeMin/60)*10 + Math.floor(totalLateDepartureMin/30)*5;
+    bonusPct = Math.min(bonusPct, this.MAX_BONUS_PCT);
+
+    const detail = [];
+    if(totalEarlyMin >= 30) detail.push(`حضور مبكر ${Math.round(totalEarlyMin)}د`);
+    if(totalOvertimeMin >= 60) detail.push(`ساعات إضافية ${Math.round(totalOvertimeMin/60*10)/10}س`);
+    if(totalLateDepartureMin >= 30) detail.push(`انصراف متأخر ${Math.round(totalLateDepartureMin)}د`);
+
+    return { bonusPct, detail: detail.join('، ') };
+  },
+
+  _calcEmployeeBonus(code, monthStart) {
+    const penalties = State.penalties.filter(p => String(p.code) === String(code) && (p.timestamp||0) >= monthStart);
+    let deductPct = 0;
+    const reasons = [];
+    penalties.forEach(p => {
+      if(p.autoType === "late"){
+        const mins = parseInt((p.reason||"").match(/(\d+)/)?.[1] || "0", 10);
+        if(mins >= 60){ deductPct += 50; reasons.push("تأخير كبير"); }
+        else { deductPct += 25; reasons.push("تأخير"); }
+      } else if(p.autoType === "break"){
+        deductPct += 25; reasons.push("تجاوز استئذان");
+      }
+    });
+    deductPct = Math.min(deductPct, 100);
+
+    const emp = getEmpData(code);
+    const { bonusPct, detail } = this._calcPositiveBonus(emp, code, monthStart);
+    if(detail) reasons.push(detail);
+
+    const net = Math.max(0, Math.round(this.BASE_BONUS * (1 - deductPct/100 + bonusPct/100)));
+    return {
+      deductPct, bonusPct, penaltyCount: penalties.length,
+      reasons: reasons.length ? [...new Set(reasons)].join('، ') : "بدون خصم أو مكافأة إضافية",
+      net
+    };
+  },
+
+  calcAndRender() {
+    const body = document.getElementById("pilotBonusBody");
+    const box = document.getElementById("pilotGroupBox");
+    if(!body) return;
+
+    const now = new Date(TimeUtils.now());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    if(!State.employees.length){
+      body.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات موظفين</td></tr>';
+      return;
+    }
+
+    const all = State.employees.map(e => {
+      const r = this._calcEmployeeBonus(e.code, monthStart);
+      return { code: e.code, name: e.name, job: getEmpJob(e.code), ...r };
+    });
+
+    // الترتيب: الأعلى صافي أولاً، وعند التساوي الأقل عدد جزاءات
+    all.sort((a,b) => b.net - a.net || a.penaltyCount - b.penaltyCount);
+    const top9 = all.slice(0, this.TOP_N);
+
+    if(box) box.innerHTML = `<div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:14px;font-size:13px">
+      ✅ تم ترشيح أفضل ${top9.length} موظف من إجمالي ${all.length} موظف، بناءً على أداء الشهر الحالي.
+    </div>`;
+
+    body.innerHTML = top9.map((r, i) => `<tr>
+      <td style="text-align:center;font-weight:700;color:${i<3?'#fbbf24':'#818cf8'}">${i+1}${i<3?' 🏅':''}</td>
+      <td style="font-weight:700">${r.name}</td>
+      <td style="color:#818cf8">${r.code}</td>
+      <td style="font-size:12px">${r.job}</td>
+      <td style="text-align:center">${this.BASE_BONUS} ج</td>
+      <td style="font-size:12px;color:${r.deductPct>0?'#fbbf24':(r.bonusPct>0?'#34d399':'#94a3b8')}">${r.reasons}</td>
+      <td style="text-align:center;color:#f87171">${r.deductPct}%</td>
+      <td style="text-align:center;color:#34d399">${r.bonusPct>0?'+':''}${r.bonusPct}%</td>
+      <td style="text-align:center;font-weight:700;color:#34d399">${r.net} ج</td>
+      <td><button onclick="BonusPilotService.registerBonus('${r.code}','${r.name}',${r.net},'${r.reasons.replace(/'/g,"")}')"
+        style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">➕ تسجيل</button></td>
+    </tr>`).join('');
+  },
+
+  registerBonus(code, name, amount, note){
+    if(amount <= 0){ UI.toast("الصافي المستحق صفر — لا يوجد حافز يُسجَّل", "warning"); return; }
+    const id = 'inc_bonus_' + Date.now();
+    db.ref('incentives/' + id).set({
+      id, code, name, type: "مكافأة انضباط شهرية (تجريبي)",
+      amount, unit: "جنيه", note: "حافز شهري — " + note,
+      manager: "-", date: new Date(TimeUtils.now()).toISOString().slice(0,10),
+      by: State.currentUser?.username || "-", ts: Date.now()
+    }).then(() => {
+      UI.toast(`✅ تم تسجيل مكافأة ${name} (${amount} جنيه)`, "success");
+      SystemLog.add("BonusPilotRegister", code, amount + " جنيه");
+    });
+  }
+};
 
 const IncentiveService = {
 
@@ -15513,7 +15801,8 @@ if(tab === "empdata"){
       if(cnt) cnt.textContent = State.employees.length;
     }
     EmpDataService.render();
-  }).catch(()=>{ EmpDataService.render(); });
+    EmpDataService.renderMissingSchedule();
+  }).catch(()=>{ EmpDataService.render(); EmpDataService.renderMissingSchedule(); });
 }
 
 }
@@ -17433,6 +17722,66 @@ const PWAInstall = {
   }
 };
 document.addEventListener('DOMContentLoaded', () => PWAInstall.init());
+</script>
+
+<script>
+// ── إشعارات الجزاءات (مجاني — يشتغل بس والتطبيق فاتح، حتى لو في الخلفية/تاب تاني) ──
+const PenaltyNotify = {
+  ready: false, // بيتفعّل بعد أول تحميل عشان نتجاهل السجلات القديمة
+  init() {
+    // إظهار زرار التفعيل لو المتصفح بيدعم Notifications ولسه محدد اختياره
+    if('Notification' in window) {
+      const btn = document.getElementById('notifyPermBtn');
+      if(btn && Notification.permission === 'default') btn.style.display = 'inline-block';
+    }
+    db.ref('penalties').on('child_added', snap => {
+      if(!this.ready) return;
+      const p = snap.val();
+      if(!p) return;
+      this.notify(p);
+    });
+    // نأخر التفعيل شوية عشان نتخطى دفعة السجلات القديمة اللي بتوصل أول ما نفتح الصفحة
+    setTimeout(() => { this.ready = true; }, 4000);
+  },
+  requestPermission() {
+    if(!('Notification' in window)) {
+      UI.toast('⚠️ المتصفح ده مش بيدعم إشعارات الجهاز', 'warning');
+      return;
+    }
+    Notification.requestPermission().then(perm => {
+      const btn = document.getElementById('notifyPermBtn');
+      if(perm === 'granted') {
+        if(btn) btn.style.display = 'none';
+        UI.toast('✅ تم تفعيل إشعارات الجزاءات', 'success');
+        new Notification('🔔 تم تفعيل الإشعارات', { body: 'هتوصلك إشعار فوري لأي جزاء جديد طول ما التطبيق فاتح.' });
+      } else {
+        UI.toast('❌ تم رفض إذن الإشعارات من إعدادات المتصفح', 'error');
+      }
+    });
+  },
+  notify(p) {
+    const title = '⚖️ جزاء جديد';
+    const body = `${p.name || p.code} — ${p.reason || 'جزاء'} (${p.hours} ساعة)`;
+    if('Notification' in window && Notification.permission === 'granted') {
+      // نفضّل عبر Service Worker (أكثر ثباتًا لو التطبيق في الخلفية)
+      if(navigator.serviceWorker && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready.then(reg => {
+          if(reg && reg.showNotification) {
+            reg.showNotification(title, { body, icon: 'icon-192.png', tag: 'penalty-' + Date.now() });
+          } else {
+            new Notification(title, { body });
+          }
+        }).catch(() => new Notification(title, { body }));
+      } else {
+        new Notification(title, { body });
+      }
+    }
+  }
+};
+document.addEventListener('DOMContentLoaded', () => {
+  // نستنى شوية لحد ما db تتضبط في الكود الرئيسي
+  setTimeout(() => { if(typeof db !== 'undefined') PenaltyNotify.init(); }, 1500);
+});
 </script>
 
 <script>
