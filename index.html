@@ -2011,8 +2011,6 @@ body.light-mode #tab-prices {
         <div class="header-left">
           <button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button>
           <button id="pwaInstallBtn" onclick="PWAInstall.install()" style="display:none;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">📲 تثبيت التطبيق</button>
-          <button id="notifyPermBtn" onclick="PenaltyNotify.requestPermission()" style="display:none;background:rgba(251,191,36,0.2);border:1px solid rgba(251,191,36,0.4);color:#fbbf24;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">🔔 تفعيل إشعارات الجزاءات</button>
-          <button onclick="PenaltyNotify.test()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">🔔 اختبار الإشعار</button>
         </div>
         <div class="header-center"><h2>علوش البازار</h2></div>
         <div class="header-right"><div id="userRoleBadge" class="user-badge"></div></div>
@@ -7855,7 +7853,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.15",
+        appBuild: "2026-08-12.17",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -11891,7 +11889,22 @@ const EmpDataService = {
       job: existing.job||'',
       branch: existing.branch||'',
       salary: Number(document.getElementById('edSalary')?.value)||existing.salary||0,
-      workHoursPerDay: Number(document.getElementById('edWorkHours')?.value)||existing.workHoursPerDay||8,
+      workHoursPerDay: (() => {
+        // نحسب ساعات العمل مباشرة من وقتي الحضور والانصراف المدخلين (نفس منطق calcHours بالظبط)
+        // بدل الاعتماد على قراءة .value من عنصر عرض نصي مش input، وده كان بيسبب حفظ رقم قديم/افتراضي غلط
+        const inVal  = document.getElementById('edCheckIn')?.value;
+        const outVal = document.getElementById('edCheckOut')?.value;
+        if(inVal && outVal){
+          const [inH,inM]   = inVal.split(':').map(Number);
+          const [outH,outM] = outVal.split(':').map(Number);
+          if(!isNaN(inH) && !isNaN(outH)){
+            let mins = (outH*60+outM) - (inH*60+inM);
+            if(mins <= 0) mins += 24*60;
+            if(mins > 0) return Math.round((mins/60) * 100) / 100;
+          }
+        }
+        return existing.workHoursPerDay || 8;
+      })(),
       hourlyRate: 0, // يُحسب تلقائياً
       hireDate: document.getElementById('edHireDate')?.value||existing.hireDate||'',
       nationalId: (document.getElementById('edNationalId')?.value||existing.nationalId||'').trim(),
@@ -17725,97 +17738,6 @@ const PWAInstall = {
 document.addEventListener('DOMContentLoaded', () => PWAInstall.init());
 </script>
 
-<script>
-// ── إشعارات الجزاءات (مجاني — يشتغل بس والتطبيق فاتح، حتى لو في الخلفية/تاب تاني) ──
-const PenaltyNotify = {
-  ready: false, // بيتفعّل بعد أول تحميل عشان نتجاهل السجلات القديمة
-  init() {
-    // إظهار زرار التفعيل لو المتصفح بيدعم Notifications ولسه محدد اختياره
-    if('Notification' in window) {
-      const btn = document.getElementById('notifyPermBtn');
-      if(btn && Notification.permission === 'default') btn.style.display = 'inline-block';
-      if(btn && Notification.permission === 'granted') btn.style.display = 'none';
-    }
-    db.ref('penalties').on('child_added', snap => {
-      if(!this.ready) return;
-      const p = snap.val();
-      if(!p) return;
-      this.notify(p);
-    });
-    // نأخر التفعيل شوية عشان نتخطى دفعة السجلات القديمة اللي بتوصل أول ما نفتح الصفحة
-    setTimeout(() => { this.ready = true; console.log('[PenaltyNotify] جاهز لاستقبال جزاءات جديدة'); }, 4000);
-  },
-  requestPermission() {
-    if(!('Notification' in window)) {
-      UI.toast('⚠️ المتصفح ده مش بيدعم إشعارات الجهاز', 'warning');
-      return;
-    }
-    Notification.requestPermission().then(perm => {
-      const btn = document.getElementById('notifyPermBtn');
-      if(perm === 'granted') {
-        if(btn) btn.style.display = 'none';
-        UI.toast('✅ تم تفعيل إشعارات الجزاءات', 'success');
-        this.show('🔔 تم تفعيل الإشعارات', 'هتوصلك إشعار فوري لأي جزاء جديد طول ما التطبيق فاتح.');
-      } else {
-        UI.toast('❌ تم رفض إذن الإشعارات من إعدادات المتصفح', 'error');
-      }
-    });
-  },
-  notify(p) {
-    const title = '⚖️ جزاء جديد';
-    const body = `${p.name || p.code} — ${p.reason || 'جزاء'} (${p.hours} ساعة)`;
-    this.show(title, body);
-  },
-  // دالة الإظهار الموحّدة — بتستنى الـ Service Worker يبقى جاهز فعليًا (مش بس تجرب وتستعجل)
-  // لأن أغلب متصفحات الموبايل بترفض new Notification() المباشرة لما يكون فيه SW نشط،
-  // وده اللي كان بيسبب فشل الإشعار حتى مع وجود الإذن
-  async show(title, body) {
-    if(!('Notification' in window) || Notification.permission !== 'granted') return;
-
-    let usedSW = false;
-    try {
-      if(navigator.serviceWorker){
-        // .ready بتستنى فعليًا لحد ما يبقى فيه SW نشط وجاهز (مش استعلام لحظي زي getRegistration)
-        // بمهلة أمان 5 ثواني بس عشان الصفحة متعلقش لو حصل ظرف غير متوقع
-        const reg = await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise((_, reject) => setTimeout(() => reject(new Error('SW ready timeout')), 5000))
-        ]);
-        if(reg && typeof reg.showNotification === 'function'){
-          await reg.showNotification(title, { body, tag: 'penalty-' + Date.now() });
-          usedSW = true;
-        }
-      }
-    } catch(err) {
-      console.warn('[PenaltyNotify] الـ Service Worker مش جاهز أو فشل، هيتم المحاولة بالطريقة العادية:', err);
-    }
-
-    if(!usedSW){
-      try {
-        new Notification(title, { body });
-      } catch(err) {
-        // بعض متصفحات الموبايل (خصوصًا كروم أندرويد) بترفض new Notification() تمامًا
-        // لما يكون فيه SW مسجّل للصفحة، حتى لو مش جاهز وقت النداء ده بالظبط
-        console.error('[PenaltyNotify] فشل عرض الإشعار نهائيًا:', err);
-        UI.toast('⚠️ تعذّر عرض الإشعار — جرّب تقفل التاب وتفتح الموقع تاني (عشان الـ Service Worker ياخد التحكم كامل) وبعدين اختبر تاني', 'warning');
-      }
-    }
-  },
-  test() {
-    if(!('Notification' in window)){
-      UI.toast('⚠️ المتصفح ده مش بيدعم إشعارات الجهاز', 'warning'); return;
-    }
-    if(Notification.permission !== 'granted'){
-      UI.toast('⚠️ لازم تفعّل إذن الإشعارات الأول', 'warning'); return;
-    }
-    this.show('🔔 إشعار تجريبي', 'لو وصلك ده، الإشعارات شغالة تمام ✅');
-  }
-};
-document.addEventListener('DOMContentLoaded', () => {
-  // نستنى شوية لحد ما db تتضبط في الكود الرئيسي
-  setTimeout(() => { if(typeof db !== 'undefined') PenaltyNotify.init(); }, 1500);
-});
-</script>
 
 <script>
 // ── تسجيل Service Worker ──────────────────────────────
@@ -17961,11 +17883,13 @@ async function saveOrQueue(collection, data) {
     // النت شغّال — ارفع مباشرة
     return db.ref(collection).push(data);
   } else {
-    // أوف لاين — استبدال أي timestamp سيرفر بوقت الجهاز عشان يتخزن صح محليًا
+    // أوف لاين — استبدال أي timestamp سيرفر بوقت مُصحَّح (نفس فرق التوقيت مع السيرفر)
+    // بدل ساعة الجهاز الخام، عشان لو ساعة الموبايل مش مظبوطة، حساب "ساعات العمل"
+    // بين حضور وانصراف اتسجلوا في ظروف اتصال مختلفة يفضل دقيق ومايبقاش "قريب بس مش مطابق"
     const offlineData = Object.assign({}, data);
     Object.keys(offlineData).forEach(k => {
       if (offlineData[k] && typeof offlineData[k] === 'object' && offlineData[k]['.sv'] === 'timestamp') {
-        offlineData[k] = Date.now();
+        offlineData[k] = TimeUtils.now();
       }
     });
     await OfflineDB.save(collection, offlineData);
