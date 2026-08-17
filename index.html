@@ -2008,10 +2008,7 @@ body.light-mode #tab-prices {
 <div id="dashboard" style="display:none; position:relative; z-index:1;">
     
     <div class="dashboard-header">
-        <div class="header-left">
-          <button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button>
-          <button id="pwaInstallBtn" onclick="PWAInstall.install()" style="display:none;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">📲 تثبيت التطبيق</button>
-        </div>
+        <div class="header-left"><button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button></div>
         <div class="header-center"><h2>علوش البازار</h2></div>
         <div class="header-right"><div id="userRoleBadge" class="user-badge"></div></div>
         
@@ -3978,7 +3975,6 @@ onchange="UI.renderBreaks()"
                 <div class="table-container" style="margin-top:20px"><table><thead><tr>
 <th>الموظف</th>
 <th>الكود</th>
-<th>الوظيفة</th>
 <th>نوع الاستئذان</th>
 <th>وقت الاستئذان</th>
 <th>وقت الرجوع</th>
@@ -4015,9 +4011,9 @@ onchange="UI.renderBreaks()"
       oninput="UI.renderSummary()"
       style="flex:1;min-width:180px;padding:8px;border-radius:8px;border:none">
     <div class="attendance-filters" id="summaryRangeBtns">
-      <button class="filter-btn active" onclick="setSummaryFilter(this,'day')">اليوم</button>
+      <button class="filter-btn" onclick="setSummaryFilter(this,'day')">اليوم</button>
       <button class="filter-btn" onclick="setSummaryFilter(this,'week')">أسبوع</button>
-      <button class="filter-btn" onclick="setSummaryFilter(this,'month')">شهر</button>
+      <button class="filter-btn active" onclick="setSummaryFilter(this,'month')">شهر</button>
       <button class="filter-btn" onclick="setSummaryFilter(this,'all')">كل الوقت</button>
     </div>
   </div>
@@ -4027,7 +4023,6 @@ onchange="UI.renderBreaks()"
       <thead><tr>
         <th style="cursor:pointer" onclick="sortSummaryBy('name')">الموظف ⇅</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('code')">الكود ⇅</th>
-        <th>الوظيفة</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('count')">عدد الاستئذانات ⇅</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('totalMs')">إجمالي الوقت ⇅</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('avgMs')">متوسط المدة ⇅</th>
@@ -5004,25 +4999,12 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   </div>
 </div>
 
-<div id="exemptReasonModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:99999;padding:16px" onclick="if(event.target===this)closeExemptReasonModal()">
-  <div class="glass-card" style="padding:25px;width:95%;max-width:420px">
-    <h3 style="margin-bottom:14px">🔓 إعفاء من الخصم</h3>
-    <p style="font-size:13px;color:var(--text-soft,#94a3b8);margin-bottom:10px">اكتب سبب منح الإذن (مطلوب) قبل تأكيد الإعفاء:</p>
-    <textarea id="exemptReasonInput" rows="3" placeholder="مثال: موافقة المدير المباشر على تأخير مبرر لظرف طارئ..."
-      style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button onclick="confirmExemptReason()" style="flex:1;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;padding:10px;cursor:pointer;font-family:inherit;font-weight:700">✅ تأكيد الإعفاء</button>
-      <button onclick="closeExemptReasonModal()" style="flex:1;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;padding:10px;cursor:pointer;font-family:inherit">إلغاء</button>
-    </div>
-  </div>
-</div>
-
 <div class="glass-card" style="padding:20px;margin-top:16px">
   <h3 style="margin-bottom:14px">🔓 سجل الإعفاءات من الخصم التلقائي</h3>
   <div class="table-container">
     <table>
       <thead><tr>
-        <th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>سبب الإعفاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th>
+        <th>الموظف</th><th>الكود</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th>
       </tr></thead>
       <tbody id="penaltyExemptLogBody"></tbody>
     </table>
@@ -7419,26 +7401,6 @@ function closePenaltyDetailModal(){
   document.getElementById("penaltyDetailModal").style.display = "none"
 }
 
-let _pendingExempt = null
-function openExemptReasonModal(code, dateStr, type, penaltyId){
-  _pendingExempt = { code, dateStr, type, penaltyId }
-  const input = document.getElementById("exemptReasonInput")
-  if(input) input.value = ""
-  document.getElementById("exemptReasonModal").style.display = "flex"
-}
-function closeExemptReasonModal(){
-  document.getElementById("exemptReasonModal").style.display = "none"
-  _pendingExempt = null
-}
-function confirmExemptReason(){
-  const reason = document.getElementById("exemptReasonInput")?.value.trim()
-  if(!reason){ UI.toast("❌ لازم تكتب سبب الإعفاء", "error"); return }
-  if(!_pendingExempt) return
-  const { code, dateStr, type, penaltyId } = _pendingExempt
-  AutoDeductionService.exempt(code, dateStr, type, penaltyId, reason)
-  closeExemptReasonModal()
-}
-
 function attClearAllFilters(){
   document.getElementById("attendanceSearch").value=""
   document.getElementById("attendanceDate").value=""
@@ -7795,13 +7757,13 @@ const DeviceInfo = {
         currentUser: null,
         reportRange: "day",
         logsRange: "day",
-        summaryRange: "day",
+        summaryRange: "month",
         summarySort: { key: "totalMs", dir: -1 },
         penaltiesRange: "all",
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.7",
+        appBuild: "2026-08-12.5",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8072,15 +8034,9 @@ const AttendanceService = {
         // تسجيل الحركة
         saveOrQueue("attendance", data)
 
-        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة (أول تسجيل دخول لليوم بس،
-        // عشان ميتحسبش تأخير غلط لو الموظف دخل وخرج وقتها رجع دخل تاني في نفس اليوم)
+        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة
         if(action === "CheckIn"){
-            const alreadyCheckedInToday = State.attendance.some(a =>
-                String(a.code) === String(emp.code) && a.action === "CheckIn" && a.date === data.date
-            );
-            if(!alreadyCheckedInToday){
-                AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
-            }
+            AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
         }
 
         // تسجيل في سجل النظام
@@ -8615,7 +8571,6 @@ if (!checkExcelPermission()) return;
 let rows = UI.getFilteredBreaks().map(b => ({
 الموظف: b.name || getEmpName(b.code) || b.code || "-",
 الكود: b.code || "-",
-الوظيفة: getEmpJob(b.code),
 نوع_الاستئذان: b.type || "-",
 وقت_الاستئذان: b.breakTime || "-",
 وقت_الرجوع: b.returnTime || "-",
@@ -8919,28 +8874,25 @@ UI.renderCompanies()
         },
 
         // إعفاء (إلغاء الخصم) — بيحذف الجزاء التلقائي الحالي (لو موجود) ويمنع إعادة إنشائه لنفس اليوم
-        exempt(code, dateStr, type, penaltyId, exemptReason) {
+        exempt(code, dateStr, type, penaltyId) {
             if(!hasPermission("all") && !hasPermission("permit")){
                 UI.toast("❌ الإعفاء من الخصم يتطلب صلاحية إذن", "error");
                 return;
             }
             const key = `${code}_${dateStr}_${type}`;
             const p = State.penalties.find(x => x.id === penaltyId);
-            const empJob = getEmpJob(code);
 
             db.ref("autoDeductExemptions/" + key).set({
                 code: String(code), date: dateStr, type,
                 by: State.currentUser?.username || "-",
-                reason: exemptReason || "-",
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
             // نقل الجزاء لسجل الإعفاءات بدل ما يتحذف نهائي — عشان يبقى فيه أثر واضح
             if(p){
                 db.ref("penaltyExemptLog").push({
-                    name: p.name, code: p.code, job: empJob, hours: p.hours,
+                    name: p.name, code: p.code, hours: p.hours,
                     reason: p.reason, penaltyDate: p.date,
-                    exemptReason: exemptReason || "-",
                     exemptedBy: State.currentUser?.username || "-",
                     exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
                     timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -9078,10 +9030,8 @@ UI.renderCompanies()
           const exemptRows = [...(State.penaltyExemptLog||[])]
             .sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))
             .map(r => ({
-              "الموظف": r.name, "الكود": r.code, "الوظيفة": r.job || getEmpJob(r.code) || "-",
-              "السبب الأصلي": r.reason || "-",
+              "الموظف": r.name, "الكود": r.code, "السبب الأصلي": r.reason || "-",
               "الساعات": r.hours, "تاريخ الجزاء": r.penaltyDate || "-",
-              "سبب الإعفاء": r.exemptReason || "-",
               "أُعفي بواسطة": r.exemptedBy || "-", "وقت الإعفاء": r.exemptedAt || "-"
             }));
 
@@ -11596,13 +11546,9 @@ function calcLateMinutes(actualTimestamp, expectedTimeStr) {
   const actualMinOfDay = d.getHours()*60 + d.getMinutes();
   const expectedMinOfDay = expH*60 + (expM||0);
   let diff = actualMinOfDay - expectedMinOfDay;
-  // تصحيح عبور منتصف الليل يتطبّق بس لو الميعاد الرسمي نفسه قريب من منتصف الليل
-  // (شيفت ليلي)، عشان ميأثرش على شيفتات النهار العادية ويسبب قراءة عكسية غلط
-  const nearMidnight = expectedMinOfDay < 240 || expectedMinOfDay > 1200;
-  if(nearMidnight){
-    if(diff > 720) diff -= 1440;
-    if(diff < -720) diff += 1440;
-  }
+  // تصحيح حالة عبور منتصف الليل: لو الفرق أكبر من 12 ساعة، يبقى في الحقيقة العكس
+  if(diff > 720) diff -= 1440;
+  if(diff < -720) diff += 1440;
   return diff;
 }
 
@@ -14580,7 +14526,6 @@ html += `
 <tr ${rowStyle}>
 <td>${b.name || "-"}</td>
 <td>${b.code || "-"}</td>
-<td style="font-size:12px">${getEmpJob(b.code)}</td>
 <td>${b.type || "-"}</td>
 <td>${b.breakTime || "-"}</td>
 <td>${b.returnTime || `<button onclick="breakQuickReturn('${b.id}','${b.code}','${(b.name||getEmpName(b.code)||b.code||"").toString().replace(/'/g,"")}')"
@@ -14739,7 +14684,7 @@ renderSummary() {
   });
 
   if(!list.length) {
-    body.innerHTML='<tr><td colspan="15" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+    body.innerHTML='<tr><td colspan="14" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
     if(foot) foot.innerHTML = "";
     return;
   }
@@ -14750,7 +14695,6 @@ renderSummary() {
     return `<tr>
       <td style="font-weight:700">${e.name}</td>
       <td style="color:#818cf8">${e.code}</td>
-      <td style="font-size:12px">${getEmpJob(e.code)}</td>
       <td style="text-align:center;font-weight:700;color:#818cf8">${e.count}</td>
       <td style="text-align:center;font-weight:700;color:${color}">${fmtDur(e.totalMs)}</td>
       <td style="text-align:center;color:#94a3b8">${fmtDur(e.avgMs)}</td>
@@ -14771,7 +14715,7 @@ renderSummary() {
     const totalMs = list.reduce((s,e)=>s+e.totalMs,0);
     const avgAll = list.length ? totalMs/list.length : 0;
     foot.innerHTML = `<tr style="font-weight:700;background:rgba(255,255,255,0.04)">
-      <td colspan="3">الإجمالي (${list.length} موظف)</td>
+      <td colspan="2">الإجمالي (${list.length} موظف)</td>
       <td style="text-align:center;color:#818cf8">${totalCount}</td>
       <td style="text-align:center">${fmtDur(totalMs)}</td>
       <td style="text-align:center;color:#94a3b8">${fmtDur(avgAll)}</td>
@@ -14845,7 +14789,7 @@ exportSummaryExcel() {
     if(ts >= e.lastTimestamp){ e.lastTimestamp=ts; e.lastType=t; e.lastDate=b.date||"-"; }
   });
   const rows=Object.values(empMap).sort((a,b)=>b.totalMs-a.totalMs).map(e=>({
-    "الموظف":e.name,"الكود":e.code,"الوظيفة":getEmpJob(e.code),"عدد الاستئذانات":e.count,
+    "الموظف":e.name,"الكود":e.code,"عدد الاستئذانات":e.count,
     "إجمالي الوقت (دقيقة)":Math.round(e.totalMs/60000),
     "متوسط المدة (دقيقة)": e.count ? Math.round(e.totalMs/e.count/60000) : 0,
     "صلاة":e.types["صلاة"],"حمام":e.types["حمام"],"أكل":e.types["أكل"],
@@ -15062,7 +15006,7 @@ this.renderVehiclesInsideNow();
 <td>${p.date}</td>
 <td>${p.time || "-"}</td>
 <td>${p.createdBy || "-"}</td>
-<td>${p.auto && (hasPermission("all")||hasPermission("permit")) ? `<button onclick="openExemptReasonModal('${p.code}','${p.date}','${p.autoType}','${p.id}')" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔓 إذن</button>` : (p.auto ? `<span class="badge badge-warning" style="font-size:11px">تلقائي</span>` : "-")}</td>
+<td>${p.auto && (hasPermission("all")||hasPermission("permit")) ? `<button onclick="AutoDeductionService.exempt('${p.code}','${p.date}','${p.autoType}','${p.id}')" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔓 إذن</button>` : (p.auto ? `<span class="badge badge-warning" style="font-size:11px">تلقائي</span>` : "-")}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="openEditPenaltyById('${p.id}')">✏ تعديل</button>` : ""}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
@@ -15140,15 +15084,13 @@ applyEditColVisibility();
           body.innerHTML = rows.length ? rows.map(r => `<tr>
             <td style="font-weight:700">${r.name}</td>
             <td style="color:#818cf8">${r.code}</td>
-            <td style="font-size:12px">${r.job || getEmpJob(r.code) || "-"}</td>
             <td>${r.reason||"-"}</td>
             <td style="text-align:center">${r.hours}</td>
             <td>${r.penaltyDate||"-"}</td>
-            <td style="font-size:12px;color:#fbbf24">${r.exemptReason||"-"}</td>
             <td style="color:#34d399">${r.exemptedBy||"-"}</td>
             <td style="font-size:11px">${r.exemptedAt||"-"}</td>
           </tr>`).join('')
-          : '<tr><td colspan="9" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
+          : '<tr><td colspan="7" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
         },
         
         renderCompanies(){
@@ -17389,52 +17331,6 @@ function initPricesModule() {
 <!-- ═══════════════════════════════════════════════════
      PWA — Service Worker + Offline + Background Sync
      ═══════════════════════════════════════════════════ -->
-<script>
-// ── تثبيت التطبيق (Install App) — موبايل ودسكتوب ──────
-const PWAInstall = {
-  deferredPrompt: null,
-  init() {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      // Chrome/Edge (أندرويد + دسكتوب): نمنع البانر الافتراضي ونستخدم زرارنا بدلاً منه
-      e.preventDefault();
-      this.deferredPrompt = e;
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn) btn.style.display = 'inline-block';
-    });
-    window.addEventListener('appinstalled', () => {
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn) btn.style.display = 'none';
-      this.deferredPrompt = null;
-      if(typeof UI !== 'undefined') UI.toast('✅ تم تثبيت التطبيق بنجاح', 'success');
-    });
-    // لو التطبيق شغال بالفعل كـ PWA مثبّت، نخفي الزرار
-    if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn) btn.style.display = 'none';
-    }
-  },
-  async install() {
-    if(this.deferredPrompt) {
-      // المسار العادي: كروم/إيدج على أندرويد ودسكتوب
-      this.deferredPrompt.prompt();
-      const { outcome } = await this.deferredPrompt.userChoice;
-      this.deferredPrompt = null;
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn && outcome === 'accepted') btn.style.display = 'none';
-    } else {
-      // Safari / iOS مفيهوش install prompt برمجي — نوضح الخطوات يدويًا
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if(isIOS) {
-        showConfirm('على آيفون: دوس على زرار المشاركة (⬆️) في المتصفح، ثم اختر "إضافة إلى الشاشة الرئيسية".', ()=>{});
-      } else {
-        showConfirm('لتثبيت التطبيق: افتح قائمة المتصفح (⋮ أو ⋯) واختر "تثبيت التطبيق" أو "Install App".', ()=>{});
-      }
-    }
-  }
-};
-document.addEventListener('DOMContentLoaded', () => PWAInstall.init());
-</script>
-
 <script>
 // ── تسجيل Service Worker ──────────────────────────────
 if ('serviceWorker' in navigator) {
