@@ -2008,7 +2008,10 @@ body.light-mode #tab-prices {
 <div id="dashboard" style="display:none; position:relative; z-index:1;">
     
     <div class="dashboard-header">
-        <div class="header-left"><button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button></div>
+        <div class="header-left">
+          <button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button>
+          <button id="pwaInstallBtn" onclick="PWAInstall.install()" style="display:none;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px">📲 تثبيت التطبيق</button>
+        </div>
         <div class="header-center"><h2>علوش البازار</h2></div>
         <div class="header-right"><div id="userRoleBadge" class="user-badge"></div></div>
         
@@ -3975,6 +3978,7 @@ onchange="UI.renderBreaks()"
                 <div class="table-container" style="margin-top:20px"><table><thead><tr>
 <th>الموظف</th>
 <th>الكود</th>
+<th>الوظيفة</th>
 <th>نوع الاستئذان</th>
 <th>وقت الاستئذان</th>
 <th>وقت الرجوع</th>
@@ -4011,9 +4015,9 @@ onchange="UI.renderBreaks()"
       oninput="UI.renderSummary()"
       style="flex:1;min-width:180px;padding:8px;border-radius:8px;border:none">
     <div class="attendance-filters" id="summaryRangeBtns">
-      <button class="filter-btn" onclick="setSummaryFilter(this,'day')">اليوم</button>
+      <button class="filter-btn active" onclick="setSummaryFilter(this,'day')">اليوم</button>
       <button class="filter-btn" onclick="setSummaryFilter(this,'week')">أسبوع</button>
-      <button class="filter-btn active" onclick="setSummaryFilter(this,'month')">شهر</button>
+      <button class="filter-btn" onclick="setSummaryFilter(this,'month')">شهر</button>
       <button class="filter-btn" onclick="setSummaryFilter(this,'all')">كل الوقت</button>
     </div>
   </div>
@@ -4023,6 +4027,7 @@ onchange="UI.renderBreaks()"
       <thead><tr>
         <th style="cursor:pointer" onclick="sortSummaryBy('name')">الموظف ⇅</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('code')">الكود ⇅</th>
+        <th>الوظيفة</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('count')">عدد الاستئذانات ⇅</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('totalMs')">إجمالي الوقت ⇅</th>
         <th style="cursor:pointer" onclick="sortSummaryBy('avgMs')">متوسط المدة ⇅</th>
@@ -4999,12 +5004,25 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   </div>
 </div>
 
+<div id="exemptReasonModal" style="position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:99999;padding:16px" onclick="if(event.target===this)closeExemptReasonModal()">
+  <div class="glass-card" style="padding:25px;width:95%;max-width:420px">
+    <h3 style="margin-bottom:14px">🔓 إعفاء من الخصم</h3>
+    <p style="font-size:13px;color:var(--text-soft,#94a3b8);margin-bottom:10px">اكتب سبب منح الإذن (مطلوب) قبل تأكيد الإعفاء:</p>
+    <textarea id="exemptReasonInput" rows="3" placeholder="مثال: موافقة المدير المباشر على تأخير مبرر لظرف طارئ..."
+      style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box;resize:vertical"></textarea>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button onclick="confirmExemptReason()" style="flex:1;background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:8px;padding:10px;cursor:pointer;font-family:inherit;font-weight:700">✅ تأكيد الإعفاء</button>
+      <button onclick="closeExemptReasonModal()" style="flex:1;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;padding:10px;cursor:pointer;font-family:inherit">إلغاء</button>
+    </div>
+  </div>
+</div>
+
 <div class="glass-card" style="padding:20px;margin-top:16px">
   <h3 style="margin-bottom:14px">🔓 سجل الإعفاءات من الخصم التلقائي</h3>
   <div class="table-container">
     <table>
       <thead><tr>
-        <th>الموظف</th><th>الكود</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th>
+        <th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>سبب الإعفاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th>
       </tr></thead>
       <tbody id="penaltyExemptLogBody"></tbody>
     </table>
@@ -5139,6 +5157,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   </div>
 
 </div>
+
 </div>
 
 <div id="tab-leaves" class="tab-content" style="display:none;">
@@ -5199,6 +5218,22 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                   <tfoot id="leavesSummaryFoot"></tfoot>
                 </table>
               </div>
+            </div>
+
+            <div class="glass-card" style="padding:25px;margin-top:16px;border:1px solid rgba(239,68,68,0.3)">
+              <h3 style="margin-bottom:6px">🚫 فحص الغياب بدون إذن</h3>
+              <p style="font-size:12px;color:#94a3b8;margin-bottom:16px">
+                يفحص كل الموظفين اللي معندهمش أي حركة حضور في اليوم المحدد. لو الموظف عنده طلب إجازة
+                <b>موافق عليه</b> لنفس اليوم في الجدول فوق، يتجاهل (غياب مبرر). غير كده، يسجّل تلقائيًا
+                جزاء <b>يومين</b> باسم "غياب بدون إذن" في صفحة الجزاءات.
+              </p>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+                <input type="date" id="absenceCheckDate" style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
+                <button onclick="AbsenceService.checkDate()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700">
+                  🔍 فحص الغياب لليوم ده
+                </button>
+              </div>
+              <div id="absenceCheckResultBox"></div>
             </div>
         </div>
 
@@ -5272,6 +5307,28 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
   <h3 style="margin-bottom:20px"><span>📋</span> بيانات الموظفين</h3>
 
+  <div style="margin-bottom:14px">
+    <button onclick="EmpDataService.scanHistoricalAttendance()" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px">
+      🔍 فحص كل سجلات الحضور القديمة الآن
+    </button>
+  </div>
+
+  <div id="missingScheduleBox" style="display:none;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.35);border-radius:10px;padding:16px;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <h4 style="margin:0;color:#fbbf24">⚠️ موظفين ليهم حركة حضور لكن بدون معاد رسمي محدد (<span id="missingScheduleCount">0</span>)</h4>
+      <button onclick="EmpDataService.renderMissingSchedule()" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔄 تحديث</button>
+    </div>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+      الموظفين دول عملوا حضور/انصراف فعلي في التطبيق، لكن معاهمش معاد رسمي متسجل في بياناتهم — أضف الميعاد ليهم أو راجع حالتهم (شغال/استقال).
+    </p>
+    <div class="table-container" style="max-height:220px">
+      <table>
+        <thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>الناقص</th><th>آخر ظهور</th><th>إجراء</th></tr></thead>
+        <tbody id="missingScheduleBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div id="empAddForm" class="glass-card" style="padding:18px;margin-bottom:18px;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.2);display:none">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <h4 style="margin:0;color:#34d399" id="empFormTitle">➕ إضافة موظف جديد</h4>
@@ -5342,6 +5399,23 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
       <span id="newEmpWorkHours" style="font-size:16px;font-weight:700;color:#818cf8">-- ساعة</span>
     </div>
     <input type="hidden" id="editingEmpId">
+    <div id="empEmploymentStatusBox" style="display:none;background:rgba(0,0,0,0.15);border-radius:8px;padding:10px;margin-top:12px;text-align:center">
+      <div id="empEmploymentStatusLabel" style="font-size:12px;color:#94a3b8;margin-bottom:8px"></div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="EmpDataService.setEmploymentStatus('resigned')"
+          style="flex:1;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);color:#f87171;padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">
+          🚪 استقالة
+        </button>
+        <button type="button" onclick="EmpDataService.setEmploymentStatus('stopped')"
+          style="flex:1;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">
+          ⏸️ وقف عن العمل
+        </button>
+        <button type="button" onclick="EmpDataService.setEmploymentStatus('active')"
+          style="flex:1;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.35);color:#34d399;padding:8px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700">
+          ✅ إعادة تفعيل
+        </button>
+      </div>
+    </div>
     <button onclick="EmpDataService.saveEmployee()"
       style="width:100%;margin-top:12px;background:linear-gradient(135deg,#10b981,#34d399);border:none;color:#fff;padding:11px;border-radius:10px;cursor:pointer;font-size:14px;font-family:inherit;font-weight:700">
       💾 حفظ الموظف
@@ -5491,15 +5565,19 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                   style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;font-size:14px">
                   <option value="">— اختر نوع البيانات —</option>
                   <option value="attendance">🔏 سجل الحضور والانصراف</option>
+                  <option value="fingerprintBazar">🖐️ سجل بصمة البازار/الصباح</option>
                   <option value="breaks">☕ سجل الاستئذانات</option>
                   <option value="companies">🏢 سجل الشركات</option>
                   <option value="vehicles">🚛 سجل العربيات</option>
                   <option value="systemLogs">📋 سجل النظام</option>
                   <option value="penalties">⚠️ سجل الجزاءات</option>
+                  <option value="penaltyExemptLog">🔓 سجل الإعفاءات من الخصم التلقائي</option>
                   <option value="leaves">🏖️ سجل الإجازات</option>
                   <option value="incentives">🎁 سجل الحوافز</option>
+                  <option value="advances">💵 سجل السلف</option>
                   <option value="transfers">🔄 سجل التحويلات</option>
                   <option value="loginLogs">🔐 سجل تسجيل الدخول</option>
+                  <option value="missingScheduleAlerts">⚠️ تنبيهات نقص المعاد الرسمي</option>
                   <option value="products_expired">🗑️ التواريخ المنتهية (صفحة التواريخ)</option>
                 </select>
               </div>
@@ -6162,12 +6240,15 @@ const ArchiveService = {
   _data: [], _filtered: [], _lastCol: null, _lastRange: null,
 
   collectionNames: {
-    attendance:'سجل الحضور', breaks:'الاستئذانات', companies:'الشركات',
+    attendance:'سجل الحضور', fingerprintBazar:'سجل بصمة البازار/الصباح', breaks:'الاستئذانات', companies:'الشركات',
     vehicles:'العربيات', systemLogs:'سجل النظام', penalties:'الجزاءات',
+    penaltyExemptLog:'سجل الإعفاءات من الخصم التلقائي',
     loginLogs:'سجل الدخول',
     leaves:'الإجازات',
     incentives:'الحوافز',
+    advances:'السلف',
     transfers:'التحويلات',
+    missingScheduleAlerts:'تنبيهات نقص المعاد الرسمي',
     products_expired:'التواريخ المنتهية'
   },
 
@@ -7401,6 +7482,26 @@ function closePenaltyDetailModal(){
   document.getElementById("penaltyDetailModal").style.display = "none"
 }
 
+let _pendingExempt = null
+function openExemptReasonModal(code, dateStr, type, penaltyId){
+  _pendingExempt = { code, dateStr, type, penaltyId }
+  const input = document.getElementById("exemptReasonInput")
+  if(input) input.value = ""
+  document.getElementById("exemptReasonModal").style.display = "flex"
+}
+function closeExemptReasonModal(){
+  document.getElementById("exemptReasonModal").style.display = "none"
+  _pendingExempt = null
+}
+function confirmExemptReason(){
+  const reason = document.getElementById("exemptReasonInput")?.value.trim()
+  if(!reason){ UI.toast("❌ لازم تكتب سبب الإعفاء", "error"); return }
+  if(!_pendingExempt) return
+  const { code, dateStr, type, penaltyId } = _pendingExempt
+  AutoDeductionService.exempt(code, dateStr, type, penaltyId, reason)
+  closeExemptReasonModal()
+}
+
 function attClearAllFilters(){
   document.getElementById("attendanceSearch").value=""
   document.getElementById("attendanceDate").value=""
@@ -7757,13 +7858,13 @@ const DeviceInfo = {
         currentUser: null,
         reportRange: "day",
         logsRange: "day",
-        summaryRange: "month",
+        summaryRange: "day",
         summarySort: { key: "totalMs", dir: -1 },
         penaltiesRange: "all",
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.5",
+        appBuild: "2026-08-12.21",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8019,6 +8120,13 @@ const AttendanceService = {
             return
         }
 
+        // منع تسجيل حضور/انصراف لموظف مستقيل أو موقوف عن العمل
+        if(emp.employmentStatus === "resigned" || emp.employmentStatus === "stopped"){
+            const label = emp.employmentStatus === "resigned" ? "مستقيل" : "موقوف عن العمل";
+            UI.toast(`❌ ${emp.name} (${emp.code}) ${label} — مينفعش يتسجله حضور/انصراف`, "error")
+            return
+        }
+
         let now = new Date(TimeUtils.now())
 
         let data = {
@@ -8034,9 +8142,26 @@ const AttendanceService = {
         // تسجيل الحركة
         saveOrQueue("attendance", data)
 
-        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة
+        // تنبيه لو الموظف ده معندوش معاد حضور/انصراف رسمي محدد في بياناته
+        if((action === "CheckIn" && !emp.checkIn) || (action === "CheckOut" && !emp.checkOut)){
+            UI.toast(`⚠️ ${emp.name} (${emp.code}) معندوش معاد ${action==="CheckIn"?"حضور":"انصراف"} رسمي محدد — يُفضّل إضافته من صفحة بيانات الموظفين`, "warning");
+            db.ref("missingScheduleAlerts/" + emp.code).set({
+                code: emp.code, name: emp.name,
+                missingCheckIn: !emp.checkIn, missingCheckOut: !emp.checkOut,
+                lastSeen: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة (أول تسجيل دخول لليوم بس،
+        // عشان ميتحسبش تأخير غلط لو الموظف دخل وخرج وقتها رجع دخل تاني في نفس اليوم)
         if(action === "CheckIn"){
-            AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
+            const alreadyCheckedInToday = State.attendance.some(a =>
+                String(a.code) === String(emp.code) && a.action === "CheckIn" && a.date === data.date
+            );
+            if(!alreadyCheckedInToday){
+                AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
+            }
         }
 
         // تسجيل في سجل النظام
@@ -8571,6 +8696,7 @@ if (!checkExcelPermission()) return;
 let rows = UI.getFilteredBreaks().map(b => ({
 الموظف: b.name || getEmpName(b.code) || b.code || "-",
 الكود: b.code || "-",
+الوظيفة: getEmpJob(b.code),
 نوع_الاستئذان: b.type || "-",
 وقت_الاستئذان: b.breakTime || "-",
 وقت_الرجوع: b.returnTime || "-",
@@ -8874,25 +9000,28 @@ UI.renderCompanies()
         },
 
         // إعفاء (إلغاء الخصم) — بيحذف الجزاء التلقائي الحالي (لو موجود) ويمنع إعادة إنشائه لنفس اليوم
-        exempt(code, dateStr, type, penaltyId) {
+        exempt(code, dateStr, type, penaltyId, exemptReason) {
             if(!hasPermission("all") && !hasPermission("permit")){
                 UI.toast("❌ الإعفاء من الخصم يتطلب صلاحية إذن", "error");
                 return;
             }
             const key = `${code}_${dateStr}_${type}`;
             const p = State.penalties.find(x => x.id === penaltyId);
+            const empJob = getEmpJob(code);
 
             db.ref("autoDeductExemptions/" + key).set({
                 code: String(code), date: dateStr, type,
                 by: State.currentUser?.username || "-",
+                reason: exemptReason || "-",
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
             // نقل الجزاء لسجل الإعفاءات بدل ما يتحذف نهائي — عشان يبقى فيه أثر واضح
             if(p){
                 db.ref("penaltyExemptLog").push({
-                    name: p.name, code: p.code, hours: p.hours,
+                    name: p.name, code: p.code, job: empJob, hours: p.hours,
                     reason: p.reason, penaltyDate: p.date,
+                    exemptReason: exemptReason || "-",
                     exemptedBy: State.currentUser?.username || "-",
                     exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
                     timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -9030,8 +9159,10 @@ UI.renderCompanies()
           const exemptRows = [...(State.penaltyExemptLog||[])]
             .sort((a,b)=>(b.timestamp||0)-(a.timestamp||0))
             .map(r => ({
-              "الموظف": r.name, "الكود": r.code, "السبب الأصلي": r.reason || "-",
+              "الموظف": r.name, "الكود": r.code, "الوظيفة": r.job || getEmpJob(r.code) || "-",
+              "السبب الأصلي": r.reason || "-",
               "الساعات": r.hours, "تاريخ الجزاء": r.penaltyDate || "-",
+              "سبب الإعفاء": r.exemptReason || "-",
               "أُعفي بواسطة": r.exemptedBy || "-", "وقت الإعفاء": r.exemptedAt || "-"
             }));
 
@@ -11546,9 +11677,13 @@ function calcLateMinutes(actualTimestamp, expectedTimeStr) {
   const actualMinOfDay = d.getHours()*60 + d.getMinutes();
   const expectedMinOfDay = expH*60 + (expM||0);
   let diff = actualMinOfDay - expectedMinOfDay;
-  // تصحيح حالة عبور منتصف الليل: لو الفرق أكبر من 12 ساعة، يبقى في الحقيقة العكس
-  if(diff > 720) diff -= 1440;
-  if(diff < -720) diff += 1440;
+  // تصحيح عبور منتصف الليل يتطبّق بس لو الميعاد الرسمي نفسه قريب من منتصف الليل
+  // (شيفت ليلي)، عشان ميأثرش على شيفتات النهار العادية ويسبب قراءة عكسية غلط
+  const nearMidnight = expectedMinOfDay < 240 || expectedMinOfDay > 1200;
+  if(nearMidnight){
+    if(diff > 720) diff -= 1440;
+    if(diff < -720) diff += 1440;
+  }
   return diff;
 }
 
@@ -11595,6 +11730,97 @@ function getEmpName(code) {
 }
 
 const EmpDataService = {
+
+  // فحص كل سجلات الحضور القديمة (مش بس الجديدة) ولقاء أي موظف بدون معاد رسمي محدد
+  scanHistoricalAttendance() {
+    UI.toast('🔍 جارٍ فحص كل سجلات الحضور القديمة...', 'info');
+    const found = {}; // code -> {missingCheckIn, missingCheckOut, lastSeen, name, code}
+    State.attendance.forEach(a => {
+      if(!a.code) return;
+      const emp = getEmpData(a.code);
+      const missingIn  = a.action === 'CheckIn'  && !(emp && emp.checkIn);
+      const missingOut = a.action === 'CheckOut' && !(emp && emp.checkOut);
+      if(!missingIn && !missingOut) return;
+
+      const key = String(a.code);
+      if(!found[key]) found[key] = {
+        code: a.code, name: a.name || getEmpName(a.code) || a.code,
+        missingCheckIn: false, missingCheckOut: false,
+        lastSeenTs: 0, lastSeen: ''
+      };
+      if(missingIn)  found[key].missingCheckIn  = true;
+      if(missingOut) found[key].missingCheckOut = true;
+      if((a.timestamp||0) >= found[key].lastSeenTs){
+        found[key].lastSeenTs = a.timestamp || 0;
+        found[key].lastSeen = a.date ? (a.date + ' ' + (a.timeDisplay||'')) : new Date(a.timestamp||0).toLocaleString('ar-EG');
+      }
+    });
+
+    const codes = Object.keys(found);
+    if(!codes.length){
+      UI.toast('✅ كل الموظفين اللي عندهم حركة حضور، عندهم معاد رسمي محدد', 'success');
+      this.renderMissingSchedule();
+      return;
+    }
+
+    const updates = {};
+    codes.forEach(code => {
+      const f = found[code];
+      updates['missingScheduleAlerts/' + code] = {
+        code: f.code, name: f.name,
+        missingCheckIn: f.missingCheckIn, missingCheckOut: f.missingCheckOut,
+        lastSeen: f.lastSeen,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+    });
+
+    db.ref().update(updates).then(() => {
+      UI.toast(`⚠️ لقينا ${codes.length} موظف بدون معاد رسمي محدد في السجل بأكمله`, 'warning');
+      this.renderMissingSchedule();
+    });
+  },
+
+  // عرض قائمة الموظفين اللي ليهم حركة حضور لكن بدون معاد رسمي محدد
+  renderMissingSchedule() {
+    db.ref('missingScheduleAlerts').once('value').then(snap => {
+      const val = snap.val() || {};
+      const box = document.getElementById('missingScheduleBox');
+      const body = document.getElementById('missingScheduleBody');
+      const countEl = document.getElementById('missingScheduleCount');
+      if(!box || !body) return;
+
+      // نتجاهل أي حد اتصلح ميعاده فعلاً (تنظيف تلقائي)
+      const list = Object.values(val).filter(v => {
+        const emp = getEmpData(v.code);
+        const stillMissing = (v.missingCheckIn && !(emp && emp.checkIn)) || (v.missingCheckOut && !(emp && emp.checkOut));
+        if(!stillMissing) db.ref('missingScheduleAlerts/' + v.code).remove();
+        return stillMissing;
+      });
+
+      if(countEl) countEl.textContent = list.length;
+      if(!list.length){ box.style.display = 'none'; return; }
+      box.style.display = 'block';
+
+      body.innerHTML = list.map(v => {
+        const missing = [v.missingCheckIn ? 'الحضور' : null, v.missingCheckOut ? 'الانصراف' : null].filter(Boolean).join(' و ');
+        return `<tr>
+          <td style="font-weight:700">${v.name}</td>
+          <td style="color:#818cf8">${v.code}</td>
+          <td style="font-size:12px">${getEmpJob(v.code)}</td>
+          <td style="color:#fbbf24">${missing}</td>
+          <td style="font-size:11px">${v.lastSeen || '-'}</td>
+          <td>
+            <button onclick="EmpDataService.openAdd('${v.code}')" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">✏ إضافة الميعاد</button>
+            <button onclick="EmpDataService.dismissMissingSchedule('${v.code}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">تجاهل</button>
+          </td>
+        </tr>`;
+      }).join('');
+    });
+  },
+
+  dismissMissingSchedule(code) {
+    db.ref('missingScheduleAlerts/' + code).remove().then(() => EmpDataService.renderMissingSchedule());
+  },
 
   // فتح modal الإضافة/التعديل
   openAdd(code) {
@@ -11681,7 +11907,22 @@ const EmpDataService = {
       job: existing.job||'',
       branch: existing.branch||'',
       salary: Number(document.getElementById('edSalary')?.value)||existing.salary||0,
-      workHoursPerDay: Number(document.getElementById('edWorkHours')?.value)||existing.workHoursPerDay||8,
+      workHoursPerDay: (() => {
+        // نحسب ساعات العمل مباشرة من وقتي الحضور والانصراف المدخلين (نفس منطق calcHours بالظبط)
+        // بدل الاعتماد على قراءة .value من عنصر عرض نصي مش input، وده كان بيسبب حفظ رقم قديم/افتراضي غلط
+        const inVal  = document.getElementById('edCheckIn')?.value;
+        const outVal = document.getElementById('edCheckOut')?.value;
+        if(inVal && outVal){
+          const [inH,inM]   = inVal.split(':').map(Number);
+          const [outH,outM] = outVal.split(':').map(Number);
+          if(!isNaN(inH) && !isNaN(outH)){
+            let mins = (outH*60+outM) - (inH*60+inM);
+            if(mins <= 0) mins += 24*60;
+            if(mins > 0) return Math.round((mins/60) * 100) / 100;
+          }
+        }
+        return existing.workHoursPerDay || 8;
+      })(),
       hourlyRate: 0, // يُحسب تلقائياً
       hireDate: document.getElementById('edHireDate')?.value||existing.hireDate||'',
       nationalId: (document.getElementById('edNationalId')?.value||existing.nationalId||'').trim(),
@@ -11754,9 +11995,12 @@ const EmpDataService = {
         // حساب أجر الساعة
         const dailyH  = d.workHoursPerDay || workHoursStr.replace(' س','').split(':')[0] || 8;
         const hrRate  = d.hourlyRate || (d.salary ? (d.salary/30/Number(dailyH)).toFixed(2) : 0);
-        return `<tr>
+        const esBadge = d.employmentStatus === 'resigned' ? '<span style="background:rgba(239,68,68,0.2);color:#f87171;padding:2px 8px;border-radius:20px;font-size:10px;margin-right:6px">🚪 مستقيل</span>'
+          : d.employmentStatus === 'stopped' ? '<span style="background:rgba(251,191,36,0.2);color:#fbbf24;padding:2px 8px;border-radius:20px;font-size:10px;margin-right:6px">⏸️ موقوف</span>'
+          : '';
+        return `<tr ${d.employmentStatus==='resigned'||d.employmentStatus==='stopped' ? 'style="opacity:0.6"' : ''}>
           <td style="font-weight:700;color:#818cf8">${emp.code}</td>
-          <td>${emp.name}</td>
+          <td>${esBadge}${emp.name}</td>
           <td style="font-size:12px">${emp.job || '-'}</td>
           <td style="font-size:12px">${emp.branch || '-'}</td>
           <td style="color:#34d399">${d.salary ? Number(d.salary).toLocaleString('ar-EG')+' ج' : '-'}</td>
@@ -11833,6 +12077,28 @@ const EmpDataService = {
   },
 
   // عرض فورم إضافة موظف
+  // تغيير حالة عمل الموظف: استقالة / وقف عن العمل / إعادة تفعيل
+  setEmploymentStatus(type) {
+    const code = document.getElementById('newEmpCode')?.value;
+    const name = document.getElementById('newEmpName')?.value || code;
+    if(!code){ UI.toast('من غير كود موظف مينفعش', 'error'); return; }
+
+    const labelMap = { resigned: 'استقالة', stopped: 'وقف عن العمل', active: 'إعادة تفعيل' };
+    showConfirm(`تأكيد "${labelMap[type]}" للموظف ${name}؟`, () => {
+      db.ref('empData/' + code).update({
+        employmentStatus: type,
+        employmentStatusAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+        employmentStatusBy: State.currentUser?.username || '-'
+      }).then(() => {
+        UI.toast(`✅ تم تحديث حالة ${name} إلى "${labelMap[type]}"`, 'success');
+        SystemLog.add('EmploymentStatus', code, labelMap[type]);
+        const statusLabel = document.getElementById('empEmploymentStatusLabel');
+        const displayMap = { resigned: '🚪 الحالة الحالية: مستقيل', stopped: '⏸️ الحالة الحالية: موقوف عن العمل', active: '✅ الحالة الحالية: شغال' };
+        if(statusLabel) statusLabel.textContent = displayMap[type];
+      });
+    });
+  },
+
   showAddEmpForm(id, code, name, job, branch) {
     const form = document.getElementById('empAddForm');
     if(!form) return;
@@ -11859,6 +12125,20 @@ const EmpDataService = {
     if(title) title.textContent = id ? '✏️ تعديل موظف' : '➕ إضافة موظف جديد';
     form.style.display = 'block';
     document.getElementById('newEmpCode').focus();
+
+    // إظهار زراير حالة العمل (استقالة/وقف/إعادة تفعيل) بس وقت تعديل موظف موجود بالفعل
+    const statusBox = document.getElementById('empEmploymentStatusBox');
+    const statusLabel = document.getElementById('empEmploymentStatusLabel');
+    if(statusBox){
+      if(id){
+        statusBox.style.display = 'block';
+        const es = d.employmentStatus || 'active';
+        const labelMap = { resigned: '🚪 الحالة الحالية: مستقيل', stopped: '⏸️ الحالة الحالية: موقوف عن العمل', active: '✅ الحالة الحالية: شغال' };
+        if(statusLabel) statusLabel.textContent = labelMap[es] || labelMap.active;
+      } else {
+        statusBox.style.display = 'none';
+      }
+    }
   },
 
   calcNewHours() {
@@ -12100,6 +12380,88 @@ function selectIncEmp(code, name) {
   if(nameEl) nameEl.value = name;
   if(box)    box.style.display = 'none';
 }
+
+// ========================= خدمة فحص الغياب بدون إذن =========================
+const AbsenceService = {
+  DAYS_PENALTY: 2, // عدد أيام الجزاء عند الغياب بدون إذن
+
+  // تطبيع أي شكل تاريخ (ISO أو D/M/YYYY) لصيغة موحّدة YYYY-MM-DD للمقارنة
+  _normalizeDate(str) {
+    if(!str) return '';
+    str = String(str).trim();
+    if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const parts = str.split('/');
+    if(parts.length === 3){
+      const [d, m, y] = parts.map(p => p.trim());
+      if(y && m && d) return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+    return str;
+  },
+
+  checkDate() {
+    const rawDate = document.getElementById('absenceCheckDate')?.value;
+    if(!rawDate){ UI.toast('اختار تاريخ الفحص الأول', 'error'); return; }
+
+    const targetNorm = this._normalizeDate(rawDate);
+    // نفس صيغة التاريخ المستخدمة في سجلات الحضور (ar-EG)
+    const targetLocale = new Date(rawDate + 'T00:00:00').toLocaleDateString('ar-EG');
+
+    const box = document.getElementById('absenceCheckResultBox');
+    if(box) box.innerHTML = '<div style="color:#94a3b8;font-size:13px">🔍 جارٍ الفحص...</div>';
+
+    const activeEmployees = State.employees.filter(e => {
+      const es = getEmpData(e.code)?.employmentStatus;
+      return es !== 'resigned' && es !== 'stopped';
+    });
+    const absentees = [];
+
+    activeEmployees.forEach(emp => {
+      const hasAttendance = State.attendance.some(a =>
+        String(a.code) === String(emp.code) && a.date === targetLocale
+      );
+      if(hasAttendance) return; // حضر بشكل ما، مش غياب
+
+      const approvedLeave = State.leaves.find(l =>
+        String(l.code) === String(emp.code) &&
+        l.status === 'موافق' &&
+        this._normalizeDate(l.leaveDate) === targetNorm
+      );
+
+      absentees.push({ emp, excused: !!approvedLeave });
+    });
+
+    if(!absentees.length){
+      if(box) box.innerHTML = '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px;color:#34d399;font-size:13px">✅ كل الموظفين النشطين حضروا في اليوم ده — مفيش غياب.</div>';
+      return;
+    }
+
+    let penalizedCount = 0, excusedCount = 0;
+    const rows = absentees.map(({ emp, excused }) => {
+      if(excused){
+        excusedCount++;
+        return `<tr><td style="font-weight:700">${emp.name}</td><td style="color:#818cf8">${emp.code}</td>
+          <td><span style="color:#34d399">✅ غياب مبرر (إجازة موافقة)</span></td></tr>`;
+      }
+      const dailyHours = getEmpDailyHours(getEmpData(emp.code));
+      const hours = dailyHours * this.DAYS_PENALTY;
+      AutoDeductionService.createAutoPenalty(emp.code, emp.name, hours, `غياب بدون إذن (${targetLocale})`, 'absence', targetLocale);
+      penalizedCount++;
+      return `<tr><td style="font-weight:700">${emp.name}</td><td style="color:#818cf8">${emp.code}</td>
+        <td><span style="color:#f87171">⚠️ جزاء يومين (${hours.toFixed(1)} ساعة) — بدون طلب إجازة موافق</span></td></tr>`;
+    }).join('');
+
+    if(box) box.innerHTML = `
+      <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;color:#fbbf24">
+        📊 لقينا ${absentees.length} غايب في ${targetLocale} — ${excusedCount} مبرر بإجازة، ${penalizedCount} اتسجل ليهم جزاء تلقائي.
+      </div>
+      <div class="table-container"><table>
+        <thead><tr><th>الموظف</th><th>الكود</th><th>النتيجة</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>`;
+
+    if(penalizedCount > 0) UI.toast(`⚠️ تم تسجيل جزاء غياب لـ ${penalizedCount} موظف`, 'warning');
+  }
+};
 
 const IncentiveService = {
 
@@ -14526,6 +14888,7 @@ html += `
 <tr ${rowStyle}>
 <td>${b.name || "-"}</td>
 <td>${b.code || "-"}</td>
+<td style="font-size:12px">${getEmpJob(b.code)}</td>
 <td>${b.type || "-"}</td>
 <td>${b.breakTime || "-"}</td>
 <td>${b.returnTime || `<button onclick="breakQuickReturn('${b.id}','${b.code}','${(b.name||getEmpName(b.code)||b.code||"").toString().replace(/'/g,"")}')"
@@ -14684,7 +15047,7 @@ renderSummary() {
   });
 
   if(!list.length) {
-    body.innerHTML='<tr><td colspan="14" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
+    body.innerHTML='<tr><td colspan="15" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
     if(foot) foot.innerHTML = "";
     return;
   }
@@ -14695,6 +15058,7 @@ renderSummary() {
     return `<tr>
       <td style="font-weight:700">${e.name}</td>
       <td style="color:#818cf8">${e.code}</td>
+      <td style="font-size:12px">${getEmpJob(e.code)}</td>
       <td style="text-align:center;font-weight:700;color:#818cf8">${e.count}</td>
       <td style="text-align:center;font-weight:700;color:${color}">${fmtDur(e.totalMs)}</td>
       <td style="text-align:center;color:#94a3b8">${fmtDur(e.avgMs)}</td>
@@ -14715,7 +15079,7 @@ renderSummary() {
     const totalMs = list.reduce((s,e)=>s+e.totalMs,0);
     const avgAll = list.length ? totalMs/list.length : 0;
     foot.innerHTML = `<tr style="font-weight:700;background:rgba(255,255,255,0.04)">
-      <td colspan="2">الإجمالي (${list.length} موظف)</td>
+      <td colspan="3">الإجمالي (${list.length} موظف)</td>
       <td style="text-align:center;color:#818cf8">${totalCount}</td>
       <td style="text-align:center">${fmtDur(totalMs)}</td>
       <td style="text-align:center;color:#94a3b8">${fmtDur(avgAll)}</td>
@@ -14789,7 +15153,7 @@ exportSummaryExcel() {
     if(ts >= e.lastTimestamp){ e.lastTimestamp=ts; e.lastType=t; e.lastDate=b.date||"-"; }
   });
   const rows=Object.values(empMap).sort((a,b)=>b.totalMs-a.totalMs).map(e=>({
-    "الموظف":e.name,"الكود":e.code,"عدد الاستئذانات":e.count,
+    "الموظف":e.name,"الكود":e.code,"الوظيفة":getEmpJob(e.code),"عدد الاستئذانات":e.count,
     "إجمالي الوقت (دقيقة)":Math.round(e.totalMs/60000),
     "متوسط المدة (دقيقة)": e.count ? Math.round(e.totalMs/e.count/60000) : 0,
     "صلاة":e.types["صلاة"],"حمام":e.types["حمام"],"أكل":e.types["أكل"],
@@ -15006,7 +15370,7 @@ this.renderVehiclesInsideNow();
 <td>${p.date}</td>
 <td>${p.time || "-"}</td>
 <td>${p.createdBy || "-"}</td>
-<td>${p.auto && (hasPermission("all")||hasPermission("permit")) ? `<button onclick="AutoDeductionService.exempt('${p.code}','${p.date}','${p.autoType}','${p.id}')" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔓 إذن</button>` : (p.auto ? `<span class="badge badge-warning" style="font-size:11px">تلقائي</span>` : "-")}</td>
+<td>${p.auto && (hasPermission("all")||hasPermission("permit")) ? `<button onclick="openExemptReasonModal('${p.code}','${p.date}','${p.autoType}','${p.id}')" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔓 إذن</button>` : (p.auto ? `<span class="badge badge-warning" style="font-size:11px">تلقائي</span>` : "-")}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="openEditPenaltyById('${p.id}')">✏ تعديل</button>` : ""}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
@@ -15084,13 +15448,15 @@ applyEditColVisibility();
           body.innerHTML = rows.length ? rows.map(r => `<tr>
             <td style="font-weight:700">${r.name}</td>
             <td style="color:#818cf8">${r.code}</td>
+            <td style="font-size:12px">${r.job || getEmpJob(r.code) || "-"}</td>
             <td>${r.reason||"-"}</td>
             <td style="text-align:center">${r.hours}</td>
             <td>${r.penaltyDate||"-"}</td>
+            <td style="font-size:12px;color:#fbbf24">${r.exemptReason||"-"}</td>
             <td style="color:#34d399">${r.exemptedBy||"-"}</td>
             <td style="font-size:11px">${r.exemptedAt||"-"}</td>
           </tr>`).join('')
-          : '<tr><td colspan="7" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
+          : '<tr><td colspan="9" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
         },
         
         renderCompanies(){
@@ -15455,7 +15821,8 @@ if(tab === "empdata"){
       if(cnt) cnt.textContent = State.employees.length;
     }
     EmpDataService.render();
-  }).catch(()=>{ EmpDataService.render(); });
+    EmpDataService.renderMissingSchedule();
+  }).catch(()=>{ EmpDataService.render(); EmpDataService.renderMissingSchedule(); });
 }
 
 }
@@ -17332,6 +17699,53 @@ function initPricesModule() {
      PWA — Service Worker + Offline + Background Sync
      ═══════════════════════════════════════════════════ -->
 <script>
+// ── تثبيت التطبيق (Install App) — موبايل ودسكتوب ──────
+const PWAInstall = {
+  deferredPrompt: null,
+  init() {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Chrome/Edge (أندرويد + دسكتوب): نمنع البانر الافتراضي ونستخدم زرارنا بدلاً منه
+      e.preventDefault();
+      this.deferredPrompt = e;
+      const btn = document.getElementById('pwaInstallBtn');
+      if(btn) btn.style.display = 'inline-block';
+    });
+    window.addEventListener('appinstalled', () => {
+      const btn = document.getElementById('pwaInstallBtn');
+      if(btn) btn.style.display = 'none';
+      this.deferredPrompt = null;
+      if(typeof UI !== 'undefined') UI.toast('✅ تم تثبيت التطبيق بنجاح', 'success');
+    });
+    // لو التطبيق شغال بالفعل كـ PWA مثبّت، نخفي الزرار
+    if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
+      const btn = document.getElementById('pwaInstallBtn');
+      if(btn) btn.style.display = 'none';
+    }
+  },
+  async install() {
+    if(this.deferredPrompt) {
+      // المسار العادي: كروم/إيدج على أندرويد ودسكتوب
+      this.deferredPrompt.prompt();
+      const { outcome } = await this.deferredPrompt.userChoice;
+      this.deferredPrompt = null;
+      const btn = document.getElementById('pwaInstallBtn');
+      if(btn && outcome === 'accepted') btn.style.display = 'none';
+    } else {
+      // Safari / iOS مفيهوش install prompt برمجي — نوضح الخطوات يدويًا
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if(isIOS) {
+        showConfirm('على آيفون: دوس على زرار المشاركة (⬆️) في المتصفح، ثم اختر "إضافة إلى الشاشة الرئيسية".', ()=>{});
+      } else {
+        showConfirm('لتثبيت التطبيق: افتح قائمة المتصفح (⋮ أو ⋯) واختر "تثبيت التطبيق" أو "Install App".', ()=>{});
+      }
+    }
+  }
+};
+document.addEventListener('DOMContentLoaded', () => PWAInstall.init());
+</script>
+
+
+<script>
 // ── تسجيل Service Worker ──────────────────────────────
 if ('serviceWorker' in navigator) {
   const swBase = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
@@ -17475,11 +17889,13 @@ async function saveOrQueue(collection, data) {
     // النت شغّال — ارفع مباشرة
     return db.ref(collection).push(data);
   } else {
-    // أوف لاين — استبدال أي timestamp سيرفر بوقت الجهاز عشان يتخزن صح محليًا
+    // أوف لاين — استبدال أي timestamp سيرفر بوقت مُصحَّح (نفس فرق التوقيت مع السيرفر)
+    // بدل ساعة الجهاز الخام، عشان لو ساعة الموبايل مش مظبوطة، حساب "ساعات العمل"
+    // بين حضور وانصراف اتسجلوا في ظروف اتصال مختلفة يفضل دقيق ومايبقاش "قريب بس مش مطابق"
     const offlineData = Object.assign({}, data);
     Object.keys(offlineData).forEach(k => {
       if (offlineData[k] && typeof offlineData[k] === 'object' && offlineData[k]['.sv'] === 'timestamp') {
-        offlineData[k] = Date.now();
+        offlineData[k] = TimeUtils.now();
       }
     });
     await OfflineDB.save(collection, offlineData);
