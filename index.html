@@ -7867,7 +7867,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.24",
+        appBuild: "2026-08-12.25",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8156,15 +8156,11 @@ const AttendanceService = {
             });
         }
 
-        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة (أول تسجيل دخول لليوم بس،
-        // عشان ميتحسبش تأخير غلط لو الموظف دخل وخرج وقتها رجع دخل تاني في نفس اليوم)
+        // فحص التأخير وتسجيل جزاء تلقائي عند الحاجة
+        // (منع تكرار الجزاء لنفس اليوم متكفّل بيه createAutoPenalty/hasAutoPenaltyToday بالفعل،
+        // فمفيش داعي لأي شرط هنا يمنع الفحص نفسه من الحدوث)
         if(action === "CheckIn"){
-            const alreadyCheckedInToday = State.attendance.some(a =>
-                String(a.code) === String(emp.code) && a.action === "CheckIn" && a.date === data.date
-            );
-            if(!alreadyCheckedInToday){
-                AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
-            }
+            AutoDeductionService.checkLateCheckIn(emp, TimeUtils.now(), data.date)
         }
 
         // تسجيل في سجل النظام
