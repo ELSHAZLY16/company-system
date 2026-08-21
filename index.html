@@ -5220,17 +5220,20 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
               </div>
             </div>
 
-            <div class="glass-card" style="padding:25px;margin-top:16px;border:1px solid rgba(239,68,68,0.3)">
+            <div class="glass-card" style="padding:25px;margin-top:16px;border:1px solid rgba(239,68,68,0.3)" data-perm="all">
               <h3 style="margin-bottom:6px">🚫 فحص الغياب بدون إذن</h3>
               <p style="font-size:12px;color:#94a3b8;margin-bottom:16px">
                 يفحص كل الموظفين اللي معندهمش أي حركة حضور في اليوم المحدد. لو الموظف عنده طلب إجازة
-                <b>موافق عليه</b> لنفس اليوم في الجدول فوق، يتجاهل (غياب مبرر). غير كده، يسجّل تلقائيًا
-                جزاء <b>يومين</b> باسم "غياب بدون إذن" في صفحة الجزاءات.
+                <b>موافق عليه</b> لنفس اليوم في الجدول فوق، يتجاهل (غياب مبرر). غير كده، يظهرلك تقرير
+                وتقدر تختار تسجّل جزاء <b>يومين</b> باسم "غياب بدون إذن" في صفحة الجزاءات بضغطة منفصلة.
               </p>
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
                 <input type="date" id="absenceCheckDate" style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-                <button onclick="AbsenceService.checkDate()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700">
+                <button onclick="AbsenceService.checkDate()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700">
                   🔍 فحص الغياب لليوم ده
+                </button>
+                <button id="absenceApplyBtn" onclick="AbsenceService.applyPenalties()" disabled style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700;opacity:0.5">
+                  ⚠️ إعطاء الجزاء للغير مبررين
                 </button>
               </div>
               <div id="absenceCheckResultBox"></div>
@@ -7864,7 +7867,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.21",
+        appBuild: "2026-08-12.24",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8238,6 +8241,11 @@ function attQuickCheckout(code, name) {
   showConfirm(`تسجيل خروج: ${name}؟`, ()=>{
     const now = new Date(TimeUtils.now());
     const emp = getEmpData(code) || {};
+    if(emp.employmentStatus === "resigned" || emp.employmentStatus === "stopped"){
+      const label = emp.employmentStatus === "resigned" ? "مستقيل" : "موقوف عن العمل";
+      UI.toast(`❌ ${emp.name||name} (${code}) ${label} — مينفعش يتسجله حضور/انصراف`, "error");
+      return;
+    }
     saveOrQueue("attendance", {
       code, name,
       action: "CheckOut",
@@ -12384,6 +12392,8 @@ function selectIncEmp(code, name) {
 // ========================= خدمة فحص الغياب بدون إذن =========================
 const AbsenceService = {
   DAYS_PENALTY: 2, // عدد أيام الجزاء عند الغياب بدون إذن
+  _lastResults: null, // نتيجة آخر فحص (مش متسجلة كجزاءات لسه)
+  _lastDateLocale: null,
 
   // تطبيع أي شكل تاريخ (ISO أو D/M/YYYY) لصيغة موحّدة YYYY-MM-DD للمقارنة
   _normalizeDate(str) {
@@ -12398,19 +12408,38 @@ const AbsenceService = {
     return str;
   },
 
-  checkDate() {
+  // مرحلة 1: فحص فقط (Dry-run) — مبيسجّلش أي جزاء، بس بيوضح مين مستحق
+  async checkDate() {
+    if(!hasPermission('all')){ UI.toast('❌ الميزة دي تتطلب صلاحية كل الصلاحيات', 'error'); return; }
     const rawDate = document.getElementById('absenceCheckDate')?.value;
     if(!rawDate){ UI.toast('اختار تاريخ الفحص الأول', 'error'); return; }
 
     const targetNorm = this._normalizeDate(rawDate);
     // نفس صيغة التاريخ المستخدمة في سجلات الحضور (ar-EG)
     const targetLocale = new Date(rawDate + 'T00:00:00').toLocaleDateString('ar-EG');
+    this._lastDateLocale = targetLocale;
 
     const box = document.getElementById('absenceCheckResultBox');
+    const applyBtn = document.getElementById('absenceApplyBtn');
     if(box) box.innerHTML = '<div style="color:#94a3b8;font-size:13px">🔍 جارٍ الفحص...</div>';
+    if(applyBtn){ applyBtn.disabled = true; applyBtn.style.opacity = '0.5'; }
+
+    // نجيب بيانات الموظفين طازة من Firebase مباشرة (مش من الكاش المحلي)
+    // عشان نضمن إن حالة "استقال/موقوف" محدّثة 100% حتى لو حصل أي تأخير في المزامنة
+    const empDataSnap = await db.ref('empData').once('value');
+    const freshEmpData = empDataSnap.val() || {};
+
+    // دالة بحث محلية بنفس منطق getEmpData لكن على البيانات الطازة
+    const findFreshEmp = (code) => {
+      const c = String(code).trim();
+      const n = String(Number(c));
+      if(freshEmpData[c]) return freshEmpData[c];
+      if(n !== c && freshEmpData[n]) return freshEmpData[n];
+      return Object.values(freshEmpData).find(e => e && (String(e.code)===c || String(e.code)===n));
+    };
 
     const activeEmployees = State.employees.filter(e => {
-      const es = getEmpData(e.code)?.employmentStatus;
+      const es = findFreshEmp(e.code)?.employmentStatus;
       return es !== 'resigned' && es !== 'stopped';
     });
     const absentees = [];
@@ -12430,36 +12459,64 @@ const AbsenceService = {
       absentees.push({ emp, excused: !!approvedLeave });
     });
 
+    this._lastResults = absentees;
+
     if(!absentees.length){
       if(box) box.innerHTML = '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px;color:#34d399;font-size:13px">✅ كل الموظفين النشطين حضروا في اليوم ده — مفيش غياب.</div>';
       return;
     }
 
-    let penalizedCount = 0, excusedCount = 0;
+    const unexcusedCount = absentees.filter(a => !a.excused).length;
+    const excusedCount = absentees.length - unexcusedCount;
+
     const rows = absentees.map(({ emp, excused }) => {
       if(excused){
-        excusedCount++;
         return `<tr><td style="font-weight:700">${emp.name}</td><td style="color:#818cf8">${emp.code}</td>
           <td><span style="color:#34d399">✅ غياب مبرر (إجازة موافقة)</span></td></tr>`;
       }
       const dailyHours = getEmpDailyHours(getEmpData(emp.code));
       const hours = dailyHours * this.DAYS_PENALTY;
-      AutoDeductionService.createAutoPenalty(emp.code, emp.name, hours, `غياب بدون إذن (${targetLocale})`, 'absence', targetLocale);
-      penalizedCount++;
       return `<tr><td style="font-weight:700">${emp.name}</td><td style="color:#818cf8">${emp.code}</td>
-        <td><span style="color:#f87171">⚠️ جزاء يومين (${hours.toFixed(1)} ساعة) — بدون طلب إجازة موافق</span></td></tr>`;
+        <td><span style="color:#f87171">⏳ مستحق جزاء يومين (${hours.toFixed(1)} ساعة) — لسه ما اتسجّلش</span></td></tr>`;
     }).join('');
 
     if(box) box.innerHTML = `
       <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;color:#fbbf24">
-        📊 لقينا ${absentees.length} غايب في ${targetLocale} — ${excusedCount} مبرر بإجازة، ${penalizedCount} اتسجل ليهم جزاء تلقائي.
+        📊 لقينا ${absentees.length} غايب في ${targetLocale} — ${excusedCount} مبرر بإجازة، ${unexcusedCount} مستحقين جزاء (لسه ماسجلناهوش).
+        ${unexcusedCount > 0 ? 'دوس "⚠️ إعطاء الجزاء للغير مبررين" عشان تسجّله فعليًا.' : ''}
       </div>
       <div class="table-container"><table>
         <thead><tr><th>الموظف</th><th>الكود</th><th>النتيجة</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>`;
 
-    if(penalizedCount > 0) UI.toast(`⚠️ تم تسجيل جزاء غياب لـ ${penalizedCount} موظف`, 'warning');
+    if(applyBtn && unexcusedCount > 0){ applyBtn.disabled = false; applyBtn.style.opacity = '1'; }
+  },
+
+  // مرحلة 2: تسجيل الجزاءات فعليًا لآخر فحص (خطوة منفصلة، مش تلقائية)
+  applyPenalties() {
+    if(!hasPermission('all')){ UI.toast('❌ الميزة دي تتطلب صلاحية كل الصلاحيات', 'error'); return; }
+    if(!this._lastResults || !this._lastResults.length){
+      UI.toast('اعمل فحص الأول قبل ما تسجّل الجزاءات', 'error'); return;
+    }
+    const unexcused = this._lastResults.filter(a => !a.excused);
+    if(!unexcused.length){ UI.toast('مفيش حد مستحق جزاء في آخر فحص', 'warning'); return; }
+
+    showConfirm(`تأكيد تسجيل جزاء غياب ليومين لـ ${unexcused.length} موظف؟`, () => {
+      let count = 0;
+      unexcused.forEach(({ emp }) => {
+        const dailyHours = getEmpDailyHours(getEmpData(emp.code));
+        const hours = dailyHours * this.DAYS_PENALTY;
+        AutoDeductionService.createAutoPenalty(emp.code, emp.name, hours, `غياب بدون إذن (${this._lastDateLocale})`, 'absence', this._lastDateLocale);
+        count++;
+      });
+      UI.toast(`✅ تم تسجيل جزاء غياب لـ ${count} موظف`, 'success');
+      const applyBtn = document.getElementById('absenceApplyBtn');
+      if(applyBtn){ applyBtn.disabled = true; applyBtn.style.opacity = '0.5'; }
+      this._lastResults = null;
+      // إعادة الفحص لعرض الحالة المحدّثة
+      this.checkDate();
+    });
   }
 };
 
@@ -13379,6 +13436,12 @@ const FingerprintBazarService = {
   // ── خروج سريع ───────────────────────────────────────────
   registerCheckout(code, name) {
     showConfirm('تسجيل خروج: ' + (name||code) + '؟', () => {
+      const emp = getEmpData(code);
+      if(emp && (emp.employmentStatus === 'resigned' || emp.employmentStatus === 'stopped')){
+        const label = emp.employmentStatus === 'resigned' ? 'مستقيل' : 'موقوف عن العمل';
+        UI.toast(`❌ ${emp.name} (${code}) ${label} — مينفعش يتسجله حضور/انصراف`, 'error');
+        return;
+      }
       const now    = new Date();
       const empRec = this._data().find(a => String(a.code)===String(code) && a.action==='CheckIn');
       this._db().push({
@@ -13845,6 +13908,11 @@ const FingerprintSabahService = {
 
   registerCheckout(code) {
     const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;}
+    if(emp.employmentStatus === 'resigned' || emp.employmentStatus === 'stopped'){
+      const label = emp.employmentStatus === 'resigned' ? 'مستقيل' : 'موقوف عن العمل';
+      UI.toast(`❌ ${emp.name} (${code}) ${label} — مينفعش يتسجله حضور/انصراف`, 'error');
+      return;
+    }
     showConfirm(`تسجيل خروج: ${emp.name}؟`,()=>{
       const now=new Date();
       db.ref('attendance').push({
