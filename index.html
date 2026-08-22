@@ -5310,10 +5310,26 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
   <h3 style="margin-bottom:20px"><span>📋</span> بيانات الموظفين</h3>
 
-  <div style="margin-bottom:14px">
+  <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap">
     <button onclick="EmpDataService.scanHistoricalAttendance()" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px">
       🔍 فحص كل سجلات الحضور القديمة الآن
     </button>
+    <button onclick="EmpDataService.scanInactiveEmployees()" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);color:#f87171;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700;font-size:13px">
+      🚫 فحص الموظفين الغائبين 5 أيام فأكثر
+    </button>
+  </div>
+
+  <div id="inactiveEmployeesBox" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:16px;margin-bottom:18px">
+    <h4 style="margin:0 0 10px;color:#f87171">🚫 موظفين مالهمش حضور من 5 أيام فأكثر (<span id="inactiveEmployeesCount">0</span>)</h4>
+    <p style="font-size:12px;color:#94a3b8;margin-bottom:10px">
+      الموظفين دول مسجّلينش أي حضور أو انصراف من 5 أيام على الأقل. لو حد منهم استقال أو موقوف فعليًا، اضغط الزرار المناسب جنبه مباشرة من غير ما تفتح تعديل بياناته.
+    </p>
+    <div class="table-container" style="max-height:320px">
+      <table>
+        <thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>آخر حضور</th><th>إجراء سريع</th></tr></thead>
+        <tbody id="inactiveEmployeesBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div id="missingScheduleBox" style="display:none;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.35);border-radius:10px;padding:16px;margin-bottom:18px">
@@ -7867,7 +7883,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.25",
+        appBuild: "2026-08-12.26",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -11781,6 +11797,83 @@ const EmpDataService = {
     db.ref().update(updates).then(() => {
       UI.toast(`⚠️ لقينا ${codes.length} موظف بدون معاد رسمي محدد في السجل بأكمله`, 'warning');
       this.renderMissingSchedule();
+    });
+  },
+
+  // فحص الموظفين اللي مالهمش أي حضور/انصراف من 5 أيام فأكثر
+  scanInactiveEmployees() {
+    UI.toast('🔍 جارٍ فحص الموظفين الغائبين...', 'info');
+    const INACTIVE_DAYS = 5;
+    const now = TimeUtils.now();
+    const cutoff = now - (INACTIVE_DAYS * 24 * 60 * 60 * 1000);
+
+    // آخر ظهور فعلي لكل موظف (أي حركة CheckIn أو CheckOut)
+    const lastSeen = {};
+    State.attendance.forEach(a => {
+      if(!a.code) return;
+      const code = String(a.code);
+      if(!lastSeen[code] || (a.timestamp||0) > lastSeen[code]) lastSeen[code] = a.timestamp || 0;
+    });
+
+    const activeEmployees = State.employees.filter(e => {
+      const es = getEmpData(e.code)?.employmentStatus;
+      return es !== 'resigned' && es !== 'stopped';
+    });
+
+    const inactive = activeEmployees.map(emp => {
+      const ts = lastSeen[String(emp.code)] || 0;
+      return { emp, lastTs: ts };
+    }).filter(x => x.lastTs < cutoff)
+      .sort((a,b) => a.lastTs - b.lastTs);
+
+    const box = document.getElementById('inactiveEmployeesBox');
+    const body = document.getElementById('inactiveEmployeesBody');
+    const countEl = document.getElementById('inactiveEmployeesCount');
+    if(!box || !body) return;
+
+    if(!inactive.length){
+      box.style.display = 'block';
+      if(countEl) countEl.textContent = 0;
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">كل الموظفين النشطين ليهم حضور خلال آخر 5 أيام ✅</td></tr>';
+      return;
+    }
+
+    box.style.display = 'block';
+    if(countEl) countEl.textContent = inactive.length;
+
+    body.innerHTML = inactive.map(({ emp, lastTs }) => {
+      const lastSeenText = lastTs > 0 ? new Date(lastTs).toLocaleDateString('ar-EG') : 'لا يوجد حضور خالص';
+      return `<tr>
+        <td style="font-weight:700">${emp.name}</td>
+        <td style="color:#818cf8">${emp.code}</td>
+        <td style="font-size:12px">${getEmpJob(emp.code)}</td>
+        <td style="font-size:12px;color:#fbbf24">${lastSeenText}</td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button onclick="EmpDataService.quickSetEmploymentStatus('${emp.code}','${(emp.name||'').replace(/'/g,'')}','resigned')"
+              style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);color:#f87171;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">🚪 استقالة</button>
+            <button onclick="EmpDataService.quickSetEmploymentStatus('${emp.code}','${(emp.name||'').replace(/'/g,'')}','stopped')"
+              style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.35);color:#fbbf24;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700">⏸️ وقف عن العمل</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  },
+
+  // تغيير حالة عمل الموظف مباشرة من قائمة الغائبين (من غير فتح فورم التعديل)
+  quickSetEmploymentStatus(code, name, type) {
+    const labelMap = { resigned: 'استقالة', stopped: 'وقف عن العمل' };
+    showConfirm(`تأكيد "${labelMap[type]}" للموظف ${name}؟`, () => {
+      db.ref('empData/' + code).update({
+        employmentStatus: type,
+        employmentStatusAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+        employmentStatusBy: State.currentUser?.username || '-'
+      }).then(() => {
+        UI.toast(`✅ تم تحديث حالة ${name} إلى "${labelMap[type]}"`, 'success');
+        SystemLog.add('EmploymentStatus', code, labelMap[type]);
+        // إعادة فحص القائمة عشان الموظف ده يختفي منها فورًا
+        this.scanInactiveEmployees();
+      });
     });
   },
 
