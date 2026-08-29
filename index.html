@@ -2368,12 +2368,12 @@ onclick="TransferService.exportExcel()">
                 <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">الكمية</label>
                 <input id="productQuantity" type="number" placeholder="الكمية" style="width:100%;box-sizing:border-box">
               </div>
-              <div>
+              <div class="price-col">
                 <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">سعر التكلفة</label>
                 <input type="text" inputmode="decimal" id="productCost" placeholder="0.00" style="width:100%;box-sizing:border-box"
                   oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')">
               </div>
-              <div>
+              <div class="price-col">
                 <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">سعر البيع</label>
                 <input type="text" inputmode="decimal" id="productPrice" placeholder="0.00" style="width:100%;box-sizing:border-box"
                   oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')">
@@ -3902,6 +3902,7 @@ function bindPricesEvents() {
 <th>الدخول</th>
 <th>الخروج</th>
 <th>ساعات العمل</th>
+<th>طريقة التسجيل</th>
 <th>المستخدم</th>
 <th class="editColumnHeader edit-col">تعديل</th>
 <th class="editColumnHeader edit-col">حذف</th>
@@ -3921,7 +3922,7 @@ function bindPricesEvents() {
                 <div class="table-container">
                     <table><thead><tr>
                       <th>الموظف</th><th>الكود</th><th>الوظيفة</th>
-                      <th>وقت الدخول</th><th>التأخير</th><th>مدة العمل</th><th>خروج سريع</th>
+                      <th>وقت الدخول</th><th>طريقة التسجيل</th><th>التأخير</th><th>مدة العمل</th><th>خروج سريع</th>
                     </tr></thead><tbody id="insideEmployeesBody"></tbody></table>
                 </div>
             </div>
@@ -5401,6 +5402,16 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
         <label style="font-size:12px;color:var(--txt2)">رقم البطاقة</label>
         <input id="newEmpNationalId" placeholder="رقم البطاقة"
           style="width:100%;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--txt2)">🆔 معرّف الباركود (لكارنيه الموظف)</label>
+        <div style="display:flex;gap:6px">
+          <input id="newEmpBarcodeId" placeholder="لسه ماتولّدش" readonly
+            style="flex:1;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:#34d399;font-family:monospace;font-weight:700;box-sizing:border-box">
+          <button type="button" id="genBarcodeIdBtn" onclick="EmpDataService.generateBarcodeId()"
+            style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:8px;padding:0 12px;cursor:pointer;font-family:inherit;font-size:12px;white-space:nowrap">🔄 توليد</button>
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">بيتولّد مرة واحدة بس ومينفعش يتغيّر بعد كده — حوّله لباركود واطبعه على كارنيه الموظف</div>
       </div>
       <div>
         <label style="font-size:12px;color:var(--txt2)">رقم الهاتف</label>
@@ -7917,7 +7928,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.33",
+        appBuild: "2026-08-12.36",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -8145,11 +8156,17 @@ const AttendanceService = {
 
         let action = document.getElementById("attAction").value
 
-        // البحث عن الموظف من empData (المصدر الوحيد)
+        // البحث عن الموظف من empData (المصدر الوحيد) — بيقبل الكود العادي أو معرّف الباركود (barcodeId)
         let emp = getEmpData(code) ||
             Object.values(State.empData||{}).find(e =>
                 e && (String(e.code)===code || (e.name&&e.name.includes(code)))
             )
+
+        // نحدد طريقة التسجيل قبل ما نستبدل الكود المكتوب/المسكون بكود الموظف الحقيقي
+        let regMethod = (emp && emp.barcodeId && emp.barcodeId === code) ? "id" : "code"
+
+        // بعد إيجاد الموظف، نستخدم كوده الحقيقي في كل الفحوصات الجاية (حتى لو اتكتب/اتسكن بمعرّف الباركود)
+        if(emp) code = String(emp.code)
 
         // آخر حركة للموظف
         let lastAction = State.attendance
@@ -8189,7 +8206,8 @@ const AttendanceService = {
             date: now.toLocaleDateString("ar-EG"),
             timeDisplay: now.toLocaleTimeString("ar-EG"),
             timestamp: firebase.database.ServerValue.TIMESTAMP,
-            user: State.currentUser.username
+            user: State.currentUser.username,
+            regMethod: regMethod
         }
 
         // تسجيل الحركة
@@ -8298,7 +8316,8 @@ function attQuickCheckout(code, name) {
       date: now.toLocaleDateString("ar-EG"),
       timeDisplay: now.toLocaleTimeString("ar-EG"),
       timestamp: firebase.database.ServerValue.TIMESTAMP,
-      user: State.currentUser?.username || "-"
+      user: State.currentUser?.username || "-",
+      regMethod: "quick"
     }).then(()=>{
       UI.toast(`👋 تم تسجيل خروج ${name}`, "warning");
       SystemLog.add("CheckOut", code, name);
@@ -8408,12 +8427,15 @@ function attUpdateEmpPreview(code) {
 
         exportExcel() {
             if (!checkExcelPermission()) return;
+            const methodLabel = (m) => m==="id" ? "ID" : m==="quick" ? "زرار سريع" : m==="code" ? "كود" : "-";
             // نفس البيانات المعروضة بالظبط (نفس البحث + نفس فلتر الفترة/التاريخ/الوظيفة/الموظف)
             let rows = this._getFilteredRows().map(r => ({
               'الموظف': r.name, 'الكود': r.code, 'الوظيفة': getEmpJob(r.code),
               'التاريخ': r.date,
               'الدخول': r.checkIn?.timeDisplay||"-", 'الخروج': r.checkOut?.timeDisplay||"-",
-              'ساعات_العمل': (r.checkIn&&r.checkOut)?TimeUtils.format(r.checkOut.timestamp-r.checkIn.timestamp):"-"
+              'ساعات_العمل': (r.checkIn&&r.checkOut)?TimeUtils.format(r.checkOut.timestamp-r.checkIn.timestamp):"-",
+              'طريقة تسجيل الدخول': r.checkIn ? methodLabel(r.checkIn.regMethod) : "-",
+              'طريقة تسجيل الخروج': r.checkOut ? methodLabel(r.checkOut.regMethod) : "-"
             }));
             let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "attendance");
@@ -8482,6 +8504,8 @@ function attUpdateEmpPreview(code) {
                 if(!match) return false;
                 return (parseInt(match[1])*60+parseInt(match[2]))-(eh*60+em)>5;
               })();
+              const methodLabel = (m) => m==="id" ? '🆔 ID' : m==="quick" ? '⚡ سريع' : m==="code" ? '🔢 كود' : '-';
+              const methodCell = `${r.checkIn ? 'دخول: '+methodLabel(r.checkIn.regMethod) : ''}${r.checkIn&&r.checkOut ? '<br>' : ''}${r.checkOut ? 'خروج: '+methodLabel(r.checkOut.regMethod) : ''}` || '-';
               html+=`<tr>
 <td style="font-weight:700">${r.name}</td>
 <td style="color:#818cf8">${r.code}</td>
@@ -8490,6 +8514,7 @@ function attUpdateEmpPreview(code) {
 <td style="color:#34d399;font-weight:700">${r.checkIn?.timeDisplay||"-"}${isLate?` <span style="color:#f59e0b;font-size:11px">⚠️متأخر</span>`:''}</td>
 <td style="color:#f87171">${r.checkOut?.timeDisplay||"-"}</td>
 <td style="color:${workMs>0?'#818cf8':'#64748b'};font-weight:700">${work}</td>
+<td style="font-size:11px;color:#94a3b8">${methodCell}</td>
 <td style="font-size:12px;color:#64748b">${r.checkIn?.user||r.checkOut?.user||"-"}</td>
 <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick='openEditAttendance(${JSON.stringify({checkIn:r.checkIn,checkOut:r.checkOut})})'>✏</button>`:""}
 </td>
@@ -8589,6 +8614,9 @@ let emp = getEmpData(code) ||
     Object.values(State.empData||{}).find(e =>
         e && (String(e.code)===code || (e.name&&e.name.includes(code)))
     );
+
+// بعد إيجاد الموظف، نستخدم كوده الحقيقي في كل الفحوصات الجاية (حتى لو اتكتب/اتسكن بمعرّف الباركود)
+if(emp) code = String(emp.code);
 
 let lastAttendance = State.attendance
 .filter(a => String(a.code) === String(code))
@@ -10358,11 +10386,9 @@ document.querySelectorAll("table").forEach(t => {
   _canEdit ? t.classList.remove("no-edit-perm") : t.classList.add("no-edit-perm")
 })
 
-// إخفاء أعمدة أسعار التكلفة/البيع في صفحة التواريخ بناءً على صلاحية رؤية الأسعار
+// إخفاء أعمدة/خانات أسعار التكلفة والبيع (في الجدول وفورم إضافة الصنف) بناءً على صلاحية رؤية الأسعار
 const _canViewPrices = perms.includes("viewPrices") || perms.includes("all")
-document.querySelectorAll("table").forEach(t => {
-  _canViewPrices ? t.classList.remove("no-price-perm") : t.classList.add("no-price-perm")
-})
+_canViewPrices ? document.body.classList.remove("no-price-perm") : document.body.classList.add("no-price-perm")
 
 /* إخفاء كروت العدادات أعلى الشاشة حسب الصلاحيات */
 document.querySelectorAll("[data-perm]").forEach(card => {
@@ -11837,9 +11863,9 @@ function getEmpData(code) {
     if(State.empData[c]) return State.empData[c];
     if(n !== c && State.empData[n]) return State.empData[n];
     
-    // بحث في القيم عبر code field
+    // بحث في القيم عبر code field أو معرّف الباركود (barcodeId)
     const vals = Object.values(State.empData);
-    const found = vals.find(e => e && (String(e.code)===c || String(e.code)===n));
+    const found = vals.find(e => e && (String(e.code)===c || String(e.code)===n || (e.barcodeId && e.barcodeId === c)));
     if(found) return found;
     
     // DEBUG: نطبع مفاتيح empData
@@ -12338,6 +12364,15 @@ const EmpDataService = {
     setVal('newEmpCheckOut',  d.checkOut || '');
     this.calcNewHours();
 
+    // معرّف الباركود — بيتولد مرة واحدة بس، الزرار بيتقفل بعد كده
+    const bcInput = document.getElementById('newEmpBarcodeId');
+    const bcBtn   = document.getElementById('genBarcodeIdBtn');
+    if(bcInput) bcInput.value = d.barcodeId || '';
+    if(bcBtn){
+      if(d.barcodeId){ bcBtn.disabled = true; bcBtn.style.opacity = '0.5'; bcBtn.textContent = '✅ متولّد'; }
+      else { bcBtn.disabled = !id; bcBtn.style.opacity = id ? '1' : '0.5'; bcBtn.textContent = '🔄 توليد'; }
+    }
+
     const title = document.getElementById('empFormTitle');
     if(title) title.textContent = id ? '✏️ تعديل موظف' : '➕ إضافة موظف جديد';
     form.style.display = 'block';
@@ -12356,6 +12391,44 @@ const EmpDataService = {
         statusBox.style.display = 'none';
       }
     }
+  },
+
+  // توليد معرّف باركود فريد وثابت للموظف (مرة واحدة بس، مينفعش يتغيّر بعد كده)
+  generateBarcodeId() {
+    const code = document.getElementById('newEmpCode')?.value.trim();
+    const name = document.getElementById('newEmpName')?.value || code;
+    if(!code){ UI.toast('احفظ الموظف الأول قبل توليد معرّف الباركود', 'error'); return; }
+
+    const existing = getEmpData(code);
+    if(existing?.barcodeId){ UI.toast('الموظف ده عنده معرّف باركود بالفعل ومينفعش يتغيّر', 'error'); return; }
+
+    showConfirm(`توليد معرّف باركود دائم لـ ${name}؟ (مينفعش يتغيّر بعد كده)`, () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      const makeId = () => {
+        let s = '';
+        for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
+        return 'EMP-' + s;
+      };
+
+      // نتأكد إن الـID مش مستخدم قبل كده لأي موظف تاني (احتمال التكرار ضعيف جدًا لكن بنتأكد)
+      const isTaken = (id) => Object.values(State.empData||{}).some(e => e && e.barcodeId === id);
+      let newId = makeId();
+      let tries = 0;
+      while(isTaken(newId) && tries < 10){ newId = makeId(); tries++; }
+
+      db.ref('empData/' + code).update({
+        barcodeId: newId,
+        barcodeIdGeneratedAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+        barcodeIdGeneratedBy: State.currentUser?.username || '-'
+      }).then(() => {
+        const bcInput = document.getElementById('newEmpBarcodeId');
+        const bcBtn   = document.getElementById('genBarcodeIdBtn');
+        if(bcInput) bcInput.value = newId;
+        if(bcBtn){ bcBtn.disabled = true; bcBtn.style.opacity = '0.5'; bcBtn.textContent = '✅ متولّد'; }
+        UI.toast(`✅ اتولّد معرّف الباركود: ${newId} — حوّله لباركود واطبعه على كارنيه ${name}`, 'success');
+        SystemLog.add('GenerateBarcodeId', code, newId);
+      });
+    });
   },
 
   calcNewHours() {
@@ -12453,10 +12526,12 @@ const EmpDataService = {
         // إغلاق الفورم وتحديث الجدول
         document.getElementById('empAddForm').style.display = 'none';
         ['newEmpCode','newEmpName','newEmpJob','newEmpSalary','newEmpNationalId',
-         'newEmpPhone','newEmpCheckIn','newEmpCheckOut','editingEmpId'].forEach(fid => {
+         'newEmpPhone','newEmpCheckIn','newEmpCheckOut','newEmpBarcodeId','editingEmpId'].forEach(fid => {
           const el = document.getElementById(fid);
           if(el && el.type !== 'file') el.value='';
         });
+        const genBtn = document.getElementById('genBarcodeIdBtn');
+        if(genBtn){ genBtn.disabled = true; genBtn.style.opacity = '0.5'; genBtn.textContent = '🔄 توليد'; }
         const wh = document.getElementById('newEmpWorkHours');
         if(wh) wh.textContent = '-- ساعة';
         this.render();
@@ -14997,11 +15072,13 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
               }
               const canEdit = hasPermission("edit")||hasPermission("all");
               const canCheckout = hasPermission("attendance")||hasPermission("edit")||hasPermission("all");
+              const methodLabel = a.regMethod==="id" ? '🆔 ID' : a.regMethod==="quick" ? '⚡ سريع' : a.regMethod==="code" ? '🔢 كود' : '-';
               html+=`<tr>
 <td style="font-weight:700">${a.name}</td>
 <td style="color:#818cf8">${a.code}</td>
 <td style="font-size:12px">${getEmpJob(a.code)}</td>
 <td style="color:#34d399">${a.timeDisplay}</td>
+<td style="font-size:11px;color:#94a3b8">${methodLabel}</td>
 <td>${lateStr}</td>
 <td style="color:${durColor};font-weight:700">${TimeUtils.format(duration)}</td>
 <td>${canCheckout?`<button onclick="attQuickCheckout('${a.code}','${a.name}')"
@@ -15011,7 +15088,7 @@ if(qtyEl)   qtyEl.innerText   = totalQty;
 </td>
 </tr>`;
             });
-            body.innerHTML = html || '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b">لا يوجد موظفون داخل العمل</td></tr>';
+            body.innerHTML = html || '<tr><td colspan="8" style="text-align:center;padding:20px;color:#64748b">لا يوجد موظفون داخل العمل</td></tr>';
         },
         renderSystemLogs() {
             let body = document.getElementById("systemLogsBody"); if (!body) return;
@@ -15953,11 +16030,12 @@ el.value = ""
         }
     };
     // ========================= دالة تصدير الموظفين داخل العمل =========================
-    function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); let rows = inside.map(a => ({
+    function exportInsideExcel() { if (!checkExcelPermission()) return; let lastActions = {}; State.attendance.forEach(a => { if (!lastActions[a.code] || a.timestamp > lastActions[a.code].timestamp) lastActions[a.code] = a; }); let inside = Object.values(lastActions).filter(a => a.action === "CheckIn"); const methodLabel = (m) => m==="id" ? "ID" : m==="quick" ? "زرار سريع" : m==="code" ? "كود" : "-"; let rows = inside.map(a => ({
 الموظف: a.name,
 الكود: a.code,
 الوظيفة: getEmpJob(a.code),
 وقت_الدخول: a.timeDisplay,
+طريقة_التسجيل: methodLabel(a.regMethod),
 مدة_العمل: TimeUtils.format(TimeUtils.now() - a.timestamp)
 })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "inside"); XLSX.writeFile(wb, "inside_employees.xlsx");
 SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير داخل العمل") }
