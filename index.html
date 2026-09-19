@@ -7934,6 +7934,8 @@ const NotificationService = {
   _messaging: null,
   _boundUser: null,
   _initialized: false,
+  _bindPromise: null,
+  _lastBoundUserId: null,
 
   supported() {
     return !!(
@@ -8071,20 +8073,56 @@ const NotificationService = {
     this._boundUser = user || null;
     const btn = document.getElementById("notificationBtn");
     if (btn) btn.style.display = user ? "inline-block" : "none";
+
     if (!user || !this.supported()) {
       this.setButtonState("idle");
+      this._lastBoundUserId = null;
       return;
     }
 
+    const userId = String(user.id || "");
+    const storedOwner = localStorage.getItem(this.OWNER_STORAGE);
+    const storedToken = localStorage.getItem(this.TOKEN_STORAGE);
+
+    // مهم: صلاحية الإشعارات محفوظة على مستوى المتصفح ولا تختفي مع Refresh.
+    // لذلك نعرض الحالة المفعلة فورًا بدل إعادة مطالبة المستخدم كل مرة.
     if (Notification.permission === "granted") {
-      try {
-        await this.registerAndStore(user, false);
-        this.setButtonState("enabled");
-      } catch (e) {
-        console.warn("[FCM] silent registration failed", e);
-        this.setButtonState("idle");
+      this.setButtonState("enabled");
+      this.attachForegroundListener();
+
+      // لو الـToken محفوظ لهذا المستخدم، لا نطلب أي تفعيل جديد.
+      // نعمل فقط مزامنة صامتة في الخلفية للتأكد أن Firebase ما زال يعطي نفس/Token جديد.
+      if (storedToken && storedOwner === userId) {
+        if (this._lastBoundUserId === userId && this._bindPromise) return this._bindPromise;
+        this._lastBoundUserId = userId;
+        this._bindPromise = this.registerAndStore(user, false)
+          .then(() => this.setButtonState("enabled"))
+          .catch((e) => {
+            // لا نحول الحالة إلى "تفعيل" لمجرد فشل المزامنة الصامتة؛
+            // إذن المتصفح ما زال مفعّلًا، فنُبقي الزر على مفعّل.
+            console.warn("[FCM] silent token refresh failed", e);
+            this.setButtonState("enabled");
+          })
+          .finally(() => { this._bindPromise = null; });
+        return this._bindPromise;
       }
-    } else if (Notification.permission === "denied") {
+
+      // الصلاحية مفعلة لكن لا يوجد Token محلي (مثلاً بعد تنظيف بيانات الموقع).
+      // نعيد إنشاء الـToken تلقائيًا بدون إظهار نافذة إذن.
+      if (this._lastBoundUserId === userId && this._bindPromise) return this._bindPromise;
+      this._lastBoundUserId = userId;
+      this._bindPromise = this.registerAndStore(user, false)
+        .then(() => this.setButtonState("enabled"))
+        .catch((e) => {
+          console.warn("[FCM] silent registration failed", e);
+          // permission=granted يظل معناه أن المستخدم فعّل الإشعارات بالفعل.
+          this.setButtonState("enabled");
+        })
+        .finally(() => { this._bindPromise = null; });
+      return this._bindPromise;
+    }
+
+    if (Notification.permission === "denied") {
       this.setButtonState("denied");
     } else {
       this.setButtonState("idle");
@@ -8158,6 +8196,8 @@ const NotificationService = {
     localStorage.removeItem(this.TOKEN_STORAGE);
     localStorage.removeItem(this.OWNER_STORAGE);
     this._boundUser = null;
+    this._lastBoundUserId = null;
+    this._bindPromise = null;
     this.setButtonState("idle");
     const btn = document.getElementById("notificationBtn");
     if (btn) btn.style.display = "none";
