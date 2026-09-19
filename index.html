@@ -2756,6 +2756,8 @@ onclick="TransferService.exportExcel()">
     <button class="ff"    data-cf="baz_hi"        onclick="setCF('baz_hi')">📦 البازار أعلى</button>
     <button class="ff"    data-cf="cai_hi"        onclick="setCF('cai_hi')">🏙 القاهرة أعلى</button>
     <button class="ff"    data-cf="same"          onclick="setCF('same')">✅ متطابقة</button>
+    <button class="ff"    data-cf="date_match"    onclick="setCF('date_match')">📅 نفس شهر التعديل</button>
+    <button class="ff"    data-cf="loss"          onclick="setCF('loss')">⚠️ بيع بخسارة</button>
     <button class="ff"    data-cf="all"           onclick="setCF('all')">🌐 الكل</button>
     <input class="fsrch" id="fsrch" placeholder="🔍 ابحث عن صنف أو شركة..." oninput="renderCmp()">
     <span class="fcnt" id="fcnt"></span>
@@ -3243,6 +3245,16 @@ function renderResult(result, bc) {
 /* =====================================================
    COMPARE TABLE
 ===================================================== */
+// تحويل آمن للتاريخ لسطر "شهر/سنة" (يقبل Date object أو نص تاريخ خام من Firebase)
+function _cmpDayStr(v){
+  if(!v) return null;
+  const d = (v instanceof Date) ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : (d.getFullYear()+'-'+d.getMonth());
+}
+// هل الصنف بيتباع بخسارة (سعر البيع أقل من سعر التكلفة) في أي فرع
+function _cmpIsLoss(p){
+  return !!(p && p.sellPrice>0 && p.costPrice>0 && p.sellPrice < p.costPrice);
+}
 function renderCmp() {
   const rows = document.getElementById('crows');
   const cf   = S.getCF();
@@ -3258,6 +3270,8 @@ function renderCmp() {
   else if(cf==='baz_hi') d = d.filter(r=>r.higher==='بازار'&&r.sc>0);
   else if(cf==='cai_hi') d = d.filter(r=>r.higher==='قاهرة'&&r.sb>0);
   else if(cf==='same')   d = d.filter(r=>r.diff===0&&r.sb>0&&r.sc>0);
+  else if(cf==='date_match') d = d.filter(r=>{ const db=_cmpDayStr(r.pb&&r.pb.modifiedAt), dc=_cmpDayStr(r.pc&&r.pc.modifiedAt); return db&&dc&&db===dc; });
+  else if(cf==='loss') d = d.filter(r=> _cmpIsLoss(r.pb) || _cmpIsLoss(r.pc));
 
   if(q) d = d.filter(r=>r.name.toLowerCase().includes(q)||r.bc.includes(q)||r.vB.toLowerCase().includes(q)||r.vC.toLowerCase().includes(q));
 
@@ -3287,7 +3301,7 @@ function renderCmp() {
     return `<span class="dpill dpc">🏙 +${val}</span>`;
   };
 
-  rows.innerHTML = d.slice(0,250).map(r=>`
+  rows.innerHTML = d.map(r=>`
     <div class="crow" onclick="jumpS('${r.bc}')">
       <div class="ctd nm"><span class="nm1">${r.name.length>38?r.name.substring(0,38)+'…':r.name}</span><span class="nm2">${r.bc}</span></div>
       <div class="ctd num nb">${r.sb?fmt(r.sb):'<span style="color:var(--muted)">—</span>'}</div>
@@ -5028,7 +5042,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   <div class="table-container">
     <table>
       <thead><tr>
-        <th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>سبب الإعفاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th>
+        <th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>السبب الأصلي</th><th>الساعات</th><th>تاريخ الجزاء</th><th>سبب الإعفاء</th><th>أُعفي بواسطة</th><th>وقت الإعفاء</th><th>الإجراء</th>
       </tr></thead>
       <tbody id="penaltyExemptLogBody"></tbody>
     </table>
@@ -5055,7 +5069,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
         <label style="font-size:13px;color:var(--txt2)">كود الموظف أو اسمه</label>
         <div style="position:relative">
           <input id="incEmpCode" placeholder="ابحث بالكود أو الاسم"
-            oninput="onIncEmpInput(this.value)"
+            oninput="autoMaskIdField(this); onIncEmpInput(this.value)"
             style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box">
           <div id="incEmpSuggestions" style="position:absolute;background:var(--bg-suggestions);width:100%;border:1px solid var(--border-light);border-radius:8px;display:none;max-height:180px;overflow-y:auto;z-index:100;top:100%;right:0"></div>
         </div>
@@ -5568,6 +5582,16 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 <span>✏️</span>
 <span>التعديل</span>
 </label> 
+                   <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="delete" hidden>
+<span>🗑️</span>
+<span>الحذف</span>
+</label> 
+                   <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="archive" hidden>
+<span>🗄️</span>
+<span>الأرشيف</span>
+</label> 
                     
                     <label class="permission-card"><input type="checkbox" id="selectAllPerms" value="all" hidden><span>👑</span><span>كل الصلاحيات</span></label>
                 </div>
@@ -5701,6 +5725,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 
           <div class="glass-card" style="padding:20px">
             <h3 style="margin-bottom:14px">📋 سجل عمليات الأرشفة السابقة</h3>
+            <div id="archiveLogsDiag" style="font-size:12px;color:#94a3b8;margin-bottom:10px"></div>
             <div class="table-container">
               <table>
                 <thead><tr><th>التاريخ</th><th>المستخدم</th><th>نوع البيانات</th><th>عدد السجلات</th><th>النطاق</th><th>الحالة</th></tr></thead>
@@ -6121,6 +6146,8 @@ onclick="closeTransferEdit()">
 </label>
         
         <label><input type="checkbox" value="edit"> التعديل</label>
+        <label><input type="checkbox" value="delete"> الحذف</label>
+        <label><input type="checkbox" value="archive"> الأرشيف</label>
         
         <label><input type="checkbox" value="breaks"> الاستئذانات</label>
         <label><input type="checkbox" value="vehicles"> العربيات</label>
@@ -6271,7 +6298,7 @@ function setAnalyticsFilter(btn, range) {
 // إخفاء/إظهار أعمدة التعديل والحذف
 // ════════════════════════════════════════════
 function applyEditColVisibility() {
-  const canEdit = hasPermission("edit") || hasPermission("all");
+  const canEdit = hasPermission("edit") || hasPermission("delete") || hasPermission("all");
   const main = document.getElementById("dashboard");
   if(!main) return;
   if(canEdit) {
@@ -6472,7 +6499,12 @@ const ArchiveService = {
         UI.toast(`🗑️ جارٍ الحذف... ${deleted}/${valid.length}`,'info');
       }
       try {
-        await db.ref('archiveLogs').push({col,colName,count:deleted,range:range?.label||'-',deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),timestamp:Date.now()});
+        const logEntry = {col,colName,count:deleted,range:range?.label||'-',deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),timestamp:Date.now()};
+        const ref = await db.ref('archiveLogs').push(logEntry);
+        console.log('[Archive] تم تسجيل عملية الأرشفة بنجاح — المفتاح:', ref.key, logEntry);
+        // نضيف السطر فورًا على الشاشة من غير ما ننتظر قراءة جديدة من فايربيز
+        // (عشان نضمن إن المستخدم يشوف نتيجة العملية فورًا حتى لو حصل أي تأخير/مشكلة في القراءة بعد كده)
+        this._prependLogRow(logEntry);
       } catch(logErr) {
         console.error('[Archive] فشل تسجيل عملية الأرشفة في السجل:', logErr);
         UI.toast('⚠️ تم الحذف لكن فشل تسجيله في سجل الأرشفة: '+logErr.message,'warning');
@@ -6485,24 +6517,53 @@ const ArchiveService = {
     } catch(err) { UI.toast('❌ خطأ في الحذف: '+err.message,'error'); }
   },
 
+  // إضافة سطر جديد فورًا في جدول السجل على الشاشة (بدون انتظار قراءة جديدة من فايربيز)
+  _prependLogRow(l) {
+    const tbody=document.getElementById('archiveLogsBody');
+    const diag=document.getElementById('archiveLogsDiag');
+    if(!tbody) return;
+    const emptyRow = tbody.querySelector('tr td[colspan]');
+    if(emptyRow) tbody.innerHTML = '';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="font-size:11px">${l.deletedAt||'-'}</td><td style="font-weight:700">${l.deletedBy||'-'}</td><td>${l.colName||l.col||'-'}</td><td style="text-align:center;color:#f87171;font-weight:700">${l.count||0}</td><td style="font-size:11px">${l.range||'-'}</td><td><span class="badge badge-success">✅ تم</span></td>`;
+    tbody.insertBefore(tr, tbody.firstChild);
+    if(diag) {
+      const cur = parseInt(diag.dataset.count||'0',10);
+      const newTotal = cur+1;
+      diag.dataset.count = newTotal;
+      diag.textContent = `✅ إجمالي ${newTotal.toLocaleString('ar-EG')} عملية أرشفة مسجّلة في قاعدة البيانات`;
+    }
+  },
+
   loadArchiveLogs() {
     const tbody=document.getElementById('archiveLogsBody');
+    const diag=document.getElementById('archiveLogsDiag');
     if(tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">🔍 جارٍ التحميل...</td></tr>';
+    if(diag) diag.textContent = '';
     // بنجيب كل السجلات من غير أي فلترة/ترتيب من فايربيز (orderByChild ممكن يحتاج index
     // وساعات بيدي نتايج قديمة أو ناقصة)، وبنرتب ونقتص أول 50 في الجافاسكريبت نفسه
     db.ref('archiveLogs').once('value', snap => {
       const tbody=document.getElementById('archiveLogsBody');
+      const diag=document.getElementById('archiveLogsDiag');
       if(!tbody) return;
       const logs=[];
       snap.forEach(c=>logs.push({id:c.key,...c.val()}));
       logs.sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
       const top = logs.slice(0,50);
       console.log('[Archive] عدد سجلات الأرشفة الموجودة فعليًا في قاعدة البيانات:', logs.length);
+      if(diag) {
+        diag.dataset.count = logs.length;
+        diag.textContent = logs.length
+          ? `✅ إجمالي ${logs.length.toLocaleString('ar-EG')} عملية أرشفة مسجّلة في قاعدة البيانات (بيتعرض أحدث ${top.length})`
+          : `⚠️ لا توجد أي عملية أرشفة مسجّلة في قاعدة البيانات (المسار archiveLogs فاضي فعليًا).`;
+      }
       tbody.innerHTML=top.length?top.map(l=>`<tr><td style="font-size:11px">${l.deletedAt||'-'}</td><td style="font-weight:700">${l.deletedBy||'-'}</td><td>${l.colName||l.col||'-'}</td><td style="text-align:center;color:#f87171;font-weight:700">${l.count||0}</td><td style="font-size:11px">${l.range||'-'}</td><td><span class="badge badge-success">✅ تم</span></td></tr>`).join('')
       :'<tr><td colspan="6" style="text-align:center;padding:20px;color:#64748b">لا توجد عمليات أرشفة سابقة</td></tr>';
     }, err => {
       console.error('[Archive] فشل تحميل سجل عمليات الأرشفة:', err);
       const tbody=document.getElementById('archiveLogsBody');
+      const diag=document.getElementById('archiveLogsDiag');
+      if(diag) diag.innerHTML = `<span style="color:#f87171">❌ فشل الاتصال بقاعدة البيانات: ${err.message} (كود: ${err.code||'-'})</span>`;
       if(tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:#f87171">❌ فشل تحميل السجل: ${err.message}</td></tr>`;
       UI.toast('❌ فشل تحميل سجل الأرشفة: '+err.message,'error');
     });
@@ -7566,6 +7627,45 @@ function confirmExemptReason(){
   closeExemptReasonModal()
 }
 
+// إرجاع جزاء من سجل الإعفاءات (يلغي الإعفاء ويعيد تسجيل الجزاء) — لصاحب صلاحية "كل الصلاحيات" فقط
+function undoPenaltyExemption(logId){
+  if(!hasPermission("all")){
+    UI.toast("❌ إرجاع الجزاء متاح فقط لمن يملك صلاحية كل الصلاحيات", "error");
+    return;
+  }
+  const entry = (State.penaltyExemptLog||[]).find(x => x.id === logId);
+  if(!entry){ UI.toast("❌ لم يتم العثور على سجل الإعفاء", "error"); return; }
+
+  showConfirm(`هل تريد إرجاع جزاء "${entry.name}" (${entry.hours} ساعة) وإلغاء هذا الإعفاء؟`, () => {
+    const penalty = {
+      code: String(entry.code), name: entry.name,
+      hours: Number(entry.hours) || 0,
+      manager: "تلقائي",
+      reason: entry.reason || "-",
+      date: entry.penaltyDate,
+      time: new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"),
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+      createdBy: "النظام (تلقائي)",
+      auto: true,
+      autoType: entry.autoType || ""
+    };
+
+    db.ref("penalties").push(penalty).then(() => {
+      if(entry.autoType && entry.dateKey){
+        db.ref("autoDeductExemptions/" + `${entry.code}_${entry.dateKey}_${entry.autoType}`).remove();
+      }
+      if(entry.autoType === "late" && entry.dateKey){
+        const rec = State.attendance.find(a => String(a.code) === String(entry.code) && a.date === entry.dateKey && a.action === "CheckIn");
+        if(rec) db.ref("attendance/" + rec.id).update({ latePermission: false });
+      }
+      db.ref("penaltyExemptLog/" + logId).remove().then(() => {
+        UI.toast(`✅ تم إرجاع الجزاء لـ ${entry.name} وإلغاء الإعفاء`, "success");
+        SystemLog.add("PenaltyExemptUndo", entry.code, entry.name + " — " + (entry.penaltyDate||"-"));
+      });
+    }).catch(err => UI.toast("❌ فشل إرجاع الجزاء: " + (err.message||err), "error"));
+  });
+}
+
 function attClearAllFilters(){
   document.getElementById("attendanceSearch").value=""
   document.getElementById("attendanceDate").value=""
@@ -7928,7 +8028,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-08-12.36",
+        appBuild: "2026-08-12.47",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -7973,10 +8073,10 @@ const DeviceInfo = {
     }
 
     // ========================= دوال اختيار الموظفين (لوحة الاقتراحات) =========================
-    function selectBreakEmp(code, name) { document.getElementById("breakCode").value = code; document.getElementById("breakSuggestions").style.display = "none"; }
-    function selectLeaveEmp(code, name) { document.getElementById("leaveCode").value = code; document.getElementById("leaveSuggestions").style.display = "none"; }
-    function selectPenaltyEmp(code, name) { document.getElementById("penaltyCode").value = code; document.getElementById("penaltySuggestions").style.display = "none"; }
-    function selectEmployee(code) { document.getElementById("attCode").value = code; document.getElementById("empSuggestions").style.display = "none"; attUpdateEmpPreview(code); }
+    function selectBreakEmp(code, name) { const el=document.getElementById("breakCode"); el.value = code; autoMaskIdField(el); document.getElementById("breakSuggestions").style.display = "none"; }
+    function selectLeaveEmp(code, name) { const el=document.getElementById("leaveCode"); el.value = code; autoMaskIdField(el); document.getElementById("leaveSuggestions").style.display = "none"; }
+    function selectPenaltyEmp(code, name) { const el=document.getElementById("penaltyCode"); el.value = code; autoMaskIdField(el); document.getElementById("penaltySuggestions").style.display = "none"; }
+    function selectEmployee(code) { const el=document.getElementById("attCode"); el.value = code; autoMaskIdField(el); document.getElementById("empSuggestions").style.display = "none"; attUpdateEmpPreview(code); }
 
     // ========================= خدمة الوقت والتنسيق =========================
     const TimeUtils = {
@@ -8143,6 +8243,15 @@ function saveEmployeeEdit() {
     }).catch(err => UI.toast("❌ "+err.message,"error"));
 }
 // ========================= خدمة الحضور (Attendance) =========================
+// إخفاء تلقائي لمعرّف الباركود (barcodeId) بس — شكله دايمًا فيه حروف إنجليزية (EMP-XXXXXX)
+// الكود العادي أرقام بس فبيفضل ظاهر عادي. القيمة الحقيقية جوه الحقل مش بتتغيّر، بس شكل العرض.
+function autoMaskIdField(el){
+  if(!el) return;
+  const hasLetter = /[a-zA-Z]/.test(el.value);
+  const newType = hasLetter ? "password" : "text";
+  if(el.type !== newType) el.type = newType;
+}
+
 const AttendanceService = {
     register(){
 
@@ -8518,7 +8627,7 @@ function attUpdateEmpPreview(code) {
 <td style="font-size:12px;color:#64748b">${r.checkIn?.user||r.checkOut?.user||"-"}</td>
 <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick='openEditAttendance(${JSON.stringify({checkIn:r.checkIn,checkOut:r.checkOut})})'>✏</button>`:""}
 </td>
-<td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick='deleteAttendanceRecord(${JSON.stringify({checkIn:r.checkIn,checkOut:r.checkOut})})'>🗑</button>`:""}
+<td class="edit-col">${hasPermission("delete")||hasPermission("all")?`<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick='deleteAttendanceRecord(${JSON.stringify({checkIn:r.checkIn,checkOut:r.checkOut})})'>🗑</button>`:""}
 </td>
 </tr>`;
             });
@@ -9106,7 +9215,8 @@ UI.renderCompanies()
                     exemptReason: exemptReason || "-",
                     exemptedBy: State.currentUser?.username || "-",
                     exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    autoType: type, dateKey: dateStr
                 });
             }
             if(penaltyId) db.ref("penalties/" + penaltyId).remove();
@@ -9314,7 +9424,8 @@ cancelAbsencePenaltyIfExists(leave){
     exemptReason: "تمت الموافقة على طلب إجازة لنفس اليوم",
     exemptedBy: State.currentUser?.username || "-",
     exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
-    timestamp: firebase.database.ServerValue.TIMESTAMP
+    timestamp: firebase.database.ServerValue.TIMESTAMP,
+    autoType: "absence", dateKey: match.date
   })
   db.ref("autoDeductExemptions/" + `${match.code}_${match.date}_absence`).set({
     code: String(match.code), date: match.date, type: "absence",
@@ -10094,7 +10205,7 @@ function saveEditVehicle() {
 }
 
 function deleteVehicle(id, plate) {
-  if(!hasPermission("edit") && !hasPermission("all")) {
+  if(!hasPermission("delete") && !hasPermission("all")) {
     UI.toast("ليس لديك صلاحية الحذف","error"); return;
   }
   showConfirm("حذف سجل العربية " + plate + "؟", () => {
@@ -10381,7 +10492,7 @@ btn.style.display = "none"
 })
 
 // إخفاء أعمدة التعديل/الحذف بناءً على صلاحية edit
-const _canEdit = perms.includes("edit") || perms.includes("all")
+const _canEdit = perms.includes("edit") || perms.includes("delete") || perms.includes("all")
 document.querySelectorAll("table").forEach(t => {
   _canEdit ? t.classList.remove("no-edit-perm") : t.classList.add("no-edit-perm")
 })
@@ -10456,7 +10567,7 @@ let editId = null
 let editData = null
 
 function deleteCompanyRecord(id, name) {
-    if (!hasPermission("edit") && !hasPermission("all")) {
+    if (!hasPermission("delete") && !hasPermission("all")) {
         UI.toast("ليس لديك صلاحية الحذف", "error"); return;
     }
     showConfirm("هل تريد حذف سجل شركة: " + (name || "؟") + "؟", () => {
@@ -10505,7 +10616,7 @@ function closeEditPenalty() {
 }
 
 function deletePenaltyRecord(id, name) {
-    if (!hasPermission("edit") && !hasPermission("all")) {
+    if (!hasPermission("delete") && !hasPermission("all")) {
         UI.toast("ليس لديك صلاحية الحذف", "error"); return;
     }
     showConfirm("هل تريد حذف جزاء: " + (name || "؟") + "؟", () => {
@@ -10559,7 +10670,7 @@ function saveEditLeave() {
 }
 
 function deleteLeaveRecord(id, name) {
-  if(!hasPermission("edit") && !hasPermission("all")) { UI.toast("ليس لديك صلاحية الحذف","error"); return; }
+  if(!hasPermission("delete") && !hasPermission("all")) { UI.toast("ليس لديك صلاحية الحذف","error"); return; }
   showConfirm(`حذف إجازة: ${name}؟`, () => {
     db.ref("leaves/"+id).remove().then(() => {
       UI.toast("🗑️ تم حذف الإجازة","warning");
@@ -10594,7 +10705,7 @@ document.getElementById("editModal").style.display = "flex"
 
 // ========================= حذف سجل الحضور =========================
 function deleteAttendanceRecord(data) {
-    if (!hasPermission("edit") && !hasPermission("all")) {
+    if (!hasPermission("delete") && !hasPermission("all")) {
         UI.toast("ليس لديك صلاحية الحذف", "error");
         return;
     }
@@ -10718,7 +10829,7 @@ function saveEditBreak() {
 }
 
 function deleteBreakRecord(id) {
-    if (!hasPermission("edit") && !hasPermission("all")) {
+    if (!hasPermission("delete") && !hasPermission("all")) {
         UI.toast("ليس لديك صلاحية الحذف", "error");
         return;
     }
@@ -11310,10 +11421,20 @@ function saveTransferEdit(){
   const tid = editingTransferId;
   closeTransferEdit();
 
-  db.ref('transfers/' + tid).update({ items: newItems, from: newFrom, to: newTo })
+  // نحتفظ بنسخة من البيانات القديمة في سجل تعديلات داخل نفس التحويلة، قبل ما نكتب فوقها
+  const oldSnapshot = { from: t.from, to: t.to, items: t.items };
+  const existingHistory = Array.isArray(t.editHistory) ? t.editHistory : [];
+  const newHistory = [...existingHistory, {
+    before: oldSnapshot,
+    editedBy: State.currentUser?.username || '-',
+    editedAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+    timestamp: firebase.database.ServerValue.TIMESTAMP
+  }];
+
+  db.ref('transfers/' + tid).update({ items: newItems, from: newFrom, to: newTo, edited: true, editHistory: newHistory })
     .then(() => {
       const stateT = State.transfers.find(x => x.id === tid);
-      if(stateT) { stateT.items = newItems; stateT.from = newFrom; stateT.to = newTo; }
+      if(stateT) { stateT.items = newItems; stateT.from = newFrom; stateT.to = newTo; stateT.edited = true; stateT.editHistory = newHistory; }
       UI.renderTransfers();
       UI.toast('✅ تم حفظ التعديل (' + newItems.length + ' صنف)', 'success');
       SystemLog.add('EditTransfer', State.currentUser?.username || '-', newItems.length + ' صنف');
@@ -11495,6 +11616,23 @@ function viewTransfer(id){
             <div><span style="color:#818cf8; font-weight:700;">الوقت:</span> ${time}</div>
             <div style="grid-column:span 2;"><span style="color:#818cf8; font-weight:700;">المستخدم:</span> ${t.user || "-"}</div>
         </div>
+
+        ${t.edited && Array.isArray(t.editHistory) && t.editHistory.length ? `
+        <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:14px;margin-bottom:14px;">
+            <div style="color:#fbbf24;font-weight:700;font-size:13px;margin-bottom:10px;">⚠️ تم تعديل هذه التحويلة ${t.editHistory.length} مرة — سجل التعديلات:</div>
+            ${t.editHistory.map((h,idx) => `
+              <div style="border-top:1px solid rgba(245,158,11,0.2);padding-top:8px;margin-top:8px;font-size:12px;">
+                <div style="color:#94a3b8;margin-bottom:4px;">تعديل #${idx+1} — بواسطة <b style="color:#e2e8f0">${h.editedBy||'-'}</b> — ${h.editedAt||'-'}</div>
+                <div style="color:#94a3b8;">قبل التعديل: من <b>${h.before?.from||'-'}</b> إلى <b>${h.before?.to||'-'}</b> — عدد الأصناف: ${h.before?.items?.length||0}</div>
+                <div style="margin-top:4px;overflow-x:auto">
+                  <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                    <thead><tr style="color:#fbbf24"><th style="text-align:right;padding:2px 6px">الباركود</th><th style="text-align:right;padding:2px 6px">كراتين</th><th style="text-align:right;padding:2px 6px">علب</th><th style="text-align:right;padding:2px 6px">قطع</th></tr></thead>
+                    <tbody>${(h.before?.items||[]).map(i=>`<tr><td style="padding:2px 6px">${i.barcode||'-'}</td><td style="padding:2px 6px">${i.cartons||0}</td><td style="padding:2px 6px">${i.boxes||0}</td><td style="padding:2px 6px">${i.pieces||0}</td></tr>`).join('')}</tbody>
+                  </table>
+                </div>
+              </div>
+            `).join('')}
+        </div>` : ''}
 
         <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="exportTransferExcel('${t.id}')" style="width:100%; margin-bottom:14px;">
             📊 تصدير Excel
@@ -12668,7 +12806,7 @@ function selectIncEmp(code, name) {
   const codeEl = document.getElementById('incEmpCode');
   const nameEl = document.getElementById('incEmpName');
   const box    = document.getElementById('incEmpSuggestions');
-  if(codeEl) codeEl.value = code;
+  if(codeEl) { codeEl.value = code; autoMaskIdField(codeEl); }
   if(nameEl) nameEl.value = name;
   if(box)    box.style.display = 'none';
 }
@@ -12938,7 +13076,7 @@ const IncentiveService = {
       <td>${r.date || '-'}</td>
       <td style="font-size:12px;color:#fbbf24">${r.manager || '-'}</td>
       <td style="font-size:12px">${r.by || '-'}</td>
-      <td>${hasPermission('edit')||hasPermission('all') ? `<button onclick="IncentiveService.delete('${r.id}','${r.name}')"
+      <td>${hasPermission('delete')||hasPermission('all') ? `<button onclick="IncentiveService.delete('${r.id}','${r.name}')"
         style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button>` : '-'}</td>
     </tr>`).join('');
   },
@@ -13138,6 +13276,12 @@ function showBarcodeTransferHistory(barcode, productName) {
 }
 
 // ─── تحميل شيت الأسعار من Firebase ──────────────────────────────────────
+// يحوّل نص/رقم التاريخ الراجع من Firebase (JSON) لـ Date object حقيقي، بدل ما يفضل نص خام
+function _cmpParseFbDate(v){
+  if(!v) return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : d;
+}
 function loadPriceSheetFromFirebase() {
   if(typeof db === 'undefined') return;
   db.ref('priceSheet').once('value').then(snap => {
@@ -13165,8 +13309,8 @@ function loadPriceSheetFromFirebase() {
           vendorCode:  isStr ? '' : (v.v  || v.vendorCode  || ''),
           vendorName:  isStr ? '' : (v.vn || v.vendorName  || ''),
           modifiedBy:  isStr ? '' : (v.mb || v.modifiedBy  || ''),
-          dateOfPrice: isStr ? '' : (v.dp || v.dateOfPrice || ''),
-          modifiedAt:  isStr ? '' : (v.ma || v.modifiedAt  || '')
+          dateOfPrice: isStr ? null : _cmpParseFbDate(v.dp || v.dateOfPrice),
+          modifiedAt:  isStr ? null : _cmpParseFbDate(v.ma || v.modifiedAt)
         };
         m.set(k, obj);
         // أيضاً بالشكل الأصلي (underscore → dot أو العكس)
@@ -13606,6 +13750,7 @@ const FingerprintBazarService = {
 
     let totalMs = 0;
     const canEdit = hasPermission('edit') || hasPermission('all');
+    const canDelete = hasPermission('delete') || hasPermission('all');
     const tbody = document.getElementById('fpBazarAttBody');
     if(tbody) {
       if(!rows.length) {
@@ -13647,7 +13792,9 @@ const FingerprintBazarService = {
             editBtn.style.cssText = 'background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px';
             editBtn.onclick = () => FingerprintBazarService.openEditModal({checkIn:r.checkIn, checkOut:r.checkOut});
             tr.children[12].appendChild(editBtn);
+          }
 
+          if(canDelete) {
             // زرار حذف
             const delBtn = document.createElement('button');
             delBtn.textContent = '🗑️';
@@ -13829,7 +13976,7 @@ const FingerprintBazarService = {
 
   // ── حذف سجل ─────────────────────────────────────────────
   deleteRecord(data) {
-    if(!hasPermission('edit') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية الحذف','error'); return; }
+    if(!hasPermission('delete') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية الحذف','error'); return; }
     showConfirm('حذف سجل ' + (data.checkIn?.name||'-') + ' بتاريخ ' + (data.checkIn?.date||'-') + '؟', () => {
       const dels = [];
       if(data.checkIn?.id)  dels.push(this._db().child(data.checkIn.id).remove());
@@ -13851,7 +13998,7 @@ const FingerprintBazarService = {
   },
 
   confirmDeleteDay() {
-    if(!hasPermission('edit') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية الحذف','error'); return; }
+    if(!hasPermission('delete') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية الحذف','error'); return; }
     const code = document.getElementById('fpBazarDelEmp')?.value;
     const date = document.getElementById('fpBazarDelDate')?.value;
     if(!code || !date) { UI.toast('اختر الموظف والتاريخ','error'); return; }
@@ -14138,6 +14285,7 @@ const FingerprintSabahService = {
     rows.sort((a,b)=>(b.checkIn?.timestamp||0)-(a.checkIn?.timestamp||0));
     let totalMs=0;
     const canEdit=hasPermission('edit')||hasPermission('all');
+    const canDelete=hasPermission('delete')||hasPermission('all');
     const tbody=document.getElementById('fpSabahAttBody');
     if(tbody){
       tbody.innerHTML=rows.length?rows.map(r=>{
@@ -14164,7 +14312,7 @@ const FingerprintSabahService = {
           <td style="font-size:11px;color:#64748b;max-width:80px;white-space:normal">${note||'-'}</td>
           <td>${canEdit?`<button onclick='FingerprintSabahService.openEditModal(${rowData})'
             style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">✏️</button>`:''}</td>
-          <td style="display:flex;gap:4px">${canEdit?`
+          <td style="display:flex;gap:4px">${canDelete?`
             <button onclick='FingerprintSabahService.deleteRecord(${rowData})'
               style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🗑️</button>
             <button onclick="FingerprintSabahService.openDeleteDayModal('${r.checkIn?.code}','${r.checkIn?.date}')"
@@ -14297,7 +14445,7 @@ const FingerprintSabahService = {
   },
 
   deleteRecord(data) {
-    if(!hasPermission('edit')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية الحذف','error');return;}
+    if(!hasPermission('delete')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية الحذف','error');return;}
     showConfirm(`حذف سجل ${data.checkIn?.name||'-'} بتاريخ ${data.checkIn?.date||'-'}؟`,()=>{
       const dels=[];
       if(data.checkIn?.id) dels.push(db.ref('attendance/'+data.checkIn.id).remove());
@@ -14317,7 +14465,7 @@ const FingerprintSabahService = {
     document.getElementById('fpSabahDeleteDayModal').style.display='flex';
   },
   confirmDeleteDay() {
-    if(!hasPermission('edit')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية الحذف','error');return;}
+    if(!hasPermission('delete')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية الحذف','error');return;}
     const code=document.getElementById('fpSabahDelEmp')?.value;
     const date=document.getElementById('fpSabahDelDate')?.value;
     if(!code||!date){UI.toast('اختر الموظف والتاريخ','error');return;}
@@ -14812,7 +14960,7 @@ html+=`
 <td data-label="من">${t.from}</td>
 <td data-label="إلى">${t.to}</td>
 <td data-label="عدد الأصناف">${t.items?.length || 0}</td>
-<td data-label="التاريخ">${t.date}</td>
+<td data-label="التاريخ">${t.date} ${t.edited ? '<span class="badge badge-warning" style="font-size:10px;margin-right:4px">⚠️ معدّلة</span>' : ''}</td>
 <td data-label="المستخدم">${t.user}</td>
 
 <td data-label="عرض">
@@ -14832,7 +14980,7 @@ onclick='editTransferItems("${t.id}")'>
 </td>
 
 <td data-label="حذف">
-${hasPermission("edit") || hasPermission("all") ? `
+${hasPermission("delete") || hasPermission("all") ? `
 <button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px"
 onclick='deleteTransfer("${t.id}")'>
 🗑 حذف
@@ -15013,7 +15161,7 @@ html += `
   <td style="font-size:11px;color:#64748b;white-space:nowrap">${p.addedAt ? p.addedAt : p.lastAddedAt ? '<span style="color:#f59e0b;font-size:10px">آخر إضافة: </span>' + p.lastAddedAt : '-'}</td>
   <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="ProductService.remove('${p.barcode}')">➖ سحب</button></td>
   <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='editProduct("${p.id}")'>✏️</button>`:""}</td>
-  <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='deleteProduct("${p.id}")'>🗑️</button>`:""}</td>
+  <td class="edit-col">${hasPermission("delete")||hasPermission("all")?`<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='deleteProduct("${p.id}")'>🗑️</button>`:""}</td>
 </tr>
 
 `
@@ -15289,7 +15437,7 @@ onclick='openEditBreak("${b.id}",${JSON.stringify(b)})'>
 </td>
 
 <td class="edit-col">
-${hasPermission("edit") || hasPermission("all") ? `
+${hasPermission("delete") || hasPermission("all") ? `
 <button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px"
 onclick='deleteBreakRecord("${b.id}")'>
 🗑
@@ -15579,6 +15727,7 @@ renderVehicles() {
                   ? TimeUtils.format(v.timeOut - v.timeIn)
                   : TimeUtils.format(TimeUtils.now() - v.timeIn);
                 const canEdit = hasPermission("edit") || hasPermission("all");
+                const canDelete = hasPermission("delete") || hasPermission("all");
                 const statusBadge = v.timeOut
                   ? `<span class="badge badge-success">خرجت</span>`
                   : `<span class="badge badge-warning" style="animation:pulse 2s infinite">داخلة</span>`;
@@ -15600,7 +15749,7 @@ renderVehicles() {
 <td>
   ${!v.timeOut
     ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="VehicleService.exit('${v.id}')">🚪 خروج</button>`
-    : canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deleteVehicle('${v.id}','${(v.plate||"").replace(/'/g,"")}')">🗑</button>` : '<span style="color:#10b981;font-weight:bold">✅ خرجت</span>'}
+    : canDelete ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deleteVehicle('${v.id}','${(v.plate||"").replace(/'/g,"")}')">🗑</button>` : '<span style="color:#10b981;font-weight:bold">✅ خرجت</span>'}
 </td>
 </tr>`;
                 });
@@ -15638,6 +15787,7 @@ this.renderVehiclesInsideNow();
             let body = document.getElementById("leavesBody"); if (!body) return;
             let html = "";
             const canEdit = hasPermission("edit") || hasPermission("all");
+            const canDelete = hasPermission("delete") || hasPermission("all");
             const lSearch  = (document.getElementById("leavesSearch")?.value||"").toLowerCase().trim();
             const lStatus  = document.getElementById("leavesStatusFilter")?.value || "";
             const lRange   = State.leavesRange || "all";
@@ -15668,7 +15818,7 @@ this.renderVehiclesInsideNow();
 </div>`
 : "-"}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="openEditLeave('${l.id}')">✏ تعديل</button>` : ""}</td>
-<td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="deleteLeaveRecord('${l.id}','${(l.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
+<td class="edit-col">${canDelete ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="deleteLeaveRecord('${l.id}','${(l.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
             body.innerHTML = html || '<tr><td colspan="12" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
@@ -15741,6 +15891,7 @@ this.renderVehiclesInsideNow();
             scoped
               .forEach(p => {
                 let canEdit = hasPermission("edit") || hasPermission("all");
+                let canDelete = hasPermission("delete") || hasPermission("all");
                 html += `<tr>
 <td>${p.name}</td>
 <td>${p.code}</td>
@@ -15752,7 +15903,7 @@ this.renderVehiclesInsideNow();
 <td>${p.createdBy || "-"}</td>
 <td>${p.auto && (hasPermission("all")||hasPermission("permit")) ? `<button onclick="openExemptReasonModal('${p.code}','${p.date}','${p.autoType}','${p.id}')" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">🔓 إذن</button>` : (p.auto ? `<span class="badge badge-warning" style="font-size:11px">تلقائي</span>` : "-")}</td>
 <td class="edit-col">${canEdit ? `<button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="openEditPenaltyById('${p.id}')">✏ تعديل</button>` : ""}</td>
-<td class="edit-col">${canEdit ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
+<td class="edit-col">${canDelete ? `<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="deletePenaltyRecord('${p.id}','${(p.name||'').replace(/'/g,'')}')">🗑 حذف</button>` : ""}</td>
 </tr>`;
             });
             body.innerHTML = html || '<tr><td colspan="11" style="text-align:center;padding:20px;color:#64748b">🔍 لا توجد نتائج مطابقة</td></tr>';
@@ -15824,6 +15975,7 @@ applyEditColVisibility();
         renderPenaltyExemptLog() {
           const body = document.getElementById("penaltyExemptLogBody");
           if(!body) return;
+          const canUndo = hasPermission("all");
           const rows = [...(State.penaltyExemptLog||[])].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
           body.innerHTML = rows.length ? rows.map(r => `<tr>
             <td style="font-weight:700">${r.name}</td>
@@ -15835,8 +15987,9 @@ applyEditColVisibility();
             <td style="font-size:12px;color:#fbbf24">${r.exemptReason||"-"}</td>
             <td style="color:#34d399">${r.exemptedBy||"-"}</td>
             <td style="font-size:11px">${r.exemptedAt||"-"}</td>
+            <td>${canUndo ? `<button onclick="undoPenaltyExemption('${r.id}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px">↩️ إرجاع الجزاء</button>` : "-"}</td>
           </tr>`).join('')
-          : '<tr><td colspan="9" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
+          : '<tr><td colspan="10" style="text-align:center;padding:16px;color:#64748b">لا توجد إعفاءات مسجلة</td></tr>';
         },
         
         renderCompanies(){
@@ -15946,7 +16099,7 @@ ${hasPermission("edit") || hasPermission("all") ? `
 ` : ""}
 </td>
 <td>
-${hasPermission("edit") || hasPermission("all") ? `
+${hasPermission("delete") || hasPermission("all") ? `
 <button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px"
 onclick='deleteCompanyRecord("${c.id}","${c.company || ""}")'>
 🗑
@@ -16059,6 +16212,7 @@ function setBreak30Filter(btn, range) {
 }
 
 document.getElementById("attCode")?.addEventListener("input", function() {
+autoMaskIdField(this);
 let value = this.value.trim()
 let box = document.getElementById("empSuggestions")
 if (!value) {
@@ -16108,15 +16262,15 @@ setInterval(() => {
             if(pb) pb.textContent = '☀️';
         };
     });
-    document.getElementById("breakCode")?.addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => {
+    document.getElementById("breakCode")?.addEventListener("input", function() { autoMaskIdField(this); let value = this.value.trim(); let box = document.getElementById("breakSuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => {
   html += `<div onclick="selectBreakEmp('${emp.code}','${emp.name}')">
     <span style="font-weight:700;color:var(--primary)">${emp.code}</span>
     <span style="margin:0 6px;color:var(--text-muted)">—</span>
     <span>${emp.name}</span>
   </div>`;
 }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
-    document.getElementById("penaltyCode")?.addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div onclick="selectPenaltyEmp('${emp.code}','${emp.name}')"><span style="font-weight:700;color:var(--primary)">${emp.code}</span> — ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
-    document.getElementById("leaveCode")?.addEventListener("input", function() { let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div onclick="selectLeaveEmp('${emp.code}','${emp.name}')"><span style="font-weight:700;color:var(--primary)">${emp.code}</span> — ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("penaltyCode")?.addEventListener("input", function() { autoMaskIdField(this); let value = this.value.trim(); let box = document.getElementById("penaltySuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div onclick="selectPenaltyEmp('${emp.code}','${emp.name}')"><span style="font-weight:700;color:var(--primary)">${emp.code}</span> — ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
+    document.getElementById("leaveCode")?.addEventListener("input", function() { autoMaskIdField(this); let value = this.value.trim(); let box = document.getElementById("leaveSuggestions"); if (!value) { box.style.display = "none"; return; } let results = (State.employees.length>0 ? State.employees : Object.values(State.empData||{})).filter(e => String(e.code).includes(value) || (e.name && e.name.includes(value))); let html = ""; results.slice(0, 5).forEach(emp => { html += `<div onclick="selectLeaveEmp('${emp.code}','${emp.name}')"><span style="font-weight:700;color:var(--primary)">${emp.code}</span> — ${emp.name}</div>`; }); box.innerHTML = html; box.style.display = html ? "block" : "none"; });
     document.getElementById("vehicleSearch")?.addEventListener("input", () => UI.renderVehicles());
     document.getElementById("insideSearch")?.addEventListener("input", () => UI.renderInsideEmployees());
     // حفظ الفروع عند تغييرها
@@ -17723,6 +17877,16 @@ function renderResult(result, bc) {
 /* =====================================================
    COMPARE TABLE
 ===================================================== */
+// تحويل آمن للتاريخ لسطر "شهر/سنة" (يقبل Date object أو نص تاريخ خام من Firebase)
+function _cmpDayStr(v){
+  if(!v) return null;
+  const d = (v instanceof Date) ? v : new Date(v);
+  return isNaN(d.getTime()) ? null : (d.getFullYear()+'-'+d.getMonth());
+}
+// هل الصنف بيتباع بخسارة (سعر البيع أقل من سعر التكلفة) في أي فرع
+function _cmpIsLoss(p){
+  return !!(p && p.sellPrice>0 && p.costPrice>0 && p.sellPrice < p.costPrice);
+}
 function renderCmp() {
   const rows = document.getElementById('crows');
   const cf   = window.S.getCF();
@@ -17738,6 +17902,8 @@ function renderCmp() {
   else if(cf==='baz_hi') d = d.filter(r=>r.higher==='بازار'&&r.sc>0);
   else if(cf==='cai_hi') d = d.filter(r=>r.higher==='قاهرة'&&r.sb>0);
   else if(cf==='same')   d = d.filter(r=>r.diff===0&&r.sb>0&&r.sc>0);
+  else if(cf==='date_match') d = d.filter(r=>{ const db=_cmpDayStr(r.pb&&r.pb.modifiedAt), dc=_cmpDayStr(r.pc&&r.pc.modifiedAt); return db&&dc&&db===dc; });
+  else if(cf==='loss') d = d.filter(r=> _cmpIsLoss(r.pb) || _cmpIsLoss(r.pc));
 
   if(q) d = d.filter(r=>r.name.toLowerCase().includes(q)||r.bc.includes(q)||r.vB.toLowerCase().includes(q)||r.vC.toLowerCase().includes(q));
 
@@ -17767,7 +17933,7 @@ function renderCmp() {
     return `<span class="dpill dpc">🏙 +${val}</span>`;
   };
 
-  rows.innerHTML = d.slice(0,250).map(r=>`
+  rows.innerHTML = d.map(r=>`
     <div class="crow" onclick="jumpS('${r.bc}')">
       <div class="ctd nm"><span class="nm1">${r.name.length>38?r.name.substring(0,38)+'…':r.name}</span><span class="nm2">${r.bc}</span></div>
       <div class="ctd num nb">${r.sb?fmt(r.sb):'<span style="color:var(--muted)">—</span>'}</div>
