@@ -1,8 +1,4 @@
-/*
- * علوش البازار — FCM Service Worker
- * مسؤول عن استقبال Push Notifications فقط.
- * لا يستبدل sw.js الخاص بالـPWA/Offline Sync.
- */
+/* علوش البازار — Firebase Cloud Messaging Service Worker */
 
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
@@ -21,62 +17,57 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   const data = payload?.data || {};
-
-  // لو Firebase عرض notification تلقائيًا،
-  // لا نعرضها مرة ثانية.
-  if (payload?.notification && !Object.keys(data).length) {
-    return;
-  }
+  const notification = payload?.notification || {};
 
   const title = String(
     data.title ||
-    payload?.notification?.title ||
-    "علوش البازار"
+    notification.title ||
+    'علوش البازار'
   );
 
   const body = String(
     data.body ||
-    payload?.notification?.body ||
-    "لديك إشعار جديد"
+    notification.body ||
+    'لديك إشعار جديد'
   );
 
-  const targetUrl =
-    data.appUrl ||
-    self.registration.scope;
+  const url = data.appUrl || self.registration.scope;
+
+  // منع تكرار الإشعار إذا أرسله Firebase تلقائياً
+  // وكان الـ payload يحتوي فقط على notification
+  if (
+    payload?.notification &&
+    Object.keys(data).length === 0
+  ) {
+    return;
+  }
 
   return self.registration.showNotification(title, {
     body: body,
 
     tag: String(
       data.eventId ||
-      "allosh-notification"
+      'allosh-notification'
     ),
 
     renotify: true,
 
-    dir: "rtl",
-
-    lang: "ar",
+    dir: 'rtl',
+    lang: 'ar',
 
     data: {
-      url: targetUrl,
-
+      url: url,
       eventId: String(
-        data.eventId || ""
+        data.eventId || ''
       )
     }
   });
 });
 
 
-/*
- * عند الضغط على الإشعار
- * يفتح النظام ويركز على الصفحة الموجودة
- * أو يفتح الموقع إذا لم تكن الصفحة مفتوحة.
- */
-
+/* عند الضغط على الإشعار */
 self.addEventListener(
-  "notificationclick",
+  'notificationclick',
   (event) => {
 
     event.notification.close();
@@ -90,19 +81,19 @@ self.addEventListener(
 
         const clients =
           await self.clients.matchAll({
-            type: "window",
+            type: 'window',
             includeUncontrolled: true
           });
 
+        // لو الموقع مفتوح بالفعل
         for (const client of clients) {
-
           try {
 
             await client.focus();
 
             if (
               url &&
-              "navigate" in client
+              'navigate' in client
             ) {
               await client.navigate(url);
             }
@@ -110,9 +101,9 @@ self.addEventListener(
             return;
 
           } catch (_) {}
-
         }
 
+        // لو الموقع غير مفتوح
         if (
           self.clients.openWindow &&
           url
