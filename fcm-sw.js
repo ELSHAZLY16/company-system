@@ -1,6 +1,7 @@
 /*
- * علوش البازار — Firebase Cloud Messaging Service Worker
- * مستقل عن sw.js الأساسي حتى لا يؤثر على PWA / Offline Sync.
+ * علوش البازار — FCM Service Worker
+ * مسؤول عن استقبال Push Notifications فقط.
+ * لا يستبدل sw.js الخاص بالـPWA/Offline Sync.
  */
 
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
@@ -19,27 +20,37 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
-
-  // لو الرسالة تحتوي على notification
-  // Firebase يتولى عرضها تلقائيًا.
-  // لذلك لا نعرضها مرة أخرى حتى لا يظهر الإشعار مرتين.
-  if (payload && payload.notification) return;
-
   const data = payload?.data || {};
 
-  const title = data.title || "علوش البازار";
-  const body = data.body || "لديك إشعار جديد";
+  // لو Firebase عرض notification تلقائيًا،
+  // لا نعرضها مرة ثانية.
+  if (payload?.notification && !Object.keys(data).length) {
+    return;
+  }
 
-  const url =
+  const title = String(
+    data.title ||
+    payload?.notification?.title ||
+    "علوش البازار"
+  );
+
+  const body = String(
+    data.body ||
+    payload?.notification?.body ||
+    "لديك إشعار جديد"
+  );
+
+  const targetUrl =
     data.appUrl ||
     self.registration.scope;
 
   return self.registration.showNotification(title, {
     body: body,
 
-    tag:
+    tag: String(
       data.eventId ||
-      "allosh-notification",
+      "allosh-notification"
+    ),
 
     renotify: true,
 
@@ -47,12 +58,12 @@ messaging.onBackgroundMessage((payload) => {
 
     lang: "ar",
 
-    icon: "/icon-192.png",
-
-    badge: "/icon-192.png",
-
     data: {
-      url: url
+      url: targetUrl,
+
+      eventId: String(
+        data.eventId || ""
+      )
     }
   });
 });
@@ -60,61 +71,56 @@ messaging.onBackgroundMessage((payload) => {
 
 /*
  * عند الضغط على الإشعار
+ * يفتح النظام ويركز على الصفحة الموجودة
+ * أو يفتح الموقع إذا لم تكن الصفحة مفتوحة.
  */
-self.addEventListener("notificationclick", (event) => {
 
-  event.notification.close();
+self.addEventListener(
+  "notificationclick",
+  (event) => {
 
-  const url =
-    event.notification?.data?.url ||
-    self.registration.scope;
+    event.notification.close();
 
-  event.waitUntil(
-    (async () => {
+    const url =
+      event.notification?.data?.url ||
+      self.registration.scope;
 
-      const windows =
-        await self.clients.matchAll({
-          type: "window",
-          includeUncontrolled: true
-        });
+    event.waitUntil(
+      (async () => {
 
-      /*
-       * لو الموقع مفتوح بالفعل:
-       * نركز على النافذة ونفتح الرابط المطلوب.
-       */
-      for (const client of windows) {
+        const clients =
+          await self.clients.matchAll({
+            type: "window",
+            includeUncontrolled: true
+          });
 
-        try {
+        for (const client of clients) {
 
-          await client.focus();
+          try {
 
-          if (
-            "navigate" in client &&
-            url
-          ) {
-            await client.navigate(url);
-          }
+            await client.focus();
 
-          return;
+            if (
+              url &&
+              "navigate" in client
+            ) {
+              await client.navigate(url);
+            }
 
-        } catch (_) {}
+            return;
 
-      }
+          } catch (_) {}
 
-      /*
-       * لو الموقع غير مفتوح:
-       * افتح الموقع.
-       */
-      if (
-        self.clients.openWindow &&
-        url
-      ) {
+        }
 
-        await self.clients.openWindow(url);
+        if (
+          self.clients.openWindow &&
+          url
+        ) {
+          await self.clients.openWindow(url);
+        }
 
-      }
-
-    })()
-  );
-
-});
+      })()
+    );
+  }
+);
