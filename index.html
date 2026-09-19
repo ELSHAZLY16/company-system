@@ -55,6 +55,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -2180,6 +2181,7 @@ h4 > .ui-icon-slot {
     <div class="dashboard-header">
         <div class="header-left">
           <button onclick="AuthService.logout()" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px">خروج</button>
+          <button id="notificationBtn" onclick="NotificationService.enable()" title="تفعيل إشعارات الهاتف" style="background:rgba(245,158,11,0.14);border:1px solid rgba(245,158,11,0.35);color:#fbbf24;border-radius:6px;padding:6px 10px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px;white-space:nowrap"><span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span> <span id="notificationBtnText">تفعيل الإشعارات</span></button>
           <button id="pwaInstallBtn" onclick="PWAInstall.install()" style="display:none;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:8px"><span class="ui-icon-slot" data-icon="install" aria-hidden="true"></span> تثبيت التطبيق</button>
         </div>
         <div class="header-center"><h2>علوش البازار</h2></div>
@@ -7919,6 +7921,299 @@ State.serverOffset = snapshot.val() || 0
 })
     const db = firebase.database()
 
+// ============================================================
+// نظام الإشعارات الفورية للهاتف — Firebase Cloud Messaging (FCM)
+// لا يلمس Service Worker الأساسي الخاص بالـPWA/Offline.
+// يستخدم Service Worker مستقل: fcm-sw.js
+// ============================================================
+const NotificationService = {
+  VAPID_KEY: "BOr6nJxGFlPk5e3hTDzRVcUcNWbrWPepnDWu8H_3vuux5ac2DcVxDXzeHGp8ojiAFlTsnfBBi0WpUBoLhI3QRBE",
+  TOKEN_STORAGE: "allosh_fcm_token",
+  OWNER_STORAGE: "allosh_fcm_owner",
+  REG_KEY: "__alloshFcmRegistration",
+  _messaging: null,
+  _boundUser: null,
+  _initialized: false,
+
+  supported() {
+    return !!(
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      typeof firebase !== "undefined" &&
+      firebase.messaging
+    );
+  },
+
+  setButtonState(mode) {
+    const btn = document.getElementById("notificationBtn");
+    const txt = document.getElementById("notificationBtnText");
+    if (!btn || !txt) return;
+
+    if (mode === "enabled") {
+      txt.textContent = "الإشعارات مفعلة";
+      btn.style.background = "rgba(16,185,129,0.16)";
+      btn.style.borderColor = "rgba(16,185,129,0.38)";
+      btn.style.color = "#34d399";
+      btn.title = "الإشعارات مفعلة على هذا الجهاز";
+    } else if (mode === "denied") {
+      txt.textContent = "الإشعارات محظورة";
+      btn.style.background = "rgba(239,68,68,0.14)";
+      btn.style.borderColor = "rgba(239,68,68,0.35)";
+      btn.style.color = "#f87171";
+      btn.title = "الإشعارات محظورة من إعدادات المتصفح";
+    } else if (mode === "busy") {
+      txt.textContent = "جارٍ التفعيل...";
+      btn.disabled = true;
+      btn.style.opacity = "0.7";
+    } else {
+      txt.textContent = "تفعيل الإشعارات";
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      btn.style.background = "rgba(245,158,11,0.14)";
+      btn.style.borderColor = "rgba(245,158,11,0.35)";
+      btn.style.color = "#fbbf24";
+      btn.title = "تفعيل إشعارات الهاتف";
+    }
+  },
+
+  async registerServiceWorker() {
+    if (!this.supported()) throw new Error("المتصفح لا يدعم Push Notifications");
+    const base = location.pathname.substring(0, location.pathname.lastIndexOf("/") + 1);
+    const scriptUrl = base + "fcm-sw.js";
+    const scope = base + "fcm/";
+
+    if (window[this.REG_KEY]) return window[this.REG_KEY];
+
+    const reg = await navigator.serviceWorker.register(scriptUrl, { scope });
+    window[this.REG_KEY] = reg;
+    await navigator.serviceWorker.ready;
+    return reg;
+  },
+
+  messaging() {
+    if (this._messaging) return this._messaging;
+    if (!this.supported()) return null;
+    try {
+      this._messaging = firebase.messaging();
+      return this._messaging;
+    } catch (e) {
+      console.warn("[FCM] messaging init failed", e);
+      return null;
+    }
+  },
+
+  tokenHash(token) {
+    try {
+      return CryptoJS.SHA256(String(token)).toString();
+    } catch (_) {
+      return String(token).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 120);
+    }
+  },
+
+  async saveToken(token, user) {
+    if (!token || !user || !user.id) return;
+    const hash = this.tokenHash(token);
+    const now = Date.now();
+    const ref = db.ref("notificationTokens/" + user.id + "/" + hash);
+    const oldOwner = localStorage.getItem(this.OWNER_STORAGE);
+
+    if (oldOwner && oldOwner !== String(user.id)) {
+      const oldToken = localStorage.getItem(this.TOKEN_STORAGE);
+      if (oldToken) {
+        const oldHash = this.tokenHash(oldToken);
+        db.ref("notificationTokens/" + oldOwner + "/" + oldHash).remove().catch(() => {});
+      }
+    }
+
+    await ref.set({
+      token,
+      userId: String(user.id),
+      username: user.username || "-",
+      branch: user.branch || "-",
+      enabled: true,
+      permission: Notification.permission,
+      device: navigator.userAgent || "-",
+      platform: navigator.platform || "-",
+      language: navigator.language || "ar-EG",
+      lastSeenAt: now,
+      updatedAt: now,
+      createdAt: now
+    }).catch(async () => {
+      // لو كانت القواعد ترفض set بسبب سجل موجود، نجرّب update فقط.
+      await ref.update({
+        token,
+        userId: String(user.id),
+        username: user.username || "-",
+        branch: user.branch || "-",
+        enabled: true,
+        permission: Notification.permission,
+        device: navigator.userAgent || "-",
+        platform: navigator.platform || "-",
+        language: navigator.language || "ar-EG",
+        lastSeenAt: now,
+        updatedAt: now
+      }).catch(() => {});
+    });
+
+    localStorage.setItem(this.TOKEN_STORAGE, token);
+    localStorage.setItem(this.OWNER_STORAGE, String(user.id));
+
+    // حالة مختصرة على حساب المستخدم — مفيدة للتقارير والإدارة.
+    db.ref("users/" + user.id).update({
+      notificationsEnabled: true,
+      notificationsUpdatedAt: now
+    }).catch(() => {});
+  },
+
+  async bindUser(user) {
+    this._boundUser = user || null;
+    const btn = document.getElementById("notificationBtn");
+    if (btn) btn.style.display = user ? "inline-block" : "none";
+    if (!user || !this.supported()) {
+      this.setButtonState("idle");
+      return;
+    }
+
+    if (Notification.permission === "granted") {
+      try {
+        await this.registerAndStore(user, false);
+        this.setButtonState("enabled");
+      } catch (e) {
+        console.warn("[FCM] silent registration failed", e);
+        this.setButtonState("idle");
+      }
+    } else if (Notification.permission === "denied") {
+      this.setButtonState("denied");
+    } else {
+      this.setButtonState("idle");
+    }
+  },
+
+  async registerAndStore(user, askPermission) {
+    if (!this.supported()) throw new Error("المتصفح الحالي لا يدعم إشعارات Push");
+    const permission = askPermission
+      ? await Notification.requestPermission()
+      : Notification.permission;
+
+    if (permission !== "granted") {
+      if (permission === "denied") this.setButtonState("denied");
+      throw new Error(permission === "denied" ? "تم رفض إذن الإشعارات" : "لم يتم منح إذن الإشعارات");
+    }
+
+    const reg = await this.registerServiceWorker();
+    const messaging = this.messaging();
+    if (!messaging) throw new Error("تعذر تهيئة Firebase Messaging");
+
+    const token = await messaging.getToken({
+      vapidKey: this.VAPID_KEY,
+      serviceWorkerRegistration: reg
+    });
+    if (!token) throw new Error("Firebase لم يعطِ رمز الجهاز");
+
+    await this.saveToken(token, user);
+    this.attachForegroundListener();
+    return token;
+  },
+
+  async enable() {
+    const user = State.currentUser;
+    if (!user) {
+      UI.toast("سجل الدخول أولاً ثم فعّل الإشعارات", "warning");
+      return;
+    }
+    if (!this.supported()) {
+      UI.toast("المتصفح أو الجهاز الحالي لا يدعم إشعارات Push", "error");
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      this.setButtonState("denied");
+      UI.toast("الإشعارات محظورة. افتح إعدادات الموقع من المتصفح واسمح بالإشعارات.", "warning");
+      return;
+    }
+
+    this.setButtonState("busy");
+    try {
+      await this.registerAndStore(user, true);
+      this.setButtonState("enabled");
+      UI.toast("✅ تم تفعيل إشعارات الهاتف بنجاح", "success");
+    } catch (e) {
+      console.error("[FCM] enable failed", e);
+      if (Notification.permission === "denied") this.setButtonState("denied");
+      else this.setButtonState("idle");
+      UI.toast("❌ تعذر تفعيل الإشعارات: " + (e?.message || e), "error");
+    }
+  },
+
+  async unbindCurrentUser() {
+    const owner = localStorage.getItem(this.OWNER_STORAGE);
+    const token = localStorage.getItem(this.TOKEN_STORAGE);
+    if (owner && token) {
+      const hash = this.tokenHash(token);
+      await db.ref("notificationTokens/" + owner + "/" + hash).remove().catch(() => {});
+      db.ref("users/" + owner).update({ notificationsEnabled: false }).catch(() => {});
+    }
+    localStorage.removeItem(this.TOKEN_STORAGE);
+    localStorage.removeItem(this.OWNER_STORAGE);
+    this._boundUser = null;
+    this.setButtonState("idle");
+    const btn = document.getElementById("notificationBtn");
+    if (btn) btn.style.display = "none";
+  },
+
+  attachForegroundListener() {
+    if (this._initialized) return;
+    const messaging = this.messaging();
+    if (!messaging) return;
+    this._initialized = true;
+
+    messaging.onMessage((payload) => {
+      try {
+        const title = payload?.notification?.title || payload?.data?.title || "علوش البازار";
+        const body  = payload?.notification?.body  || payload?.data?.body  || "لديك إشعار جديد";
+        UI.toast("🔔 " + title + (body ? " — " + body : ""), "info", 7000);
+
+        // في حالة الصفحة غير ظاهرة، نظهر إشعار النظام مباشرة.
+        if (document.visibilityState !== "visible" && Notification.permission === "granted") {
+          const n = new Notification(title, { body, tag: payload?.data?.eventId || "allosh-notification" });
+          n.onclick = () => {
+            try { window.focus(); } catch (_) {}
+            n.close();
+          };
+        }
+      } catch (e) {
+        console.warn("[FCM] foreground message handling failed", e);
+      }
+    });
+  },
+
+  async init() {
+    const btn = document.getElementById("notificationBtn");
+    if (btn && !State.currentUser) btn.style.display = "none";
+    if (!this.supported()) return;
+    if (State.currentUser) await this.bindUser(State.currentUser);
+  },
+
+  localTest() {
+    if (!this.supported() || Notification.permission !== "granted") {
+      UI.toast("فعّل الإشعارات أولاً", "warning");
+      return;
+    }
+    const n = new Notification("علوش البازار", {
+      body: "✅ اختبار إشعارات الهاتف — الجهاز جاهز لاستقبال Push",
+      tag: "allosh-local-test"
+    });
+    setTimeout(() => { try { n.close(); } catch (_) {} }, 7000);
+  }
+};
+
+// تهيئة خفيفة عند فتح الصفحة بدون طلب إذن من المستخدم.
+document.addEventListener("DOMContentLoaded", () => {
+  try { NotificationService.init(); } catch (_) {}
+});
+
 // تجاهل خطأ file input value (browser limitation طبيعي)
 window.addEventListener('error', function(e) {
   if(e.message && e.message.includes('filename') && e.message.includes('HTMLInputElement')) {
@@ -8293,8 +8588,22 @@ return firebase.database.ServerValue.TIMESTAMP
 
 }
     // ========================= خدمة سجل النظام (System Logs) =========================
+    const NOTIFY_ACTIONS = new Set([
+      "ProductRemove",
+      "TransferSaved",
+      "Leave",
+      "LeaveApproved",
+      "LeaveRejected",
+      "Penalty",
+      "DeleteProduct",
+      "AddEmployee",
+      "EditEmployee",
+      "DeleteEmployee",
+      "AddUser",
+      "DeleteUser"
+    ]);
     const SystemLog = {
-        add(action, code, name) {
+        add(action, code, name, meta = {}) {
             const now  = new Date(TimeUtils.now());
             const info = State._deviceInfo || {};
             const data = {
@@ -8303,6 +8612,10 @@ return firebase.database.ServerValue.TIMESTAMP
                 timeDisplay: now.toLocaleTimeString("ar-EG"),
                 timestamp:   firebase.database.ServerValue.TIMESTAMP,
                 user:        State.currentUser?.username || "system",
+                userId:      State.currentUser?.id || "-",
+                branch:      meta.branch || State.currentUser?.branch || "-",
+                appUrl:      meta.appUrl || location.href,
+                notify:      meta.notify !== false && NOTIFY_ACTIONS.has(action),
                 device:      info.device    || "-",
                 os:          info.os        || "-",
                 browser:     info.browser   || "-",
@@ -8310,6 +8623,7 @@ return firebase.database.ServerValue.TIMESTAMP
                 city:        info.city      || "-",
                 ip:          info.ip        || "-"
             };
+            Object.assign(data, meta);
             db.ref("systemLogs").push(data);
         }
     };
@@ -9869,7 +10183,14 @@ document.getElementById("productBarcode").focus();
         }
         Promise.all(updates).then(() => {
             UI.toast("تم سحب " + qty + " قطعة", "warning");
-            SystemLog.add("ProductRemove", barcode, "سحب " + qty + " قطعة");
+            SystemLog.add("ProductRemove", barcode, "سحب " + qty + " قطعة", {
+              branch: State.currentUser?.branch || batches[0]?.branch || "-",
+              quantity: qty,
+              productName: batches[0]?.name || barcode
+            });
+        }).catch(err => {
+            console.error("[ProductService] remove failed", err);
+            UI.toast("❌ فشل سحب الكمية", "error");
         });
     },
 
@@ -10557,6 +10878,7 @@ function saveProductEdit() {
             }
 
             this.setCurrentUser(user);
+            try { NotificationService.bindUser(user); } catch (_) {}
             
             localStorage.setItem("loggedUser", JSON.stringify({
                 username: user.username,
@@ -10572,6 +10894,7 @@ function saveProductEdit() {
         logout() {
             const username = State.currentUser ? State.currentUser.username : "-";
             SystemLog.add("Logout", username, "تسجيل خروج");
+            try { NotificationService.unbindCurrentUser(); } catch (_) {}
 
             localStorage.removeItem("loggedUser");
             sessionStorage.clear();
@@ -10590,6 +10913,7 @@ function saveProductEdit() {
         setCurrentUser(user) {
             State.currentUser = Object.freeze({ ...user });
             State.securePermissions = Object.freeze([...(user.permissions || [])]);
+            try { NotificationService.bindUser(user); } catch (_) {}
 
             // جمع معلومات الجهاز والموقع وحفظها
             DeviceInfo.collect().then(info => {
@@ -11583,7 +11907,12 @@ transferRef.set(data).then(()=>{
 })
 
 UI.toast("تم حفظ التحويل","success")
-SystemLog.add("TransferSaved", State.currentUser?.username || "-", "حفظ تحويل")
+SystemLog.add("TransferSaved", State.currentUser?.username || "-", "حفظ تحويل", {
+  branch: to || State.currentUser?.branch || "-",
+  sourceBranch: from || "-",
+  targetBranch: to || "-",
+  transferId
+})
 TransferService.clearDraft()
 
 State.transferItems = []
@@ -18568,6 +18897,7 @@ if ('serviceWorker' in navigator) {
   const swBase = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
   navigator.serviceWorker.register(swBase + 'sw.js', { scope: swBase })
     .then(reg => {
+      window.PWARegistration = reg;
       console.log('[PWA] SW registered');
 
       // تحديث تلقائي لو في نسخة جديدة
