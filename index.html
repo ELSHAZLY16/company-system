@@ -8172,9 +8172,18 @@ const NotificationService = {
       return;
     }
 
+    // لو الإشعارات مفعلة بالفعل والـToken موجود لهذا المستخدم، لا نعيد التفعيل ولا نعرض رسالة نجاح جديدة.
+    const storedOwner = localStorage.getItem(this.OWNER_STORAGE);
+    const storedToken = localStorage.getItem(this.TOKEN_STORAGE);
+    if (Notification.permission === "granted" && storedToken && storedOwner === String(user.id || "")) {
+      this.setButtonState("enabled");
+      UI.toast("🔔 الإشعارات مفعلة بالفعل على هذا الجهاز", "info");
+      return;
+    }
+
     this.setButtonState("busy");
     try {
-      await this.registerAndStore(user, true);
+      await this.registerAndStore(user, Notification.permission !== "granted");
       this.setButtonState("enabled");
       UI.toast("✅ تم تفعيل إشعارات الهاتف بنجاح", "success");
     } catch (e) {
@@ -8628,20 +8637,30 @@ return firebase.database.ServerValue.TIMESTAMP
 
 }
     // ========================= خدمة سجل النظام (System Logs) =========================
+    // أحداث النظام التي تُعتبر مهمة وتستحق Push Notification.
+    // الإرسال الفعلي يتم من Cloud Function عند إنشاء سجل systemLogs.
     const NOTIFY_ACTIONS = new Set([
+      "ProductAdd",
+      "ProductIncrease",
       "ProductRemove",
+      "DeleteProduct",
       "TransferSaved",
+      "EditTransfer",
+      "DeleteTransfer",
       "Leave",
       "LeaveApproved",
       "LeaveRejected",
       "Penalty",
-      "DeleteProduct",
+      "EditPenalty",
+      "DeletePenalty",
       "AddEmployee",
       "EditEmployee",
       "DeleteEmployee",
       "AddUser",
+      "EditUser",
       "DeleteUser"
     ]);
+
     const SystemLog = {
         add(action, code, name, meta = {}) {
             const now  = new Date(TimeUtils.now());
@@ -8664,10 +8683,25 @@ return firebase.database.ServerValue.TIMESTAMP
                 ip:          info.ip        || "-"
             };
             Object.assign(data, meta);
-            db.ref("systemLogs").push(data);
+            return db.ref("systemLogs").push(data).catch(err => {
+                console.error("[SystemLog] failed to save log", err);
+                return null;
+            });
         }
     };
-    const SystemLogService = {
+    // اختبار مسار الإشعارات: ينشئ systemLog فقط، والـCloud Function ترسل Push الحقيقي.
+window.testAlloshNotificationEvent = function(){
+  try {
+    if(!State.currentUser){ UI.toast('سجل الدخول أولاً', 'warning'); return; }
+    SystemLog.add('ProductRemove', 'TEST', 'اختبار إشعار', { branch: State.currentUser?.branch || '-', quantity: 1, productName: 'اختبار إشعار', notify: true, testNotification: true });
+    UI.toast('✅ تم إنشاء حدث اختبار — راقب notificationDispatch في Firebase', 'success');
+  } catch(e) {
+    console.error('[FCM test]', e);
+    UI.toast('❌ فشل اختبار الإشعار: ' + (e.message||e), 'error');
+  }
+};
+
+const SystemLogService = {
         translate(action) {
             let map = {
                 CheckIn:        "🟢 حضور",
@@ -8774,16 +8808,15 @@ function saveEmployeeEdit() {
       if(!State.empData || typeof State.empData !== 'object') State.empData = {};
       State.empData[String(code)] = updated;
       const idx = State.employees ? State.employees.findIndex(e => String(e.code)===String(code)) : -1;
-        // تحديث empData أيضاً
-        if(State.empData && State.empData[String(code)]) {
-          const newSt = (action==="CheckIn")?"داخل العمل":"خارج العمل";
-          State.empData[String(code)].status = newSt;
-        }
+      if(State.empData && State.empData[String(code)]) {
+        State.empData[String(code)].status = status;
+      }
       if(idx>=0) State.employees[idx] = {...State.employees[idx], name, job, branch, status};
       if(typeof EmpDataService !== 'undefined') EmpDataService.render();
       UI.renderEmployees();
       closeEmployeeEdit();
       UI.toast("✅ تم تعديل بيانات الموظف","success");
+      SystemLog.add("EditEmployee", code, name, { branch, employeeCode: String(code) });
     }).catch(err => UI.toast("❌ "+err.message,"error"));
 }
 // ========================= خدمة الحضور (Attendance) =========================
@@ -9851,12 +9884,12 @@ UI.renderCompanies()
             if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
             let now = new Date(TimeUtils.now());
             let penalty = { code, name: emp.name, hours, manager, reason, date: now.toLocaleDateString("ar-EG"), time: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
-            db.ref("penalties").push(penalty).then(() => UI.renderPenalties());
-            UI.toast("تم تسجيل الجزاء", "warning");
-            
-            UI.clearInputs("#tab-penalties")
-            
-            SystemLog.add("Penalty", code, emp.name);
+            db.ref("penalties").push(penalty).then(() => {
+              UI.renderPenalties();
+              UI.toast("تم تسجيل الجزاء", "warning");
+              UI.clearInputs("#tab-penalties");
+              SystemLog.add("Penalty", code, emp.name, { hours, reason });
+            }).catch(err => UI.toast("❌ فشل تسجيل الجزاء: " + (err.message||err), "error"));
         },
         exportExcel() {
           if (!checkExcelPermission()) return;
@@ -9924,11 +9957,9 @@ UI.renderCompanies()
             let leave = { code, name: emp.name, leaveDate: date, requestDate: now.toLocaleDateString("ar-EG"), requestTime: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, requestedBy: State.currentUser.username, manager, notes, status: "قيد المراجعة" };
             let ref = db.ref("leaves").push(); leave.id = ref.key; ref.set(leave).then(() => {
               UI.toast("تم تقديم طلب الإجازة", "success");
-              });
-            
-            UI.clearInputs("#tab-leaves")
-            
-            SystemLog.add("Leave", code, emp.name);
+              UI.clearInputs("#tab-leaves");
+              SystemLog.add("Leave", code, emp.name, { employeeCode: String(code) });
+            }).catch(err => UI.toast("❌ فشل تسجيل طلب الإجازة: " + (err.message||err), "error"));
         },
         approve(id){
 
@@ -10029,9 +10060,10 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
               lastAddedAt: now.toLocaleString('ar-EG'),
               lastAddedBy: State.currentUser?.username || '-',
               lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-            SystemLog.add("ProductIncrease", barcode, name);
-            UI.toast("✅ تم زيادة الكمية — " + (existing.name||barcode) + " (" + newQty + ")", "success");
+            }).then(() => {
+              SystemLog.add("ProductIncrease", barcode, existing.name || name || barcode, { branch, quantity: qty, productName: existing.name || name || barcode });
+              UI.toast("✅ تم زيادة الكمية — " + (existing.name||barcode) + " (" + newQty + ")", "success");
+            }).catch(err => UI.toast("❌ فشل زيادة الكمية: " + (err.message||err), "error"));
         } else {
             if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; }
             const now = new Date();
@@ -10051,9 +10083,10 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
             // push() عشان كل batch (باركود + تاريخ انتهاء مختلف) يبقى سجل مستقل
-            db.ref("products").push(data);
-            SystemLog.add("ProductAdd", barcode, name);
-            UI.toast("✅ تم إضافة صنف جديد — " + name, "success");
+            db.ref("products").push(data).then(() => {
+              SystemLog.add("ProductAdd", barcode, name, { branch, quantity: qty, productName: name });
+              UI.toast("✅ تم إضافة صنف جديد — " + name, "success");
+            }).catch(err => UI.toast("❌ فشل إضافة الصنف: " + (err.message||err), "error"));
         }
         
         // مسح الحقول بعد الإضافة
@@ -10080,76 +10113,68 @@ document.getElementById("productBarcode").focus();
 
     importFromTransfers() {
       const transfers = State.transfers || [];
-      if(!transfers.length) { UI.toast('لا توجد تحويلات', 'warning'); return; }
+      const pendingTransfers = transfers.filter(t => {
+        const hasLinkedProducts = State.products.some(p => String(p.transferId || '') === String(t.id));
+        return !t.inventoryImported && !hasLinkedProducts;
+      });
+      if(!pendingTransfers.length) {
+        UI.toast('✅ لا توجد تحويلات جديدة تحتاج استيرادًا — تم منع تكرار المخزون', 'success');
+        return;
+      }
 
       showConfirm(
-        `استيراد ${transfers.length} تحويلة للتواريخ؟ (سيُجمع مع الموجود وليس استبداله)`,
-        () => {
+        `استيراد ${pendingTransfers.length} تحويلة جديدة للتواريخ؟`,
+        async () => {
           let added = 0, merged = 0, skipped = 0;
           const priceMap = window.S?.getBaz?.() || new Map();
+          const completed = [];
 
-          transfers.forEach(transfer => {
-            const items  = transfer.items || [];
-            const branch = transfer.to   || '';
-            const user   = transfer.user || '-';
-            const date   = transfer.date || '';
+          try {
+            for(const transfer of pendingTransfers) {
+              const items = transfer.items || [];
+              const branch = transfer.to || '';
+              const user = transfer.user || '-';
+              const date = transfer.date || '';
 
-            items.forEach(item => {
-              if(!item.barcode || !item.expire) { skipped++; return; }
+              for(const item of items) {
+                if(!item.barcode || !item.expire) { skipped++; continue; }
+                const qty = getTransferItemQuantity(item);
+                if(qty <= 0) { skipped++; continue; }
 
-              const qty = item.kilo > 0
-                ? Number(item.kilo)
-                : Number(item.pieces) > 0 ? Number(item.pieces)
-                : Number(item.boxes)  > 0 ? Number(item.boxes)
-                : Number(item.cartons)> 0 ? Number(item.cartons)
-                : Number(item.total)  || 0;
-              if(qty <= 0) { skipped++; return; }
+                const priceData = priceMap.get(String(item.barcode));
+                const cost  = priceData?.costPrice || '';
+                const price = priceData?.sellPrice || '';
 
-              const priceData = priceMap.get(String(item.barcode));
-              const cost  = priceData?.costPrice || '';
-              const price = priceData?.sellPrice || '';
-
-              const existing = State.products.find(p =>
-                p.barcode === item.barcode &&
-                p.expire  === item.expire  &&
-                p.branch  === branch
-              );
-
-              if(existing) {
-                db.ref("products/" + existing.id).update({
-                  quantity:   (existing.quantity || 0) + qty,
-                  source:     'تحويل',
-                  lastAddedBy: user,
-                  lastAddedAt: date,
-                  ...(cost  && !existing.cost  && { cost }),
-                  ...(price && !existing.price && { price }),
-                });
-                merged++;
-              } else {
-                db.ref("products").push({
-                  barcode:   item.barcode,
-                  name:      item.name || item.barcode,
-                  quantity:  qty,
-                  branch,
-                  cost,
-                  price,
-                  expire:    item.expire,
-                  user,
-                  source:    'تحويل',
-                  addedAt:   date,
-                  addedDate: transfer.dateISO || '',
-                  timestamp: transfer.timestamp || Date.now()
-                });
-                added++;
+                const existing = State.products.find(p => p.barcode === item.barcode && p.expire === item.expire && p.branch === branch);
+                if(existing) {
+                  await db.ref("products/" + existing.id).update({
+                    quantity: (existing.quantity || 0) + qty,
+                    source: 'تحويل',
+                    transferId: transfer.id,
+                    lastAddedBy: user,
+                    lastAddedAt: date,
+                    ...(cost && !existing.cost && { cost }),
+                    ...(price && !existing.price && { price })
+                  });
+                  merged++;
+                } else {
+                  await db.ref("products").push({
+                    barcode: item.barcode, name: item.name || item.barcode, quantity: qty, branch, cost, price, expire: item.expire, user, source: 'تحويل', transferId: transfer.id, addedAt: date, addedDate: transfer.dateISO || '', timestamp: transfer.timestamp || Date.now()
+                  });
+                  added++;
+                }
               }
-            });
-          });
 
-          UI.toast(
-            `✅ اكتمل الاستيراد — ${added} جديد | ${merged} تم دمجه | ${skipped} تم تخطيه`,
-            'success'
-          );
-          SystemLog.add('ImportTransfers', '-', `استيراد ${transfers.length} تحويلة`);
+              await db.ref(`transfers/${transfer.id}`).update({ inventoryImported: true, inventoryImportedAt: Date.now(), inventoryImportedBy: State.currentUser?.username || '-' });
+              completed.push(transfer.id);
+            }
+
+            UI.toast(`✅ اكتمل الاستيراد — ${added} جديد | ${merged} تم دمجه | ${skipped} تم تخطيه`, 'success');
+            SystemLog.add('ImportTransfers', '-', `استيراد ${completed.length} تحويلة`, { notify: false });
+          } catch(err) {
+            console.error('[Transfers] import failed', err);
+            UI.toast('❌ فشل استيراد التحويلات: ' + (err.message || err), 'error');
+          }
         }
       );
     },
@@ -10190,7 +10215,7 @@ document.getElementById("productBarcode").focus();
       }).catch(e => UI.toast('❌ ' + e.message, 'error'));
     },
 
-    remove(barcode) {
+    remove(barcode, branch) {
         let qty = prompt("كم عدد القطع المسحوبة؟");
         if (!qty) return;
         qty = Number(qty);
@@ -10198,7 +10223,7 @@ document.getElementById("productBarcode").focus();
 
         // جلب كل batches نفس الباركود مرتبة بالأقدم انتهاءً أولاً
         let batches = State.products
-            .filter(p => p.barcode === barcode && (p.quantity||0) > 0)
+            .filter(p => p.barcode === barcode && (!branch || p.branch === branch) && (p.quantity||0) > 0)
             .sort((a,b) => {
                 if(!a.expire) return 1;
                 if(!b.expire) return -1;
@@ -10224,7 +10249,7 @@ document.getElementById("productBarcode").focus();
         Promise.all(updates).then(() => {
             UI.toast("تم سحب " + qty + " قطعة", "warning");
             SystemLog.add("ProductRemove", barcode, "سحب " + qty + " قطعة", {
-              branch: State.currentUser?.branch || batches[0]?.branch || "-",
+              branch: branch || batches[0]?.branch || State.currentUser?.branch || "-",
               quantity: qty,
               productName: batches[0]?.name || barcode
             });
@@ -10276,10 +10301,9 @@ UI.toast("تم قراءة الباركود", "success");
             else if ((p.quantity || 0) <= 10) status = "قليل";
             let remaining = "-";
             if (p.expire) {
-                let expireDate = new Date(p.expire);
-                remaining = Math.floor((expireDate - today) / (1000 * 60 * 60 * 24));
-                if (expireDate < today) status = "منتهي";
-                else if (remaining <= 30) status = "قريب الانتهاء";
+                remaining = getRemainingDays(p.expire);
+                if (remaining !== null && remaining < 0) status = "منتهي";
+                else if (remaining !== null && remaining <= 30) status = "قريب الانتهاء";
             }
             rows.push({
                 الباركود: p.barcode,
@@ -10549,10 +10573,9 @@ document.querySelectorAll(".perm-checkbox").forEach(cb => {
 cb.checked = false;
 cb.closest(".permission-card").classList.remove("active");
 });
-
-});
-
 SystemLog.add("AddUser", username, "👤 مستخدم");
+
+}).catch(err => UI.toast("❌ فشل إضافة المستخدم: " + (err.message||err), "error"));
 
 },
         delete(index) { 
@@ -10566,14 +10589,16 @@ UI.toast("لا يمكن حذف المدير الرئيسي","error")
 return
 }
 
-db.ref("users").orderByChild("username").equalTo(user.username).once("value", snap => { 
-snap.forEach(c => c.ref.remove()); 
-}); 
-
-State.users.splice(index, 1); 
-UI.renderUsers(); 
-UI.toast("تم حذف المستخدم", "warning"); 
-SystemLog.add("DeleteUser", user.username, "👤 مستخدم"); 
+db.ref("users").orderByChild("username").equalTo(user.username).once("value", snap => {
+  const removals = [];
+  snap.forEach(c => removals.push(c.ref.remove()));
+  return Promise.all(removals);
+}).then(() => {
+  State.users.splice(index, 1);
+  UI.renderUsers();
+  UI.toast("تم حذف المستخدم", "warning");
+  SystemLog.add("DeleteUser", user.username, "👤 مستخدم");
+}).catch(err => UI.toast("❌ فشل حذف المستخدم: " + (err.message||err), "error")); 
 
 }); 
 },
@@ -11886,78 +11911,39 @@ const transferAddedAt = transferDate + ' ' + transferTime;
 const transferRef    = db.ref("transfers").push();
 const transferId     = transferRef.key;
 
-transferRef.set(data).then(()=>{
-  UI.renderTransfers();
-
-  // ── إضافة أصناف التحويلة لصفحة التواريخ (فرع المرسل إليه) ──
-  State.transferItems.forEach(item => {
+transferRef.set({ ...data, inventoryImported: false }).then(async()=>{
+  const productWrites = [];
+  State.transferItems.forEach((item, itemIndex) => {
     if(!item.barcode || !item.expire) return;
-
-    // حساب الكمية الفعلية (pieces = القطع الإجمالية)
-    const qty = item.kilo > 0
-      ? Number(item.kilo)    // لو كيلو
-      : Number(item.pieces) > 0 ? Number(item.pieces)
-      : Number(item.boxes)  > 0 ? Number(item.boxes)
-      : Number(item.cartons)> 0 ? Number(item.cartons)
-      : Number(item.total)  || 0;
+    const qty = getTransferItemQuantity(item);
     if(qty <= 0) return;
-
-    // جلب الأسعار من شيت الأسعار
     const priceData = window.S?.getBaz?.()?.get(String(item.barcode));
     const cost  = priceData?.costPrice || '';
     const price = priceData?.sellPrice || '';
-
-    // هل موجود نفس الباركود + نفس تاريخ الانتهاء + نفس الفرع المرسل إليه؟
-    const existing = State.products.find(p =>
-      p.barcode === item.barcode &&
-      p.expire  === item.expire  &&
-      p.branch  === transferBranch
-    );
-
+    const existing = State.products.find(p => p.barcode === item.barcode && p.expire === item.expire && p.branch === transferBranch && !p.transferId);
     if(existing) {
-      db.ref("products/" + existing.id).update({
-        quantity:           (existing.quantity || 0) + qty,
-        lastAddedAt:        transferAddedAt,
-        lastAddedBy:        transferUser,
-        source:             'تحويل',
-        lastTransferId:     transferId,
-        ...(cost  && { cost }),
-        ...(price && { price }),
-        lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP
-      });
+      productWrites.push(db.ref("products/" + existing.id).update({
+        quantity: (existing.quantity || 0) + qty, lastAddedAt: transferAddedAt, lastAddedBy: transferUser, source: 'تحويل', lastTransferId: transferId, transferId, transferItemIndex: itemIndex, ...(cost && {cost}), ...(price && {price}), lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP
+      }));
     } else {
-      db.ref("products").push({
-        barcode:        item.barcode,
-        name:           item.name || item.barcode,
-        quantity:       qty,
-        branch:         transferBranch,
-        cost,
-        price,
-        expire:         item.expire,
-        user:           transferUser,
-        source:         'تحويل',
-        transferId:     transferId,
-        addedAt:        transferAddedAt,
-        addedDate:      new Date(TimeUtils.now()).toISOString().slice(0,10),
-        addedTime:      transferTime,
-        timestamp:      firebase.database.ServerValue.TIMESTAMP
-      });
+      productWrites.push(db.ref("products").push({
+        barcode: item.barcode, name: item.name || item.barcode, quantity: qty, branch: transferBranch, cost, price, expire: item.expire, user: transferUser, source: 'تحويل', transferId, transferItemIndex: itemIndex, addedAt: transferAddedAt, addedDate: new Date(TimeUtils.now()).toISOString().slice(0,10), addedTime: transferTime, timestamp: firebase.database.ServerValue.TIMESTAMP
+      }));
     }
   });
-})
-
-UI.toast("تم حفظ التحويل","success")
-SystemLog.add("TransferSaved", State.currentUser?.username || "-", "حفظ تحويل", {
-  branch: to || State.currentUser?.branch || "-",
-  sourceBranch: from || "-",
-  targetBranch: to || "-",
-  transferId
-})
-TransferService.clearDraft()
-
-State.transferItems = []
-
-UI.renderTransferItems()
+  return Promise.all(productWrites);
+}).then(()=>db.ref(`transfers/${transferId}`).update({ inventoryImported: true, inventoryImportedAt: Date.now(), inventoryImportedBy: State.currentUser?.username || '-' }))
+.then(()=>{
+  UI.renderTransfers();
+  UI.toast("✅ تم حفظ التحويل وتحديث مخزون الفرع المستلم","success");
+  SystemLog.add("TransferSaved", State.currentUser?.username || "-", "حفظ تحويل", { branch: to || State.currentUser?.branch || "-", sourceBranch: from || "-", targetBranch: to || "-", transferId, notify: true });
+  TransferService.clearDraft();
+  State.transferItems = [];
+  UI.renderTransferItems();
+}).catch(err=>{
+  console.error("[Transfers] save failed", err);
+  UI.toast("❌ فشل حفظ التحويل أو تحديث مخزون الفرع المستلم: " + (err.message||err), "error");
+});
 
 },
 
@@ -12469,7 +12455,7 @@ function getEmpList() {
           list.push({
             code: String(emp.code),
             name: emp.name || '',
-            job: d.job || emp.job || '-',
+            job: emp.job || '-',
             branch: emp.branch || '-',
             salary: 0, nationalId: '', phone: '', hireDate: '',
             checkIn: '', checkOut: '', workHours: 0,
@@ -12484,7 +12470,7 @@ function getEmpList() {
     State.employees.forEach(emp => {
       list.push({
         code: String(emp.code), name: emp.name || '',
-        job: d.job || emp.job || '-', branch: emp.branch || '-',
+        job: emp.job || '-', branch: emp.branch || '-',
         status: emp.status || 'خارج العمل', id: emp.id,
         salary: 0, nationalId: '', phone: '', hireDate: '',
         checkIn: '', checkOut: '', workHours: 0
@@ -13301,7 +13287,7 @@ const EmpDataService = {
         if(wh) wh.textContent = '-- ساعة';
         this.render();
         UI.toast('✅ ' + (editId ? 'تم تعديل' : 'تمت إضافة') + ' ' + name, 'success');
-        SystemLog.add(editId ? 'EditEmployee' : 'AddEmployee', State.currentUser?.username||'-', name);
+        SystemLog.add(editId ? 'EditEmployee' : 'AddEmployee', code, name, { branch: branch || State.currentUser?.branch || '-', employeeCode: String(code) });
       })
       .catch(err => UI.toast('❌ فشل الحفظ: ' + (err.message||'خطأ'), 'error'));
   },
@@ -13332,7 +13318,7 @@ const EmpDataService = {
           State.employees = State.employees.filter(e => String(e.code) !== code);
           this.render();
           UI.toast('✅ تم حذف ' + name, 'success');
-          SystemLog.add('DeleteEmployee', State.currentUser?.username||'-', 'حذف: ' + name);
+          SystemLog.add('DeleteEmployee', code, name, { branch: emp?.branch || State.currentUser?.branch || '-', employeeCode: String(code) });
         }).catch(err => UI.toast('❌ ' + err.message, 'error'));
     });
   },
@@ -14147,6 +14133,24 @@ function calcItemTotal(cartons, boxes, pieces, kilo) {
     if(boxes)                      return boxes;
     if(pieces)                     return pieces;
     return 0;
+}
+
+function getTransferItemQuantity(item) {
+    if(!item) return 0;
+    const kilo = parseFloat(item.kilo) || 0;
+    if(kilo > 0) return kilo;
+    const cartons = Number(item.cartons) || 0;
+    const boxes = Number(item.boxes) || 0;
+    const pieces = Number(item.pieces) || 0;
+    if(cartons && boxes && pieces) return cartons * boxes * pieces;
+    if(cartons && boxes) return cartons * boxes;
+    if(cartons && pieces) return cartons * pieces;
+    if(boxes && pieces) return boxes * pieces;
+    if(cartons) return cartons;
+    if(boxes) return boxes;
+    if(pieces) return pieces;
+    const numericTotal = Number(item.total);
+    return Number.isFinite(numericTotal) ? numericTotal : 0;
 }
 
 function fixAllTransferTotals() {
@@ -15790,7 +15794,7 @@ html += `
     }
   </td>
   <td style="font-size:11px;color:#64748b;white-space:nowrap">${p.addedAt ? p.addedAt : p.lastAddedAt ? '<span style="color:#f59e0b;font-size:10px">آخر إضافة: </span>' + p.lastAddedAt : '-'}</td>
-  <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="ProductService.remove('${p.barcode}')">➖ سحب</button></td>
+  <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="ProductService.remove('${p.barcode}', '${p.branch || ""}')">➖ سحب</button></td>
   <td class="edit-col">${hasPermission("edit")||hasPermission("all")?`<button style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='editProduct("${p.id}")'><span class="ui-icon-slot" data-icon="plus" aria-hidden="true"></span></button>`:""}</td>
   <td class="edit-col">${hasPermission("delete")||hasPermission("all")?`<button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick='deleteProduct("${p.id}")'><span class="ui-icon-slot" data-icon="trash" aria-hidden="true"></span></button>`:""}</td>
 </tr>
