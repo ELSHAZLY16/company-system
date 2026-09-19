@@ -8029,9 +8029,11 @@ const NotificationService = {
       }
     }
 
-    await ref.set({
-      token,
-      userId: String(user.id),
+    let persisted = false;
+    try {
+      await ref.set({
+        token,
+        userId: String(user.id),
       username: user.username || "-",
       branch: user.branch || "-",
       enabled: true,
@@ -8041,23 +8043,33 @@ const NotificationService = {
       language: navigator.language || "ar-EG",
       lastSeenAt: now,
       updatedAt: now,
-      createdAt: now
-    }).catch(async () => {
-      // لو كانت القواعد ترفض set بسبب سجل موجود، نجرّب update فقط.
-      await ref.update({
-        token,
-        userId: String(user.id),
-        username: user.username || "-",
-        branch: user.branch || "-",
-        enabled: true,
-        permission: Notification.permission,
-        device: navigator.userAgent || "-",
-        platform: navigator.platform || "-",
-        language: navigator.language || "ar-EG",
-        lastSeenAt: now,
-        updatedAt: now
-      }).catch(() => {});
-    });
+        createdAt: now
+      });
+      persisted = true;
+    } catch (setErr) {
+      // لو فشل set نجرّب update فقط، لكن لا نخزن Token محليًا إلا بعد نجاح Firebase.
+      try {
+        await ref.update({
+          token,
+          userId: String(user.id),
+          username: user.username || "-",
+          branch: user.branch || "-",
+          enabled: true,
+          permission: Notification.permission,
+          device: navigator.userAgent || "-",
+          platform: navigator.platform || "-",
+          language: navigator.language || "ar-EG",
+          lastSeenAt: now,
+          updatedAt: now
+        });
+        persisted = true;
+      } catch (updateErr) {
+        console.error("[FCM] failed to persist token", setErr, updateErr);
+        throw new Error("تعذر حفظ Token الإشعارات في Firebase");
+      }
+    }
+
+    if(!persisted) throw new Error("تعذر حفظ Token الإشعارات");
 
     localStorage.setItem(this.TOKEN_STORAGE, token);
     localStorage.setItem(this.OWNER_STORAGE, String(user.id));
@@ -8243,6 +8255,32 @@ const NotificationService = {
     if (btn && !State.currentUser) btn.style.display = "none";
     if (!this.supported()) return;
     if (State.currentUser) await this.bindUser(State.currentUser);
+  },
+
+  async diagnostics() {
+    const result = {
+      supported: this.supported(),
+      permission: (typeof Notification !== "undefined" ? Notification.permission : "unsupported"),
+      serviceWorker: "serviceWorker" in navigator,
+      pushManager: "PushManager" in window,
+      firebaseMessaging: !!(typeof firebase !== "undefined" && firebase.messaging),
+      tokenStored: !!localStorage.getItem(this.TOKEN_STORAGE),
+      ownerStored: localStorage.getItem(this.OWNER_STORAGE) || null,
+      registration: null,
+      token: null
+    };
+    try {
+      if(result.supported) {
+        const reg = await this.registerServiceWorker();
+        result.registration = { scope: reg.scope, active: !!reg.active };
+        if(result.permission === "granted") {
+          const m = this.messaging();
+          result.token = m ? await m.getToken({vapidKey:this.VAPID_KEY,serviceWorkerRegistration:reg}) : null;
+        }
+      }
+    } catch(e) { result.error = e?.message || String(e); }
+    console.table(result);
+    return result;
   },
 
   localTest() {
@@ -8644,6 +8682,7 @@ return firebase.database.ServerValue.TIMESTAMP
       "ProductIncrease",
       "ProductRemove",
       "DeleteProduct",
+      "EditProduct",
       "TransferSaved",
       "EditTransfer",
       "DeleteTransfer",
@@ -8651,6 +8690,7 @@ return firebase.database.ServerValue.TIMESTAMP
       "LeaveApproved",
       "LeaveRejected",
       "Penalty",
+      "AutoPenalty",
       "EditPenalty",
       "DeletePenalty",
       "AddEmployee",
@@ -8670,6 +8710,7 @@ return firebase.database.ServerValue.TIMESTAMP
                 date:        now.toLocaleDateString("ar-EG"),
                 timeDisplay: now.toLocaleTimeString("ar-EG"),
                 timestamp:   firebase.database.ServerValue.TIMESTAMP,
+                eventId:     meta.eventId || null,
                 user:        State.currentUser?.username || "system",
                 userId:      State.currentUser?.id || "-",
                 branch:      meta.branch || State.currentUser?.branch || "-",
