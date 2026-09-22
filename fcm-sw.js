@@ -16,25 +16,37 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
+
   const data = payload?.data || {};
   const notification = payload?.notification || {};
 
   const title = String(
     data.title ||
     notification.title ||
-    'علوش البازار'
+    "علوش البازار"
   );
 
   const body = String(
     data.body ||
     notification.body ||
-    'لديك إشعار جديد'
+    "لديك إشعار جديد"
   );
 
-  const url = data.appUrl || self.registration.scope;
+  const url =
+    data.appUrl ||
+    self.registration.scope;
 
-  // منع تكرار الإشعار إذا أرسله Firebase تلقائياً
-  // وكان الـ payload يحتوي فقط على notification
+  /*
+   * منع تكرار الإشعار:
+   *
+   * لو Firebase أرسل notification payload فقط،
+   * Firebase/Chrome ممكن يعرض الإشعار تلقائياً،
+   * لذلك لا نعرضه مرة ثانية هنا.
+   *
+   * أما رسائل data-only القادمة من Cloudflare Worker
+   * فنعرضها يدويًا باستخدام Service Worker.
+   */
+
   if (
     payload?.notification &&
     Object.keys(data).length === 0
@@ -43,31 +55,39 @@ messaging.onBackgroundMessage((payload) => {
   }
 
   return self.registration.showNotification(title, {
+
     body: body,
 
     tag: String(
       data.eventId ||
-      'allosh-notification'
+      "allosh-notification"
     ),
 
     renotify: true,
 
-    dir: 'rtl',
-    lang: 'ar',
+    dir: "rtl",
+
+    lang: "ar",
 
     data: {
       url: url,
+
       eventId: String(
-        data.eventId || ''
+        data.eventId || ""
       )
     }
+
   });
+
 });
 
 
-/* عند الضغط على الإشعار */
+/* ============================================================
+   عند الضغط على الإشعار
+   ============================================================ */
+
 self.addEventListener(
-  'notificationclick',
+  "notificationclick",
   (event) => {
 
     event.notification.close();
@@ -77,41 +97,59 @@ self.addEventListener(
       self.registration.scope;
 
     event.waitUntil(
+
       (async () => {
 
         const clients =
           await self.clients.matchAll({
-            type: 'window',
+
+            type: "window",
+
             includeUncontrolled: true
+
           });
 
-        // لو الموقع مفتوح بالفعل
+
+        /*
+         * لو النظام مفتوح بالفعل
+         */
         for (const client of clients) {
+
           try {
 
             await client.focus();
 
             if (
               url &&
-              'navigate' in client
+              "navigate" in client
             ) {
+
               await client.navigate(url);
+
             }
 
             return;
 
           } catch (_) {}
+
         }
 
-        // لو الموقع غير مفتوح
+
+        /*
+         * لو النظام غير مفتوح
+         */
         if (
           self.clients.openWindow &&
           url
         ) {
+
           await self.clients.openWindow(url);
+
         }
 
       })()
+
     );
+
   }
 );
