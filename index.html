@@ -8224,25 +8224,44 @@ const NotificationService = {
     if (btn) btn.style.display = "none";
   },
 
+  async showSystemNotification(payload) {
+    if (!this.supported() || Notification.permission !== "granted") return false;
+
+    const data = payload?.data || {};
+    const notification = payload?.notification || {};
+    const title = String(data.title || notification.title || "علوش البازار");
+    const body = String(data.body || notification.body || "لديك إشعار جديد");
+    const eventId = String(data.eventId || ("allosh-" + Date.now()));
+    const appUrl = String(data.appUrl || location.origin + location.pathname);
+
+    const reg = await this.registerServiceWorker();
+    await reg.showNotification(title, {
+      body,
+      tag: eventId,
+      renotify: true,
+      dir: "rtl",
+      lang: "ar",
+      data: { url: appUrl, eventId }
+    });
+    return true;
+  },
+
   attachForegroundListener() {
     if (this._initialized) return;
     const messaging = this.messaging();
     if (!messaging) return;
     this._initialized = true;
 
-    messaging.onMessage((payload) => {
+    messaging.onMessage(async (payload) => {
       try {
         const title = payload?.notification?.title || payload?.data?.title || "علوش البازار";
-        const body  = payload?.notification?.body  || payload?.data?.body  || "لديك إشعار جديد";
+        const body = payload?.notification?.body || payload?.data?.body || "لديك إشعار جديد";
         UI.toast("🔔 " + title + (body ? " — " + body : ""), "info", 7000);
 
-        // في حالة الصفحة غير ظاهرة، نظهر إشعار النظام مباشرة.
-        if (document.visibilityState !== "visible" && Notification.permission === "granted") {
-          const n = new Notification(title, { body, tag: payload?.data?.eventId || "allosh-notification" });
-          n.onclick = () => {
-            try { window.focus(); } catch (_) {}
-            n.close();
-          };
+        // FCM لا يسمح بإنشاء Notification مباشرة على بعض إصدارات Android Chrome.
+        // لذلك نستخدم ServiceWorkerRegistration.showNotification() دائمًا.
+        if (Notification.permission === "granted") {
+          await this.showSystemNotification(payload);
         }
       } catch (e) {
         console.warn("[FCM] foreground message handling failed", e);
@@ -8283,16 +8302,25 @@ const NotificationService = {
     return result;
   },
 
-  localTest() {
+  async localTest() {
     if (!this.supported() || Notification.permission !== "granted") {
       UI.toast("فعّل الإشعارات أولاً", "warning");
       return;
     }
-    const n = new Notification("علوش البازار", {
-      body: "✅ اختبار إشعارات الهاتف — الجهاز جاهز لاستقبال Push",
-      tag: "allosh-local-test"
-    });
-    setTimeout(() => { try { n.close(); } catch (_) {} }, 7000);
+    try {
+      await this.showSystemNotification({
+        data: {
+          title: "علوش البازار",
+          body: "✅ اختبار إشعارات الهاتف — الجهاز جاهز لاستقبال Push",
+          eventId: "allosh-local-test-" + Date.now(),
+          appUrl: location.origin + location.pathname
+        }
+      });
+      UI.toast("✅ تم إرسال اختبار الإشعار", "success");
+    } catch (e) {
+      console.error("[FCM] local test failed", e);
+      UI.toast("❌ فشل اختبار الإشعار: " + (e?.message || e), "error");
+    }
   }
 };
 
