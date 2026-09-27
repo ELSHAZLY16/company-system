@@ -2576,6 +2576,10 @@ body.light-mode .user-badge {
   overflow-wrap: anywhere;
 }
 
+/* User management action buttons */
+#usersBody .edit-col { white-space: normal; }
+#usersBody .edit-col button { margin-top: 4px; }
+
 /* ============================================================
    User Menu + Presence
    ============================================================ */
@@ -9574,7 +9578,9 @@ const DeviceInfo = {
         securePermissions: [],
         isFirebaseLoaded: false,
         sessionRestored: false,
-        presence: {}
+        presence: {},
+        _sessionStartedAt: 0,
+        _remoteLogoutInProgress: false
     };
 
     // ============================================================
@@ -11165,7 +11171,65 @@ UI.toast("تم رفض الإجازة","warning")
 SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير تقرير الإجازات") }
     };
 
-    // ========================= خدمة التواريخ (Products) =========================
+    
+// ============================================================
+// مصدر سجل التاريخ — تجميع يدوي/تحويل على نفس (الباركود + الفرع + تاريخ الانتهاء)
+// ============================================================
+function resolveProductSources(product, extraSource = null) {
+  const set = new Set();
+  const add = (value) => {
+    const v = String(value || '').trim();
+    if (!v) return;
+    if (v.includes('تحويل')) set.add('تحويل');
+    if (v.includes('يدوي')) set.add('يدوي');
+  };
+
+  if (Array.isArray(product?.sources)) product.sources.forEach(add);
+  add(product?.source);
+  if (product?.transferId) set.add('تحويل');
+  if (extraSource) add(extraSource);
+
+  // البيانات القديمة التي لا تحتوي source كانت تُعامل سابقًا كـ "يدوي".
+  if (!set.size) set.add('يدوي');
+
+  return {
+    set,
+    values: [...set],
+    label: set.has('تحويل') && set.has('يدوي') ? 'تحويل ويدوي' : (set.has('تحويل') ? 'تحويل' : 'يدوي')
+  };
+}
+
+function productSourcePayload(product, extraSource) {
+  const info = resolveProductSources(product || {}, extraSource);
+  return { sources: info.values, source: info.label };
+}
+
+function productBatchKey(product) {
+  return [String(product?.barcode || '').trim(), String(product?.branch || '').trim(), String(product?.expire || '').trim()].join('||');
+}
+
+function buildProductSourceMap() {
+  const map = new Map();
+  (State.products || []).forEach(item => {
+    const key = productBatchKey(item);
+    if (!map.has(key)) map.set(key, new Set());
+    const target = map.get(key);
+    const info = resolveProductSources(item);
+    info.values.forEach(src => target.add(src));
+  });
+  return map;
+}
+
+function getBatchSourceInfo(product, sourceMap) {
+  const set = sourceMap?.get(productBatchKey(product)) || resolveProductSources(product).set;
+  return {
+    hasTransfer: set.has('تحويل'),
+    hasManual: set.has('يدوي'),
+    label: set.has('تحويل') && set.has('يدوي') ? 'تحويل ويدوي' : (set.has('تحويل') ? 'تحويل' : 'يدوي')
+  };
+}
+
+// ========================= خدمة التواريخ (Products) =========================
     const ProductService = {
     add() {
         let barcode = document.getElementById("productBarcode").value.trim();
@@ -11186,11 +11250,13 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
         if (existing) {
             let newQty = (existing.quantity || 0) + qty;
             const now = new Date();
+            const sourcePayload = productSourcePayload(existing, 'يدوي');
             db.ref("products/" + existing.id).update({
               quantity: newQty,
               lastAddedAt: now.toLocaleString('ar-EG'),
               lastAddedBy: State.currentUser?.username || '-',
-              lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP
+              lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP,
+              ...sourcePayload
             }).then(() => {
               SystemLog.add("ProductIncrease", barcode, existing.name || name || barcode, { branch, quantity: qty, productName: existing.name || name || barcode });
               UI.toast("✅ تم زيادة الكمية — " + (existing.name||barcode) + " (" + newQty + ")", "success");
@@ -11208,6 +11274,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
                 expire: expire,
                 user: State.currentUser?.username || '-',
                 source: 'يدوي',
+                sources: ['يدوي'],
                 addedAt: now.toLocaleString('ar-EG'),
                 addedDate: now.toISOString().slice(0,10),
                 addedTime: now.toTimeString().slice(0,5),
@@ -11278,9 +11345,10 @@ document.getElementById("productBarcode").focus();
 
                 const existing = State.products.find(p => p.barcode === item.barcode && p.expire === item.expire && p.branch === branch);
                 if(existing) {
+                  const sourcePayload = productSourcePayload(existing, 'تحويل');
                   await db.ref("products/" + existing.id).update({
                     quantity: (existing.quantity || 0) + qty,
-                    source: 'تحويل',
+                    ...sourcePayload,
                     transferId: transfer.id,
                     lastAddedBy: user,
                     lastAddedAt: date,
@@ -11290,7 +11358,7 @@ document.getElementById("productBarcode").focus();
                   merged++;
                 } else {
                   await db.ref("products").push({
-                    barcode: item.barcode, name: item.name || item.barcode, quantity: qty, branch, cost, price, expire: item.expire, user, source: 'تحويل', transferId: transfer.id, addedAt: date, addedDate: transfer.dateISO || '', timestamp: transfer.timestamp || Date.now()
+                    barcode: item.barcode, name: item.name || item.barcode, quantity: qty, branch, cost, price, expire: item.expire, user, source: 'تحويل', sources: ['تحويل'], transferId: transfer.id, addedAt: date, addedDate: transfer.dateISO || '', timestamp: transfer.timestamp || Date.now()
                   });
                   added++;
                 }
@@ -11734,6 +11802,44 @@ db.ref("users").orderByChild("username").equalTo(user.username).once("value", sn
 }); 
 },
 
+        async forceLogout(index) {
+            if(!hasPermission("users") && !hasPermission("all")) {
+                UI.toast("ليس لديك صلاحية تسجيل خروج المستخدمين", "error");
+                return;
+            }
+
+            const user = State.users[index];
+            if(!user || !user.id) {
+                UI.toast("لم يتم العثور على المستخدم", "error");
+                return;
+            }
+
+            const actor = State.currentUser?.username || "-";
+            if(String(user.id) === String(State.currentUser?.id || "")) {
+                UI.toast("أنت تستخدم هذا الحساب حاليًا. استخدم زر الخروج العادي.", "warning");
+                return;
+            }
+
+            try {
+                // نضع ختمًا زمنيًا على حساب المستخدم. أي جهاز مفتوح بهذا الحساب
+                // سيكتشف التغيير فور مزامنة users ويعود لشاشة تسجيل الدخول.
+                await db.ref("users/" + user.id).update({
+                    forceLogoutAt: firebase.database.ServerValue.TIMESTAMP,
+                    forceLogoutBy: actor,
+                    forceLogoutReason: "تسجيل خروج إداري"
+                });
+
+                UI.toast("✅ تم إرسال أمر تسجيل الخروج إلى " + (user.username || "المستخدم"), "success");
+                SystemLog.add("ForceLogoutUser", actor, "تسجيل خروج إداري", {
+                    targetUser: user.username || "-",
+                    targetUserId: user.id,
+                    notify: false
+                });
+            } catch(err) {
+                UI.toast("❌ فشل تسجيل خروج المستخدم: " + (err?.message || err), "error");
+            }
+        },
+
         loadLoginLogs() {
             db.ref("loginLogs").orderByChild("loginTs").limitToLast(100).once("value", snap => {
                 const logs = [];
@@ -12153,11 +12259,15 @@ window.addEventListener('resize', () => {
             this.setCurrentUser(user);
             try { NotificationService.bindUser(user); } catch (_) {}
             
+            const newSessionStartedAt = Number(TimeUtils.now()) || Date.now();
+            State._sessionStartedAt = newSessionStartedAt;
+            State._remoteLogoutInProgress = false;
             localStorage.setItem("loggedUser", JSON.stringify({
                 username: user.username,
-                loginTime: TimeUtils.now()
+                loginTime: newSessionStartedAt
             }));
             sessionStorage.setItem("activeSession", "true");
+            sessionStorage.setItem("alloshSessionStartedAt", String(newSessionStartedAt));
 
             this.showDashboard();
             SystemLog.add("Login", user.username, "تسجيل دخول");
@@ -12173,6 +12283,8 @@ window.addEventListener('resize', () => {
 
             localStorage.removeItem("loggedUser");
             sessionStorage.clear();
+            State._sessionStartedAt = 0;
+            State._remoteLogoutInProgress = false;
             
             State.currentUser = null;
             State.securePermissions = [];
@@ -12286,6 +12398,10 @@ window.addEventListener('resize', () => {
 
             try {
                 const session = JSON.parse(savedData);
+                const sessionStartedAt = Number(session.loginTime) || 0;
+                State._sessionStartedAt = sessionStartedAt;
+                State._remoteLogoutInProgress = false;
+                sessionStorage.setItem("alloshSessionStartedAt", String(sessionStartedAt || Date.now()));
                 const user = State.users.find(u => u.username.trim() === session.username);
 
                 if (user) {
@@ -13037,43 +13153,123 @@ document.getElementById("transferBarcode").focus()
 
 },
 
-exportExcel(){
+async exportExcel(){
 
-if (!checkExcelPermission()) return
+if (!checkExcelPermission()) return;
 
-let rows = []
+// التصدير يجب أن يحتوي كل أصناف كل تحويل، حتى لو كانت بيانات الاسم ناقصة في السجل القديم.
+// نُصدّر الباركود + اسم الصنف بعد عمل fallback من شيت الأسعار، ونحتفظ بمعرف التحويل لتسهيل المراجعة.
+const sourceTransfers = State.transferRange === "all"
+  ? (State.transfers || [])
+  : UI.getFilteredTransfers();
 
-UI.getFilteredTransfers().forEach(t=>{
+if(!sourceTransfers.length){
+  UI.toast("لا توجد تحويلات للتصدير", "warning");
+  return;
+}
 
-t.items.forEach(i=>{
+UI.toast("⏳ جارٍ تجهيز كل التحويلات للتصدير...", "info", 5000);
 
-rows.push({
+const normalizeBarcode = value => {
+  if(value === null || value === undefined) return "";
+  return String(value).trim();
+};
 
-من:t.from,
-إلى:t.to,
-الصنف:i.name,
-كراتين:i.cartons,
-علب:i.boxes,
-قطع:i.pieces,
-كيلو:i.kilo || 0,
-الإجمالي:i.total,
-تاريخ_الانتهاء:i.expire,
-التاريخ:t.date,
-المستخدم:t.user
+const nameMap = new Map();
+const rememberSource = src => {
+  if(!src || typeof src !== "object") return;
+  Object.entries(src).forEach(([key,val]) => {
+    let name = "";
+    if(typeof val === "string") name = val;
+    else if(val && typeof val === "object") name = val.name || val.n || "";
+    if(!name) return;
+    const raw = normalizeBarcode(key);
+    if(!raw) return;
+    const variants = [raw, raw.replace(/\./g,"_"), raw.replace(/[.#$\[\]]/g,"_")];
+    variants.forEach(v => { if(v && !nameMap.has(v)) nameMap.set(v, name); });
+  });
+};
 
-})
+// استخدم الذاكرة المحلية أولاً.
+try {
+  const baz = window.S?.getBaz?.();
+  const cai = window.S?.getCai?.();
+  if(baz?.forEach) baz.forEach((v,k) => { if(v?.name && !nameMap.has(String(k))) nameMap.set(String(k), v.name); });
+  if(cai?.forEach) cai.forEach((v,k) => { if(v?.name && !nameMap.has(String(k))) nameMap.set(String(k), v.name); });
+} catch(_) {}
 
-})
+const allItems = [];
+sourceTransfers.forEach(t => {
+  const items = Array.isArray(t.items) ? t.items : Object.values(t.items || {});
+  items.forEach((item, itemIndex) => allItems.push({t, item, itemIndex}));
+});
 
-})
+// لو الاسم غير موجود محلياً، نقرأ شيت الأسعار مرة واحدة فقط بدل عمل طلب لكل صنف.
+const missingBeforeRemote = allItems.filter(({item}) => {
+  const bc = normalizeBarcode(item?.barcode);
+  return !(item?.name || item?.productName || item?.product_name || (bc && nameMap.get(bc)));
+}).length;
 
-let ws = XLSX.utils.json_to_sheet(rows)
+if(missingBeforeRemote > 0 && typeof db !== 'undefined'){
+  try {
+    const snap = await db.ref('priceSheet').once('value');
+    const ps = snap.val() || {};
+    rememberSource(ps.baz);
+    rememberSource(ps.cai);
+    rememberSource(ps.names);
+  } catch(err) {
+    console.warn('[Transfers Export] تعذر قراءة شيت الأسعار:', err);
+  }
+}
 
-let wb = XLSX.utils.book_new()
+const rows = allItems.map(({t,item,itemIndex}) => {
+  const i = item || {};
+  const barcode = normalizeBarcode(i.barcode || i.itemNumber || i.code || i.bc);
+  let name = i.name || i.productName || i.product_name || (barcode ? nameMap.get(barcode) : "") || (barcode ? getProductName(barcode) : "") || "";
 
-XLSX.utils.book_append_sheet(wb, ws, "transfers")
+  if(!name && barcode){
+    const normalized = barcode.replace(/\./g,"_").replace(/[.#$\[\]]/g,"_");
+    name = nameMap.get(normalized) || "";
+  }
 
-XLSX.writeFile(wb, "transfers_report.xlsx")
+  const calculatedTotal = (typeof getTransferItemQuantity === 'function') ? getTransferItemQuantity(i) : Number(i.total) || 0;
+  const total = (i.total !== undefined && i.total !== null && i.total !== "") ? i.total : calculatedTotal;
+  const transferDate = t.dateISO || t.date || (t.timestamp ? new Date(Number(t.timestamp)).toLocaleDateString('ar-EG') : '-');
+
+  return {
+    "معرف التحويل": t.id || "",
+    "رقم الصنف داخل التحويل": itemIndex + 1,
+    "من فرع": t.from || "-",
+    "إلى فرع": t.to || "-",
+    "الباركود": barcode || "-",
+    "اسم الصنف": name || (barcode ? `صنف ${barcode}` : "اسم غير مسجل"),
+    "كراتين": Number(i.cartons) || 0,
+    "علب": Number(i.boxes) || 0,
+    "قطع": Number(i.pieces) || 0,
+    "كيلو": Number(i.kilo) || 0,
+    "الإجمالي": total,
+    "تاريخ الانتهاء": i.expire || "-",
+    "تاريخ التحويل": transferDate,
+    "المستخدم": t.user || "-"
+  };
+});
+
+const wb = XLSX.utils.book_new();
+const ws = XLSX.utils.json_to_sheet(rows);
+XLSX.utils.book_append_sheet(wb, ws, "transfers");
+
+const missingNames = rows.filter(r => r["اسم الصنف"] === "اسم غير مسجل" || /^صنف \d+$/.test(String(r["اسم الصنف"] || ""))).length;
+const summary = [{
+  "إجمالي التحويلات": sourceTransfers.length,
+  "إجمالي الأصناف المصدرة": rows.length,
+  "أصناف بدون اسم من المصدر": missingNames,
+  "حالة التصدير": missingNames ? "تم التصدير مع الإبقاء على الباركود للمراجعة" : "تم التصدير كاملة"
+}];
+const summaryWs = XLSX.utils.json_to_sheet(summary);
+XLSX.utils.book_append_sheet(wb, summaryWs, "ملخص التصدير");
+
+XLSX.writeFile(wb, "transfers_report.xlsx");
+UI.toast(`✅ تم تصدير ${rows.length.toLocaleString('ar-EG')} صنف من ${sourceTransfers.length.toLocaleString('ar-EG')} تحويل`, "success");
 
 },
 
@@ -13179,12 +13375,13 @@ try {
     );
 
     if(existing) {
+      const sourcePayload = productSourcePayload(existing, 'تحويل');
       productWrites.push(
         db.ref("products/" + existing.id).update({
           quantity: (existing.quantity || 0) + qty,
           lastAddedAt: transferAddedAt,
           lastAddedBy: transferUser,
-          source: 'تحويل',
+          ...sourcePayload,
           lastTransferId: transferId,
           transferId,
           transferItemIndex: itemIndex,
@@ -13205,6 +13402,7 @@ try {
           expire: item.expire,
           user: transferUser,
           source: 'تحويل',
+          sources: ['تحويل'],
           transferId,
           transferItemIndex: itemIndex,
           addedAt: transferAddedAt,
@@ -17072,12 +17270,13 @@ let expirySoonFilter = document.getElementById("productExpirySoonFilter")?.value
 
 let html = ""
 let low=0, expired=0, soon=0
+const productSourceMap = buildProductSourceMap();
 
 State.products
 .filter(p =>
   (!search || (p.name?.toLowerCase().includes(search) || String(p.barcode||'').includes(search))) &&
   (!branchFilter || (p.branch||"") === branchFilter) &&
-  (!sourceFilter || (p.source||"يدوي") === sourceFilter) &&
+  (!sourceFilter || getBatchSourceInfo(p, productSourceMap)[sourceFilter === 'تحويل' ? 'hasTransfer' : 'hasManual']) &&
   (!expirySoonFilter || (() => {
     if(!p.expire) return false
     let d = getRemainingDays(p.expire)
@@ -17171,10 +17370,13 @@ html += `
   <td style="text-align:center"><span class="badge ${badge}">${status}</span></td>
   <td style="font-size:12px;color:#94a3b8">${p.user || "-"}</td>
   <td style="text-align:center">
-    ${p.source === 'تحويل'
-      ? '<span style="background:rgba(99,102,241,0.2);color:#818cf8;padding:2px 8px;border-radius:10px;font-size:11px"><span class="ui-icon-slot" data-icon="box" aria-hidden="true"></span> تحويل</span>'
-      : '<span style="background:rgba(16,185,129,0.15);color:#34d399;padding:2px 8px;border-radius:10px;font-size:11px"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> يدوي</span>'
-    }
+    ${(() => {
+      const info = getBatchSourceInfo(p, productSourceMap);
+      const tags = [];
+      if(info.hasTransfer) tags.push('<span style="background:rgba(99,102,241,0.2);color:#818cf8;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap"><span class="ui-icon-slot" data-icon="box" aria-hidden="true"></span> تحويل</span>');
+      if(info.hasManual) tags.push('<span style="background:rgba(16,185,129,0.15);color:#34d399;padding:2px 8px;border-radius:10px;font-size:11px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> يدوي</span>');
+      return `<span style="display:inline-flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap">${tags.join('')}</span>`;
+    })()}
   </td>
   <td style="font-size:11px;color:#64748b;white-space:nowrap">${p.addedAt ? p.addedAt : p.lastAddedAt ? '<span style="color:#f59e0b;font-size:10px">آخر إضافة: </span>' + p.lastAddedAt : '-'}</td>
   <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px" onclick="ProductService.remove('${p.barcode}', '${p.branch || ""}')">➖ سحب</button></td>
@@ -18185,7 +18387,8 @@ body.innerHTML = html
                   <td>${perms}</td>
                   <td class="edit-col"><button style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.openPerms(State.users[${index}])">✏ صلاحيات</button>
                   <button style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick="UserService.openEditUser(State.users[${index}])"><span class="ui-icon-slot" data-icon="shieldCheck" aria-hidden="true"></span> بيانات</button>
-                  <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick='UserService.viewLoginHistory(${JSON.stringify(u.id || "")}, ${JSON.stringify(u.username || "")})'><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> كل مرات الدخول</button></td>
+                  <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick='UserService.viewLoginHistory(${JSON.stringify(u.id || "")}, ${JSON.stringify(u.username || "")})'><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> كل مرات الدخول</button>
+                  <button style="background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.35);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick='showConfirm(${JSON.stringify(`هل تريد تسجيل خروج المستخدم ${u.username || ""} من جميع أجهزته الحالية؟`)}, () => UserService.forceLogout(${index}))'><span class="ui-icon-slot" data-icon="logout" aria-hidden="true"></span> تسجيل خروج</button></td>
                   <td class="edit-col"><button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.delete(${index})">🗑 حذف</button></td>
                 </tr>`;
             }).join("")
@@ -18441,6 +18644,17 @@ UI.renderTransfers()
                         UI.toast("تم إنهاء الجلسة بسبب حذف المستخدم أو تغيير البيانات", "error");
                         AuthService.logout();
                     } else {
+                        // تسجيل خروج إداري عن بُعد: لو ختم ForceLogout أحدث من بداية الجلسة الحالية
+                        // فالواجهة تُغلق فورًا وتعود لشاشة تسجيل الدخول، بما في ذلك أي جهاز آخر للحساب.
+                        const forceLogoutAt = Number(updatedUser.forceLogoutAt || 0);
+                        const activeSessionAt = Number(State._sessionStartedAt || sessionStorage.getItem("alloshSessionStartedAt") || 0);
+                        if(forceLogoutAt > 0 && forceLogoutAt > activeSessionAt && !State._remoteLogoutInProgress) {
+                            State._remoteLogoutInProgress = true;
+                            UI.toast("🔒 تم تسجيل خروج هذا الحساب إداريًا. يرجى تسجيل الدخول من جديد.", "warning", 5000);
+                            AuthService.logout();
+                            return;
+                        }
+
                         // تحديث الصلاحيات فقط لو اتغيرت - بدون showDashboard
                         const oldPerms = JSON.stringify(State.currentUser?.permissions || []);
                         const newPerms = JSON.stringify(updatedUser.permissions || []);
