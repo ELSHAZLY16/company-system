@@ -15749,6 +15749,10 @@ const BazarHRSuite = {
   _active:'employees',
   _listeners:{},
   _cache:{employees:[],attendance:[],advances:[],incentives:[],penalties:[],permits:[]},
+  _networkBound:false,
+  _connectionBound:false,
+  _online: navigator.onLine !== false,
+  _firebaseConnected: false,
   _graceMin:15,
   _targetDays:26,
   _esc(v){return String(v??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));},
@@ -15760,17 +15764,17 @@ const BazarHRSuite = {
   _date(v){if(!v)return '-';const d=new Date(v+'T00:00:00');return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-EG'):v;},
   _num(v){const n=Number(v);return Number.isFinite(n)?n:0;},
   _employees(){
-    // المصدر الوحيد لبيانات موظفي البازار هو bazarEmpData.
-    // نستخدم cache أولاً لتجنب أي اعتماد على بيانات موظفي المحل.
-    const cached=Array.isArray(this._cache.employees)?this._cache.employees:[];
-    if(cached.length){
-      return cached.map(e=>({
-        code:String(e?.code??e?.id??''),name:String(e?.name??''),job:String(e?.job??''),branch:String(e?.branch??''),salary:this._num(e?.salary??e?.baseSalary),
-        checkIn:String(e?.checkIn??e?.workStart??''),checkOut:String(e?.checkOut??e?.workEnd??''),workHours:this._num(e?.workHours??e?.workHoursPerDay)||0,
-        hireDate:e?.hireDate||'',nationalId:e?.nationalId||'',phone:e?.phone||'',status:e?.status||'',employmentStatus:e?.employmentStatus||''
-      })).filter(e=>e.code).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+    // عند وجود اتصال: المصدر الحي هو Firebase فقط عبر State.bazarEmpData
+    // ولا نستخدم _cache لتغذية واجهة بيانات الموظفين.
+    // عند انقطاع الإنترنت فقط نرجع لآخر نسخة محفوظة في _cache للعمل أوفلاين.
+    let raw={};
+    if(this._online){
+      raw=State.bazarEmpData&&typeof State.bazarEmpData==='object'&&!Array.isArray(State.bazarEmpData)?State.bazarEmpData:{};
+    }else{
+      const cached=Array.isArray(this._cache.employees)?this._cache.employees:[];
+      raw={};
+      cached.forEach(e=>{const k=String(e?.code??e?.id??'').trim();if(k)raw[k]=e;});
     }
-    const raw=State.bazarEmpData&&typeof State.bazarEmpData==='object'&&!Array.isArray(State.bazarEmpData)?State.bazarEmpData:{};
     return Object.entries(raw).map(([k,e])=>({
       code:String(e?.code??k),name:String(e?.name??''),job:String(e?.job??''),branch:String(e?.branch??''),salary:this._num(e?.salary??e?.baseSalary),
       checkIn:String(e?.checkIn??e?.workStart??''),checkOut:String(e?.checkOut??e?.workEnd??''),workHours:this._num(e?.workHours??e?.workHoursPerDay)||0,
@@ -15789,13 +15793,59 @@ const BazarHRSuite = {
     if(!this._initialized){
       this._initialized=true;
       document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(btn=>btn.addEventListener('click',()=>this.openPane(btn.dataset.bhTab)));
+      this._bindNetwork();
       this._attachListeners();
       this.openPane('employees');
-      // قراءة فعلية من Firebase عند أول تشغيل حتى لو كان هناك cache قديم أو Service Worker قديم.
-      this.refreshAll().catch(()=>{});
+      // عند وجود إنترنت: قراءة مباشرة من Firebase. عند الانقطاع فقط نستخدم النسخة المحلية.
+      if(this._online) this.refreshAll().catch(()=>{});
       if(!this._interval)this._interval=setInterval(()=>{if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none')this.refreshActivePane();},60000);
     }
     this.refreshActivePane();
+  },
+  _bindNetwork(){
+    if(this._networkBound)return;
+    this._networkBound=true;
+    this._online=navigator.onLine !== false;
+    window.addEventListener('online',()=>{
+      // ننتظر تأكيد Firebase الفعلي بدل اعتبار المتصفح متصلًا وحده.
+      this._online=true;
+      if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none'){
+        UI.toast('🌐 تم استعادة الإنترنت — انتظار تأكيد اتصال Firebase...','info');
+      }
+      this.refreshAll().catch(()=>{});
+    });
+    window.addEventListener('offline',()=>{
+      this._online=false;
+      this._firebaseConnected=false;
+      if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none'){
+        UI.toast('📴 انقطع الإنترنت — سيتم استخدام آخر بيانات محفوظة فقط','warning');
+      }
+      this.refreshPaneFromOfflineCache();
+    });
+    this._bindFirebaseConnection();
+  },
+  _bindFirebaseConnection(){
+    if(this._connectionBound)return;
+    this._connectionBound=true;
+    try{
+      db.ref('.info/connected').on('value',snap=>{
+        const connected=snap.val()===true;
+        const was=this._firebaseConnected;
+        this._firebaseConnected=connected;
+        this._online=connected;
+        if(connected){
+          if(!was && document.getElementById('tab-fingerprint-bazar')?.style.display!=='none'){
+            UI.toast('✅ اتصال Firebase مباشر — جاري تحميل بيانات البازار من السيرفر','success');
+          }
+          this.refreshAll().catch(()=>{});
+        }else{
+          this.refreshPaneFromOfflineCache();
+        }
+      });
+    }catch(e){
+      // fallback للـ navigator.onLine لو Firebase connection state غير متاح.
+      this._online=navigator.onLine !== false;
+    }
   },
   _attachListeners(){
     const add=(path,key,onData)=>{
@@ -15827,6 +15877,12 @@ const BazarHRSuite = {
   },
   refreshActivePane(){this.renderPane(this._active);},
   async refreshAll(){
+    // لا نقرأ من cache أثناء وجود الإنترنت: كل تحديث هنا من Firebase مباشرة.
+    if(!this._online){
+      this.refreshPaneFromOfflineCache();
+      UI.toast('📴 غير متصل — تم عرض آخر بيانات محفوظة مؤقتًا','warning');
+      return;
+    }
     try{
       const paths=[
         [BAZAR_HR_PATHS.employees,'employees'],
@@ -15852,12 +15908,25 @@ const BazarHRSuite = {
         else if(key==='permits') State.bazarBreaks=arr;
       }));
       this.renderPane(this._active);
-      const count=this._cache.employees.length;
-      UI.toast(`✅ تم تحديث بيانات إدارة البازار — ${count} موظف`, 'success');
+      const count=Object.keys(State.bazarEmpData||{}).length;
+      UI.toast(`✅ تم تحديث بيانات إدارة البازار من Firebase — ${count} موظف`, 'success');
     }catch(e){
       console.error('Bazar refresh error:',e);
       UI.toast('❌ فشل التحديث من Firebase: '+(e?.message||e),'error');
     }
+  },
+
+  refreshPaneFromOfflineCache(){
+    // هذا المسار يعمل فقط عند انقطاع الإنترنت.
+    const map={};
+    (this._cache.employees||[]).forEach(e=>{const code=String(e?.code??e?.id??'').trim();if(code)map[code]=e;});
+    State.bazarEmpData=map;
+    if(Array.isArray(this._cache.attendance))State.fingerprintBazar=this._cache.attendance;
+    if(Array.isArray(this._cache.advances))State.bazarAdvances=this._cache.advances;
+    if(Array.isArray(this._cache.incentives))State.bazarIncentives=this._cache.incentives;
+    if(Array.isArray(this._cache.penalties))State.bazarPenalties=this._cache.penalties;
+    if(Array.isArray(this._cache.permits))State.bazarBreaks=this._cache.permits;
+    this.renderPane(this._active);
   },
 
   renderPane(tab){
