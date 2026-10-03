@@ -15763,24 +15763,53 @@ const BazarHRSuite = {
   _time(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
   _date(v){if(!v)return '-';const d=new Date(v+'T00:00:00');return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-EG'):v;},
   _num(v){const n=Number(v);return Number.isFinite(n)?n:0;},
-  _employees(){
-    // عند وجود اتصال: المصدر الحي هو Firebase فقط عبر State.bazarEmpData
-    // ولا نستخدم _cache لتغذية واجهة بيانات الموظفين.
-    // عند انقطاع الإنترنت فقط نرجع لآخر نسخة محفوظة في _cache للعمل أوفلاين.
+  _employeeMasterList(){
     let raw={};
-    if(this._online){
+    if(this._firebaseConnected){
       raw=State.bazarEmpData&&typeof State.bazarEmpData==='object'&&!Array.isArray(State.bazarEmpData)?State.bazarEmpData:{};
     }else{
+      // لا نستخدم النسخة المحلية إلا عند عدم وجود اتصال Firebase فعلي.
       const cached=Array.isArray(this._cache.employees)?this._cache.employees:[];
-      raw={};
       cached.forEach(e=>{const k=String(e?.code??e?.id??'').trim();if(k)raw[k]=e;});
     }
     return Object.entries(raw).map(([k,e])=>({
       code:String(e?.code??k),name:String(e?.name??''),job:String(e?.job??''),branch:String(e?.branch??''),salary:this._num(e?.salary??e?.baseSalary),
       checkIn:String(e?.checkIn??e?.workStart??''),checkOut:String(e?.checkOut??e?.workEnd??''),workHours:this._num(e?.workHours??e?.workHoursPerDay)||0,
-      hireDate:e?.hireDate||'',nationalId:e?.nationalId||'',phone:e?.phone||'',status:e?.status||'',employmentStatus:e?.employmentStatus||''
-    })).filter(e=>e.code).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+      hireDate:e?.hireDate||'',nationalId:e?.nationalId||'',phone:e?.phone||'',status:e?.status||'',employmentStatus:e?.employmentStatus||'',
+      isFingerprintOnly:false, fingerprintName:'', fingerprintJob:'', fingerprintSourceCount:0
+    })).filter(e=>e.code);
   },
+  _fingerprintDiscoveredList(){
+    const source= (this._firebaseConnected || this._online)
+      ? (Array.isArray(State.fingerprintBazar)?State.fingerprintBazar:[])
+      : (Array.isArray(this._cache.attendance)?this._cache.attendance:[]);
+    const map={};
+    source.forEach(a=>{
+      const code=String(a?.code??a?.user_id??'').trim();
+      if(!code)return;
+      const ts=Number(a?.timestamp)||0;
+      const cur=map[code];
+      if(!cur || ts>=Number(cur.timestamp||0)){
+        map[code]={
+          code, name:String(a?.name||code), job:String(a?.job||''), branch:String(a?.branch||'البازار'),
+          checkIn:String(a?.expectedIn||''), checkOut:String(a?.expectedOut||''), workHours:Number(a?.workHoursPerDay||0)||0,
+          timestamp:ts
+        };
+      }
+      map[code].fingerprintSourceCount=(map[code].fingerprintSourceCount||0)+1;
+    });
+    return Object.values(map);
+  },
+  _employees(){
+    // جدول بيانات الموظفين هو السجل الرسمي المستقل للبازار فقط.
+    // الكود هنا هو كود البصمة الذي يتم إدخاله في نموذج "موظف جديد".
+    // لا نضيف أي موظف تلقائيًا من fingerprintBazar إلى جدول بيانات الموظفين.
+    // سجلات fingerprintBazar تبقى مصدر الحضور والانصراف فقط، وتُطابق بالكود.
+    return this._employeeMasterList()
+      .filter(e=>e.code)
+      .sort((a,b)=>String(a.name||a.code).localeCompare(String(b.name||b.code),'ar'));
+  },
+  _masterEmp(code){return this._employeeMasterList().find(e=>String(e.code)===String(code))||null;},
   _emp(code){return this._employees().find(e=>String(e.code)===String(code))||null;},
   _loadOnce(path,key){return db.ref(path).once('value').then(s=>{const out=[];s.forEach(c=>out.push({id:c.key,...(c.val()||{})}));this._cache[key]=out;return out;});},
   _setRangeDefaults(ids){const t=this._today(); ids.forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=t;});},
@@ -15941,13 +15970,34 @@ const BazarHRSuite = {
   },
 
   renderEmployees(){
-    const p=document.getElementById('bh-pane-employees');if(!p)return;const emps=this._employees();
-    p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>بيانات الموظفين</h3><div class="bh-muted">المصدر المستقل: <b>bazarEmpData</b> — لا يتم استخدام بيانات موظفي المحل هنا.</div></div><button class="suite-btn primary" onclick="BazarHRSuite.openEmployeeForm()">➕ موظف جديد</button></div>
-    <div class="suite-grid" style="margin-top:12px"><input id="bhEmpSearch" class="bh-input" placeholder="بحث بالاسم أو الكود" oninput="BazarHRSuite.renderEmployees()"><select id="bhEmpStatus" class="bh-input" onchange="BazarHRSuite.renderEmployees()"><option value="">كل الحالات</option><option value="active">نشط</option><option value="resigned">مستقيل</option><option value="stopped">موقوف</option></select><div class="bh-stat glass-card"><span>إجمالي الموظفين</span><b>${emps.length}</b></div></div></div>
-    <div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>الكود</th><th>الموظف</th><th>الوظيفة</th><th>الفرع</th><th>المرتب</th><th>الحضور الرسمي</th><th>الانصراف الرسمي</th><th>الساعات</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="bhEmpBody"></tbody></table></div></div>`;
+    const p=document.getElementById('bh-pane-employees');
+    if(!p)return;
+    const emps=this._employees();
+    p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>بيانات الموظفين</h3><div class="bh-muted">☁️ المصدر الرسمي: <b>Firebase / bazarEmpData</b> — نفس البيانات التي يتم إدخالها من «موظف جديد». كود الموظف هو <b>كود البصمة</b>. سجلات البصمة لا تُنشئ موظفًا تلقائيًا.</div></div><button class="suite-btn primary" onclick="BazarHRSuite.openEmployeeForm()">➕ موظف جديد</button></div>
+    <div class="suite-grid" style="margin-top:12px"><input id="bhEmpSearch" class="bh-input" placeholder="بحث بالاسم أو الكود" oninput="BazarHRSuite.renderEmployees()"><select id="bhEmpStatus" class="bh-input" onchange="BazarHRSuite.renderEmployees()"><option value="">كل الحالات</option><option value="active">نشط</option><option value="resigned">مستقيل</option><option value="stopped">موقوف</option></select><div class="bh-stat glass-card"><span>إجمالي الموظفين</span><b>${emps.length}</b></div><div class="bh-stat glass-card"><span>مصدر البيانات</span><b>Firebase</b></div></div></div>
+    <div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>الكود (البصمة)</th><th>اسم الموظف</th><th>الوظيفة</th><th>الفرع</th><th>الراتب</th><th>تاريخ التعيين</th><th>الرقم القومي</th><th>الهاتف</th><th>ميعاد الحضور</th><th>ميعاد الانصراف</th><th>ساعات العمل</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="bhEmpBody"></tbody></table></div></div>`;
     const q=(document.getElementById('bhEmpSearch')?.value||'').toLowerCase().trim(),st=document.getElementById('bhEmpStatus')?.value||'';
-    const rows=emps.filter(e=>(!q||e.name.toLowerCase().includes(q)||e.code.includes(q))&&(!st||(st==='active'?!['resigned','stopped','مستقيل','موقوف'].includes(String(e.employmentStatus)):e.employmentStatus===st)));
-    document.getElementById('bhEmpBody').innerHTML=rows.map(e=>`<tr><td>${this._esc(e.code)}</td><td style="font-weight:800">${this._esc(e.name)}</td><td>${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bh-money">${e.salary.toLocaleString('ar-EG')} ج</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours||'-'}</td><td>${this._esc(e.employmentStatus||e.status||'نشط')}</td><td><button class="bh-row-btn" onclick="BazarHRSuite.openEmployeeForm('${this._esc(e.code)}')">✏️ تعديل</button></td></tr>`).join('')||'<tr><td colspan="10" class="bh-muted">لا توجد بيانات</td></tr>';
+    const rows=emps.filter(e=>{
+      const name=String(e.name||'').toLowerCase();
+      const code=String(e.code||'');
+      const status=String(e.employmentStatus||e.status||'active');
+      return (!q||name.includes(q)||code.includes(q)) && (!st||status===st);
+    });
+    document.getElementById('bhEmpBody').innerHTML=rows.map(e=>`<tr>
+      <td style="font-weight:900;color:#c7d2fe">${this._esc(e.code)}</td>
+      <td style="font-weight:800">${this._esc(e.name)}</td>
+      <td>${this._esc(e.job||'-')}</td>
+      <td>${this._esc(e.branch||'-')}</td>
+      <td class="bh-money">${this._num(e.salary).toLocaleString('ar-EG')} ج</td>
+      <td>${this._esc(e.hireDate||'-')}</td>
+      <td>${this._esc(e.nationalId||'-')}</td>
+      <td>${this._esc(e.phone||'-')}</td>
+      <td>${this._esc(e.checkIn||'-')}</td>
+      <td>${this._esc(e.checkOut||'-')}</td>
+      <td>${e.workHours?this._esc(e.workHours):'-'}</td>
+      <td>${this._esc(e.employmentStatus||e.status||'active')}</td>
+      <td><button class="bh-row-btn" onclick="BazarHRSuite.openEmployeeForm('${this._esc(e.code)}')">✏️ تعديل</button></td>
+    </tr>`).join('')||'<tr><td colspan="13" class="bh-muted">لا توجد بيانات</td></tr>';
   },
   openEmployeeForm(code=''){
     const e=code?this._emp(code):{code:'',name:'',job:'',branch:'',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'active'};
@@ -15957,7 +16007,7 @@ const BazarHRSuite = {
     const code=String(document.getElementById('bheCode')?.value||'').trim();
     const name=String(document.getElementById('bheName')?.value||'').trim();
     if(!code||!name){UI.toast('الكود والاسم مطلوبان','error');return;}
-    if(!oldCode && this._emp(code)){UI.toast('كود الموظف موجود بالفعل','error');return;}
+    if(!oldCode && this._masterEmp(code)){UI.toast('كود الموظف موجود بالفعل في بيانات موظفي البازار','error');return;}
 
     const cin=document.getElementById('bheIn')?.value||'';
     const cout=document.getElementById('bheOut')?.value||'';
