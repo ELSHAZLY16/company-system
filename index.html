@@ -15850,12 +15850,66 @@ const BazarHRSuite = {
     const e=code?this._emp(code):{code:'',name:'',job:'',branch:'',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'active'};
     this._openModal(code?'تعديل بيانات الموظف':'إضافة موظف',`<div class="suite-grid">${this._field('bheCode','كود الموظف',e.code)}${this._field('bheName','اسم الموظف',e.name)}${this._field('bheJob','الوظيفة',e.job)}${this._field('bheBranch','الفرع',e.branch)}${this._field('bheSalary','المرتب',e.salary,'number','min="0"')}${this._field('bheHire','تاريخ التعيين',e.hireDate,'date')}${this._field('bheNational','الرقم القومي',e.nationalId)}${this._field('bhePhone','الهاتف',e.phone)}${this._field('bheIn','ميعاد الحضور',e.checkIn,'time')}${this._field('bheOut','ميعاد الانصراف',e.checkOut,'time')}<label style="font-size:11px;color:#94a3b8">الحالة<select id="bheStatus" class="bh-input"><option value="active" ${e.employmentStatus==='active'?'selected':''}>نشط</option><option value="resigned" ${e.employmentStatus==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${e.employmentStatus==='stopped'?'selected':''}>موقوف</option></select></label></div><div style="margin-top:14px;display:flex;gap:8px"><button class="suite-btn primary" onclick="BazarHRSuite.saveEmployee('${this._esc(code)}')">💾 حفظ</button><button class="suite-btn" onclick="BazarHRSuite.closeModal()">إلغاء</button></div>`);
   },
-  saveEmployee(oldCode=''){
-    const code=String(document.getElementById('bheCode')?.value||'').trim(),name=String(document.getElementById('bheName')?.value||'').trim();if(!code||!name){UI.toast('الكود والاسم مطلوبان','error');return;}
+  async saveEmployee(oldCode=''){
+    const code=String(document.getElementById('bheCode')?.value||'').trim();
+    const name=String(document.getElementById('bheName')?.value||'').trim();
+    if(!code||!name){UI.toast('الكود والاسم مطلوبان','error');return;}
     if(!oldCode && this._emp(code)){UI.toast('كود الموظف موجود بالفعل','error');return;}
-    const cin=document.getElementById('bheIn')?.value||'',cout=document.getElementById('bheOut')?.value||'';let wh=0;const a=this._parseTime(cin),b=this._parseTime(cout);if(a!=null&&b!=null)wh=((b<=a?b+1440:b)-a)/60;
-    const old=this._emp(oldCode||code)||{};const data={...old,code:Number(code)||code,name,job:document.getElementById('bheJob')?.value||'',branch:document.getElementById('bheBranch')?.value||'',salary:this._num(document.getElementById('bheSalary')?.value),hireDate:document.getElementById('bheHire')?.value||'',nationalId:document.getElementById('bheNational')?.value||'',phone:document.getElementById('bhePhone')?.value||'',checkIn:cin,checkOut:cout,workHours:Number(wh.toFixed(2)),employmentStatus:document.getElementById('bheStatus')?.value||'active',updatedAt:new Date().toISOString(),updatedBy:State.currentUser?.username||'-'};
-    const updates={}; if(oldCode&&String(oldCode)!==code)updates['bazarEmpData/'+oldCode]=null;updates['bazarEmpData/'+code]=data;db.ref().update(updates).then(()=>{this.closeModal();UI.toast('✅ تم حفظ بيانات الموظف','success');SystemLog.add(oldCode?'EditEmployee':'AddEmployee',code,name);this.renderEmployees();}).catch(e=>UI.toast('❌ '+e.message,'error'));
+
+    const cin=document.getElementById('bheIn')?.value||'';
+    const cout=document.getElementById('bheOut')?.value||'';
+    let wh=0;
+    const a=this._parseTime(cin), b=this._parseTime(cout);
+    if(a!=null&&b!=null) wh=((b<=a?b+1440:b)-a)/60;
+
+    const old=this._emp(oldCode||code)||{};
+    const data={
+      ...old,
+      code:Number(code)||code,
+      name,
+      job:document.getElementById('bheJob')?.value||'',
+      branch:document.getElementById('bheBranch')?.value||'',
+      salary:this._num(document.getElementById('bheSalary')?.value),
+      hireDate:document.getElementById('bheHire')?.value||'',
+      nationalId:document.getElementById('bheNational')?.value||'',
+      phone:document.getElementById('bhePhone')?.value||'',
+      checkIn:cin,
+      checkOut:cout,
+      workHours:Number(wh.toFixed(2)),
+      employmentStatus:document.getElementById('bheStatus')?.value||'active',
+      updatedAt:new Date().toISOString(),
+      updatedBy:State.currentUser?.username||'-'
+    };
+
+    const updates={};
+    if(oldCode && String(oldCode)!==code) updates['bazarEmpData/'+oldCode]=null;
+    updates['bazarEmpData/'+code]=data;
+
+    try{
+      await db.ref().update(updates);
+
+      // أعد قراءة المصدر المستقل بعد الحفظ لضمان ظهور البيانات فورًا،
+      // حتى لو كان Firebase listener لم يصل بعد.
+      const snap=await db.ref(BAZAR_HR_PATHS.employees).once('value');
+      const arr=[];
+      const map={};
+      snap.forEach(c=>{
+        const rec={id:c.key,...(c.val()||{})};
+        arr.push(rec);
+        const k=String(rec.code??rec.id??'').trim();
+        if(k) map[k]=rec;
+      });
+      this._cache.employees=arr;
+      State.bazarEmpData=map;
+
+      this.closeModal();
+      UI.toast('✅ تم حفظ بيانات الموظف وظهرت في بيانات البازار','success');
+      SystemLog.add(oldCode?'EditEmployee':'AddEmployee',code,name);
+      this.renderEmployees();
+    }catch(e){
+      console.error('Bazar employee save error:',e);
+      UI.toast('❌ فشل حفظ بيانات الموظف: '+(e?.message||e),'error');
+    }
   },
 
   _schedule(emp,date){const a=this._parseTime(emp.checkIn),b=this._parseTime(emp.checkOut);if(a==null||b==null)return null;const d=new Date(date+'T00:00:00');const inTs=new Date(d);inTs.setHours(Math.floor(a/60),a%60,0,0);const outTs=new Date(d);outTs.setHours(Math.floor(b/60),b%60,0,0);if(b<=a)outTs.setDate(outTs.getDate()+1);return {inTs:inTs.getTime(),outTs:outTs.getTime(),officialMin:Math.round(((b<=a?b+1440:b)-a))};},
