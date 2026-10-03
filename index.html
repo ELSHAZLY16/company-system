@@ -15791,6 +15791,8 @@ const BazarHRSuite = {
       document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(btn=>btn.addEventListener('click',()=>this.openPane(btn.dataset.bhTab)));
       this._attachListeners();
       this.openPane('employees');
+      // قراءة فعلية من Firebase عند أول تشغيل حتى لو كان هناك cache قديم أو Service Worker قديم.
+      this.refreshAll().catch(()=>{});
       if(!this._interval)this._interval=setInterval(()=>{if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none')this.refreshActivePane();},60000);
     }
     this.refreshActivePane();
@@ -15824,7 +15826,39 @@ const BazarHRSuite = {
     this._active=tab;document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bazar-hr-pane').forEach(p=>p.style.display='none');const pane=document.getElementById('bh-pane-'+tab);if(pane)pane.style.display='block';this.renderPane(tab);
   },
   refreshActivePane(){this.renderPane(this._active);},
-  refreshAll(){this._attachListeners();this.renderPane(this._active);UI.toast('✅ تم تحديث بيانات إدارة البازار','success');},
+  async refreshAll(){
+    try{
+      const paths=[
+        [BAZAR_HR_PATHS.employees,'employees'],
+        [BAZAR_HR_PATHS.attendance,'attendance'],
+        [BAZAR_HR_PATHS.advances,'advances'],
+        [BAZAR_HR_PATHS.incentives,'incentives'],
+        [BAZAR_HR_PATHS.penalties,'penalties'],
+        [BAZAR_HR_PATHS.permits,'permits']
+      ];
+      await Promise.all(paths.map(async ([path,key])=>{
+        const snap=await db.ref(path).once('value');
+        const arr=[];
+        snap.forEach(c=>arr.push({id:c.key,...(c.val()||{})}));
+        this._cache[key]=arr;
+        if(key==='employees'){
+          const map={};
+          arr.forEach(e=>{const code=String(e.code??e.id??'').trim();if(code)map[code]=e;});
+          State.bazarEmpData=map;
+        }else if(key==='attendance') State.fingerprintBazar=arr;
+        else if(key==='advances') State.bazarAdvances=arr;
+        else if(key==='incentives') State.bazarIncentives=arr;
+        else if(key==='penalties') State.bazarPenalties=arr;
+        else if(key==='permits') State.bazarBreaks=arr;
+      }));
+      this.renderPane(this._active);
+      const count=this._cache.employees.length;
+      UI.toast(`✅ تم تحديث بيانات إدارة البازار — ${count} موظف`, 'success');
+    }catch(e){
+      console.error('Bazar refresh error:',e);
+      UI.toast('❌ فشل التحديث من Firebase: '+(e?.message||e),'error');
+    }
+  },
 
   renderPane(tab){
     if(tab==='employees')return this.renderEmployees();
