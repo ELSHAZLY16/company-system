@@ -2627,6 +2627,18 @@ body.light-mode .user-menu-head { border-bottom-color:#e2e8f0; }
 }
 
 </style>
+
+<style id="bazar-hr-suite-css">
+.bazar-hr-tab{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);color:#cbd5e1;padding:9px 13px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;white-space:nowrap}
+.bazar-hr-tab.active{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.45);color:#c7d2fe}
+.bazar-hr-pane .suite-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.bazar-hr-pane .suite-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700}
+.suite-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700}
+.suite-btn.primary{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.45);color:#c7d2fe}.suite-btn.warn{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24}
+.bh-input{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit}
+.bh-card{padding:15px;margin-bottom:12px}.bh-card h3{margin:0 0 12px;font-size:14px}.bh-stat{padding:12px;text-align:center}.bh-stat b{display:block;font-size:20px;margin-top:6px}.bh-table-wrap{overflow:auto}.bh-table{width:100%;min-width:980px;border-collapse:collapse}.bh-table th,.bh-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;text-align:center}.bh-table th{color:#94a3b8;position:sticky;top:0;background:#101827;z-index:2}.bh-row-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px}.bh-danger{color:#fca5a5!important;border-color:rgba(239,68,68,.3)!important;background:rgba(239,68,68,.10)!important}.bh-success{color:#86efac!important;border-color:rgba(34,197,94,.3)!important;background:rgba(34,197,94,.10)!important}.bh-money{font-weight:800;color:#fbbf24}.bh-muted{color:#94a3b8}
+@media(max-width:700px){.bh-table{min-width:900px}.bazar-hr-tab{padding:8px 10px;font-size:11px}.bh-card{padding:12px}}
+</style>
 </head>
 <body>
 <!-- Lightweight internal SVG icon system: no icon images / no external icon font needed -->
@@ -2897,7 +2909,7 @@ body.light-mode .user-menu-head { border-bottom-color:#e2e8f0; }
 تحليل التحويلات
 </button>
             
-            <button class="tab-btn" data-tab="fingerprint-bazar"><span><span class="ui-icon-slot" data-icon="tag" aria-hidden="true"></span></span> بصمة البازار</button>
+            <button class="tab-btn" data-tab="fingerprint-bazar"><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span> بصمة البازار</button>
             <button class="tab-btn" data-tab="fingerprint-sabah">
 <span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span>
 بصمة الصباح
@@ -3505,7 +3517,7 @@ onclick="TransferService.exportExcel()">
   <button style="position:absolute; top:20px; left:20px; background:red; color:white; border:none; border-radius:10px; padding:10px;" onclick="PricingModule.stopScanner()"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> إغلاق</button>
 </div>
 
-<div<div id="tab-prices" class="tab-content" style="display:none;">
+<div id="tab-prices" class="tab-content" style="display:none;">
 <div id="prTstC" style="position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(380px,90vw)"></div>
 
 <nav class="mnav">
@@ -3666,6 +3678,14 @@ const BAD_NM  = new Set(['***','****','*******','**************','dsfsd','no nam
 // Max price ratio between branches to count as "comparable" (علبه/قطعه filter)
 const MAX_RATIO = 4;
 
+// توحيد الباركود في كل أجزاء النظام بدون حذف الأصفار اليسرى.
+function normalizeBarcode(value){
+  return String(value ?? '')
+    .trim()
+    .replace(/^\*+|\*+$/g,'')
+    .replace(/^[^\w\u0600-\u06FF]+/,'');
+}
+
 /* =====================================================
    DATE HELPERS
    SheetJS with cellDates:true returns JS Date objects.
@@ -3809,8 +3829,7 @@ const XL = (() => {
     return map;
   };
 
-  const pSh = (ws, label, vm) => {
-    // Use raw=false to get formatted values, and cellDates is handled at wb level
+  const pSh = (ws, label, vm, dupStats) => {
     const raw = XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
     if(raw.length<2) return new Map();
     const hdrs = raw[0].map(h=>String(h));
@@ -3821,12 +3840,33 @@ const XL = (() => {
           cDT=det(hdrs,CA.mdt);
     if(!cB) return new Map();
 
-    // Re-read with raw:true for numeric prices, but use Date objects for date cols
     const rows = XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});
     const map = new Map();
 
-    rows.forEach(row => {
-      const bc = String(row[cB]||'').trim().replace(/^\*+|\*+$/g,'').replace(/^[^\w\u0600-\u06FF]/,'');
+    const parseD = v => {
+      if(!v||v==='NaT'||v==='nan'||v===null) return null;
+      if(v instanceof Date) return isNaN(v.getTime())?null:v;
+      if(typeof v === 'number') {
+        const ms = (v - 25569) * 86400 * 1000;
+        const d = new Date(ms);
+        return isNaN(d.getTime())?null:d;
+      }
+      if(typeof v === 'string' && v.trim()) {
+        const str = v.trim();
+        // دعم التواريخ المحلية بشكل صريح لتجنب اختلاف parsing بين الأجهزة.
+        let m = str.match(/^(\d{1,2})[\\\/-](\d{1,2})[\\\/-](\d{4})$/);
+        if(m) {
+          const d = new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
+          return isNaN(d.getTime())?null:d;
+        }
+        const d = new Date(str);
+        return isNaN(d.getTime())?null:d;
+      }
+      return null;
+    };
+
+    rows.forEach((row, rowIndex) => {
+      const bc = normalizeBarcode(row[cB]);
       if(!bc||bc==='nan'||bc==='') return;
 
       const vc  = cV  ? String(row[cV]||'').trim()  : '';
@@ -3838,41 +3878,47 @@ const XL = (() => {
       const sell = cS ? (parseFloat(row[cS])||0) : 0;
       const rawC = cC ? (parseFloat(row[cC])||0) : 0;
       const cost = (rawC>0&&rawC<100000) ? rawC : 0;
-
-      // DATE HANDLING: SheetJS with cellDates:true returns JS Date objects
-      // Fallback: if it's a number (serial), convert manually
-      const parseD = v => {
-        if(!v||v==='NaT'||v==='nan'||v===null) return null;
-        if(v instanceof Date) return isNaN(v.getTime())?null:v;
-        if(typeof v === 'number') {
-          // Excel serial to JS Date
-          const ms = (v - 25569) * 86400 * 1000;
-          const d = new Date(ms);
-          return isNaN(d.getTime())?null:d;
-        }
-        if(typeof v === 'string' && v.trim()) {
-          const d = new Date(v.trim());
-          return isNaN(d.getTime())?null:d;
-        }
-        return null;
-      };
-
       const dateOfPrice = parseD(cD ? row[cD] : null);
       const modifiedAt  = parseD(cDT? row[cDT]: null);
       const mby = cM ? String(row[cM]||'').trim().replace(/^nan$/,'') : '';
+      const rawName = cN ? String(row[cN]||'').trim() : '';
+      if(!rawName) dupStats.missingNames++;
 
-      if(!map.has(bc)) {
-        map.set(bc, {
-          barcode:bc,
-          name: cN?String(row[cN]||'').trim():'غير معلوم',
-          sellPrice:sell, costPrice:cost,
-          vendorCode:(vc!=='nan'?vc:''), vendorName:vname,
-          source:label,
-          modifiedBy:mby,
-          dateOfPrice, modifiedAt,
-        });
+      const candidate = {
+        barcode:bc,
+        name: rawName || 'غير معلوم',
+        sellPrice:sell, costPrice:cost,
+        vendorCode:(vc!=='nan'?vc:''), vendorName:vname,
+        source:label,
+        modifiedBy:mby,
+        dateOfPrice, modifiedAt,
+        _rowIndex: rowIndex
+      };
+
+      const existing = map.get(bc);
+      if(!existing){
+        map.set(bc, candidate);
+        return;
       }
+
+      // الباركود المكرر لا يتم إسقاطه بصمت: نحتفظ بواحد فقط باعتباره السجل
+      // المرجعي، ونختار أحدث تاريخ تعديل/سعر، ثم آخر صف عند التعادل.
+      dupStats.count++;
+      if(!dupStats.barcodeSet.has(bc)) {
+        dupStats.barcodeSet.add(bc);
+        if(dupStats.barcodes.length < 200) dupStats.barcodes.push(bc);
+      }
+
+      const existingDate = existing.modifiedAt || existing.dateOfPrice;
+      const candidateDate = candidate.modifiedAt || candidate.dateOfPrice;
+      const existingTs = existingDate instanceof Date ? existingDate.getTime() : 0;
+      const candidateTs = candidateDate instanceof Date ? candidateDate.getTime() : 0;
+      const replace = candidateTs > existingTs || (candidateTs === existingTs && rowIndex >= (existing._rowIndex||0));
+      if(replace) map.set(bc, candidate);
     });
+
+    // لا نترك بيانات داخلية غير مطلوبة للاستخدامات الأخرى.
+    map.forEach(v => { try { delete v._rowIndex; } catch(_) {} });
     return map;
   };
 
@@ -3880,20 +3926,24 @@ const XL = (() => {
     const r = new FileReader();
     r.onload = e => {
       try {
-        // KEY FIX: cellDates:true converts Excel serials to JS Date objects
         const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array', cellDates:true});
         const vm = bldV(wb);
         const sheets = wb.SheetNames.filter(n=>!SKIP_SH.has(n.trim()));
         if(!sheets.length) return rej('لم يتم العثور على ورقة بيانات');
 
         let baz=new Map(), cai=new Map();
+        const dupStats = {count:0, missingNames:0, barcodes:[], barcodeSet:new Set()};
         sheets.forEach(sn => {
           const lbl = sn.includes('بورسعيد')?'بورسعيد':sn.includes('القاهرة')?'القاهرة':sn;
-          const m = pSh(wb.Sheets[sn], lbl, vm);
+          const m = pSh(wb.Sheets[sn], lbl, vm, dupStats);
           if(lbl==='بورسعيد') baz=m;
           else if(lbl==='القاهرة') cai=m;
         });
-        res({baz, cai, total:baz.size+cai.size});
+        res({
+          baz, cai,
+          total:baz.size+cai.size,
+          duplicates:{count:dupStats.count, uniqueCount:dupStats.barcodeSet.size, barcodes:dupStats.barcodes.slice(0,200), missingNames:dupStats.missingNames}
+        });
       } catch(err){ rej('خطأ في قراءة الملف: '+err.message); }
     };
     r.onerror = () => rej('فشل قراءة الملف');
@@ -3902,6 +3952,7 @@ const XL = (() => {
 
   return {parse};
 })();
+window.AlloshPriceSheetParser = XL.parse;
 
 /* =====================================================
    AUDIO
@@ -4351,9 +4402,8 @@ function handleFile(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){toast('يرجى اختيار ملف Excel','er');return;}
   toast('⏳ جارٍ قراءة الملف...','',6000);
-  XL.parse(file).then(({baz,cai,total})=>{
+  XL.parse(file).then(({baz,cai,total,duplicates={count:0,uniqueCount:0,barcodes:[],missingNames:0}})=>{
     S.setData(baz,cai);
-    // تحديث UI بشكل آمن
     try {
       const _g = id => document.getElementById(id);
       if(_g('flRow')) _g('flRow').classList.add('on');
@@ -4365,135 +4415,50 @@ function handleFile(file){
       if(_g('srcStrip')) _g('srcStrip').classList.add('vis');
     } catch(uiErr) { console.warn('handleFile UI:', uiErr.message); }
     try { if(typeof updStats==='function') updStats(); } catch(e){}
+
+    if(duplicates.count){
+      toast(`⚠️ تم اكتشاف ${(duplicates.uniqueCount || duplicates.barcodes.length).toLocaleString('ar-EG')} باركود مكرر — تم اعتماد أحدث سجل لكل باركود`,'warn',7000);
+    }
+    if(duplicates.missingNames){
+      toast(`ℹ️ ${duplicates.missingNames.toLocaleString('ar-EG')} صنف بدون اسم — تم حفظها بالباركود وعدم إسقاطها`,'info',7000);
+    }
     toast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
 
-    // ── رفع البيانات الكاملة لـ Firebase ──
-    window.S = S;
-    try {
-      const _db = (typeof db !== 'undefined') ? db : null;
-      if(_db) {
-        const clean = (v) => (v === undefined || v === null || v === 'nan') ? '' : String(v);
-        const safeKey = (k) => k.replace(/[.#$[\]]/g,'_');
-
-        // نحفظ baz و cai كاملاً (كل الحقول)
-        // نحفظ الأسماء فقط لتجنب Write too large
-        // Firebase Realtime DB حد 256KB - الأسعار تُقرأ من الشيت المحلي
-        const bazData = {};
-        // نحفظ baz كـ {n, s, c} (اسم + بيع + تكلفة)
-        // والـ key هو الباركود المعالج
-        baz.forEach((val, key) => {
-          if(val && val.name) {
-            const sk = safeKey(key);
-            const entry = { n: val.name };
-            if(val.sellPrice)   entry.s  = val.sellPrice;
-            if(val.costPrice)   entry.c  = val.costPrice;
-            if(val.vendorName)  entry.vn = val.vendorName;
-            if(val.vendorCode)  entry.v  = val.vendorCode;
-            if(val.modifiedBy)  entry.mb = val.modifiedBy;
-            if(val.dateOfPrice) entry.dp = val.dateOfPrice;
-            if(val.modifiedAt)  entry.ma = val.modifiedAt;
-            bazData[sk] = entry;
-          }
-        });
-        // cai: كل منتجات القاهرة (بما فيها المشتركة مع البازار)
-        // ضروري عشان prices module تقدر تقارن بين الفرعين
-        const caiData = {};
-        cai.forEach((val, key) => {
-          if(val && val.name) {
-            const sk = safeKey(key);
-            const entry = { n: val.name };
-            if(val.sellPrice)   entry.s  = val.sellPrice;
-            if(val.costPrice)   entry.c  = val.costPrice;
-            if(val.vendorName)  entry.vn = val.vendorName;
-            if(val.vendorCode)  entry.v  = val.vendorCode;
-            if(val.modifiedBy)  entry.mb = val.modifiedBy;
-            if(val.dateOfPrice) entry.dp = val.dateOfPrice;
-            if(val.modifiedAt)  entry.ma = val.modifiedAt;
-            caiData[sk] = entry;
-          }
-        });
-        let cnt = Object.keys(bazData).length + Object.keys(caiData).length;
-        const saveData = {
-          fileName: file.name,
-          uploadedAt: firebase.database.ServerValue.TIMESTAMP,
-          uploadedBy: (typeof State!=='undefined'&&State.currentUser) ? State.currentUser.username : '-',
-          bazTotal: baz.size, caiTotal: cai.size, baz: bazData, cai: caiData
-        };
-        // رفع على مرحلتين لتجنب Write too large
-        const metaData = {
-          fileName: saveData.fileName,
-          uploadedAt: saveData.uploadedAt,
-          uploadedBy: saveData.uploadedBy,
-          bazTotal: saveData.bazTotal,
-          caiTotal: saveData.caiTotal
-        };
-        // شريط التقدم
-        const setProgress = (pct, step) => {
-          try {
-            const c = document.getElementById('uploadProgressContainer');
-            const b = document.getElementById('uploadProgressBar');
-            const t = document.getElementById('uploadProgressText');
-            const s = document.getElementById('uploadProgressStep');
-            if(c) c.style.display = 'block';
-            if(b) b.style.width = pct + '%';
-            if(t) t.textContent = pct + '%';
-            if(s && step) s.textContent = step;
-          } catch(_) {}
-        };
-        const hideProgress = () => {
-          try { document.getElementById('uploadProgressContainer').style.display = 'none'; } catch(_) {}
-        };
-
-        setProgress(10, 'حذف الشيت القديم...');
-        _db.ref('priceSheet').remove()
-          .then(() => { setProgress(25, 'رفع معلومات الملف...'); return _db.ref('priceSheet/meta').set(metaData); })
-          .then(() => {
-            setProgress(50, 'رفع بيانات البازار...');
-            const bazEntries = Object.entries(saveData.baz);
-            const CHUNK = 5000;
-            const chunks = [];
-            for(let i=0; i<bazEntries.length; i+=CHUNK) {
-              chunks.push(Object.fromEntries(bazEntries.slice(i, i+CHUNK)));
-            }
-            return chunks.reduce((p, chunk) =>
-              p.then(() => _db.ref('priceSheet/baz').update(chunk)),
-              Promise.resolve()
-            );
-          })
-          .then(() => {
-            const caiEntries = saveData.cai ? Object.entries(saveData.cai) : [];
-            if(caiEntries.length === 0) return;
-            setProgress(75, 'رفع بيانات القاهرة...');
-            // رفع cai على chunks لتجنب Write too large
-            const CHUNK = 5000;
-            const chunks = [];
-            for(let i=0; i<caiEntries.length; i+=CHUNK) {
-              chunks.push(Object.fromEntries(caiEntries.slice(i, i+CHUNK)));
-            }
-            return chunks.reduce((p, chunk) =>
-              p.then(() => _db.ref('priceSheet/cai').update(chunk)),
-              Promise.resolve()
-            );
-          })
-          .then(() => {
-            setProgress(100, 'تم بنجاح!');
-            setTimeout(hideProgress, 2000);
-            const kb = Math.round(JSON.stringify(saveData).length/1024);
-            toast('☁️ Firebase: '+cnt.toLocaleString('ar-EG')+' منتج ('+kb+'KB)', 'ok');
-            try{if(typeof SystemLog!=='undefined') SystemLog.add('UploadPriceSheet',file.name,cnt+' منتج');}catch(e){}
-            try{localStorage.setItem('priceSheetName',file.name);}catch(e){}
-          })
-          .catch(e2=>{
-            hideProgress();
-            console.error('Firebase priceSheet:',e2);
-            toast('⚠️ Firebase: '+e2.message,'warn');
-          });
-      }
-    } catch(fbErr){ console.error('Firebase block:',fbErr); }
+    // رفع Versioned/Atomic: لا نحذف النسخة الحالية. نرفع نسخة كاملة،
+    // وبعد نجاحها فقط نغيّر مؤشر النسخة الحالية.
+    if(typeof PriceSheetService !== 'undefined') {
+      const uploader = (typeof State!=='undefined'&&State.currentUser) ? State.currentUser.username : '-';
+      PriceSheetService.publish(baz, cai, {
+        fileName: file.name,
+        uploadedBy: uploader,
+        duplicateCount: duplicates.count || 0,
+        duplicateBarcodes: (duplicates.barcodes||[]).slice(0,100),
+        missingNames: duplicates.missingNames || 0
+      }, (pct, step) => {
+        try {
+          const c = document.getElementById('uploadProgressContainer');
+          const b = document.getElementById('uploadProgressBar');
+          const t = document.getElementById('uploadProgressText');
+          const st = document.getElementById('uploadProgressStep');
+          if(c) c.style.display = 'block';
+          if(b) b.style.width = pct + '%';
+          if(t) t.textContent = pct + '%';
+          if(st) st.textContent = step || '';
+        } catch(_) {}
+      }).then(result=>{
+        try { document.getElementById('uploadProgressContainer').style.display='none'; } catch(_) {}
+        try{if(typeof SystemLog!=='undefined') SystemLog.add('UploadPriceSheet',file.name,(baz.size+cai.size)+' منتج | نسخة '+result.versionId);}catch(e){}
+        try{localStorage.setItem('priceSheetName',file.name);}catch(e){}
+        toast('☁️ تم نشر نسخة أسعار جديدة بأمان — النسخة القديمة ظلت متاحة حتى اكتمال الرفع','ok');
+      }).catch(e2=>{
+        try { document.getElementById('uploadProgressContainer').style.display='none'; } catch(_) {}
+        console.error('Firebase priceSheet publish:',e2);
+        toast('⚠️ لم يتم تغيير النسخة الحالية: ' + (e2.message||e2),'warn',7000);
+      });
+    }
 
   }).catch(err=>toast('❌ '+err,'er'));
 }
-
 function updStats(){
   const s=S.getStats();
   document.getElementById('sv0').textContent=S.total().toLocaleString('ar-EG');
@@ -5130,204 +5095,43 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 </div>
 
 <div id="tab-fingerprint-bazar" class="tab-content" style="display:none;">
-
-  <!-- HEADER -->
-  <div class="glass-card" style="padding:16px;margin-bottom:16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:32px"><span class="ui-icon-slot" data-icon="tag" aria-hidden="true"></span></div>
-        <div>
-          <h3 style="margin:0;font-size:18px">بصمة البازار</h3>
-          <div style="font-size:12px;color:#94a3b8;margin-top:2px">ZKTeco MB20 — IP: 192.168.3.201</div>
-        </div>
+  <div class="glass-card" style="padding:16px;margin-bottom:14px;position:sticky;top:0;z-index:20">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <div style="font-size:21px;font-weight:800">🖐️ بصمة البازار — إدارة الموارد والمرتبات</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:4px">بيانات الموظفين مستقلة كمصدر رئيسي، وباقي التابات تعتمد عليها بدون تكرار بيانات الموظف.</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <div id="fpBazarStatus" style="display:flex;align-items:center;gap:6px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);padding:6px 14px;border-radius:20px">
-          <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div>
-          <span style="font-size:12px;color:#fbbf24">في انتظار البيانات</span>
-        </div>
-        <button onclick="FingerprintBazarService.openAddModal()" style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700"><span class="ui-icon-slot" data-icon="plus" aria-hidden="true"></span> إضافة يدوية</button>
-        <button id="fpBazarSyncBtn" onclick="FingerprintBazarService.syncFromDevice()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700"><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span> مزامنة البصمة</button>
-        <button onclick="FingerprintBazarService.refresh()" style="background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.3);color:#94a3b8;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700"><span class="ui-icon-slot" data-icon="refresh" aria-hidden="true"></span> تحديث</button>
-        <button onclick="FingerprintBazarService.exportExcel()" style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700"><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span> Excel</button>
-        <button onclick="FingerprintBazarService.showEditLog()" style="background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.3);color:#94a3b8;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> سجل التعديلات</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button onclick="BazarHRSuite.syncFromDevice()" class="suite-btn primary">🖐️ مزامنة البصمة</button>
+        <button onclick="BazarHRSuite.refreshAll()" class="suite-btn">🔄 تحديث</button>
+        <button onclick="BazarHRSuite.exportCurrent()" class="suite-btn warn">📊 تصدير التاب</button>
       </div>
     </div>
   </div>
 
-  <!-- STAT CARDS -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:16px">
-    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon"><span class="ui-icon-slot" data-icon="dot" aria-hidden="true"></span></span><h3>داخل الآن</h3><p class="stat-value" id="fpBazarInsideCount">0</p></div>
-    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span></span><h3>حضور اليوم</h3><p class="stat-value" id="fpBazarTodayIn">0</p></div>
-    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon"><span class="ui-icon-slot" data-icon="logout" aria-hidden="true"></span></span><h3>انصراف اليوم</h3><p class="stat-value" id="fpBazarTodayOut">0</p></div>
-    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span></span><h3>متأخرون اليوم</h3><p class="stat-value" id="fpBazarLateCount">0</p></div>
-    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon"><span class="ui-icon-slot" data-icon="clock" aria-hidden="true"></span></span><h3>إجمالي الساعات</h3><p class="stat-value" id="fpBazarTotalHoursCard" style="font-size:18px">0:00</p></div>
-    <div class="glass-card stat-card" data-perm="fingerprint"><span class="stat-icon"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span><h3>إجمالي السجلات</h3><p class="stat-value" id="fpBazarTotalCount">0</p></div>
-  </div>
-
-  <!-- داخل العمل الآن -->
-  <div class="glass-card" style="padding:20px;margin-bottom:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
-      <h3 style="margin:0"><span class="ui-icon-slot" data-icon="dot" aria-hidden="true"></span> داخل العمل الآن — البازار (<span id="fpBazarInsideCountTable">0</span>)</h3>
-    </div>
-    <div class="table-container">
-      <table>
-        <thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>وقت الدخول</th><th>التأخير</th><th>مدة العمل</th><th>إجراء خروج</th></tr></thead>
-        <tbody id="fpBazarInsideBody"></tbody>
-      </table>
+  <div class="glass-card" style="padding:8px;margin-bottom:14px">
+    <div id="bazarHrTabs" style="display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin">
+      <button class="bazar-hr-tab active" data-bh-tab="employees">👥 بيانات الموظفين</button>
+      <button class="bazar-hr-tab" data-bh-tab="attendance">🕘 الحضور والانصراف</button>
+      <button class="bazar-hr-tab" data-bh-tab="advances">💵 سلف الموظفين</button>
+      <button class="bazar-hr-tab" data-bh-tab="incentives">🎁 مكافأة الموظفين</button>
+      <button class="bazar-hr-tab" data-bh-tab="penalties">⚠️ جزاءات الموظفين</button>
+      <button class="bazar-hr-tab" data-bh-tab="permits">📝 تصريح اذن</button>
+      <button class="bazar-hr-tab" data-bh-tab="payroll">💰 بيان المرتبات</button>
+      <button class="bazar-hr-tab" data-bh-tab="payslip">🧾 شيك قبض الموظف</button>
     </div>
   </div>
 
-  <!-- سجل الحضور + فلاتر -->
-  <div class="glass-card" style="padding:20px;margin-bottom:16px">
-    <h3 style="margin-bottom:14px"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> سجل حضور بصمة البازار</h3>
+  <section id="bh-pane-employees" class="bazar-hr-pane"></section>
+  <section id="bh-pane-attendance" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-advances" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-incentives" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-penalties" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-permits" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-payroll" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-payslip" class="bazar-hr-pane" style="display:none"></section>
 
-    <!-- بحث + تاريخ من / إلى -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
-      <input id="fpBazarSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="FingerprintBazarService.render()"
-        style="flex:2;min-width:150px;padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-      <input type="date" id="fpBazarDateFrom" onchange="FingerprintBazarService.render()"
-        style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-      <span style="color:var(--text-muted);font-size:12px">إلى</span>
-      <input type="date" id="fpBazarDateTo" onchange="FingerprintBazarService.render()"
-        style="padding:9px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-    </div>
-
-    <!-- فلتر الحركة + أزرار الفترة -->
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-      <select id="fpBazarFilterAction" onchange="FingerprintBazarService.render()"
-        style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-        <option value="">🔄 حضور + انصراف</option>
-        <option value="CheckIn">✅ حضور فقط</option>
-        <option value="CheckOut">👋 انصراف فقط</option>
-      </select>
-      <button class="filter-btn active" onclick="setFpBazarFilter(this,'day')">اليوم</button>
-      <button class="filter-btn" onclick="setFpBazarFilter(this,'week')">أسبوع</button>
-      <button class="filter-btn" onclick="setFpBazarFilter(this,'month')">شهر</button>
-      <button class="filter-btn" onclick="setFpBazarFilter(this,'all')">الكل</button>
-      <button onclick="FingerprintBazarService.clearFilters()"
-        style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> مسح</button>
-    </div>
-
-    <!-- الجدول المحسّن -->
-    <div class="table-container">
-      <table>
-        <thead><tr>
-          <th>الموظف</th><th>الكود</th><th>الوظيفة</th>
-          <th>الحالة</th><th>التاريخ</th>
-          <th>الدخول</th><th>الانصراف</th>
-          <th>المطلوب</th><th>الفعلي</th><th>التأخير</th>
-          <th>المصدر</th><th>ملاحظة</th>
-          <th>تعديل</th><th>حذف</th>
-        </tr></thead>
-        <tbody id="fpBazarAttBody"></tbody>
-      </table>
-    </div>
-
-    <!-- ملخص يومي -->
-    <div id="fpBazarDailySummary" style="margin-top:14px"></div>
-    <div id="fpBazarTotalHours" style="padding:12px;font-size:14px;font-weight:700;color:#818cf8"></div>
-  </div>
-
-  <!-- ══════ Modal إضافة يدوية البازار ══════ -->
-  <div id="fpBazarAddModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div class="modal-box" style="border-radius:16px;padding:28px;width:90%;max-width:500px;max-height:90vh;overflow-y:auto">
-      <h3 style="margin:0 0 20px;color:#34d399"><span class="ui-icon-slot" data-icon="plus" aria-hidden="true"></span> إضافة سجل يدوي — البازار</h3>
-      <div style="display:grid;gap:14px">
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الموظف</label>
-          <select id="fpBazarAddCode" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-            <option value="">اختر الموظف</option>
-          </select></div>
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">نوع الحركة</label>
-          <select id="fpBazarAddAction" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-            <option value="CheckIn">✅ حضور (دخول)</option>
-            <option value="CheckOut">👋 انصراف (خروج)</option>
-          </select></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">التاريخ</label>
-            <input type="date" id="fpBazarAddDate" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box"></div>
-          <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الوقت</label>
-            <input type="time" id="fpBazarAddTime" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box"></div>
-        </div>
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">ملاحظة (اختياري)</label>
-          <input type="text" id="fpBazarAddNote" placeholder="سبب الإضافة اليدوية..."
-            style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:20px">
-        <button onclick="FingerprintBazarService.saveManual()" style="flex:1;background:rgba(16,185,129,0.3);border:1px solid rgba(16,185,129,0.5);color:#34d399;padding:11px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> حفظ</button>
-        <button onclick="document.getElementById('fpBazarAddModal').style.display='none'" style="flex:1;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:11px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════ Modal تعديل سجل البازار (دخول + خروج معاً) ══════ -->
-  <div id="fpBazarEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div class="modal-box" style="border-radius:16px;padding:28px;width:90%;max-width:520px;max-height:90vh;overflow-y:auto">
-      <h3 style="margin:0 0 6px;color:#f59e0b"><span class="ui-icon-slot" data-icon="plus" aria-hidden="true"></span> تعديل سجل — البازار</h3>
-      <div id="fpBazarEditEmpInfo" style="font-size:13px;color:#94a3b8;margin-bottom:18px;padding:10px;background:rgba(255,255,255,0.05);border-radius:8px"></div>
-      <input type="hidden" id="fpBazarEditKeyIn">
-      <input type="hidden" id="fpBazarEditKeyOut">
-      <div style="display:grid;gap:16px">
-        <!-- التاريخ -->
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px"><span class="ui-icon-slot" data-icon="calendar" aria-hidden="true"></span> التاريخ</label>
-          <input type="date" id="fpBazarEditDate" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box" oninput="fpBazarEditPreview()"></div>
-        <!-- وقت الدخول + الخروج جنب بعض -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div>
-            <label style="font-size:13px;color:#34d399;display:block;margin-bottom:6px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> وقت الدخول</label>
-            <input type="time" id="fpBazarEditIn" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(16,185,129,0.3);background:rgba(0,0,0,0.4);color:#34d399;font-family:inherit;box-sizing:border-box;font-size:16px;font-weight:700" oninput="fpBazarEditPreview()">
-          </div>
-          <div>
-            <label style="font-size:13px;color:#f87171;display:block;margin-bottom:6px"><span class="ui-icon-slot" data-icon="logout" aria-hidden="true"></span> وقت الانصراف</label>
-            <input type="time" id="fpBazarEditOut" style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(0,0,0,0.4);color:#f87171;font-family:inherit;box-sizing:border-box;font-size:16px;font-weight:700" oninput="fpBazarEditPreview()">
-          </div>
-        </div>
-        <!-- معاينة ساعات العمل -->
-        <div id="fpBazarEditPreview" style="display:none;padding:10px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);border-radius:8px;font-size:13px;color:#818cf8;text-align:center;font-weight:700"></div>
-        <div id="fpBazarEditWarn" style="display:none;padding:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:13px;color:#f87171;text-align:center"></div>
-        <!-- ملاحظة -->
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> ملاحظة</label>
-          <input type="text" id="fpBazarEditNote" placeholder="سبب التعديل..." style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:20px">
-        <button onclick="FingerprintBazarService.saveEdit()" style="flex:1;background:rgba(245,158,11,0.3);border:1px solid rgba(245,158,11,0.5);color:#fbbf24;padding:11px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px"><span class="ui-icon-slot" data-icon="download" aria-hidden="true"></span> حفظ التعديل</button>
-        <button onclick="document.getElementById('fpBazarEditModal').style.display='none'" style="flex:1;background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:11px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════ Modal حذف يوم كامل البازار ══════ -->
-  <div id="fpBazarDeleteDayModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div class="modal-box" style="border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:28px;width:90%;max-width:420px">
-      <h3 style="margin:0 0 14px;color:#f87171"><span class="ui-icon-slot" data-icon="trash" aria-hidden="true"></span> حذف يوم كامل — البازار</h3>
-      <div style="display:grid;gap:14px">
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">الموظف</label>
-          <select id="fpBazarDelEmp" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit"><option value="">اختر الموظف</option></select></div>
-        <div><label style="font-size:13px;color:#94a3b8;display:block;margin-bottom:6px">التاريخ</label>
-          <input type="date" id="fpBazarDelDate" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;box-sizing:border-box"></div>
-        <div id="fpBazarDelPreview" style="padding:10px;background:rgba(239,68,68,0.08);border-radius:8px;font-size:13px;color:#f87171;display:none"></div>
-      </div>
-      <div style="display:flex;gap:10px;margin-top:20px">
-        <button onclick="FingerprintBazarService.confirmDeleteDay()" style="flex:1;background:rgba(239,68,68,0.3);border:1px solid rgba(239,68,68,0.5);color:#f87171;padding:11px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px"><span class="ui-icon-slot" data-icon="trash" aria-hidden="true"></span> حذف</button>
-        <button onclick="document.getElementById('fpBazarDeleteDayModal').style.display='none'" style="flex:1;background:rgba(148,163,184,0.15);border:1px solid rgba(148,163,184,0.3);color:#94a3b8;padding:11px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700;font-size:14px"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> إلغاء</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ══════ Modal سجل التعديلات البازار ══════ -->
-  <div id="fpBazarEditLogModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center">
-    <div class="modal-box" style="border-radius:16px;padding:24px;width:95%;max-width:700px;max-height:90vh;overflow-y:auto">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h3 style="margin:0;color:#94a3b8"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> سجل التعديلات — البازار</h3>
-        <button onclick="document.getElementById('fpBazarEditLogModal').style.display='none'" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:6px 14px;border-radius:8px;cursor:pointer;font-family:inherit"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> إغلاق</button>
-      </div>
-      <div class="table-container">
-        <table><thead><tr><th>الموظف</th><th>الوظيفة</th><th>التاريخ</th><th>دخول قبل</th><th>دخول بعد</th><th>خروج قبل</th><th>خروج بعد</th><th>بواسطة</th><th>وقت التعديل</th><th>ملاحظة</th></tr></thead>
-        <tbody id="fpBazarEditLogBody"></tbody></table>
-      </div>
-    </div>
-  </div>
-
+  <div id="bh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10020;align-items:center;justify-content:center;padding:12px"></div>
 </div>
 
 <div id="tab-fingerprint-sabah" class="tab-content" style="display:none;">
@@ -9557,6 +9361,11 @@ const DeviceInfo = {
         leaves: [],
         incentives: [],
         fingerprintBazar: [],
+        bazarEmpData: {},
+        bazarAdvances: [],
+        bazarIncentives: [],
+        bazarPenalties: [],
+        bazarBreaks: [],
 
   advances:    [],        users: [],
         empData: {},
@@ -12430,7 +12239,7 @@ document.querySelectorAll(".tab-btn").forEach(btn => {
 
 let tab = btn.dataset.tab
 
-if(perms.includes("all") || perms.includes(tab)){
+if(perms.includes("all") || perms.includes(tab) || (tab === "fingerprint-bazar" && perms.includes("fingerprint"))){
 
 btn.style.display = "flex"
 
@@ -13210,13 +13019,15 @@ const missingBeforeRemote = allItems.filter(({item}) => {
   return !(item?.name || item?.productName || item?.product_name || (bc && nameMap.get(bc)));
 }).length;
 
-if(missingBeforeRemote > 0 && typeof db !== 'undefined'){
+if(missingBeforeRemote > 0 && typeof PriceSheetService !== 'undefined'){
   try {
-    const snap = await db.ref('priceSheet').once('value');
-    const ps = snap.val() || {};
-    rememberSource(ps.baz);
-    rememberSource(ps.cai);
-    rememberSource(ps.names);
+    const ps = await PriceSheetService.load();
+    ps?.baz?.forEach((v,k)=>{
+      if(v?.name && !nameMap.has(String(k))) nameMap.set(String(k),v.name);
+    });
+    ps?.cai?.forEach((v,k)=>{
+      if(v?.name && !nameMap.has(String(k))) nameMap.set(String(k),v.name);
+    });
   } catch(err) {
     console.warn('[Transfers Export] تعذر قراءة شيت الأسعار:', err);
   }
@@ -14108,17 +13919,11 @@ function getProductName(barcode) {
 function getProductNameAsync(barcode, callback) {
   const localName = getProductName(barcode);
   if(localName) { callback(localName); return; }
-
-  // بحث في Firebase
-  if(typeof db === 'undefined') { callback(null); return; }
-  const safe = String(barcode).trim().replace(/[.#$/\[\]]/g, '_');
-  db.ref('priceSheet/baz/' + safe).once('value').then(snap => {
-    if(snap.val() && snap.val().name) { callback(snap.val().name); return; }
-    return db.ref('priceSheet/cai/' + safe).once('value');
-  }).then(snap => {
-    if(snap && snap.val() && snap.val().name) { callback(snap.val().name); }
-    else { callback(null); }
-  }).catch(() => callback(null));
+  if(typeof PriceSheetService==='undefined') { callback(null); return; }
+  PriceSheetService.load().then(data=>{
+    const p = PriceSheetService.lookup(barcode,data);
+    callback(p?.name || null);
+  }).catch(()=>callback(null));
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -15369,69 +15174,257 @@ function printAttendance(dateStr) {
     `حضور ${date}`);
 }
 
-// ─── حفظ شيت الأسعار في Firebase ────────────────────────────────────────
-function savePriceSheetToFirebase(fileName) {
-  if(typeof db === 'undefined') {
-    UI.toast('⚠️ Firebase غير متصل', 'warning');
-    return;
-  }
-
-  // قراءة البيانات من window.S
-  const ps = window.S;
-  if(!ps || typeof ps.getBaz !== 'function') {
-    UI.toast('⚠️ ارفع الشيت أولاً', 'warning');
-    return;
-  }
-
-  const baz = ps.getBaz() || new Map();
-  const cai = ps.getCai() || new Map();
-
-  if(baz.size + cai.size === 0) {
-    UI.toast('⚠️ الشيت فارغ', 'warning');
-    return;
-  }
-
-  UI.toast('☁️ جارٍ الرفع...', 'success');
-
-  // حفظ barcode → name فقط (اقتصاد في المساحة)
-  const names = {};
-  let count = 0;
-  baz.forEach((val, key) => {
-    if(val && val.name) {
-      names[key.replace(/[.#$\[\]]/g, '_')] = val.name;
-      count++;
-    }
-  });
-  cai.forEach((val, key) => {
-    if(val && val.name) {
-      const safe = key.replace(/[.#$\[\]]/g, '_');
-      if(!names[safe]) { names[safe] = val.name; count++; }
-    }
-  });
-
-  const saveData = {
-    fileName: fileName || 'sheet',
-    uploadedAt: firebase.database.ServerValue.TIMESTAMP,
-    uploadedBy: State.currentUser ? State.currentUser.username : 'unknown',
-    bazTotal: baz.size,
-    caiTotal: cai.size,
-    names: names
+// ================================================================
+// PRICE SHEET SERVICE
+// مصدر موحد للبيانات + Cache + Watch + Versioned/Atomic Publish
+// ================================================================
+const PriceSheetService = (() => {
+  const state = {
+    data: null,
+    versionId: null,
+    loading: null,
+    watchStarted: false,
+    publishInProgress: false
   };
 
-  const kb = Math.round(JSON.stringify(saveData).length / 1024);
+  const safeKey = k => String(k).replace(/[.#$\[\]]/g,'_');
+  const parseDate = v => {
+    if(!v) return null;
+    if(v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    if(typeof v === 'number'){
+      const d = new Date((v-25569)*86400*1000);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const s = String(v).trim();
+    let m = s.match(/^(\d{1,2})[\\\/-](\d{1,2})[\\\/-](\d{4})$/);
+    if(m){
+      const d = new Date(Number(m[3]),Number(m[2])-1,Number(m[1]));
+      if(!isNaN(d.getTime())) return d;
+    }
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  };
 
-  db.ref('priceSheet').remove()
-    .then(() => db.ref('priceSheet').set(saveData))
-    .then(() => {
-      UI.toast('✅ تم الرفع: ' + count.toLocaleString('ar-EG') + ' منتج (' + kb + ' KB)', 'success');
-      try { SystemLog.add('UploadPriceSheet', fileName || 'sheet', count + ' منتج'); } catch(e) {}
-      try { localStorage.setItem('priceSheetName', fileName); } catch(e) {}
-    })
-    .catch(err => {
-      console.error('Firebase priceSheet error:', err);
-      UI.toast('❌ فشل الرفع: ' + (err.message || err), 'error');
+  const serializeDate = v => {
+    if(v instanceof Date) return v.toISOString();
+    return v || null;
+  };
+
+  const mapToObject = map => {
+    const out = {};
+    if(!(map instanceof Map)) return out;
+    map.forEach((v,key)=>{
+      if(!v) return;
+      const bc = normalizeBarcode(v.barcode || key);
+      if(!bc) return;
+      const entry = {
+        bc,
+        n: String(v.name || 'غير معلوم')
+      };
+      if(Number(v.sellPrice)>0) entry.s = Number(v.sellPrice);
+      if(Number(v.costPrice)>0) entry.c = Number(v.costPrice);
+      if(v.vendorName) entry.vn = String(v.vendorName);
+      if(v.vendorCode) entry.v = String(v.vendorCode);
+      if(v.modifiedBy) entry.mb = String(v.modifiedBy);
+      if(v.dateOfPrice) entry.dp = serializeDate(v.dateOfPrice);
+      if(v.modifiedAt) entry.ma = serializeDate(v.modifiedAt);
+      out[safeKey(bc)] = entry;
     });
+    return out;
+  };
+
+  const buildMap = (src, source) => {
+    const map = new Map();
+    if(!src || typeof src!=='object') return map;
+    Object.entries(src).forEach(([rawKey,v])=>{
+      const obj = (v && typeof v==='object') ? v : {n:String(v||'')};
+      const bc = normalizeBarcode(obj.bc || rawKey);
+      if(!bc) return;
+      map.set(bc, {
+        barcode:bc,
+        name:String(obj.n || obj.name || 'غير معلوم'),
+        sellPrice:Number(obj.s || obj.sellPrice || 0) || 0,
+        costPrice:Number(obj.c || obj.costPrice || 0) || 0,
+        vendorCode:String(obj.v || obj.vendorCode || ''),
+        vendorName:String(obj.vn || obj.vendorName || ''),
+        modifiedBy:String(obj.mb || obj.modifiedBy || ''),
+        dateOfPrice:parseDate(obj.dp || obj.dateOfPrice),
+        modifiedAt:parseDate(obj.ma || obj.modifiedAt),
+        source
+      });
+    });
+    return map;
+  };
+
+  const normalizeData = (raw, versionId) => {
+    const data = raw || {};
+    const meta = data.meta || {};
+    const bazSource = data.baz || data.names || {};
+    const caiSource = data.cai || {};
+    const baz = buildMap(bazSource,'بورسعيد');
+    const cai = buildMap(caiSource,'القاهرة');
+    return { versionId: versionId || data.currentVersion || null, meta, baz, cai };
+  };
+
+  const syncGlobalState = data => {
+    state.data = data;
+    state.versionId = data?.versionId || state.versionId || null;
+    try{
+      if(window.S && typeof window.S.setData==='function') window.S.setData(data.baz || new Map(), data.cai || new Map());
+    }catch(e){ console.warn('[PriceSheetService] S sync:',e); }
+  };
+
+  async function load(force=false){
+    if(typeof db==='undefined') return null;
+    if(state.loading) return state.loading;
+    if(state.data && !force) return state.data;
+
+    state.loading = (async()=>{
+      let versionId = null;
+      try {
+        const pointer = await db.ref('priceSheet/currentVersion').once('value');
+        versionId = pointer.val() || null;
+      } catch(_) {}
+
+      let raw = null;
+      if(versionId){
+        try{
+          const snap = await db.ref('priceSheetVersions/'+versionId).once('value');
+          raw = snap.val();
+          if(!raw || (raw.meta && raw.meta.ready === false)) raw = null;
+        }catch(_){ raw = null; }
+      }
+      if(!raw){
+        const snap = await db.ref('priceSheet').once('value');
+        raw = snap.val();
+        versionId = raw?.currentVersion || versionId || null;
+      }
+      if(!raw) return null;
+      const data = normalizeData(raw, versionId);
+      syncGlobalState(data);
+      return data;
+    })().finally(()=>{ state.loading=null; });
+
+    return state.loading;
+  }
+
+  function startWatch(){
+    if(typeof db==='undefined' || state.watchStarted) return;
+    state.watchStarted = true;
+    db.ref('priceSheet/currentVersion').on('value', snap=>{
+      const versionId = snap.val() || null;
+      if(versionId && versionId !== state.versionId){
+        state.data = null;
+        load(true).catch(err=>console.warn('[PriceSheetService] watch load:',err));
+      }
+    });
+  }
+
+  function lookup(barcode, data){
+    const bc = normalizeBarcode(barcode);
+    if(!bc) return null;
+    const d = data || state.data;
+    if(!d) return null;
+    return d.baz?.get(bc) || d.cai?.get(bc) || null;
+  }
+
+  async function publish(baz, cai, meta={}, progress){
+    if(typeof db==='undefined') throw new Error('Firebase غير متصل');
+    if(state.publishInProgress) throw new Error('يوجد رفع أسعار جارٍ بالفعل');
+    state.publishInProgress = true;
+    try{
+      const versionRef = db.ref('priceSheetVersions').push();
+      const versionId = versionRef.key;
+      const baseMeta = {
+        versionId,
+        ready:false,
+        fileName:meta.fileName || 'sheet',
+        uploadedBy:meta.uploadedBy || 'unknown',
+        uploadedAt:firebase.database.ServerValue.TIMESTAMP,
+        bazTotal:baz?.size || 0,
+        caiTotal:cai?.size || 0,
+        duplicateCount:meta.duplicateCount || 0,
+        duplicateBarcodes:Array.isArray(meta.duplicateBarcodes)?meta.duplicateBarcodes.slice(0,100):[],
+        missingNames:meta.missingNames || 0
+      };
+
+      await versionRef.child('meta').set(baseMeta);
+      progress?.(10,'إنشاء نسخة آمنة...');
+
+      const uploadMap = async (branch, map, startPct, endPct, label) => {
+        const obj = mapToObject(map);
+        const entries = Object.entries(obj);
+        const CHUNK = 2000;
+        if(!entries.length){
+          progress?.(endPct,label+' — لا توجد بيانات');
+          return obj;
+        }
+        for(let i=0;i<entries.length;i+=CHUNK){
+          const chunk = Object.fromEntries(entries.slice(i,i+CHUNK));
+          await versionRef.child(branch).update(chunk);
+          const pct = Math.min(endPct, Math.round(startPct + (endPct-startPct)*(Math.min(i+CHUNK,entries.length)/entries.length)));
+          progress?.(pct,label);
+        }
+        return obj;
+      };
+
+      const bazObj = await uploadMap('baz',baz,15,50,'رفع بيانات البازار...');
+      const caiObj = await uploadMap('cai',cai,50,85,'رفع بيانات القاهرة...');
+
+      await versionRef.child('meta/ready').set(true);
+      progress?.(92,'التحقق من اكتمال النسخة...');
+
+      // اللحظة الوحيدة التي يتغير فيها المؤشر الحالي.
+      // طالما لم نصل هنا، كل الأجهزة تستمر باستخدام النسخة القديمة.
+      await db.ref('priceSheet/currentVersion').set(versionId);
+      progress?.(100,'تم نشر النسخة الجديدة بأمان');
+
+      const localMeta = {...baseMeta, ready:true, uploadedAt:Date.now()};
+      const data = {
+        versionId,
+        meta:localMeta,
+        baz:buildMap(bazObj,'بورسعيد'),
+        cai:buildMap(caiObj,'القاهرة')
+      };
+      syncGlobalState(data);
+      try{ localStorage.setItem('priceSheetName',localMeta.fileName); }catch(_){}
+      return {versionId, data};
+    } finally {
+      state.publishInProgress = false;
+    }
+  }
+
+  function invalidate(){ state.data=null; }
+  return {load,startWatch,lookup,publish,invalidate,getVersionId:()=>state.versionId};
+})();
+window.PriceSheetService = PriceSheetService;
+
+// ─── حفظ/نشر شيت الأسعار في Firebase ───────────────────────────────
+function savePriceSheetToFirebase(fileName) {
+  const ps = window.S;
+  if(!ps || typeof ps.getBaz!=='function'){
+    if(typeof UI!=='undefined') UI.toast('⚠️ ارفع الشيت أولاً','warning');
+    return;
+  }
+  const baz = ps.getBaz() || new Map();
+  const cai = ps.getCai ? (ps.getCai() || new Map()) : new Map();
+  if(!baz.size && !cai.size){
+    if(typeof UI!=='undefined') UI.toast('⚠️ الشيت فارغ','warning');
+    return;
+  }
+  if(typeof PriceSheetService==='undefined') return;
+  PriceSheetService.publish(baz,cai,{
+    fileName:fileName || 'sheet',
+    uploadedBy:State.currentUser ? State.currentUser.username : 'unknown'
+  }).then(result=>{
+    if(typeof UI!=='undefined') UI.toast('✅ تم نشر نسخة الأسعار '+result.versionId,'success');
+    try{ SystemLog.add('UploadPriceSheet',fileName||'sheet',(baz.size+cai.size)+' منتج'); }catch(e){}
+  }).catch(err=>{
+    console.error('Firebase priceSheet publish error:',err);
+    if(typeof UI!=='undefined') UI.toast('❌ فشل النشر: '+(err.message||err),'error');
+  });
 }
+
 
 // ─── تاريخ تحويلات صنف ──────────────────────────────────────────────────────
 function showBarcodeTransferHistory(barcode, productName) {
@@ -15480,57 +15473,16 @@ function _cmpParseFbDate(v){
   const d = new Date(v);
   return isNaN(d.getTime()) ? null : d;
 }
-function loadPriceSheetFromFirebase() {
-  if(typeof db === 'undefined') return;
-  db.ref('priceSheet').once('value').then(snap => {
-    const data = snap.val();
-    if(!data) return;
-    const hasNew = data.baz && Object.keys(data.baz).length > 0;
-    const hasOld = data.names && Object.keys(data.names).length > 0;
-    if(!hasNew && !hasOld) return;
-    const bazCount = hasNew ? Object.keys(data.baz).length : 0;
-    const caiCount = data.cai ? Object.keys(data.cai).length : 0;
-    const total = hasNew ? bazCount + caiCount : Object.keys(data.names).length;
+function loadPriceSheetFromFirebase(force=false) {
+  if(typeof PriceSheetService==='undefined') return Promise.resolve(null);
+  PriceSheetService.startWatch();
+  return PriceSheetService.load(!!force).then(data=>{
+    if(!data) return null;
+    const baz = data.baz || new Map();
+    const cai = data.cai || new Map();
+    const total = baz.size + cai.size;
 
-    // بناء Map من baz و cai
-    const buildMap = (src) => {
-      const m = new Map();
-      if(!src) return m;
-      Object.entries(src).forEach(([k, v]) => {
-        const isStr = typeof v === 'string';
-        const name = isStr ? v : (v.n || v.name || '');
-        if(!name) return;
-        const obj = {
-          name,
-          sellPrice:   isStr ? 0 : Number(v.s  || v.sellPrice  || 0),
-          costPrice:   isStr ? 0 : Number(v.c  || v.costPrice  || 0),
-          vendorCode:  isStr ? '' : (v.v  || v.vendorCode  || ''),
-          vendorName:  isStr ? '' : (v.vn || v.vendorName  || ''),
-          modifiedBy:  isStr ? '' : (v.mb || v.modifiedBy  || ''),
-          dateOfPrice: isStr ? null : _cmpParseFbDate(v.dp || v.dateOfPrice),
-          modifiedAt:  isStr ? null : _cmpParseFbDate(v.ma || v.modifiedAt)
-        };
-        m.set(k, obj);
-        // أيضاً بالشكل الأصلي (underscore → dot أو العكس)
-        const orig = k.replace(/_/g, '.');
-        if(orig !== k) m.set(orig, obj);
-        // وبالشكل الرقمي المباشر
-        const noLead = k.replace(/^0+/, '');
-        if(noLead !== k) m.set(noLead, obj);
-      });
-      return m;
-    };
-
-    const baz = buildMap(data.baz || data.names || {});
-    const cai = buildMap(data.cai || {});
-
-    // sync window.S
-    if(window.S && window.S.setData) {
-      window.S.setData(baz, cai);
-    }
-
-    // تحديث UI بشكل آمن (العناصر قد تكون غير موجودة)
-    const safeGet = (id) => { try { return document.getElementById(id); } catch(e) { return null; } };
+    const safeGet = id => { try { return document.getElementById(id); } catch(e) { return null; } };
     const flRow = safeGet('flRow');
     const flNm  = safeGet('flNm');
     const flCnt = safeGet('flCnt');
@@ -15538,34 +15490,34 @@ function loadPriceSheetFromFirebase() {
     const bdgTxt= safeGet('bdgTxt');
     const statsBar = safeGet('statsBar');
     const srcStrip = safeGet('srcStrip');
-    const displayName = data.fileName || 'شيت محفوظ';
+    const meta = data.meta || {};
+    const displayName = meta.fileName || 'شيت محفوظ';
 
     if(flRow) flRow.classList.add('on');
     if(flNm)  flNm.textContent = displayName;
-    if(flCnt) flCnt.textContent = 'إجمالي: ' + total.toLocaleString('ar-EG') + ' منتج';
-    if(bdg)   bdg.classList.add('on');
-    if(bdgTxt)bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
+    if(flCnt) flCnt.textContent = `البازار: ${baz.size.toLocaleString('ar-EG')} | القاهرة: ${cai.size.toLocaleString('ar-EG')}`;
+    if(bdg) bdg.classList.add('on');
+    if(bdgTxt) bdgTxt.textContent = total.toLocaleString('ar-EG') + ' منتج';
     if(statsBar) statsBar.style.display = 'flex';
     if(srcStrip) srcStrip.classList.add('vis');
 
-    // عرض وقت الرفع
     try {
-      let _uploadTime = '';
-      let _uploadBy = '';
-      if(data.meta && data.meta.uploadedAt) {
-        _uploadTime = new Date(data.meta.uploadedAt).toLocaleString('ar-EG', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});
-        _uploadBy = data.meta.uploadedBy || '';
-      } else if(data.uploadedAt && typeof data.uploadedAt === 'number') {
-        _uploadTime = new Date(data.uploadedAt).toLocaleString('ar-EG', {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});
-        _uploadBy = data.uploadedBy || '';
-      } else {
-        _uploadTime = localStorage.getItem('priceSheetUploadTime') || '';
-        _uploadBy = localStorage.getItem('priceSheetUploadBy') || '';
-      }
-      if(_uploadTime && typeof showUploadTime === 'function') showUploadTime(_uploadTime, _uploadBy);
-    } catch(e) {}
+      const uploadedAt = meta.uploadedAt;
+      const uploadBy = meta.uploadedBy || '';
+      let uploadTime = '';
+      if(uploadedAt) uploadTime = new Date(uploadedAt).toLocaleString('ar-EG',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:true});
+      else uploadTime = localStorage.getItem('priceSheetUploadTime') || '';
+      if(uploadTime && typeof showUploadTime==='function') showUploadTime(uploadTime,uploadBy);
+      if(uploadTime) localStorage.setItem('priceSheetUploadTime',uploadTime);
+      if(uploadBy) localStorage.setItem('priceSheetUploadBy',uploadBy);
+    } catch(e){}
 
-  }).catch(err => console.warn('priceSheet load error:', err));
+    try { updStats(); } catch(_) {}
+    return data;
+  }).catch(err=>{
+    console.warn('priceSheet load error:',err);
+    return null;
+  });
 }
 
 function onProductBarcodeInput(barcode) {
@@ -15649,54 +15601,39 @@ function onTransferBarcodeInput(barcode) {
 }
 
 function lookupProductFromPriceSheet(barcode, callback) {
-  const bc = String(barcode).trim();
-  const safe = bc.replace(/[.#$[\]]/g, '_');
+  const bc = normalizeBarcode(barcode);
+  if(!bc){ callback(null); return; }
 
-  // 1. أولاً من window.S (لا يحتاج network)
+  // 1) من الـcache المحلي الموحد بدون أي network.
   try {
-    const ps = window.S;
-    if(ps && typeof ps.getBaz === 'function') {
-      const baz = ps.getBaz();
-      const cai = ps.getCai ? ps.getCai() : null;
-      for(const k of [bc, safe, bc.replace(/\./g,'_')]) {
-        const found = (baz && baz.get(k)) || (cai && cai.get(k));
-        if(found) {
-          const name = typeof found === 'string' ? found : found.name;
-          if(name) { callback({ name }); return; }
-        }
-      }
+    const local = PriceSheetService?.lookup?.(bc);
+    if(local){
+      callback({
+        name:local.name,
+        sellPrice:local.sellPrice || 0,
+        costPrice:local.costPrice || 0,
+        vendorName:local.vendorName || ''
+      });
+      return;
     }
   } catch(e) {}
 
-  // 2. من Firebase
-  if(typeof db === 'undefined') { callback(null); return; }
-
+  if(typeof PriceSheetService==='undefined') { callback(null); return; }
   let done = false;
-  const cb = (result) => { if(!done) { done=true; callback(result); } };
+  const cb = result => { if(!done){ done=true; callback(result); } };
 
-  // جرب baz ثم cai ثم names (fallback)
-  const paths = [
-    'priceSheet/baz/' + safe,
-    'priceSheet/cai/' + safe,
-    'priceSheet/baz/' + bc,
-    'priceSheet/cai/' + bc,
-    'priceSheet/names/' + safe
-  ];
-
-  const tryNext = (i) => {
-    if(i >= paths.length) { cb(null); return; }
-    db.ref(paths[i]).once('value').then(snap => {
-      const v = snap.val();
-      if(v && !done) {
-        const name = typeof v === 'string' ? v : (v.n || v.name || '');
-        if(name) cb({ name, sellPrice: v.s||0, costPrice: v.c||0, vendorName: v.vn||'' });
-        else tryNext(i+1);
-      } else tryNext(i+1);
-    }).catch(() => tryNext(i+1));
-  };
-  tryNext(0);
+  PriceSheetService.load().then(data=>{
+    const found = PriceSheetService.lookup(bc,data);
+    if(found){
+      cb({
+        name:found.name,
+        sellPrice:found.sellPrice || 0,
+        costPrice:found.costPrice || 0,
+        vendorName:found.vendorName || ''
+      });
+    } else cb(null);
+  }).catch(()=>cb(null));
 }
-
 function calcItemTotal(cartons, boxes, pieces, kilo) {
     cartons = Number(cartons) || 0;
     boxes   = Number(boxes)   || 0;
@@ -15793,595 +15730,738 @@ SystemLog.add("DeleteTransfer", id, "حذف تحويل")
 // ════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════════════════
+
+
+// ═══════════════════════════════════════════════════════════════════
+// BAZAR HR SUITE — نظام مستقل تمامًا عن بيانات المحل
+// ═══════════════════════════════════════════════════════════════════
+const BAZAR_HR_PATHS = Object.freeze({
+  employees: 'bazarEmpData',
+  attendance: 'fingerprintBazar',
+  advances: 'bazarAdvances',
+  incentives: 'bazarIncentives',
+  penalties: 'bazarPenalties',
+  permits: 'bazarBreaks'
+});
+
+const BazarHRSuite = {
+  _initialized:false,
+  _active:'employees',
+  _listeners:{},
+  _cache:{employees:[],attendance:[],advances:[],incentives:[],penalties:[],permits:[]},
+  _graceMin:15,
+  _targetDays:26,
+  _esc(v){return String(v??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));},
+  _today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;},
+  _fmtMin(m){m=Math.max(0,Math.round(Number(m)||0));return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;},
+  _parseTime(v){if(!v)return null;const s=String(v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));const m=s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);if(!m)return null;const h=+m[1],mi=+(m[2]||0);return h>=0&&h<24&&mi>=0&&mi<60?h*60+mi:null;},
+  _dayKey(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';},
+  _time(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
+  _date(v){if(!v)return '-';const d=new Date(v+'T00:00:00');return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-EG'):v;},
+  _num(v){const n=Number(v);return Number.isFinite(n)?n:0;},
+  _employees(){
+    // المصدر الوحيد لبيانات موظفي البازار هو bazarEmpData.
+    // نستخدم cache أولاً لتجنب أي اعتماد على بيانات موظفي المحل.
+    const cached=Array.isArray(this._cache.employees)?this._cache.employees:[];
+    if(cached.length){
+      return cached.map(e=>({
+        code:String(e?.code??e?.id??''),name:String(e?.name??''),job:String(e?.job??''),branch:String(e?.branch??''),salary:this._num(e?.salary??e?.baseSalary),
+        checkIn:String(e?.checkIn??e?.workStart??''),checkOut:String(e?.checkOut??e?.workEnd??''),workHours:this._num(e?.workHours??e?.workHoursPerDay)||0,
+        hireDate:e?.hireDate||'',nationalId:e?.nationalId||'',phone:e?.phone||'',status:e?.status||'',employmentStatus:e?.employmentStatus||''
+      })).filter(e=>e.code).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+    }
+    const raw=State.bazarEmpData&&typeof State.bazarEmpData==='object'&&!Array.isArray(State.bazarEmpData)?State.bazarEmpData:{};
+    return Object.entries(raw).map(([k,e])=>({
+      code:String(e?.code??k),name:String(e?.name??''),job:String(e?.job??''),branch:String(e?.branch??''),salary:this._num(e?.salary??e?.baseSalary),
+      checkIn:String(e?.checkIn??e?.workStart??''),checkOut:String(e?.checkOut??e?.workEnd??''),workHours:this._num(e?.workHours??e?.workHoursPerDay)||0,
+      hireDate:e?.hireDate||'',nationalId:e?.nationalId||'',phone:e?.phone||'',status:e?.status||'',employmentStatus:e?.employmentStatus||''
+    })).filter(e=>e.code).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  },
+  _emp(code){return this._employees().find(e=>String(e.code)===String(code))||null;},
+  _loadOnce(path,key){return db.ref(path).once('value').then(s=>{const out=[];s.forEach(c=>out.push({id:c.key,...(c.val()||{})}));this._cache[key]=out;return out;});},
+  _setRangeDefaults(ids){const t=this._today(); ids.forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=t;});},
+  _openModal(title,body){const m=document.getElementById('bh-modal');if(!m)return;m.innerHTML=`<div style="background:#0f172a;border:1px solid rgba(99,102,241,.35);border-radius:14px;width:min(650px,96vw);max-height:92vh;overflow:auto"><div style="padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between"><b>${title}</b><button class="bh-row-btn" onclick="BazarHRSuite.closeModal()">✕</button></div><div style="padding:16px">${body}</div></div>`;m.style.display='flex';},
+  closeModal(){const m=document.getElementById('bh-modal');if(m){m.style.display='none';m.innerHTML='';}},
+  _field(id,label,value='',type='text',extra=''){return `<label style="font-size:11px;color:#94a3b8;display:block">${label}<input id="${id}" class="bh-input" type="${type}" value="${this._esc(value)}" ${extra}></label>`;},
+  _empSelect(id,cur='',all=true){const opts=all?'<option value="">اختر الموظف</option>':'';return `<select id="${id}" class="bh-input">${opts}${this._employees().map(e=>`<option value="${this._esc(e.code)}" ${String(cur)===String(e.code)?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('')}</select>`;},
+
+  init(){
+    if(!this._initialized){
+      this._initialized=true;
+      document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(btn=>btn.addEventListener('click',()=>this.openPane(btn.dataset.bhTab)));
+      this._attachListeners();
+      this.openPane('employees');
+      if(!this._interval)this._interval=setInterval(()=>{if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none')this.refreshActivePane();},60000);
+    }
+    this.refreshActivePane();
+  },
+  _attachListeners(){
+    const add=(path,key,onData)=>{
+      if(this._listeners[path])return;
+      const ref=db.ref(path);
+      const cb=snap=>{
+        const arr=[];
+        snap.forEach(c=>arr.push({id:c.key,...(c.val()||{})}));
+        this._cache[key]=arr;
+        if(onData)onData(arr);
+        if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none')this.refreshActivePane();
+      };
+      ref.on('value',cb);
+      this._listeners[path]=ref;
+    };
+    add(BAZAR_HR_PATHS.employees,'employees',arr=>{
+      const map={};
+      arr.forEach(e=>{const code=String(e.code??e.id??'').trim();if(code)map[code]=e;});
+      State.bazarEmpData=map;
+    });
+    add(BAZAR_HR_PATHS.attendance,'attendance',arr=>{State.fingerprintBazar=arr;});
+    add(BAZAR_HR_PATHS.advances,'advances',arr=>{State.bazarAdvances=arr;});
+    add(BAZAR_HR_PATHS.incentives,'incentives',arr=>{State.bazarIncentives=arr;});
+    add(BAZAR_HR_PATHS.penalties,'penalties',arr=>{State.bazarPenalties=arr;});
+    add(BAZAR_HR_PATHS.permits,'permits',arr=>{State.bazarBreaks=arr;});
+  },
+  openPane(tab){
+    this._active=tab;document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bazar-hr-pane').forEach(p=>p.style.display='none');const pane=document.getElementById('bh-pane-'+tab);if(pane)pane.style.display='block';this.renderPane(tab);
+  },
+  refreshActivePane(){this.renderPane(this._active);},
+  refreshAll(){this._attachListeners();this.renderPane(this._active);UI.toast('✅ تم تحديث بيانات إدارة البازار','success');},
+
+  renderPane(tab){
+    if(tab==='employees')return this.renderEmployees();
+    if(tab==='attendance')return this.renderAttendance();
+    if(tab==='advances')return this.renderAdvances();
+    if(tab==='incentives')return this.renderIncentives();
+    if(tab==='penalties')return this.renderPenalties();
+    if(tab==='permits')return this.renderPermits();
+    if(tab==='payroll')return this.renderPayroll();
+    if(tab==='payslip')return this.renderPayslip();
+  },
+
+  renderEmployees(){
+    const p=document.getElementById('bh-pane-employees');if(!p)return;const emps=this._employees();
+    p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>بيانات الموظفين</h3><div class="bh-muted">المصدر المستقل: <b>bazarEmpData</b> — لا يتم استخدام بيانات موظفي المحل هنا.</div></div><button class="suite-btn primary" onclick="BazarHRSuite.openEmployeeForm()">➕ موظف جديد</button></div>
+    <div class="suite-grid" style="margin-top:12px"><input id="bhEmpSearch" class="bh-input" placeholder="بحث بالاسم أو الكود" oninput="BazarHRSuite.renderEmployees()"><select id="bhEmpStatus" class="bh-input" onchange="BazarHRSuite.renderEmployees()"><option value="">كل الحالات</option><option value="active">نشط</option><option value="resigned">مستقيل</option><option value="stopped">موقوف</option></select><div class="bh-stat glass-card"><span>إجمالي الموظفين</span><b>${emps.length}</b></div></div></div>
+    <div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>الكود</th><th>الموظف</th><th>الوظيفة</th><th>الفرع</th><th>المرتب</th><th>الحضور الرسمي</th><th>الانصراف الرسمي</th><th>الساعات</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="bhEmpBody"></tbody></table></div></div>`;
+    const q=(document.getElementById('bhEmpSearch')?.value||'').toLowerCase().trim(),st=document.getElementById('bhEmpStatus')?.value||'';
+    const rows=emps.filter(e=>(!q||e.name.toLowerCase().includes(q)||e.code.includes(q))&&(!st||(st==='active'?!['resigned','stopped','مستقيل','موقوف'].includes(String(e.employmentStatus)):e.employmentStatus===st)));
+    document.getElementById('bhEmpBody').innerHTML=rows.map(e=>`<tr><td>${this._esc(e.code)}</td><td style="font-weight:800">${this._esc(e.name)}</td><td>${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bh-money">${e.salary.toLocaleString('ar-EG')} ج</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours||'-'}</td><td>${this._esc(e.employmentStatus||e.status||'نشط')}</td><td><button class="bh-row-btn" onclick="BazarHRSuite.openEmployeeForm('${this._esc(e.code)}')">✏️ تعديل</button></td></tr>`).join('')||'<tr><td colspan="10" class="bh-muted">لا توجد بيانات</td></tr>';
+  },
+  openEmployeeForm(code=''){
+    const e=code?this._emp(code):{code:'',name:'',job:'',branch:'',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'active'};
+    this._openModal(code?'تعديل بيانات الموظف':'إضافة موظف',`<div class="suite-grid">${this._field('bheCode','كود الموظف',e.code)}${this._field('bheName','اسم الموظف',e.name)}${this._field('bheJob','الوظيفة',e.job)}${this._field('bheBranch','الفرع',e.branch)}${this._field('bheSalary','المرتب',e.salary,'number','min="0"')}${this._field('bheHire','تاريخ التعيين',e.hireDate,'date')}${this._field('bheNational','الرقم القومي',e.nationalId)}${this._field('bhePhone','الهاتف',e.phone)}${this._field('bheIn','ميعاد الحضور',e.checkIn,'time')}${this._field('bheOut','ميعاد الانصراف',e.checkOut,'time')}<label style="font-size:11px;color:#94a3b8">الحالة<select id="bheStatus" class="bh-input"><option value="active" ${e.employmentStatus==='active'?'selected':''}>نشط</option><option value="resigned" ${e.employmentStatus==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${e.employmentStatus==='stopped'?'selected':''}>موقوف</option></select></label></div><div style="margin-top:14px;display:flex;gap:8px"><button class="suite-btn primary" onclick="BazarHRSuite.saveEmployee('${this._esc(code)}')">💾 حفظ</button><button class="suite-btn" onclick="BazarHRSuite.closeModal()">إلغاء</button></div>`);
+  },
+  saveEmployee(oldCode=''){
+    const code=String(document.getElementById('bheCode')?.value||'').trim(),name=String(document.getElementById('bheName')?.value||'').trim();if(!code||!name){UI.toast('الكود والاسم مطلوبان','error');return;}
+    if(!oldCode && this._emp(code)){UI.toast('كود الموظف موجود بالفعل','error');return;}
+    const cin=document.getElementById('bheIn')?.value||'',cout=document.getElementById('bheOut')?.value||'';let wh=0;const a=this._parseTime(cin),b=this._parseTime(cout);if(a!=null&&b!=null)wh=((b<=a?b+1440:b)-a)/60;
+    const old=this._emp(oldCode||code)||{};const data={...old,code:Number(code)||code,name,job:document.getElementById('bheJob')?.value||'',branch:document.getElementById('bheBranch')?.value||'',salary:this._num(document.getElementById('bheSalary')?.value),hireDate:document.getElementById('bheHire')?.value||'',nationalId:document.getElementById('bheNational')?.value||'',phone:document.getElementById('bhePhone')?.value||'',checkIn:cin,checkOut:cout,workHours:Number(wh.toFixed(2)),employmentStatus:document.getElementById('bheStatus')?.value||'active',updatedAt:new Date().toISOString(),updatedBy:State.currentUser?.username||'-'};
+    const updates={}; if(oldCode&&String(oldCode)!==code)updates['bazarEmpData/'+oldCode]=null;updates['bazarEmpData/'+code]=data;db.ref().update(updates).then(()=>{this.closeModal();UI.toast('✅ تم حفظ بيانات الموظف','success');SystemLog.add(oldCode?'EditEmployee':'AddEmployee',code,name);this.renderEmployees();}).catch(e=>UI.toast('❌ '+e.message,'error'));
+  },
+
+  _schedule(emp,date){const a=this._parseTime(emp.checkIn),b=this._parseTime(emp.checkOut);if(a==null||b==null)return null;const d=new Date(date+'T00:00:00');const inTs=new Date(d);inTs.setHours(Math.floor(a/60),a%60,0,0);const outTs=new Date(d);outTs.setHours(Math.floor(b/60),b%60,0,0);if(b<=a)outTs.setDate(outTs.getDate()+1);return {inTs:inTs.getTime(),outTs:outTs.getTime(),officialMin:Math.round(((b<=a?b+1440:b)-a))};},
+  _safeAttendance(){
+    const raw=Array.isArray(this._cache.attendance)?this._cache.attendance:[];
+    return raw.filter(a=>a&&a.code&&Number(a.timestamp)&&['CheckIn','CheckOut'].includes(a.action)).map(a=>({...a,code:String(a.code),timestamp:Number(a.timestamp)}));
+  },
+
+  _pairEvents(){
+    // إصلاح نهائي لمشكلة sort/type: نضمن أن المصدر Array قبل map/sort.
+    const ev=this._safeAttendance().sort((a,b)=>a.timestamp-b.timestamp);
+    const grouped={},pairs=[];
+    ev.forEach(a=>{(grouped[a.code] ||= []).push(a);});
+    Object.entries(grouped).forEach(([code,arr])=>{
+      const opens=[];
+      arr.sort((a,b)=>a.timestamp-b.timestamp);
+      arr.forEach(ev=>{
+        if(ev.action==='CheckIn'){
+          opens.push({checkIn:ev,checkOut:null});
+        }else{
+          let idx=-1;
+          for(let i=opens.length-1;i>=0;i--){
+            if(!opens[i].checkOut&&opens[i].checkIn.timestamp<=ev.timestamp){idx=i;break;}
+          }
+          if(idx>=0){
+            opens[idx].checkOut=ev;
+            pairs.push(opens[idx]);
+            opens.splice(idx,1);
+          }
+        }
+      });
+      opens.forEach(p=>pairs.push(p));
+    });
+    return Array.isArray(pairs)?pairs.sort((a,b)=>(a.checkIn?.timestamp||a.checkOut?.timestamp||0)-(b.checkIn?.timestamp||b.checkOut?.timestamp||0)):[];
+  },
+
+  _attendanceRows(from,to){
+    const masterEmps=this._employees().filter(e=>!['resigned','stopped','مستقيل','موقوف'].includes(String(e.employmentStatus)));
+    const masterCodes=new Set(masterEmps.map(e=>String(e.code)));
+    const raw=this._safeAttendance();
+    const pairs=this._pairEvents();
+    const pairByDay={};
+    pairs.forEach(p=>{
+      const anchor=p.checkIn||p.checkOut;if(!anchor)return;
+      const k=this._dayKey(anchor.timestamp)+'|'+String(anchor.code);
+      (pairByDay[k] ||= []).push(p);
+    });
+    const rawByDayCode={};
+    raw.forEach(a=>{
+      const k=this._dayKey(a.timestamp)+'|'+String(a.code);
+      (rawByDayCode[k] ||= []).push(a);
+    });
+    Object.values(rawByDayCode).forEach(arr=>arr.sort((a,b)=>a.timestamp-b.timestamp));
+
+    const out=[];
+    const fromD=new Date(from+'T00:00:00'), toD=new Date(to+'T00:00:00');
+    for(let d=new Date(fromD);d<=toD;d.setDate(d.getDate()+1)){
+      const dk=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const dayUnknownCodes=[...new Set((raw.filter(a=>this._dayKey(a.timestamp)===dk && !masterCodes.has(String(a.code)))).map(a=>String(a.code)))];
+      const dayEmps=[...masterEmps];
+      dayUnknownCodes.forEach(code=>{
+        const evs=rawByDayCode[dk+'|'+code]||[];
+        const base=evs[0]||{};
+        dayEmps.push({code,name:String(base.name||code),job:String(base.job||''),branch:String(base.branch||''),salary:0,checkIn:String(base.expectedIn||''),checkOut:String(base.expectedOut||''),workHours:0,employmentStatus:'',isUnregistered:true});
+      });
+
+      dayEmps.forEach(emp=>{
+        const code=String(emp.code), rawEvents=rawByDayCode[dk+'|'+code]||[], list=pairByDay[dk+'|'+code]||[];
+        let cin=null,cout=null,actual=0;
+        const allIns=rawEvents.filter(a=>a.action==='CheckIn').sort((a,b)=>a.timestamp-b.timestamp);
+        const allOuts=rawEvents.filter(a=>a.action==='CheckOut').sort((a,b)=>a.timestamp-b.timestamp);
+        if(list.length){
+          cin=list.map(p=>p.checkIn).filter(Boolean).sort((a,b)=>a.timestamp-b.timestamp)[0]||null;
+          cout=list.map(p=>p.checkOut).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp)[0]||null;
+          list.forEach(p=>{if(p.checkIn&&p.checkOut)actual+=Math.max(0,Math.round((p.checkOut.timestamp-p.checkIn.timestamp)/60000));});
+        }else{
+          cin=allIns[0]||null; cout=allOuts[allOuts.length-1]||null;
+          if(cin&&cout)actual=Math.max(0,Math.round((cout.timestamp-cin.timestamp)/60000));
+        }
+        if(cin&&cout && actual===0) actual=Math.max(0,Math.round((cout.timestamp-cin.timestamp)/60000));
+
+        const sc=this._schedule(emp,dk);
+        const hasIn=!!cin,hasOut=!!cout;
+        let late=0,early=0,earlyArr=0,lateExit=0;
+        if(sc&&cin){late=Math.max(0,Math.round((cin.timestamp-sc.inTs)/60000));earlyArr=Math.max(0,Math.round((sc.inTs-cin.timestamp)/60000));}
+        if(sc&&cout){early=Math.max(0,Math.round((sc.outTs-cout.timestamp)/60000));lateExit=Math.max(0,Math.round((cout.timestamp-sc.outTs)/60000));}
+        const net=Math.max(0,late+early-earlyArr-lateExit),deduct=Math.max(0,net-this._graceMin),overtime=Math.max(0,earlyArr+lateExit);
+        let status='غياب';
+        if(emp.isUnregistered){
+          if(hasIn&&hasOut)status='مكتمل - غير مضاف';
+          else if(hasIn)status='جارٍ - غير مضاف';
+          else if(hasOut)status='انصراف فقط - غير مضاف';
+          else status='غير مضاف';
+        }else if(!sc){
+          status=hasIn?'حاضر - بدون جدول':'بدون جدول';
+        }else if(hasIn&&hasOut){status='مكتمل';}
+        else if(hasIn){status='جارٍ';}
+        out.push({
+          date:dk,code,name:emp.name,job:emp.job,salary:emp.salary||0,officialIn:sc?this._time(sc.inTs):'-',officialOut:sc?this._time(sc.outTs):'-',
+          officialMin:sc?.officialMin||0,checkIn:cin,checkOut:cout,actualMin:actual,lateMin:late,earlyMin:early,earlyArrMin:earlyArr,lateExitMin:lateExit,
+          deductMin:deduct,overtimeMin:overtime,graceMin:Math.min(this._graceMin,net),status,source:cin?.source==='fingerprint-bazar'?'بصمة':(cout?.source==='fingerprint-bazar'?'بصمة':'يدوي'),pair:list[0]||null,
+          isUnregistered:!!emp.isUnregistered
+        });
+      });
+    }
+    return out;
+  },
+  renderAttendance(){
+    const p=document.getElementById('bh-pane-attendance');if(!p)return;
+    const oldFrom=document.getElementById('bhaFrom')?.value||this._today();
+    const oldTo=document.getElementById('bhaTo')?.value||oldFrom;
+    const oldSearch=document.getElementById('bhaSearch')?.value||'';
+    const from=oldFrom,to=oldTo,q=oldSearch.toLowerCase().trim();
+    const rows=this._attendanceRows(from,to).filter(r=>!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q));
+    const sum=k=>rows.reduce((a,r)=>a+(Number(r[k])||0),0);
+    const unknown=rows.filter(r=>r.isUnregistered).length;
+    p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>الحضور والانصراف</h3><div class="bh-muted">السجلات تُقرأ مباشرة من <b>fingerprintBazar</b>. بيانات الموظفين الرسمية منفصلة في <b>bazarEmpData</b>.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap"><button class="suite-btn primary" onclick="BazarHRSuite.openAttendanceModal()">➕ إضافة يدوية</button><button class="suite-btn" onclick="BazarHRSuite.syncFromDevice()">🖐️ مزامنة</button></div></div><div class="suite-grid"><label>من<input id="bhaFrom" class="bh-input" type="date" value="${this._esc(from)}" onchange="BazarHRSuite.renderAttendance()"></label><label>إلى<input id="bhaTo" class="bh-input" type="date" value="${this._esc(to)}" onchange="BazarHRSuite.renderAttendance()"></label><input id="bhaSearch" class="bh-input" placeholder="بحث بالاسم أو الكود" value="${this._esc(oldSearch)}" oninput="BazarHRSuite.renderAttendance()"></div></div><div id="bhaStats" class="suite-grid" style="margin-bottom:12px"></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الكود</th><th>الرسمي</th><th>الحضور</th><th>الانصراف</th><th>الساعات الفعلية</th><th>التأخير</th><th>خروج مبكر</th><th>قبل الموعد</th><th>بعد الموعد</th><th>السماح</th><th>خصم</th><th>إضافي</th><th>الحالة</th><th>المصدر</th><th>إجراء</th></tr></thead><tbody id="bhaBody"></tbody></table></div></div>`;
+    document.getElementById('bhaStats').innerHTML=[['السجلات',rows.length],['حضور',rows.filter(r=>String(r.status).includes('مكتمل')||String(r.status).includes('جارٍ')).length],['غياب',rows.filter(r=>r.status==='غياب').length],['غير مضاف',unknown],['التأخير',this._fmtMin(sum('lateMin'))],['الخصم بعد السماح',this._fmtMin(sum('deductMin'))],['الإضافي',this._fmtMin(sum('overtimeMin'))],['الساعات الفعلية',this._fmtMin(sum('actualMin'))]].map(x=>`<div class="glass-card bh-stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
+    document.getElementById('bhaBody').innerHTML=rows.map(r=>`<tr><td>${this._date(r.date)}</td><td style="font-weight:800">${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${r.officialIn} → ${r.officialOut}</td><td class="bh-success">${r.checkIn?this._time(r.checkIn.timestamp):'-'}</td><td>${r.checkOut?this._time(r.checkOut.timestamp):'-'}</td><td>${this._fmtMin(r.actualMin)}</td><td>${this._fmtMin(r.lateMin)}</td><td>${this._fmtMin(r.earlyMin)}</td><td>${this._fmtMin(r.earlyArrMin)}</td><td>${this._fmtMin(r.lateExitMin)}</td><td>${this._fmtMin(r.graceMin)}</td><td style="color:#fb7185">${this._fmtMin(r.deductMin)}</td><td class="bh-money">${this._fmtMin(r.overtimeMin)}</td><td>${this._esc(r.status)}</td><td>${r.source||'-'}</td><td>${r.checkIn&&!r.isUnregistered?`<button class="bh-row-btn" onclick="BazarHRSuite.editAttendance('${this._esc(r.code)}','${r.date}')">✏️</button>`:r.isUnregistered?'<span class="bh-muted">أضف الموظف أولًا</span>':''}</td></tr>`).join('')||'<tr><td colspan="17" class="bh-muted">لا توجد بيانات</td></tr>';
+  },
+  openAttendanceModal(code='',date=''){
+    const emp=this._emp(code)||this._employees()[0];const dk=date||this._today();const row=this._attendanceRows(dk,dk).find(r=>String(r.code)===String(code));const cin=row?.checkIn||null,cout=row?.checkOut||null;
+    if(!emp){UI.toast('أضف الموظف في تبويب بيانات الموظفين أولًا','warning');return;}
+    this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<div class="suite-grid"><label>الموظف${this._empSelect('bhaEmp',code||emp?.code,false)}</label>${this._field('bhaDate','التاريخ',dk,'date')}${this._field('bhaIn','وقت الحضور',cin?new Date(cin.timestamp).toTimeString().slice(0,5):'','time')}${this._field('bhaOut','وقت الانصراف',cout?new Date(cout.timestamp).toTimeString().slice(0,5):'','time')}${this._field('bhaNote','ملاحظة','','text')}</div><div style="margin-top:14px;display:flex;gap:8px"><button class="suite-btn primary" onclick="BazarHRSuite.saveAttendance()">💾 حفظ</button><button class="suite-btn" onclick="BazarHRSuite.closeModal()">إلغاء</button></div>`);
+  },
+  editAttendance(code,date){this.openAttendanceModal(code,date);},
+  saveAttendance(){const code=document.getElementById('bhaEmp')?.value,date=document.getElementById('bhaDate')?.value,iv=document.getElementById('bhaIn')?.value,ov=document.getElementById('bhaOut')?.value,note=document.getElementById('bhaNote')?.value||'';const emp=this._emp(code);if(!emp||!date||!iv){UI.toast('الموظف والتاريخ ووقت الحضور مطلوبين','error');return;}const inTs=new Date(`${date}T${iv}:00`).getTime();let outTs=null;if(ov){outTs=new Date(`${date}T${ov}:00`).getTime();if(outTs<=inTs)outTs+=86400000;}const row=this._attendanceRows(date,date).find(r=>String(r.code)===String(code));const writes={};const ids=[];if(row?.pair?.checkIn?.id)ids.push(row.pair.checkIn.id);if(row?.pair?.checkOut?.id)ids.push(row.pair.checkOut.id);ids.forEach(id=>{writes['fingerprintBazar/'+id]=null;});const base=`fingerprintBazar/manual_${Date.now()}`;writes[base+'_in']={code:String(code),name:emp.name,job:emp.job,action:'CheckIn',source:'manual',branch:'البازار',date:this._date(date),timeDisplay:new Date(inTs).toLocaleTimeString('ar-EG'),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};if(outTs)writes[base+'_out']={code:String(code),name:emp.name,job:emp.job,action:'CheckOut',source:'manual',branch:'البازار',date:this._date(this._dayKey(outTs)),timeDisplay:new Date(outTs).toLocaleTimeString('ar-EG'),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};db.ref().update(writes).then(()=>{this.closeModal();UI.toast('✅ تم حفظ الحضور والانصراف','success');SystemLog.add('BazarAttendanceEdit',String(code),emp.name);}).catch(e=>UI.toast('❌ '+e.message,'error'));},
+
+  renderAdvances(){const p=document.getElementById('bh-pane-advances');if(!p)return;const a=this._cache.advances||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>سلف الموظفين</h3><button class="suite-btn primary" onclick="BazarHRSuite.openAdvanceForm()">➕ إضافة سلفة</button></div><div class="suite-grid"><input id="bhAdvSearch" class="bh-input" placeholder="بحث بالموظف أو الكود" oninput="BazarHRSuite.renderAdvances()"><input id="bhAdvMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderAdvances()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الكود</th><th>القيمة</th><th>ملاحظة</th><th>بواسطة</th><th>إجراء</th></tr></thead><tbody id="bhAdvBody"></tbody></table></div></div>`;const q=(document.getElementById('bhAdvSearch')?.value||'').toLowerCase(),m=document.getElementById('bhAdvMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.date||'').startsWith(m))).sort((x,y)=>String(y.date).localeCompare(String(x.date)));document.getElementById('bhAdvBody').innerHTML=rows.map(r=>`<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td class="bh-money">${this._num(r.amount).toLocaleString('ar-EG')} ج</td><td>${this._esc(r.note||'-')}</td><td>${this._esc(r.addedBy||'-')}</td><td><button class="bh-row-btn" onclick="BazarHRSuite.openAdvanceForm('${r.id}')">✏️</button> <button class="bh-row-btn bh-danger" onclick="BazarHRSuite.deleteRecord('bazarAdvances','${r.id}','السلفة')">🗑</button></td></tr>`).join('')||'<tr><td colspan="7" class="bh-muted">لا توجد بيانات</td></tr>';},
+  openAdvanceForm(id=''){const old=(this._cache.advances||[]).find(r=>r.id===id)||{};this._openModal(id?'تعديل سلفة':'إضافة سلفة',`<div class="suite-grid"><label>الموظف${this._empSelect('bhaAdvEmp',old.code,false)}</label>${this._field('bhaAdvAmount','القيمة',old.amount,'number','min="0"')}${this._field('bhaAdvDate','التاريخ',old.date||this._today(),'date')}${this._field('bhaAdvNote','ملاحظة',old.note||'')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.saveAdvance('${this._esc(id)}')">💾 حفظ</button></div>`);},
+  saveAdvance(id=''){const code=document.getElementById('bhaAdvEmp')?.value,emp=this._emp(code),amount=this._num(document.getElementById('bhaAdvAmount')?.value),date=document.getElementById('bhaAdvDate')?.value||this._today(),note=document.getElementById('bhaAdvNote')?.value||'';if(!emp||amount<=0){UI.toast('اختر موظفًا وأدخل قيمة صحيحة','error');return;}const rec={code:String(emp.code),name:emp.name,amount,date,note,timestamp:new Date(date+'T12:00:00').getTime(),addedBy:State.currentUser?.username||'-'};const ref=id?db.ref('bazarAdvances/'+id):db.ref('bazarAdvances').push();(id?ref.update(rec):ref.set(rec)).then(()=>{this.closeModal();UI.toast('✅ تم حفظ السلفة','success');});},
+
+  renderIncentives(){const p=document.getElementById('bh-pane-incentives');if(!p)return;const a=this._cache.incentives||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>مكافأة الموظفين</h3><button class="suite-btn primary" onclick="BazarHRSuite.openIncentiveForm()">➕ إضافة مكافأة</button></div><div class="suite-grid"><input id="bhIncSearch" class="bh-input" placeholder="بحث" oninput="BazarHRSuite.renderIncentives()"><input id="bhIncMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderIncentives()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>النوع</th><th>القيمة</th><th>السبب</th><th>المدير</th><th>إجراء</th></tr></thead><tbody id="bhIncBody"></tbody></table></div></div>`;const q=(document.getElementById('bhIncSearch')?.value||'').toLowerCase(),m=document.getElementById('bhIncMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.date||'').startsWith(m)));document.getElementById('bhIncBody').innerHTML=rows.map(r=>`<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.type||'مالي')}</td><td class="bh-money">${this._num(r.amount).toLocaleString('ar-EG')} ${this._esc(r.unit||'جنيه')}</td><td>${this._esc(r.note||'-')}</td><td>${this._esc(r.manager||'-')}</td><td><button class="bh-row-btn bh-danger" onclick="BazarHRSuite.deleteRecord('bazarIncentives','${r.id}','المكافأة')">🗑</button></td></tr>`).join('')||'<tr><td colspan="7" class="bh-muted">لا توجد بيانات</td></tr>';},
+  openIncentiveForm(){this._openModal('إضافة مكافأة',`<div class="suite-grid"><label>الموظف${this._empSelect('bhiEmp','',false)}</label>${this._field('bhiAmount','القيمة',0,'number','min="0"')}${this._field('bhiDate','التاريخ',this._today(),'date')}${this._field('bhiType','النوع','مالي')}${this._field('bhiManager','المدير','')}${this._field('bhiNote','السبب','')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.saveIncentive()">💾 حفظ</button></div>`);},
+  saveIncentive(){const code=document.getElementById('bhiEmp')?.value,emp=this._emp(code),amount=this._num(document.getElementById('bhiAmount')?.value),date=document.getElementById('bhiDate')?.value||this._today();if(!emp||amount<=0){UI.toast('اختر موظفًا وأدخل قيمة صحيحة','error');return;}const id='inc_'+Date.now();const rec={id,code:String(code),name:emp.name,type:document.getElementById('bhiType')?.value||'مالي',amount,unit:'جنيه',note:document.getElementById('bhiNote')?.value||'',manager:document.getElementById('bhiManager')?.value||'-',date,by:State.currentUser?.username||'-',ts:Date.now()};db.ref('bazarIncentives/'+id).set(rec).then(()=>{this.closeModal();UI.toast('✅ تم تسجيل المكافأة','success');});},
+
+  renderPenalties(){const p=document.getElementById('bh-pane-penalties');if(!p)return;const a=this._cache.penalties||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>جزاءات الموظفين</h3><button class="suite-btn primary" onclick="BazarHRSuite.openPenaltyForm()">➕ إضافة جزاء</button></div><div class="suite-grid"><input id="bhPenSearch" class="bh-input" placeholder="بحث" oninput="BazarHRSuite.renderPenalties()"><input id="bhPenMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderPenalties()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الساعات</th><th>القيمة</th><th>السبب</th><th>المدير</th><th>النوع</th><th>إجراء</th></tr></thead><tbody id="bhPenBody"></tbody></table></div></div>`;const q=(document.getElementById('bhPenSearch')?.value||'').toLowerCase(),m=document.getElementById('bhPenMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.date||'').startsWith(m)));document.getElementById('bhPenBody').innerHTML=rows.map(r=>{const e=this._emp(r.code),hour=(e?.salary||0)/30/Math.max(1,(e?.workHours||8));return `<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name)}</td><td>${this._num(r.hours).toFixed(2)}</td><td>${(this._num(r.hours)*hour).toFixed(2)} ج</td><td>${this._esc(r.reason||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${r.auto?'تلقائي':'يدوي'}</td><td><button class="bh-row-btn bh-danger" onclick="BazarHRSuite.deleteRecord('bazarPenalties','${r.id}','الجزاء')">🗑</button></td></tr>`;}).join('')||'<tr><td colspan="8" class="bh-muted">لا توجد بيانات</td></tr>';},
+  openPenaltyForm(){this._openModal('إضافة جزاء',`<div class="suite-grid"><label>الموظف${this._empSelect('bhpEmp','',false)}</label>${this._field('bhpHours','ساعات الخصم',0,'number','min="0" step="0.25"')}${this._field('bhpDate','التاريخ',this._today(),'date')}${this._field('bhpManager','المدير','')}${this._field('bhpReason','السبب','')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.savePenalty()">💾 حفظ</button></div>`);},
+  savePenalty(){const code=document.getElementById('bhpEmp')?.value,emp=this._emp(code),hours=this._num(document.getElementById('bhpHours')?.value);if(!emp||hours<=0){UI.toast('اختر موظفًا وأدخل ساعات الخصم','error');return;}const rec={code:String(code),name:emp.name,hours,manager:document.getElementById('bhpManager')?.value||'-',reason:document.getElementById('bhpReason')?.value||'',date:document.getElementById('bhpDate')?.value||this._today(),time:new Date().toLocaleTimeString('ar-EG'),createdBy:State.currentUser?.username||'-'};db.ref('bazarPenalties').push(rec).then(()=>{this.closeModal();UI.toast('✅ تم تسجيل الجزاء','success');});},
+
+  renderPermits(){const p=document.getElementById('bh-pane-permits');if(!p)return;const a=this._cache.permits||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>تصريح اذن</h3><button class="suite-btn primary" onclick="BazarHRSuite.openPermitForm()">➕ إضافة إذن</button></div><div class="suite-grid"><input id="bhBrSearch" class="bh-input" placeholder="بحث" oninput="BazarHRSuite.renderPermits()"><input id="bhBrMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderPermits()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>النوع</th><th>الخروج</th><th>الرجوع</th><th>المدة</th><th>الحالة</th><th>المستخدم</th></tr></thead><tbody id="bhBrBody"></tbody></table></div></div>`;const q=(document.getElementById('bhBrSearch')?.value||'').toLowerCase(),m=document.getElementById('bhBrMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.dateKey||r.date||'').includes(m.replace('-','/'))||String(r.date||'').includes(m)));document.getElementById('bhBrBody').innerHTML=rows.map(r=>`<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name||this._emp(r.code)?.name||r.code)}</td><td>${this._esc(r.type||'-')}</td><td>${this._esc(r.breakTime||'-')}</td><td>${this._esc(r.returnTime||'-')}</td><td>${this._fmtMin((this._num(r.duration)/60000))}</td><td>${this._esc(r.status||'-')}</td><td>${this._esc(r.user||'-')}</td></tr>`).join('')||'<tr><td colspan="8" class="bh-muted">لا توجد بيانات</td></tr>';},
+  openPermitForm(){this._openModal('تصريح اذن',`<div class="suite-grid"><label>الموظف${this._empSelect('bhbEmp','',false)}</label>${this._field('bhbType','نوع الاستئذان','شخصي')}${this._field('bhbDate','التاريخ',this._today(),'date')}${this._field('bhbIn','وقت الخروج','','time')}${this._field('bhbOut','وقت الرجوع','','time')}${this._field('bhbNote','ملاحظة','')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.savePermit()">💾 حفظ</button></div>`);},
+  savePermit(){const code=document.getElementById('bhbEmp')?.value,emp=this._emp(code),date=document.getElementById('bhbDate')?.value||this._today(),iv=document.getElementById('bhbIn')?.value,ov=document.getElementById('bhbOut')?.value;if(!emp||!iv){UI.toast('اختر موظفًا ووقت الخروج','error');return;}const it=this._parseTime(iv),ot=this._parseTime(ov);let dur=0;if(it!=null&&ot!=null)dur=((ot<=it?ot+1440:ot)-it)*60000;const rec={code:String(code),name:emp.name,type:document.getElementById('bhbType')?.value||'شخصي',breakTime:iv,breakTimestamp:new Date(`${date}T${iv}:00`).getTime(),returnTime:ov||null,returnTimestamp:ov?new Date(`${date}T${ov}:00`).getTime():null,duration:dur,status:ov?'closed':'open',date:this._date(date),dateKey:date,user:State.currentUser?.username||'-',note:document.getElementById('bhbNote')?.value||''};db.ref('bazarBreaks').push(rec).then(()=>{this.closeModal();UI.toast('✅ تم تسجيل تصريح الإذن','success');});},
+
+  _payrollRows(month){const daysStart=new Date(month+'-01T00:00:00'),end=new Date(daysStart.getFullYear(),daysStart.getMonth()+1,0),days=end.getDate(),from=`${daysStart.getFullYear()}-${String(daysStart.getMonth()+1).padStart(2,'0')}-01`,to=`${daysStart.getFullYear()}-${String(daysStart.getMonth()+1).padStart(2,'0')}-${String(days).padStart(2,'0')}`;const rows=this._attendanceRows(from,to),by={};rows.forEach(r=>(by[r.code] ||= []).push(r));return this._employees().map(e=>{const rr=by[e.code]||[],present=rr.filter(r=>r.status==='مكتمل'||r.status==='جارٍ').length,absence=Math.max(0,this._targetDays-present),extra=Math.max(0,present-this._targetDays),daily=e.salary/30,hourly=daily/Math.max(.01,e.workHours||8);const overtimeMin=rr.reduce((s,r)=>s+r.overtimeMin,0),deductMin=rr.reduce((s,r)=>s+r.deductMin,0),actualMin=rr.reduce((s,r)=>s+r.actualMin,0);const bonuses=(this._cache.incentives||[]).filter(x=>String(x.code)===e.code&&String(x.date||'').startsWith(month)).reduce((s,x)=>s+this._num(x.amount),0),advances=(this._cache.advances||[]).filter(x=>String(x.code)===e.code&&String(x.date||'').startsWith(month)).reduce((s,x)=>s+this._num(x.amount),0),penalties=(this._cache.penalties||[]).filter(x=>String(x.code)===e.code&&String(x.date||'').startsWith(month)).reduce((s,x)=>s+this._num(x.hours)*hour,0),perm=(this._cache.permits||[]).filter(x=>String(x.code)===e.code&&String(x.dateKey||'').startsWith(month)).reduce((s,x)=>s+this._num(x.duration)/60000,0),absenceVal=absence*daily,extraVal=extra*daily,overtimePay=(overtimeMin/60)*hour,deductPay=(deductMin/60)*hour,net=e.salary+bonuses+extraVal+overtimePay-absenceVal-deductPay-penalties-advances;return {e,present,absence,extra,daily,hourly,overtimeMin,deductMin,actualMin,bonuses,advances,penalties,perm,absenceVal,extraVal,overtimePay,deductPay,net};});},
+  renderPayroll(){const p=document.getElementById('bh-pane-payroll');if(!p)return;const month=(document.getElementById('bhPayrollMonth')?.value)||this._today().slice(0,7);const rows=this._payrollRows(month);p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>بيان المرتبات — ${month}</h3><div class="bh-muted">المعادلات مطبقة بالدقائق والجنيه، مع فصل بيانات الموظفين عن العمليات المالية.</div></div><div style="display:flex;gap:7px"><input id="bhPayrollMonth" class="bh-input" type="month" value="${month}" onchange="BazarHRSuite.renderPayroll()"><button class="suite-btn warn" onclick="BazarHRSuite.exportPayroll()">📊 Excel</button></div></div><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>الموظف</th><th>المرتب الأساسي</th><th>أيام الحضور</th><th>غياب</th><th>إضافي أيام</th><th>سلف</th><th>مكافآت</th><th>جزاءات</th><th>تأخير بعد السماح</th><th>إضافي ساعات</th><th>إذن</th><th>صافي المرتب</th><th>البيان</th></tr></thead><tbody>${rows.map(r=>`<tr><td style="font-weight:800">${this._esc(r.e.name)}<br><span class="bh-muted">${this._esc(r.e.code)}</span></td><td>${r.e.salary.toFixed(2)}</td><td>${r.present}</td><td>${r.absence}</td><td>${r.extra}</td><td>${r.advances.toFixed(2)}</td><td class="bh-success">${r.bonuses.toFixed(2)}</td><td style="color:#fca5a5">${r.penalties.toFixed(2)}</td><td>${r.deductPay.toFixed(2)}</td><td class="bh-money">${r.overtimePay.toFixed(2)}</td><td>${this._fmtMin(r.perm)}</td><td style="font-weight:900;color:#c7d2fe">${r.net.toFixed(2)} ج</td><td><button class="bh-row-btn" onclick="BazarHRSuite.openPayslip('${this._esc(r.e.code)}','${month}')">🧾</button></td></tr>`).join('')||'<tr><td colspan="13" class="bh-muted">لا توجد بيانات</td></tr>'}</tbody></table></div></div>`;},
+  renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const emps=this._employees();p.innerHTML=`<div class="glass-card bh-card"><h3>شيك قبض الموظف</h3><div class="suite-grid"><label>الموظف${this._empSelect('bhSlipEmp','',true)}</label><label>الشهر<input id="bhSlipMonth" class="bh-input" type="month" value="${this._today().slice(0,7)}"></label><button class="suite-btn primary" style="align-self:end" onclick="BazarHRSuite.openPayslip(document.getElementById('bhSlipEmp').value,document.getElementById('bhSlipMonth').value)">🧾 عرض الشيك</button></div><div id="bhSlipResult" style="margin-top:14px"></div></div>`;},
+  openPayslip(code,month){const e=this._emp(code);if(!e){UI.toast('اختر الموظف','warning');return;}const m=month||this._today().slice(0,7),r=this._payrollRows(m).find(x=>x.e.code===e.code);this.openPane('payslip');const box=document.getElementById('bhSlipResult')||document.getElementById('bh-pane-payslip');const html=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;border-bottom:2px solid #111;padding-bottom:12px"><div style="font-size:21px;font-weight:900">علوش البازار</div><div style="font-size:14px">شيك قبض الموظف</div></div><div class="suite-grid" style="margin-top:16px"><div><b>الموظف:</b> ${this._esc(e.name)}</div><div><b>الكود:</b> ${this._esc(e.code)}</div><div><b>الوظيفة:</b> ${this._esc(e.job||'-')}</div><div><b>الفترة:</b> ${m}</div></div><table style="width:100%;margin-top:18px;border-collapse:collapse"><tr><td style="padding:7px;border-bottom:1px solid #ddd">المرتب الأساسي</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">${r.e.salary.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">مكافآت</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">+ ${r.bonuses.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">إضافي أيام</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">+ ${r.extraVal.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">إضافي ساعات</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">+ ${r.overtimePay.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">غياب</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.absenceVal.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">خصم تأخير/خروج قبل الموعد</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.deductPay.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">جزاءات</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.penalties.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">سلف</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.advances.toFixed(2)} ج</td></tr><tr><td style="padding:10px;font-weight:900;font-size:17px">الصافي</td><td style="padding:10px;font-weight:900;font-size:17px;text-align:left">${r.net.toFixed(2)} ج</td></tr></table><div style="display:flex;justify-content:space-between;margin-top:35px"><span>توقيع الموظف: __________</span><span>المسؤول: __________</span></div><div style="margin-top:15px;text-align:center"><button class="suite-btn" onclick="window.print()">🖨️ طباعة</button></div></div>`;if(box)box.innerHTML=html;},
+
+  exportCurrent(){const t=this._active;let rows=[],name=t;if(t==='employees')rows=this._employees().map(e=>({الكود:e.code,الموظف:e.name,الوظيفة:e.job,الفرع:e.branch,المرتب:e.salary,الحضور_الرسمي:e.checkIn,الانصراف_الرسمي:e.checkOut,الساعات:e.workHours,الحالة:e.employmentStatus}));else if(t==='attendance')rows=this._attendanceRows(document.getElementById('bhaFrom')?.value||this._today(),document.getElementById('bhaTo')?.value||this._today()).map(r=>({التاريخ:r.date,الكود:r.code,الموظف:r.name,الحضور:r.checkIn?this._time(r.checkIn.timestamp):'',الانصراف:r.checkOut?this._time(r.checkOut.timestamp):'',التأخير:this._fmtMin(r.lateMin),خروج_مبكر:this._fmtMin(r.earlyMin),قبل_الموعد:this._fmtMin(r.earlyArrMin),بعد_الموعد:this._fmtMin(r.lateExitMin),السماح:this._fmtMin(r.graceMin),الخصم:this._fmtMin(r.deductMin),الإضافي:this._fmtMin(r.overtimeMin),الساعات_الفعلية:this._fmtMin(r.actualMin)}));else {const map={advances:'advances',incentives:'incentives',penalties:'penalties',permits:'permits'};rows=(this._cache[map[t]]||[]).map(x=>({...x}));}if(!rows.length){UI.toast('لا توجد بيانات للتصدير','warning');return;}const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,name);XLSX.writeFile(wb,`bazar_${t}_${this._today()}.xlsx`);UI.toast('✅ تم تصدير البيانات','success');},
+  exportPayroll(){const month=document.getElementById('bhPayrollMonth')?.value||this._today().slice(0,7),rows=this._payrollRows(month).map(r=>({الموظف:r.e.name,الكود:r.e.code,المرتب_الأساسي:r.e.salary,أيام_الحضور:r.present,الغياب:r.absence,إضافي_أيام:r.extra,قيمة_الغياب:r.absenceVal,قيمة_الإضافي_أيام:r.extraVal,السلف:r.advances,المكافآت:r.bonuses,الجزاءات:r.penalties,خصم_التأخير:r.deductPay,إضافي_الساعات:r.overtimePay,ساعات_الإذن:this._fmtMin(r.perm),صافي_المرتب:r.net}));const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'بيان المرتبات');XLSX.writeFile(wb,`bazar_payroll_${month}.xlsx`);UI.toast('✅ تم تصدير بيان المرتبات','success');},
+  deleteRecord(path,id,label){showConfirm(`حذف ${label}؟`,()=>db.ref(`${path}/${id}`).remove().then(()=>UI.toast('🗑️ تم الحذف','warning')).catch(e=>UI.toast('❌ '+e.message,'error')));},
+  syncFromDevice(){const btn=[...document.querySelectorAll('#tab-fingerprint-bazar button')].find(b=>String(b.textContent||'').includes('مزامنة'));if(btn){btn.disabled=true;btn.textContent='⏳ جارٍ المزامنة...';}return (async()=>{try{const ref=db.ref('syncRequests').push();await ref.set({status:'pending',requestedBy:State.currentUser?.username||'-',requestedAt:new Date().toISOString(),device:'fingerprintBazar'});UI.toast('📡 تم إرسال طلب المزامنة','info');const key=ref.key;let waited=0;const timer=setInterval(async()=>{waited+=3;try{const snap=await db.ref('syncRequests/'+key).once('value'),d=snap.val();if(d?.status==='done'){clearInterval(timer);UI.toast('✅ تمت المزامنة — '+(d.uploaded||0)+' سجل','success');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}else if(d?.status==='error'||waited>=180){clearInterval(timer);UI.toast(d?.message||'⏰ انتهت مهلة المزامنة','warning');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}}catch(e){clearInterval(timer);if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}},3000);}catch(e){UI.toast('❌ '+e.message,'error');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}})();}
+};
+
 // FINGERPRINT BAZAR SERVICE - بصمة البازار
 // ════════════════════════════════════════════════════════════
 const FingerprintBazarService = {
-
-  _range: 'day',
+  _initialized: false,
+  _interval: null,
+  _graceMin: 15,
+  _pairCache: { sig:'', pairs:[] },
   _editLog: [],
 
-  // ── مصدر البيانات المستقل ───────────────────────────────
-  _db()   { return db.ref('fingerprintBazar'); },
-  _data() { return State.fingerprintBazar || []; },
+  _db() { return db.ref('fingerprintBazar'); },
+  _data() { return Array.isArray(State.fingerprintBazar) ? State.fingerprintBazar : []; },
 
-  // ── حساب التأخير ───────────────────────────────────────
-  _lateMin(a) {
-    // ميعاد الدوام من السجل نفسه أولاً ثم empData كـ fallback
-    const expected = a.expectedIn || getEmpData(a.code)?.checkIn || getEmpData(a.code)?.workStart || '';
-    if(!expected || a.action !== 'CheckIn') return 0;
-    const late = calcLateMinutes(a.timestamp, expected);
-    return late > 5 ? late : 0;
+  _esc(v){
+    return String(v ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
+  },
+  _localKey(ts){
+    const d = new Date(Number(ts)||0);
+    if(!Number.isFinite(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  },
+  _parseDate(v){
+    const d = new Date(v);
+    return Number.isFinite(d.getTime()) ? d : null;
+  },
+  _parseTime(v){
+    if(v == null || v === '') return null;
+    const s = String(v).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?$/);
+    if(m){
+      const h=Number(m[1]), min=Number(m[2]||0);
+      if(h>=0 && h<=23 && min>=0 && min<=59) return h*60+min;
+    }
+    const d = new Date(v);
+    if(Number.isFinite(d.getTime())) return d.getHours()*60+d.getMinutes();
+    return null;
+  },
+  _timeText(ts){
+    const d=new Date(Number(ts)||0);
+    return Number.isFinite(d.getTime()) ? d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '-';
+  },
+  _dateText(key){
+    if(!key) return '-';
+    const [y,m,d]=key.split('-').map(Number);
+    return Number.isFinite(y) ? new Date(y,m-1,d).toLocaleDateString('ar-EG') : key;
+  },
+  _fmtMin(mins, blank='-'){
+    if(mins == null || !Number.isFinite(mins)) return blank;
+    const sign=mins<0?'-':''; const n=Math.abs(Math.round(mins));
+    const h=Math.floor(n/60), m=n%60;
+    return `${sign}${h}:${String(m).padStart(2,'0')}`;
+  },
+  _minValue(mins){ return Number.isFinite(mins)?Math.round(mins):0; },
+  _safeEmpMap(){
+    const raw=State.bazarEmpData && typeof State.bazarEmpData==='object' && !Array.isArray(State.bazarEmpData) ? State.bazarEmpData : {};
+    return Object.values(raw).filter(Boolean).map(e=>({
+      code:String(e.code ?? ''),
+      name:String(e.name ?? e.code ?? ''),
+      job:String(e.job ?? ''),
+      branch:String(e.branch ?? ''),
+      checkIn:String(e.checkIn ?? e.workStart ?? ''),
+      checkOut:String(e.checkOut ?? e.workEnd ?? ''),
+      workHours:Number(e.workHours ?? e.workHoursPerDay ?? 0) || 0,
+      salary:Number(e.salary ?? e.baseSalary ?? 0) || 0,
+      employmentStatus:String(e.employmentStatus ?? e.statusCode ?? e.status ?? '')
+    })).filter(e=>e.code);
   },
 
-  // ── قائمة الموظفين من سجلات البصمة فقط ────────────────
-  _getEmps() {
-    const seen = {}, emps = [];
-    this._data().forEach(a => {
-      if(a.code && !seen[a.code]) {
-        seen[a.code] = true;
-        emps.push({ code: String(a.code), name: a.name || a.code, job: getEmpJob(a.code) !== '-' ? getEmpJob(a.code) : (a.job || '') });
-      }
+  _isInactive(emp){
+    const s=String(emp?.employmentStatus||'').toLowerCase();
+    return ['resigned','stopped','مستقيل','موقوف','مستقيلة'].includes(s);
+  },
+
+  _employees(){
+    let emps=this._safeEmpMap();
+    if(!emps.length){
+      const seen={};
+      this._data().forEach(a=>{
+        if(a.code && !seen[String(a.code)]){ seen[String(a.code)]={code:String(a.code),name:a.name||String(a.code),job:a.job||'',branch:a.branch||'',checkIn:a.expectedIn||'',checkOut:a.expectedOut||'',workHours:Number(a.workHoursPerDay)||0,employmentStatus:''}; }
+      });
+      emps=Object.values(seen);
+    }
+    const includeInactive=document.getElementById('fpBazarIncludeInactive')?.checked;
+    if(!includeInactive) emps=emps.filter(e=>!this._isInactive(e));
+    return emps.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  },
+
+  _pairSignature(){
+    return this._data().map(a=>`${a.id||''}:${a.code||''}:${a.action||''}:${a.timestamp||0}`).sort().join('|');
+  },
+
+  _buildPairs(){
+    const sig=this._pairSignature();
+    if(this._pairCache.sig===sig) return this._pairCache.pairs;
+    const grouped={};
+    const seen=new Set();
+    this._data().forEach(a=>{
+      const code=String(a.code||''); const ts=Number(a.timestamp||0);
+      if(!code || !ts || (a.action!=='CheckIn' && a.action!=='CheckOut')) return;
+      const dupKey=`${code}|${a.action}|${Math.floor(ts/60000)}`;
+      if(seen.has(dupKey)) return;
+      seen.add(dupKey);
+      (grouped[code] ||= []).push({...a, code, timestamp:ts});
     });
-    return emps.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+    const pairs=[];
+    Object.entries(grouped).forEach(([code,events])=>{
+      events.sort((a,b)=>a.timestamp-b.timestamp);
+      const open=[];
+      events.forEach(ev=>{
+        if(ev.action==='CheckIn'){
+          open.push({checkIn:ev,checkOut:null});
+        }else if(ev.action==='CheckOut'){
+          let idx=-1;
+          for(let i=open.length-1;i>=0;i--){ if(!open[i].checkOut && open[i].checkIn.timestamp<=ev.timestamp){ idx=i; break; } }
+          if(idx>=0){ const p=open[idx]; p.checkOut=ev; pairs.push(p); open.splice(idx,1); }
+        }
+      });
+      open.forEach(p=>pairs.push(p));
+    });
+    pairs.sort((a,b)=>(a.checkIn?.timestamp||0)-(b.checkIn?.timestamp||0));
+    this._pairCache={sig,pairs};
+    return pairs;
   },
 
-  _populateSelects() {
-    const emps = this._getEmps();
-    ['fpBazarFilterEmp','fpBazarAddCode','fpBazarDelEmp'].forEach(id => {
-      const el = document.getElementById(id); if(!el) return;
-      const cur = el.value;
-      el.innerHTML = id === 'fpBazarFilterEmp'
-        ? '<option value="">👤 كل الموظفين</option>'
-        : '<option value="">اختر الموظف</option>';
-      emps.forEach(e => {
-        const opt = document.createElement('option');
-        opt.value = e.code;
-        opt.textContent = e.name + ' (' + e.code + ')';
-        if(cur === e.code) opt.selected = true;
-        el.appendChild(opt);
+  _schedule(emp, dateKey){
+    const inMin=this._parseTime(emp?.checkIn); const outMin=this._parseTime(emp?.checkOut);
+    if(inMin==null || outMin==null) return null;
+    const [y,m,d]=dateKey.split('-').map(Number);
+    const inTs=new Date(y,m-1,d,inMin/60|0,inMin%60,0,0).getTime();
+    let outDayTs=new Date(y,m-1,d,outMin/60|0,outMin%60,0,0).getTime();
+    if(outMin<=inMin) outDayTs+=24*60*60*1000;
+    const officialMin=outMin<=inMin ? (24*60-inMin)+outMin : outMin-inMin;
+    return {inTs,outTs:outDayTs,inMin,outMin,officialMin};
+  },
+
+  _rowsForRange(fromKey,toKey){
+    const emps=this._employees();
+    const pairs=this._buildPairs();
+    const pairByDay={};
+    pairs.forEach(p=>{
+      const dk=this._localKey(p.checkIn?.timestamp);
+      if(!dk) return;
+      const code=String(p.checkIn?.code||'');
+      const key=dk+'|'+code;
+      (pairByDay[key] ||= []).push(p);
+    });
+    const rows=[];
+    const from=new Date(fromKey+'T00:00:00'); const to=new Date(toKey+'T00:00:00');
+    const daySpan=Math.floor((to-from)/86400000)+1;
+    const dayKeys=[];
+    if(daySpan<=62){
+      for(let dt=new Date(from); dt<=to; dt.setDate(dt.getDate()+1)) dayKeys.push(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`);
+    }else{
+      const used=new Set();
+      pairs.forEach(p=>{ const dk=this._localKey(p.checkIn?.timestamp); if(dk && dk>=fromKey && dk<=toKey) used.add(dk); });
+      dayKeys.push(...Array.from(used).sort());
+    }
+    dayKeys.forEach(dk=>{
+      emps.forEach(emp=>{
+        const schedule=this._schedule(emp,dk);
+        const list=pairByDay[dk+'|'+emp.code] || [];
+        let actualIn=null, actualOut=null, actualMs=0, latestOut=null;
+        const usedPairs=[];
+        list.forEach(p=>{
+          const cin=p.checkIn; const cout=p.checkOut;
+          if(cin){ if(!actualIn || cin.timestamp<actualIn.timestamp) actualIn=cin; usedPairs.push(p); }
+          if(cout){ if(!actualOut || cout.timestamp>actualOut.timestamp) actualOut=cout; latestOut=cout;
+            const ms=Math.max(0,cout.timestamp-(cin?.timestamp||cout.timestamp)); actualMs+=ms;
+          } else if(cin && document.getElementById('fpBazarLiveOpen')?.checked && dk===this._localKey(Date.now())) {
+            actualMs += Math.max(0,Date.now()-cin.timestamp);
+          }
+        });
+        const hasIn=!!actualIn, hasOut=!!actualOut;
+        let status='absent';
+        if(!schedule) status=hasIn?'complete':'noSchedule';
+        else if(hasIn && hasOut) status='complete';
+        else if(hasIn) status='open';
+        const actualInTs=actualIn?.timestamp ?? null;
+        const actualOutTs=actualOut?.timestamp ?? null;
+        let lateMin=0, earlyExitMin=0, earlyArrivalMin=0, lateExitMin=0;
+        if(schedule && actualInTs!=null){ lateMin=Math.max(0,Math.round((actualInTs-schedule.inTs)/60000)); earlyArrivalMin=Math.max(0,Math.round((schedule.inTs-actualInTs)/60000)); }
+        if(schedule && actualOutTs!=null){ earlyExitMin=Math.max(0,Math.round((schedule.outTs-actualOutTs)/60000)); lateExitMin=Math.max(0,Math.round((actualOutTs-schedule.outTs)/60000)); }
+        const netGap=Math.max(0,lateMin+earlyExitMin-earlyArrivalMin-lateExitMin);
+        const graceMin=Math.min(this._graceMin,netGap);
+        const deductMin=Math.max(0,netGap-this._graceMin);
+        const overtimeMin=Math.max(0,earlyArrivalMin+lateExitMin);
+        rows.push({
+          date:dk, dateText:this._dateText(dk), code:emp.code, name:emp.name, job:emp.job,
+          checkIn:actualIn, checkOut:actualOut, pairs:usedPairs,
+          officialInTs:schedule?.inTs??null, officialOutTs:schedule?.outTs??null,
+          officialIn:schedule?this._timeText(schedule.inTs):'-', officialOut:schedule?this._timeText(schedule.outTs):'-',
+          officialMin:schedule?.officialMin??0, actualMin:Math.round(actualMs/60000),
+          lateMin,earlyExitMin,earlyArrivalMin,lateExitMin,netGap,graceMin,deductMin,overtimeMin,
+          requiredHours:schedule?Math.round((schedule.officialMin/60)*100)/100:0,
+          status, source:actualIn?.source==='fingerprint-bazar'?'fingerprint':'manual',
+          note:actualIn?.note || actualOut?.note || '',
+          sessionCount:usedPairs.length
+        });
       });
     });
+    return rows;
   },
 
-  // ── الفلترة ─────────────────────────────────────────────
-  getFiltered() {
-    const range     = this._range;
-    const search    = (document.getElementById('fpBazarSearch')?.value || '').toLowerCase().trim();
-    const dateFrom  = document.getElementById('fpBazarDateFrom')?.value || '';
-    const dateTo    = document.getElementById('fpBazarDateTo')?.value || '';
-    const filterAct = document.getElementById('fpBazarFilterAction')?.value || '';
-    const filterEmp = document.getElementById('fpBazarFilterEmp')?.value || '';
-    const now       = new Date();
-
-    // فلترة أساسية
-    const base = this._data().filter(a => {
-      if(filterAct && a.action !== filterAct) return false;
-      if(filterEmp && String(a.code) !== String(filterEmp)) return false;
-      if(search && !(a.name||'').toLowerCase().includes(search) && !String(a.code||'').includes(search)) return false;
-      const d  = new Date(a.timestamp || 0);
-      const ds = d.toISOString().slice(0,10);
-      if(dateFrom || dateTo) {
-        if(dateFrom && ds < dateFrom) return false;
-        if(dateTo   && ds > dateTo)   return false;
-      } else {
-        if(range === 'day'  && d.toDateString() !== now.toDateString()) return false;
-        if(range === 'week' ) { const w=new Date(); w.setDate(now.getDate()-7); if(d<w) return false; }
-        if(range === 'month') { const m=new Date(); m.setMonth(now.getMonth()-1); if(d<m) return false; }
-      }
+  _filteredRows(){
+    const from=document.getElementById('fpBazarDateFrom')?.value || this._localKey(Date.now());
+    const to=document.getElementById('fpBazarDateTo')?.value || from;
+    const search=(document.getElementById('fpBazarSearch')?.value||'').trim().toLowerCase();
+    const empCode=document.getElementById('fpBazarFilterEmp')?.value||'';
+    const status=document.getElementById('fpBazarFilterStatus')?.value||'';
+    return {from,to,rows:this._rowsForRange(from,to).filter(r=>{
+      if(empCode && r.code!==String(empCode)) return false;
+      if(status && r.status!==status) return false;
+      if(search && !String(r.name||'').toLowerCase().includes(search) && !String(r.code||'').includes(search)) return false;
       return true;
-    });
-
-    // إزالة التكرار — نفس الموظف + نفس النوع + نفس الدقيقة = سجل واحد
-    const seen = new Set();
-    return base.filter(a => {
-      const d   = new Date(a.timestamp || 0);
-      const key = String(a.code) + '_' + (a.action||'') + '_' +
-                  d.getFullYear() + d.getMonth() + d.getDate() +
-                  d.getHours() + '_' + d.getMinutes();
-      if(seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    })};
   },
 
-  // ── الرسم ───────────────────────────────────────────────
-  render() {
+  _renderStats(rows,from,to){
+    const people=new Set(rows.map(r=>r.code));
+    const present=rows.filter(r=>r.status==='complete'||r.status==='open').length;
+    const absent=rows.filter(r=>r.status==='absent').length;
+    const late=rows.filter(r=>r.lateMin>0).length;
+    const sum=(k)=>rows.reduce((s,r)=>s+(Number(r[k])||0),0);
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+    set('fpBazarPeopleCount',people.size); set('fpBazarPresentCount',present); set('fpBazarAbsentCount',absent); set('fpBazarLateCount',late);
+    set('fpBazarLateMinutes',this._fmtMin(sum('lateMin'),'0:00')); set('fpBazarEarlyMinutes',this._fmtMin(sum('earlyExitMin'),'0:00')); set('fpBazarOvertimeMinutes',this._fmtMin(sum('overtimeMin'),'0:00')); set('fpBazarActualHours',this._fmtMin(sum('actualMin'),'0:00'));
+    const sub=document.getElementById('fpBazarTableSub'); if(sub) sub.textContent=`الفترة: ${this._dateText(from)}${from!==to?' → '+this._dateText(to):''} — ${rows.length} سجل محسوب`;
+    const rsum=document.getElementById('fpBazarRangeSummary');
+    if(rsum){
+      const g=(k)=>sum(k); const absentDays=absent; const workDays=present; const official=sum('officialMin'); const actual=sum('actualMin');
+      rsum.innerHTML=`<div style="padding:11px 12px;border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);font-size:12px;color:#cbd5e1;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+        <span>📅 ${this._dateText(from)}${from!==to?' → '+this._dateText(to):''}</span>${(new Date(to+'T00:00:00')-new Date(from+'T00:00:00'))/86400000+1>62?'<span style="color:#fbbf24">⚠️ فترة كبيرة: الغياب الكامل يُحسب بدقة حتى 62 يومًا، وبعدها يُعرض الملخص على أيام الحركات الموجودة فقط.</span>':''}
+        <span>✅ حضور: <b style="color:#34d399">${workDays}</b></span>
+        <span>❌ غياب: <b style="color:#f87171">${absentDays}</b></span>
+        <span>⏱ رسمي: <b style="color:#94a3b8">${this._fmtMin(official,'0:00')}</b></span>
+        <span>⌚ فعلي: <b style="color:#818cf8">${this._fmtMin(actual,'0:00')}</b></span>
+        <span>⚡ إضافي: <b style="color:#fbbf24">${this._fmtMin(g('overtimeMin'),'0:00')}</b></span>
+        <span>🟠 خصم بعد السماح: <b style="color:#fb7185">${this._fmtMin(g('deductMin'),'0:00')}</b></span>
+      </div>`;
+    }
+  },
+
+  _renderDaily(rows){
+    const head=document.getElementById('fpBazarHead'), body=document.getElementById('fpBazarAttBody');
+    if(!head||!body) return;
+    head.innerHTML=`<tr>
+      <th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>التاريخ</th>
+      <th>الحضور الفعلي</th><th>الانصراف الفعلي</th><th>الحضور الرسمي</th><th>الانصراف الرسمي</th>
+      <th>الساعات الفعلية</th><th>الساعات الرسمية</th><th>التأخير</th><th>الخروج قبل الانصراف</th>
+      <th>مدة السماح</th><th>الحضور قبل الموعد</th><th>الخروج بعد الانصراف</th><th>بعد السماح</th><th>الحالة</th><th>الإجراء</th>
+    </tr>`;
+    body.innerHTML='';
+    rows.forEach(r=>{
+      const tr=document.createElement('tr');
+      const statusMap={complete:['مكتمل','badge-success'],open:['جارٍ','badge-warning'],absent:['غياب','badge-danger'],noSchedule:['بدون معاد','badge-warning']};
+      const sm=statusMap[r.status]||['-',''];
+      const edit=hasPermission('edit')||hasPermission('all'); const del=hasPermission('delete')||hasPermission('all');
+      tr.innerHTML=`<td style="font-weight:700">${this._esc(r.name)}</td>
+        <td style="color:#818cf8">${this._esc(r.code)}</td>
+        <td style="font-size:12px">${this._esc(r.job||'-')}</td>
+        <td style="font-size:12px">${this._esc(r.dateText)}</td>
+        <td style="color:#34d399;font-weight:700">${r.checkIn?this._timeText(r.checkIn.timestamp):'-'}</td>
+        <td style="color:#f87171;font-weight:700">${r.checkOut?this._timeText(r.checkOut.timestamp):'-'}</td>
+        <td style="color:#94a3b8">${this._esc(r.officialIn)}</td>
+        <td style="color:#94a3b8">${this._esc(r.officialOut)}</td>
+        <td style="color:${r.actualMin>=r.officialMin&&r.officialMin>0?'#34d399':'#fbbf24'};font-weight:700">${this._fmtMin(r.actualMin,'-')}</td>
+        <td style="color:#94a3b8">${this._fmtMin(r.officialMin,'-')}</td>
+        <td style="color:${r.lateMin>0?'#f87171':'#34d399'};font-weight:700">${this._fmtMin(r.lateMin,'-')}</td>
+        <td style="color:${r.earlyExitMin>0?'#f87171':'#34d399'};font-weight:700">${this._fmtMin(r.earlyExitMin,'-')}</td>
+        <td style="color:#fbbf24;font-weight:700">${this._fmtMin(r.graceMin,'-')}</td>
+        <td style="color:#34d399;font-weight:700">${this._fmtMin(r.earlyArrivalMin,'-')}</td>
+        <td style="color:#34d399;font-weight:700">${this._fmtMin(r.lateExitMin,'-')}</td>
+        <td style="color:${r.deductMin>0?'#fb7185':'#34d399'};font-weight:700">${this._fmtMin(r.deductMin,'-')}</td>
+        <td><span class="badge ${sm[1]}">${sm[0]}</span>${r.sessionCount>1?`<div style="font-size:10px;color:#64748b;margin-top:2px">${r.sessionCount} فترات</div>`:''}</td>
+        <td style="white-space:nowrap"></td>`;
+      const cell=tr.lastElementChild;
+      if(r.status==='open' && (hasPermission('attendance')||hasPermission('edit')||hasPermission('all'))){
+        const b=document.createElement('button'); b.textContent='👋 خروج الآن'; b.style.cssText='background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;margin-left:4px'; b.onclick=()=>this.registerCheckout(r.code,r.name); cell.appendChild(b);
+      }
+      if(edit && (r.checkIn||r.checkOut)){
+        const b=document.createElement('button'); b.textContent='✏️'; b.style.cssText='background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fbbf24;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;margin-left:4px'; b.onclick=()=>this.openEditModal(r); cell.appendChild(b);
+      }
+      if(del && (r.checkIn||r.checkOut)){
+        const b=document.createElement('button'); b.textContent='🗑️'; b.style.cssText='background:rgba(239,68,68,.16);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px;margin-left:4px'; b.onclick=()=>this.deleteRecord(r); cell.appendChild(b);
+      }
+      body.appendChild(tr);
+    });
+    if(!rows.length) body.innerHTML='<tr><td colspan="18" style="text-align:center;padding:24px;color:#64748b">لا توجد بيانات مطابقة</td></tr>';
+  },
+
+  _renderRange(rows,from,to){
+    const head=document.getElementById('fpBazarHead'), body=document.getElementById('fpBazarAttBody');
+    if(!head||!body) return;
+    head.innerHTML=`<tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>أيام العمل</th><th>الغياب</th><th>الساعات الرسمية</th><th>الساعات الفعلية</th><th>التأخير</th><th>الخروج المبكر</th><th>الحضور المبكر</th><th>الخروج المتأخر</th><th>السماح</th><th>الخصم بعد السماح</th><th>الإضافي</th><th>الإجراء</th></tr>`;
+    const map={};
+    rows.forEach(r=>{ const k=r.code; if(!map[k]) map[k]={...r,days:0,absent:0,officialMin:0,actualMin:0,lateMin:0,earlyExitMin:0,earlyArrivalMin:0,lateExitMin:0,graceMin:0,deductMin:0,overtimeMin:0,dates:new Set(),statusSet:new Set()}; const x=map[k]; if(r.status==='complete'||r.status==='open'){x.days++;x.dates.add(r.date);} if(r.status==='absent')x.absent++; x.officialMin+=r.officialMin; x.actualMin+=r.actualMin; x.lateMin+=r.lateMin; x.earlyExitMin+=r.earlyExitMin; x.earlyArrivalMin+=r.earlyArrivalMin; x.lateExitMin+=r.lateExitMin; x.graceMin+=r.graceMin; x.deductMin+=r.deductMin; x.overtimeMin+=r.overtimeMin; x.statusSet.add(r.status); });
+    body.innerHTML='';
+    Object.values(map).sort((a,b)=>a.name.localeCompare(b.name,'ar')).forEach(x=>{
+      const tr=document.createElement('tr'); const edit=hasPermission('edit')||hasPermission('all');
+      tr.innerHTML=`<td style="font-weight:700">${this._esc(x.name)}</td><td style="color:#818cf8">${this._esc(x.code)}</td><td style="font-size:12px">${this._esc(x.job||'-')}</td><td style="color:#34d399;font-weight:700">${x.days}</td><td style="color:#f87171;font-weight:700">${x.absent}</td><td>${this._fmtMin(x.officialMin)}</td><td style="color:#818cf8;font-weight:700">${this._fmtMin(x.actualMin)}</td><td style="color:#f87171">${this._fmtMin(x.lateMin)}</td><td style="color:#f87171">${this._fmtMin(x.earlyExitMin)}</td><td style="color:#34d399">${this._fmtMin(x.earlyArrivalMin)}</td><td style="color:#34d399">${this._fmtMin(x.lateExitMin)}</td><td style="color:#fbbf24">${this._fmtMin(x.graceMin)}</td><td style="color:${x.deductMin>0?'#fb7185':'#34d399'}">${this._fmtMin(x.deductMin)}</td><td style="color:#fbbf24;font-weight:700">${this._fmtMin(x.overtimeMin)}</td><td></td>`;
+      if(edit){ const b=document.createElement('button'); b.textContent='تفاصيل الموظف'; b.style.cssText='background:rgba(99,102,241,.18);border:1px solid rgba(99,102,241,.3);color:#818cf8;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px'; b.onclick=()=>{ document.getElementById('fpBazarDateFrom').value=from; document.getElementById('fpBazarDateTo').value=to; document.getElementById('fpBazarFilterEmp').value=x.code; this.render(); }; tr.lastElementChild.appendChild(b); }
+      body.appendChild(tr);
+    });
+    if(!Object.keys(map).length) body.innerHTML='<tr><td colspan="15" style="text-align:center;padding:24px;color:#64748b">لا توجد بيانات مطابقة</td></tr>';
+  },
+
+  _renderInsideNow(){
+    const body=document.getElementById('fpBazarInsideBody'); if(!body) return;
+    const latest={};
+    this._data().forEach(a=>{ if(!a.code||!a.timestamp) return; const c=String(a.code); if(!latest[c]||Number(a.timestamp)>Number(latest[c].timestamp)) latest[c]={...a,code:c}; });
+    const rows=Object.values(latest).filter(a=>a.action==='CheckIn').sort((a,b)=>b.timestamp-a.timestamp);
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;}; set('fpBazarInsideCount',rows.length);
+    body.innerHTML='';
+    rows.forEach(a=>{
+      const emp= this._employees().find(e=>String(e.code)===String(a.code)) || {name:a.name||a.code,job:a.job||'',checkIn:a.expectedIn||''};
+      const late=Math.max(0,this._parseTime(emp.checkIn)==null?0:Math.round((Number(a.timestamp)-new Date(new Date(a.timestamp).getFullYear(),new Date(a.timestamp).getMonth(),new Date(a.timestamp).getDate(),Math.floor(this._parseTime(emp.checkIn)/60),this._parseTime(emp.checkIn)%60).getTime())/60000));
+      const dur=Math.max(0,Date.now()-Number(a.timestamp));
+      const tr=document.createElement('tr'); tr.innerHTML=`<td style="font-weight:700">${this._esc(emp.name)}</td><td style="color:#818cf8">${this._esc(a.code)}</td><td>${this._esc(emp.job||'-')}</td><td style="color:#34d399">${this._timeText(a.timestamp)}</td><td style="color:#818cf8;font-weight:700">${this._fmtMin(Math.round(dur/60000),'0:00')}</td><td style="color:${late>0?'#f59e0b':'#34d399'}">${late>0?this._fmtMin(late):'-'}</td><td></td>`;
+      if(hasPermission('attendance')||hasPermission('edit')||hasPermission('all')){ const b=document.createElement('button'); b.textContent='👋 خروج'; b.style.cssText='background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:5px 9px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px'; b.onclick=()=>this.registerCheckout(a.code,emp.name); tr.lastElementChild.appendChild(b); }
+      body.appendChild(tr);
+    });
+    if(!rows.length) body.innerHTML='<tr><td colspan="7" style="text-align:center;padding:18px;color:#64748b">لا يوجد موظفون داخل العمل الآن</td></tr>';
+  },
+
+  _populateSelects(){
+    const emps=this._employees();
+    const add=document.getElementById('fpBazarAddCode'); if(add){ const cur=add.value; add.innerHTML='<option value="">اختر الموظف</option>'; emps.forEach(e=>{const o=document.createElement('option');o.value=e.code;o.textContent=`${e.name} (${e.code})`;if(cur===e.code)o.selected=true;add.appendChild(o);}); }
+    const filter=document.getElementById('fpBazarFilterEmp'); if(filter){ const cur=filter.value; filter.innerHTML='<option value="">👤 كل الموظفين</option>'; emps.forEach(e=>{const o=document.createElement('option');o.value=e.code;o.textContent=`${e.name} (${e.code})`;if(cur===e.code)o.selected=true;filter.appendChild(o);}); }
+  },
+
+  setPreset(btn,preset){
+    document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active')); if(btn) btn.classList.add('active');
+    const now=new Date(); let f,t;
+    const key=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if(preset==='yesterday'){ const d=new Date();d.setDate(d.getDate()-1);f=t=key(d); }
+    else if(preset==='month'){ const d1=new Date(now.getFullYear(),now.getMonth(),1), d2=new Date(now.getFullYear(),now.getMonth()+1,0);f=key(d1);t=key(d2); }
+    else if(preset==='all'){
+      const raw=this._data().filter(a=>a.timestamp).map(a=>new Date(Number(a.timestamp)));
+      if(raw.length){ raw.sort((a,b)=>a-b); f=key(raw[0]); t=key(raw[raw.length-1]); }
+      else { f=t=key(now); }
+    }
+    else { f=t=key(now); }
+    const a=document.getElementById('fpBazarDateFrom'),b=document.getElementById('fpBazarDateTo'); if(a)a.value=f;if(b)b.value=t; this.render();
+  },
+
+  clearFilters(){
+    const key=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const k=key(new Date());
+    ['fpBazarDateFrom','fpBazarDateTo','fpBazarSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    const emp=document.getElementById('fpBazarFilterEmp');if(emp)emp.value=''; const st=document.getElementById('fpBazarFilterStatus');if(st)st.value='';
+    document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active')); document.querySelector('#tab-fingerprint-bazar .filter-btn')?.classList.add('active');
+    document.getElementById('fpBazarDateFrom').value=k; document.getElementById('fpBazarDateTo').value=k; this.render();
+  },
+
+  render(){
     this._populateSelects();
-    const all      = this._data();
-    const filtered = this.getFiltered();
-    const now      = new Date();
-    const todayStr = now.toDateString();
-
-    const todayRecs = all.filter(a => new Date(a.timestamp||0).toDateString() === todayStr);
-    const todayIn   = todayRecs.filter(a => a.action==='CheckIn').length;
-    const todayOut  = todayRecs.filter(a => a.action==='CheckOut').length;
-    const lateToday = todayRecs.filter(a => a.action==='CheckIn' && this._lateMin(a)>0).length;
-
-    const lastMap = {};
-    all.forEach(a => { if(!lastMap[a.code]||a.timestamp>lastMap[a.code].timestamp) lastMap[a.code]=a; });
-    const insideNow = Object.values(lastMap).filter(a => a.action==='CheckIn');
-
-    const set = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-    set('fpBazarInsideCount',      insideNow.length);
-    set('fpBazarInsideCountTable', insideNow.length);
-    set('fpBazarTodayIn',    todayIn);
-    set('fpBazarTodayOut',   todayOut);
-    set('fpBazarLateCount',  lateToday);
-    set('fpBazarTotalCount', filtered.length);
-
-    // حالة الاتصال
-    const statusEl = document.getElementById('fpBazarStatus');
-    if(statusEl) {
-      const has = all.length > 0;
-      statusEl.innerHTML = has
-        ? '<div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div><span style="font-size:12px;color:#34d399">متصل — البيانات تتحدث تلقائياً</span>'
-        : '<div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><span style="font-size:12px;color:#fbbf24">في انتظار بيانات البصمة</span>';
-      statusEl.style.borderColor = has ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)';
-      statusEl.style.background  = has ? 'rgba(16,185,129,0.1)' : 'rgba(245,158,11,0.1)';
-    }
-
-    // جدول داخل الآن
-    const insideBody = document.getElementById('fpBazarInsideBody');
-    if(insideBody) {
-      const canCheckout = hasPermission('attendance') || hasPermission('edit') || hasPermission('all');
-      if(!insideNow.length) {
-        insideBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#64748b">لا يوجد موظفون داخل العمل الآن</td></tr>';
-      } else {
-        insideBody.innerHTML = '';
-        insideNow.sort((a,b) => b.timestamp-a.timestamp).forEach(a => {
-          const durMs = Date.now() - (a.timestamp || Date.now());
-          const dur   = TimeUtils.format(durMs);
-          const late  = this._lateMin(a);
-          const reqMs = (Number(a.workHoursPerDay) || 8) * 3600000;
-          const overMs = durMs - reqMs;
-          const tr = document.createElement('tr');
-          tr.innerHTML = '<td style="font-weight:700">' + a.name +
-            (overMs > 7200000 ? '<span style="color:#ef4444;font-size:10px;display:block"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> تجاوز ' + Math.floor(overMs/3600000) + 'س</span>' : '') + '</td>' +
-            '<td style="color:#818cf8">' + a.code + '</td>' +
-            '<td style="font-size:12px">' + (getEmpJob(a.code) || a.job || '-') + '</td>' +
-            '<td style="color:#34d399">' + a.timeDisplay + '</td>' +
-            '<td style="color:' + (late>0?'#f59e0b':'#34d399') + ';font-weight:700">' + (late>0?late+'د':'-') + '</td>' +
-            '<td style="color:' + (durMs>reqMs?'#f87171':'#818cf8') + ';font-weight:700">' + dur + '</td>' +
-            '<td></td>';
-          if(canCheckout) {
-            const btn = document.createElement('button');
-            btn.textContent = '👋 خروج';
-            btn.style.cssText = 'background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;padding:5px 10px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px';
-            btn.onclick = () => FingerprintBazarService.registerCheckout(a.code, a.name);
-            tr.lastElementChild.appendChild(btn);
-          }
-          insideBody.appendChild(tr);
-        });
-      }
-    }
-
-    // دمج دخول/خروج
-    const stack = {}, rows = [];
-    [...filtered].sort((a,b) => (a.timestamp||0)-(b.timestamp||0)).forEach(a => {
-      if(a.action === 'CheckIn')  { if(!stack[a.code]) stack[a.code]=[]; stack[a.code].push({checkIn:a,checkOut:null}); }
-      if(a.action === 'CheckOut') { const arr=stack[a.code]; if(arr&&arr.length){ const last=arr[arr.length-1]; if(!last.checkOut){last.checkOut=a;rows.push(last);arr.pop();} } }
-    });
-    Object.values(stack).forEach(list => list.forEach(r => rows.push(r)));
-    rows.sort((a,b) => (b.checkIn?.timestamp||0)-(a.checkIn?.timestamp||0));
-
-    let totalMs = 0;
-    const canEdit = hasPermission('edit') || hasPermission('all');
-    const canDelete = hasPermission('delete') || hasPermission('all');
-    const tbody = document.getElementById('fpBazarAttBody');
-    if(tbody) {
-      if(!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="14" style="text-align:center;padding:20px;color:#64748b">لا توجد سجلات</td></tr>';
-      } else {
-        tbody.innerHTML = '';
-        rows.forEach(r => {
-          let work = '-', workMs = 0;
-          const late = this._lateMin(r.checkIn);
-          const reqH = Number(r.checkIn?.workHoursPerDay) || 8;
-          if(r.checkIn && r.checkOut) {
-            workMs = r.checkOut.timestamp - r.checkIn.timestamp;
-            if(workMs > 0) { work = TimeUtils.format(workMs); totalMs += workMs; }
-          }
-          const isComplete = !!r.checkOut;
-          const src  = r.checkIn?.source === 'fingerprint-bazar' ? '🖐️ بصمة' : '✍️ يدوي';
-          const note = r.checkIn?.note || r.checkOut?.note || '';
-          const tr = document.createElement('tr');
-          tr.innerHTML =
-            '<td style="font-weight:700">' + (r.checkIn?.name||'-') + '</td>' +
-            '<td style="color:#818cf8">' + (r.checkIn?.code||'-') + '</td>' +
-            '<td style="font-size:12px">' + (getEmpJob(r.checkIn?.code) || r.checkIn?.job || '-') + '</td>' +
-            '<td><span class="badge ' + (isComplete?'badge-success':'badge-warning') + '">' + (isComplete?'✅ مكتمل':'🟡 جارٍ') + '</span></td>' +
-            '<td style="font-size:12px">' + (r.checkIn?.date||'-') + '</td>' +
-            '<td style="color:#34d399;font-weight:700">' + (r.checkIn?.timeDisplay||'-') + '</td>' +
-            '<td style="color:#f87171">' + (r.checkOut?.timeDisplay||'-') + '</td>' +
-            '<td style="color:#94a3b8">' + reqH + 'س</td>' +
-            '<td style="color:' + (workMs>0&&workMs>=reqH*3600000?'#34d399':'#f59e0b') + ';font-weight:700">' + work + '</td>' +
-            '<td style="color:' + (late>0?'#f87171':'#34d399') + ';font-weight:700">' + (late>0?late+'د':'-') + '</td>' +
-            '<td style="font-size:11px;color:#94a3b8">' + src + '</td>' +
-            '<td style="font-size:11px;color:#64748b;max-width:80px;white-space:normal">' + (note||'-') + '</td>' +
-            '<td class="edit-col"></td>' +
-            '<td class="edit-col" style="white-space:nowrap"></td>';
-
-          if(canEdit) {
-            // زرار تعديل
-            const editBtn = document.createElement('button');
-            editBtn.textContent = '✏️';
-            editBtn.style.cssText = 'background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px';
-            editBtn.onclick = () => FingerprintBazarService.openEditModal({checkIn:r.checkIn, checkOut:r.checkOut});
-            tr.children[12].appendChild(editBtn);
-          }
-
-          if(canDelete) {
-            // زرار حذف
-            const delBtn = document.createElement('button');
-            delBtn.textContent = '🗑️';
-            delBtn.style.cssText = 'background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px;margin-left:4px';
-            delBtn.onclick = () => FingerprintBazarService.deleteRecord({checkIn:r.checkIn, checkOut:r.checkOut});
-            tr.children[13].appendChild(delBtn);
-
-            // زرار حذف يوم
-            const dayBtn = document.createElement('button');
-            dayBtn.textContent = 'يوم';
-            dayBtn.style.cssText = 'background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;border-radius:6px;padding:5px 8px;cursor:pointer;font-family:inherit;font-size:10px;margin-left:4px';
-            dayBtn.onclick = () => FingerprintBazarService.openDeleteDayModal(r.checkIn?.code, r.checkIn?.date);
-            tr.children[13].appendChild(dayBtn);
-          }
-          tbody.appendChild(tr);
-        });
-      }
-    }
-
-    this._renderDailySummary(rows, 'fpBazarDailySummary');
-    const totalEl = document.getElementById('fpBazarTotalHours');
-    if(totalEl) {
-      const h = Math.floor(totalMs/3600000), m = Math.floor((totalMs%3600000)/60000);
-      set('fpBazarTotalHoursCard', h + ':' + String(m).padStart(2,'0'));
-      totalEl.textContent = totalMs > 0 ? '⏱ إجمالي ساعات العمل: ' + h + ':' + String(m).padStart(2,'0') + ' س' : '';
-    }
+    const {from,to,rows}=this._filteredRows();
+    this._renderStats(rows,from,to); this._renderInsideNow();
+    if(from===to) this._renderDaily(rows); else this._renderRange(rows,from,to);
+    const status=document.getElementById('fpBazarStatus'); if(status){const has=this._data().length>0; status.innerHTML=has?'<div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div><span style="font-size:12px;color:#34d399">بيانات محمّلة — التحديث تلقائي من Firebase</span>':'<div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><span style="font-size:12px;color:#fbbf24">في انتظار بيانات البصمة</span>'; status.style.borderColor=has?'rgba(16,185,129,.3)':'rgba(245,158,11,.3)'; status.style.background=has?'rgba(16,185,129,.1)':'rgba(245,158,11,.1)'; }
   },
 
-  _renderDailySummary(rows, elId) {
-    const el = document.getElementById(elId); if(!el) return;
-    const byDay = {};
-    rows.forEach(r => {
-      const d = r.checkIn?.date || ''; if(!d) return;
-      if(!byDay[d]) byDay[d] = {date:d, total:0, emps:new Set(), late:0};
-      const ms = r.checkIn && r.checkOut ? r.checkOut.timestamp - r.checkIn.timestamp : 0;
-      byDay[d].total += ms;
-      byDay[d].emps.add(r.checkIn?.code || '');
-      if(this._lateMin(r.checkIn) > 0) byDay[d].late++;
-    });
-    const days = Object.values(byDay).sort((a,b) => b.date.localeCompare(a.date));
-    if(!days.length) { el.innerHTML = ''; return; }
-    let html = '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:10px;padding:14px">' +
-      '<div style="font-size:13px;font-weight:700;color:#818cf8;margin-bottom:10px"><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span> ملخص يومي</div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:8px">';
-    days.forEach(d => {
-      const h = Math.floor(d.total/3600000), m = Math.floor((d.total%3600000)/60000);
-      html += '<div style="background:rgba(0,0,0,0.25);border-radius:8px;padding:8px 12px;font-size:12px">' +
-        '<div style="color:#94a3b8;margin-bottom:4px">' + d.date + '</div>' +
-        '<div style="color:#34d399"><span class="ui-icon-slot" data-icon="users" aria-hidden="true"></span> ' + d.emps.size + ' موظف</div>' +
-        '<div style="color:#818cf8">⏱ ' + h + ':' + String(m).padStart(2,'0') + 'س</div>' +
-        (d.late ? '<div style="color:#f59e0b"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> ' + d.late + ' متأخر</div>' : '') +
-        '</div>';
-    });
-    html += '</div></div>';
-    el.innerHTML = html;
+  refresh(){this.render();UI.toast('✅ تم التحديث','success');},
+
+  openAddModal(){
+    this._populateSelects(); const d=document.getElementById('fpBazarAddDate'), t=document.getElementById('fpBazarAddTime'); if(d&&!d.value)d.value=this._localKey(Date.now()); if(t&&!t.value){const n=new Date();t.value=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;} document.getElementById('fpBazarAddModal').style.display='flex';
   },
 
-  // ── إضافة يدوية ─────────────────────────────────────────
-  openAddModal() {
-    this._populateSelects();
-    const d = document.getElementById('fpBazarAddDate');
-    if(d && !d.value) d.value = new Date().toISOString().slice(0,10);
-    const t = document.getElementById('fpBazarAddTime');
-    if(t && !t.value) { const n=new Date(); t.value = String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); }
-    document.getElementById('fpBazarAddModal').style.display = 'flex';
+  saveManual(){
+    const code=document.getElementById('fpBazarAddCode')?.value, action=document.getElementById('fpBazarAddAction')?.value, date=document.getElementById('fpBazarAddDate')?.value, time=document.getElementById('fpBazarAddTime')?.value, note=document.getElementById('fpBazarAddNote')?.value||'';
+    if(!code||!action||!date||!time){UI.toast('يرجى ملء جميع الحقول','error');return;}
+    const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;}
+    if(this._isInactive(emp)){UI.toast('لا يمكن تسجيل حركة لموظف مستقيل أو موقوف','error');return;}
+    const [h,m]=time.split(':').map(Number); const dt=new Date(date); dt.setHours(h,m,0,0);
+    this._db().push({code:String(code),name:emp.name||code,job:emp.job||'',action,date:dt.toLocaleDateString('ar-EG'),timeDisplay:dt.toLocaleTimeString('ar-EG'),timestamp:dt.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',note,expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0})
+      .then(()=>{UI.toast('✅ تم تسجيل الحركة','success');SystemLog.add('FpBazarManualAdd',String(code),'إضافة حركة حضور/انصراف');document.getElementById('fpBazarAddModal').style.display='none';document.getElementById('fpBazarAddNote').value='';})
+      .catch(e=>UI.toast('❌ '+e.message,'error'));
   },
 
-  saveManual() {
-    const code   = document.getElementById('fpBazarAddCode')?.value;
-    const action = document.getElementById('fpBazarAddAction')?.value;
-    const date   = document.getElementById('fpBazarAddDate')?.value;
-    const time   = document.getElementById('fpBazarAddTime')?.value;
-    const note   = document.getElementById('fpBazarAddNote')?.value || '';
-    if(!code || !action || !date || !time) { UI.toast('يرجى ملء جميع الحقول','error'); return; }
-    const empRec  = this._data().find(a => String(a.code)===String(code));
-    const empName = empRec?.name || code;
-    const empJob  = empRec?.job  || '';
-    const [h,m]   = time.split(':').map(Number);
-    const dt = new Date(date); dt.setHours(h,m,0,0);
-    this._db().push({
-      code: String(code), name: empName, job: empJob, action,
-      date: dt.toLocaleDateString('ar-EG'),
-      timeDisplay: dt.toLocaleTimeString('ar-EG'),
-      timestamp: dt.getTime(),
-      source: 'manual',
-      addedBy: State.currentUser?.username || '-',
-      note
-    }).then(() => {
-      UI.toast('✅ تم الإضافة بنجاح','success');
-      SystemLog.add('FpBazarManualAdd', code, 'إضافة يدوية: ' + empName);
-      document.getElementById('fpBazarAddModal').style.display = 'none';
-      document.getElementById('fpBazarAddNote').value = '';
-    }).catch(e => UI.toast('❌ ' + e.message,'error'));
+  registerCheckout(code,name){
+    const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;} if(this._isInactive(emp)){UI.toast('لا يمكن تسجيل خروج لموظف مستقيل أو موقوف','error');return;}
+    showConfirm(`تسجيل خروج: ${name||emp.name||code}؟`,()=>{ const now=new Date(); this._db().push({code:String(code),name:name||emp.name||code,job:emp.job||'',action:'CheckOut',date:now.toLocaleDateString('ar-EG'),timeDisplay:now.toLocaleTimeString('ar-EG'),timestamp:now.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0}).then(()=>UI.toast('✅ تم تسجيل الخروج','success')).catch(e=>UI.toast('❌ '+e.message,'error')); });
   },
 
-  // ── خروج سريع ───────────────────────────────────────────
-  registerCheckout(code, name) {
-    showConfirm('تسجيل خروج: ' + (name||code) + '؟', () => {
-      const emp = getEmpData(code);
-      if(emp && (emp.employmentStatus === 'resigned' || emp.employmentStatus === 'stopped')){
-        const label = emp.employmentStatus === 'resigned' ? 'مستقيل' : 'موقوف عن العمل';
-        UI.toast(`❌ ${emp.name} (${code}) ${label} — مينفعش يتسجله حضور/انصراف`, 'error');
-        return;
-      }
-      const now    = new Date();
-      const empRec = this._data().find(a => String(a.code)===String(code) && a.action==='CheckIn');
-      this._db().push({
-        code: String(code), name: name||code, job: getEmpJob(code) !== '-' ? getEmpJob(code) : (empRec?.job || ''), action: 'CheckOut',
-        date: now.toLocaleDateString('ar-EG'),
-        timeDisplay: now.toLocaleTimeString('ar-EG'),
-        timestamp: now.getTime(),
-        source: 'manual',
-        addedBy: State.currentUser?.username || '-'
-      }).then(() => UI.toast('✅ تم تسجيل الخروج','success'))
-       .catch(e => UI.toast('❌ ' + e.message,'error'));
-    });
+  openEditModal(r){
+    if(!hasPermission('edit')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية التعديل','error');return;}
+    const first=r.checkIn||null, last=r.checkOut||null; if(!first){UI.toast('لا يوجد سجل حضور لتعديله','warning');return;}
+    document.getElementById('fpBazarEditKeyIn').value=first.id||''; document.getElementById('fpBazarEditKeyOut').value=last?.id||''; document.getElementById('fpBazarEditCode').value=r.code||'';
+    document.getElementById('fpBazarEditEmpInfo').textContent=`${r.name||'-'} | كود: ${r.code||'-'} | ${r.job||'-'}`;
+    document.getElementById('fpBazarEditDate').value=r.date || this._localKey(first.timestamp);
+    document.getElementById('fpBazarEditIn').value=first?`${String(new Date(first.timestamp).getHours()).padStart(2,'0')}:${String(new Date(first.timestamp).getMinutes()).padStart(2,'0')}`:'';
+    document.getElementById('fpBazarEditOut').value=last?`${String(new Date(last.timestamp).getHours()).padStart(2,'0')}:${String(new Date(last.timestamp).getMinutes()).padStart(2,'0')}`:'';
+    document.getElementById('fpBazarEditNote').value=''; this.previewEdit(); document.getElementById('fpBazarEditModal').style.display='flex';
   },
 
-  // ── تعديل سجل ───────────────────────────────────────────
-  openEditModal(data) {
-    if(!hasPermission('edit') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية التعديل','error'); return; }
-    document.getElementById('fpBazarEditKeyIn').value  = data.checkIn?.id  || '';
-    document.getElementById('fpBazarEditKeyOut').value = data.checkOut?.id || '';
-    const info = document.getElementById('fpBazarEditEmpInfo');
-    if(info) info.textContent = (data.checkIn?.name||'-') + ' | كود: ' + (data.checkIn?.code||'-') + ' | ' + (data.checkIn?.job||'-');
-    document.getElementById('fpBazarEditDate').value = data.checkIn?.date || new Date().toISOString().slice(0,10);
-    document.getElementById('fpBazarEditIn').value   = parseTimeToHHMM(data.checkIn?.timeDisplay)  || '';
-    document.getElementById('fpBazarEditOut').value  = parseTimeToHHMM(data.checkOut?.timeDisplay) || '';
-    document.getElementById('fpBazarEditNote').value = '';
-    document.getElementById('fpBazarEditPreview').style.display = 'none';
-    document.getElementById('fpBazarEditWarn').style.display    = 'none';
-    fpBazarEditPreview();
-    document.getElementById('fpBazarEditModal').style.display = 'flex';
+  previewEdit(){
+    const iv=document.getElementById('fpBazarEditIn')?.value, ov=document.getElementById('fpBazarEditOut')?.value, prev=document.getElementById('fpBazarEditPreview'), warn=document.getElementById('fpBazarEditWarn'); if(!prev||!warn)return;
+    if(!iv||!ov){prev.style.display='none';warn.style.display='none';return;}
+    const a=this._parseTime(iv), b=this._parseTime(ov); let mins=b-a; if(mins<=0)mins+=1440; if(!Number.isFinite(mins)){warn.style.display='block';warn.textContent='وقت غير صحيح';prev.style.display='none';return;} warn.style.display='none';prev.style.display='block';prev.textContent='⏱ مدة العمل: '+this._fmtMin(mins,'0:00');
   },
 
-  saveEdit() {
-    const keyIn  = document.getElementById('fpBazarEditKeyIn').value;
-    const keyOut = document.getElementById('fpBazarEditKeyOut').value;
-    const date   = document.getElementById('fpBazarEditDate').value;
-    const timeIn = document.getElementById('fpBazarEditIn').value;
-    const timeOut= document.getElementById('fpBazarEditOut').value;
-    const note   = document.getElementById('fpBazarEditNote').value || '';
-    if(!keyIn)         { UI.toast('لا يوجد سجل للتعديل','error'); return; }
-    if(!date || !timeIn){ UI.toast('يرجى ملء التاريخ ووقت الدخول','error'); return; }
-    const warn = document.getElementById('fpBazarEditWarn');
-    if(warn && warn.style.display !== 'none') { UI.toast('يرجى تصحيح الأوقات أولاً','error'); return; }
-    const editedBy = State.currentUser?.username || '-';
-    const editedAt = new Date().toLocaleString('ar-EG');
-    const [ih,im]  = timeIn.split(':').map(Number);
-    const newIn = new Date(date); newIn.setHours(ih,im,0,0);
-    const prevIn  = this._data().find(a => a.id === keyIn);
-    const prevOut = keyOut ? this._data().find(a => a.id === keyOut) : null;
-    const updates = [this._db().child(keyIn).update({
-      date, timeDisplay: newIn.toLocaleTimeString('ar-EG'),
-      timestamp: newIn.getTime(), editedBy, editedAt, note
-    })];
-    if(keyOut && timeOut) {
-      const [oh,om] = timeOut.split(':').map(Number);
-      const newOut = new Date(date); newOut.setHours(oh,om,0,0);
-      if((oh*60+om) <= (ih*60+im)) newOut.setDate(newOut.getDate()+1);
-      updates.push(this._db().child(keyOut).update({
-        date: newOut.toLocaleDateString('ar-EG'),
-        timeDisplay: newOut.toLocaleTimeString('ar-EG'),
-        timestamp: newOut.getTime(), editedBy, editedAt, note
-      }));
-    }
-    Promise.all(updates).then(() => {
-      this._editLog.unshift({
-        name: prevIn?.name||'-', date,
-        inBefore:  parseTimeToHHMM(prevIn?.timeDisplay)||'-',  inAfter: timeIn,
-        outBefore: prevOut ? parseTimeToHHMM(prevOut.timeDisplay)||'-' : '-', outAfter: timeOut||'-',
-        by: editedBy, at: editedAt, note
-      });
-      UI.toast('✅ تم التعديل','success');
-      SystemLog.add('FpBazarEdit', prevIn?.code||'-', 'تعديل سجل بصمة البازار');
-      document.getElementById('fpBazarEditModal').style.display = 'none';
-    }).catch(e => UI.toast('❌ ' + e.message,'error'));
+  saveEdit(){
+    if(!hasPermission('edit')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية التعديل','error');return;}
+    const keyIn=document.getElementById('fpBazarEditKeyIn').value, keyOut=document.getElementById('fpBazarEditKeyOut').value, code=document.getElementById('fpBazarEditCode').value, date=document.getElementById('fpBazarEditDate').value, iv=document.getElementById('fpBazarEditIn').value, ov=document.getElementById('fpBazarEditOut').value, note=document.getElementById('fpBazarEditNote').value||'';
+    if(!keyIn||!date||!iv){UI.toast('يرجى تحديد التاريخ والحضور','error');return;}
+    const [ih,im]=iv.split(':').map(Number); const inDt=new Date(date); inDt.setHours(ih,im,0,0);
+    const ops=[this._db().child(keyIn).update({date:inDt.toLocaleDateString('ar-EG'),timeDisplay:inDt.toLocaleTimeString('ar-EG'),timestamp:inDt.getTime(),editedBy:State.currentUser?.username||'-',editedAt:new Date().toLocaleString('ar-EG'),note})];
+    if(ov){ const [oh,om]=ov.split(':').map(Number); const outDt=new Date(date); outDt.setHours(oh,om,0,0); if((oh*60+om)<=ih*60+im)outDt.setDate(outDt.getDate()+1); const payload={date:outDt.toLocaleDateString('ar-EG'),timeDisplay:outDt.toLocaleTimeString('ar-EG'),timestamp:outDt.getTime(),editedBy:State.currentUser?.username||'-',editedAt:new Date().toLocaleString('ar-EG'),note}; if(keyOut) ops.push(this._db().child(keyOut).update(payload)); else { const emp=getEmpData(code)||{}; ops.push(this._db().push({...payload,code:String(code),name:emp.name||code,job:emp.job||'',action:'CheckOut',source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-'})); } }
+    Promise.all(ops).then(()=>{UI.toast('✅ تم تعديل السجل','success');SystemLog.add('FpBazarEdit',String(code),'تعديل سجل حضور وانصراف');document.getElementById('fpBazarEditModal').style.display='none';}).catch(e=>UI.toast('❌ '+e.message,'error'));
   },
 
-  // ── حذف سجل ─────────────────────────────────────────────
-  deleteRecord(data) {
-    if(!hasPermission('delete') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية الحذف','error'); return; }
-    showConfirm('حذف سجل ' + (data.checkIn?.name||'-') + ' بتاريخ ' + (data.checkIn?.date||'-') + '؟', () => {
-      const dels = [];
-      if(data.checkIn?.id)  dels.push(this._db().child(data.checkIn.id).remove());
-      if(data.checkOut?.id) dels.push(this._db().child(data.checkOut.id).remove());
-      Promise.all(dels).then(() => {
-        UI.toast('🗑️ تم الحذف','success');
-        SystemLog.add('FpBazarDelete', data.checkIn?.code||'-', 'حذف سجل بصمة البازار');
-      }).catch(e => UI.toast('❌ ' + e.message,'error'));
-    });
+  deleteRecord(r){
+    if(!hasPermission('delete')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية الحذف','error');return;}
+    const ids=[]; (r.pairs||[]).forEach(p=>{if(p.checkIn?.id)ids.push(p.checkIn.id);if(p.checkOut?.id)ids.push(p.checkOut.id);});
+    if(!ids.length){UI.toast('لا توجد سجلات للحذف','warning');return;}
+    showConfirm(`حذف سجلات ${r.name||r.code} بتاريخ ${r.dateText}؟`,()=>Promise.all([...new Set(ids)].map(id=>this._db().child(id).remove())).then(()=>{UI.toast('🗑️ تم الحذف','success');SystemLog.add('FpBazarDelete',String(r.code),'حذف سجل حضور وانصراف');}).catch(e=>UI.toast('❌ '+e.message,'error')));
   },
 
-  // ── حذف يوم كامل ────────────────────────────────────────
-  openDeleteDayModal(code, date) {
-    this._populateSelects();
-    if(code) { const el=document.getElementById('fpBazarDelEmp'); if(el) el.value=code; }
-    if(date) { const el=document.getElementById('fpBazarDelDate'); if(el) el.value=date; }
-    const prev = document.getElementById('fpBazarDelPreview'); if(prev) prev.style.display='none';
-    document.getElementById('fpBazarDeleteDayModal').style.display = 'flex';
+  async syncFromDevice(){
+    const btn=document.getElementById('fpBazarSyncBtn'); if(btn){btn.disabled=true;btn.textContent='⏳ جارٍ المزامنة...';btn.style.opacity='.6';}
+    try{
+      const reqRef=db.ref('syncRequests').push(); await reqRef.set({status:'pending',requestedBy:State.currentUser?.username||'-',requestedAt:new Date().toISOString(),device:'fingerprintBazar'});
+      UI.toast('📡 تم إرسال طلب المزامنة — انتظر...','info'); const reqKey=reqRef.key; let waited=0;
+      const check=setInterval(async()=>{waited+=3;try{const snap=await db.ref('syncRequests/'+reqKey).once('value');const data=snap.val();if(!data){clearInterval(check);return;} if(data.status==='done'){clearInterval(check);UI.toast('✅ تمت المزامنة — '+((data.uploaded||0)>0?data.uploaded+' سجل جديد':'لا توجد سجلات جديدة'),(data.uploaded||0)>0?'success':'warning');setTimeout(()=>this.render(),800);if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';btn.style.opacity='1';}}else if(data.status==='error'){clearInterval(check);UI.toast('❌ '+(data.message||'خطأ في المزامنة'),'error');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';btn.style.opacity='1';}}else if(waited>=180){clearInterval(check);UI.toast('⏰ انتهت المهلة — تأكد أن السكريبت شغّال على الجهاز','warning');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';btn.style.opacity='1';}}}catch(e){clearInterval(check);if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';btn.style.opacity='1';}}},3000);
+    }catch(e){UI.toast('❌ خطأ في إرسال الطلب: '+e.message,'error');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';btn.style.opacity='1';}}
   },
 
-  confirmDeleteDay() {
-    if(!hasPermission('delete') && !hasPermission('all')) { UI.toast('ليس لديك صلاحية الحذف','error'); return; }
-    const code = document.getElementById('fpBazarDelEmp')?.value;
-    const date = document.getElementById('fpBazarDelDate')?.value;
-    if(!code || !date) { UI.toast('اختر الموظف والتاريخ','error'); return; }
-    const records = this._data().filter(a =>
-      String(a.code)===String(code) &&
-      new Date(a.timestamp||0).toISOString().slice(0,10) === date
-    );
-    const empName = records[0]?.name || code;
-    const prev = document.getElementById('fpBazarDelPreview');
-    if(prev) { prev.style.display='block'; prev.textContent='سيتم حذف ' + records.length + ' سجل لـ ' + empName + ' بتاريخ ' + date; }
-    if(!records.length) { UI.toast('لا توجد سجلات لهذا اليوم','warning'); return; }
-    showConfirm('حذف ' + records.length + ' سجل لـ ' + empName + ' بتاريخ ' + date + '؟', () => {
-      Promise.all(records.map(r => this._db().child(r.id).remove())).then(() => {
-        UI.toast('✅ تم حذف ' + records.length + ' سجل','success');
-        SystemLog.add('FpBazarDeleteDay', code, 'حذف يوم كامل: ' + date);
-        document.getElementById('fpBazarDeleteDayModal').style.display = 'none';
-      }).catch(e => UI.toast('❌ ' + e.message,'error'));
-    });
-  },
-
-  // ── سجل التعديلات ────────────────────────────────────────
-  showEditLog() {
-    const body = document.getElementById('fpBazarEditLogBody');
-    if(body) {
-      if(!this._editLog.length) {
-        body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:#64748b">لا توجد تعديلات مسجّلة في هذه الجلسة</td></tr>';
-      } else {
-        body.innerHTML = '';
-        this._editLog.forEach(l => {
-          const tr = document.createElement('tr');
-          tr.innerHTML =
-            '<td>' + l.name + '</td><td>' + getEmpJob(l.code, l.name) + '</td><td>' + l.date + '</td>' +
-            '<td style="color:#34d399">'  + l.inBefore  + '</td>' +
-            '<td style="color:#34d399;font-weight:700">' + l.inAfter  + '</td>' +
-            '<td style="color:#f87171">'  + l.outBefore + '</td>' +
-            '<td style="color:#f87171;font-weight:700">' + l.outAfter + '</td>' +
-            '<td style="color:#818cf8">'  + l.by + '</td>' +
-            '<td style="font-size:11px">' + l.at + '</td>' +
-            '<td style="font-size:11px;color:#64748b">' + (l.note||'-') + '</td>';
-          body.appendChild(tr);
-        });
-      }
-    }
-    document.getElementById('fpBazarEditLogModal').style.display = 'flex';
-  },
-
-  // ── مسح الفلاتر ──────────────────────────────────────────
-  clearFilters() {
-    ['fpBazarSearch','fpBazarDateFrom','fpBazarDateTo'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.value = '';
-    });
-    ['fpBazarFilterAction','fpBazarFilterEmp'].forEach(id => {
-      const el = document.getElementById(id); if(el) el.value = '';
-    });
-    this._range = 'day';
-    document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b => b.classList.remove('active'));
-    const first = document.querySelector('#tab-fingerprint-bazar .filter-btn'); if(first) first.classList.add('active');
-    this.render();
-  },
-
-
-  // ── مزامنة فورية عبر Firebase ────────────────────────────────
-  async syncFromDevice() {
-    const btn = document.getElementById('fpBazarSyncBtn');
-    if(btn) { btn.disabled=true; btn.textContent='⏳ جارٍ المزامنة...'; btn.style.opacity='0.6'; }
-
-    try {
-      // كتابة طلب مزامنة في Firebase
-      const reqRef = db.ref('syncRequests').push();
-      await reqRef.set({
-        status:      'pending',
-        requestedBy: State.currentUser?.username || '-',
-        requestedAt: new Date().toISOString(),
-        device:      'fingerprintBazar'
-      });
-
-      UI.toast('📡 تم إرسال طلب المزامنة — انتظر...', 'info');
-
-      // انتظر النتيجة من Firebase (max 3 دقائق)
-      const reqKey = reqRef.key;
-      let waited   = 0;
-      const check  = setInterval(async () => {
-        waited += 3;
-        try {
-          const snap = await db.ref('syncRequests/' + reqKey).once('value');
-          const data = snap.val();
-          if(!data) { clearInterval(check); return; }
-
-          if(data.status === 'done') {
-            clearInterval(check);
-            const count = data.uploaded || 0;
-            UI.toast('✅ تمت المزامنة — ' + (count > 0 ? count + ' سجل جديد' : 'لا توجد سجلات جديدة'), count > 0 ? 'success' : 'warning');
-            setTimeout(() => this.render(), 1500);
-            if(btn) { btn.disabled=false; btn.textContent='🖐️ مزامنة البصمة'; btn.style.opacity='1'; }
-          } else if(data.status === 'error') {
-            clearInterval(check);
-            UI.toast('❌ ' + (data.message||'خطأ في المزامنة'), 'error');
-            if(btn) { btn.disabled=false; btn.textContent='🖐️ مزامنة البصمة'; btn.style.opacity='1'; }
-          } else if(waited >= 180) {
-            clearInterval(check);
-            UI.toast('⏰ انتهت المهلة — تأكد أن السكريبت شغّال على الجهاز', 'warning');
-            if(btn) { btn.disabled=false; btn.textContent='🖐️ مزامنة البصمة'; btn.style.opacity='1'; }
-          }
-        } catch(e) { clearInterval(check); }
-      }, 3000); // فحص كل 3 ثواني
-
-    } catch(e) {
-      UI.toast('❌ خطأ في إرسال الطلب: ' + e.message, 'error');
-      if(btn) { btn.disabled=false; btn.textContent='🖐️ مزامنة البصمة'; btn.style.opacity='1'; }
-    }
-  },
-
-  refresh() { this.render(); UI.toast('✅ تم التحديث','success'); },
-
-
-  // ── تصدير Excel ──────────────────────────────────────────
-  exportExcel() {
+  exportExcel(){
     if(!checkExcelPermission()) return;
-    const filtered = this.getFiltered();
-    if(!filtered.length) { UI.toast('لا توجد بيانات','warning'); return; }
-    const rows = filtered.map(a => ({
-      'الموظف':  a.name,
-      'الكود':   a.code,
-      'الوظيفة': getEmpJob(a.code) || a.job || '-',
-      'النوع':   a.action === 'CheckIn' ? 'حضور' : 'انصراف',
-      'التاريخ': a.date,
-      'الوقت':   a.timeDisplay,
-      'المصدر':  a.source === 'fingerprint-bazar' ? 'بصمة' : 'يدوي',
-      'ملاحظة':  a.note || ''
+    const {from,to,rows}=this._filteredRows(); if(!rows.length){UI.toast('لا توجد بيانات للتصدير','warning');return;}
+    const out=rows.map(r=>({
+      'التاريخ':r.dateText,'كود الموظف':r.code,'اسم الموظف':r.name,'الوظيفة':r.job||'-',
+      'الحضور الفعلي':r.checkIn?this._timeText(r.checkIn.timestamp):'', 'الانصراف الفعلي':r.checkOut?this._timeText(r.checkOut.timestamp):'',
+      'الحضور الرسمي':r.officialIn,'الانصراف الرسمي':r.officialOut,'الساعات الفعلية':this._fmtMin(r.actualMin,''),'الساعات الرسمية':this._fmtMin(r.officialMin,''),
+      'التأخير':this._fmtMin(r.lateMin,''),'خروج قبل الانصراف':this._fmtMin(r.earlyExitMin,''),'مدة السماح':this._fmtMin(r.graceMin,''),
+      'الحضور قبل الموعد':this._fmtMin(r.earlyArrivalMin,''),'الخروج بعد الانصراف':this._fmtMin(r.lateExitMin,''),'بعد السماح':this._fmtMin(r.deductMin,''),'الإضافي':this._fmtMin(r.overtimeMin,''),
+      'الحالة':r.status==='complete'?'مكتمل':r.status==='open'?'جارٍ':r.status==='absent'?'غياب':r.status,'ملاحظة':r.note||''
     }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'بصمة البازار');
-    XLSX.writeFile(wb, 'fingerprint_bazar_' + new Date().toISOString().slice(0,10) + '.xlsx');
-    SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير بصمة البازار');
-    UI.toast('📊 تم التصدير','success');
+    const ws=XLSX.utils.json_to_sheet(out), wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'حضور وانصراف'); XLSX.writeFile(wb,`attendance_bazar_${from}_${to}.xlsx`); SystemLog.add('ExportExcel',State.currentUser?.username||'-','تصدير حضور وانصراف البازار'); UI.toast('📊 تم التصدير','success');
   },
 
-  init() {
-    this._populateSelects();
+  init(){
+    if(!this._initialized){
+      this._initialized=true; this._populateSelects();
+      const key=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const k=key(new Date());
+      if(!document.getElementById('fpBazarDateFrom').value) document.getElementById('fpBazarDateFrom').value=k;
+      if(!document.getElementById('fpBazarDateTo').value) document.getElementById('fpBazarDateTo').value=k;
+      const grace=document.getElementById('fpBazarGraceLabel'); if(grace) grace.textContent=this._graceMin+' دقيقة';
+      this._interval=setInterval(()=>{if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none') this.render();},60000);
+    }
     this.render();
-    setInterval(() => {
-      if(document.getElementById('tab-fingerprint-bazar')?.style.display !== 'none') this.render();
-    }, 60000);
   }
 };
-
-
-function fpBazarEditPreview(){
-  const inV  = document.getElementById('fpBazarEditIn')?.value;
-  const outV = document.getElementById('fpBazarEditOut')?.value;
-  const prev = document.getElementById('fpBazarEditPreview');
-  const warn = document.getElementById('fpBazarEditWarn');
-  if(!prev||!warn) return;
-  if(!inV||!outV){ prev.style.display='none'; warn.style.display='none'; return; }
-  const r = calcTimeDiff(inV,outV);
-  if(!r.valid){ warn.style.display='block'; warn.textContent=r.error; prev.style.display='none'; }
-  else { prev.style.display='block'; prev.textContent='⏱ مدة العمل: '+r.display; warn.style.display='none'; }
-}
-
-function setFpBazarFilter(btn, range) {
-  document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  ['fpBazarDateFrom','fpBazarDateTo'].forEach(id=>{const el=document.getElementById(id);if(el) el.value='';});
-  FingerprintBazarService._range=range;
-  FingerprintBazarService.render();
-}
 
 const FingerprintSabahService = {
 
@@ -16397,7 +16477,7 @@ const FingerprintSabahService = {
     return late>5?late:0;
   },
   _populateSelects() {
-    const emps=Object.values(State.empData||{}).filter(e=>e.name);
+    const emps=Object.values(State.bazarEmpData||{}).filter(e=>e.name);
     ['fpSabahFilterEmp','fpSabahAddCode','fpSabahDelEmp'].forEach(id=>{
       const el=document.getElementById(id); if(!el) return;
       const cur=el.value;
@@ -16465,7 +16545,7 @@ const FingerprintSabahService = {
     if(statusEl){
       const has=State.attendance.some(a=>this._isSabah(a));
       statusEl.innerHTML=has
-        ?'<div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div><span style="font-size:12px;color:#34d399">متصل — البيانات تتحدث تلقائياً</span>'
+        ?'<div style="width:8px;height:8px;border-radius:50%;background:#10b981;animation:pulse 2s infinite"></div><span style="font-size:12px;color:#34d399">بيانات محمّلة — التحديث تلقائي من Firebase</span>'
         :'<div style="width:8px;height:8px;border-radius:50%;background:#f59e0b"></div><span style="font-size:12px;color:#fbbf24">في انتظار بيانات البصمة</span>';
       statusEl.style.borderColor=has?'rgba(16,185,129,0.3)':'rgba(245,158,11,0.3)';
       statusEl.style.background=has?'rgba(16,185,129,0.1)':'rgba(245,158,11,0.1)';
@@ -18547,7 +18627,7 @@ if(tab === "incentives"){
   IncentiveService.render();
 }
 if(tab === "fingerprint-bazar"){
-  FingerprintBazarService.init();
+  BazarHRSuite.init();
 }
 if(tab === "fingerprint-sabah"){
   FingerprintSabahService.init();
@@ -18702,7 +18782,7 @@ UI.renderTransfers()
                 snap.forEach(c => { data.push({ id: c.key, ...c.val() }); });
                 State.fingerprintBazar = data;
                 if(document.getElementById('tab-fingerprint-bazar')?.style.display !== 'none') {
-                    FingerprintBazarService.render();
+                    if(window.BazarHRSuite) BazarHRSuite.refreshActivePane();
                 }
             });
             db.ref("autoDeductExemptions").on("value", snap => {
@@ -18851,13 +18931,16 @@ window.PricingModule = (function() {
   
   // ========== دوال أساسية (موجودة سابقاً مع تعديلات) ==========
   function toast(msg, type='success') {
+    if(typeof UI !== 'undefined' && typeof UI.toast === 'function') {
+      return UI.toast(msg, type || 'success');
+    }
+    // fallback فقط إذا لم يكن نظام Toast المركزي قد تهيأ بعد.
     let t = document.createElement('div');
     t.className = 'toast ' + type;
-    let icon = type==='success'?'check':type==='error'?'close':'warning';
     t.innerHTML = `<span>●</span> ${msg}`;
     document.body.appendChild(t);
-    setTimeout(()=>t.classList.add('show'), 10);
-    setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(),300); }, 3000);
+    setTimeout(()=>t.classList.add('show'),10);
+    setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},3000);
   }
   function showLoading(show) { let overlay = document.getElementById('pricing_loadingOverlay'); if(overlay) overlay.style.display = show ? 'flex' : 'none'; }
   function debounce(fn, ms) { let timer; return (...args)=>{ clearTimeout(timer); timer = setTimeout(()=>fn(...args), ms); }; }
@@ -19608,41 +19691,33 @@ window.PricingModule = (function() {
   }
 
   return {
-    loadFromFirebase() {
+    async loadFromFirebase() {
       const statusEl = document.getElementById('pricing_statusText');
       if(statusEl) statusEl.textContent = '⏳ جارٍ التحميل...';
-      // لا نستخدم showLoading العام - نستخدم status text فقط
-      const finish = (map) => {
-        if(!map || !map.size) {
+      try {
+        if(typeof PriceSheetService === 'undefined') throw new Error('خدمة شيت الأسعار غير متاحة');
+        PriceSheetService.startWatch();
+        const data = await PriceSheetService.load();
+        const map = data?.baz || new Map();
+        if(!map.size) {
           if(statusEl) statusEl.textContent = '❌ لا توجد بيانات';
           return;
         }
         products = [];
         map.forEach((v, bc) => products.push({
-          'Item number': String(bc), 'Barcode': String(bc),
-          'Product name': v.n || v.name || 'غير معلوم',
-          'Price': Number(v.s || v.sellPrice || 0), 'Quantity': 1,
+          'Item number': String(bc),
+          'Barcode': String(bc),
+          'Product name': v.name || 'غير معلوم',
+          'Price': Number(v.sellPrice || 0),
+          'Quantity': 1,
         }));
         const total = products.length.toLocaleString('ar-EG');
         if(statusEl) statusEl.textContent = '✅ ' + total + ' صنف — البازار';
         toast('✅ تم تحميل ' + total + ' صنف');
         render();
-      };
-
-      // من S.getBaz() لو محمّل
-      if(typeof S !== 'undefined' && S.getBaz) {
-        const baz = S.getBaz();
-        if(baz && baz.size > 0) { finish(baz); return; }
-      }
-      // مباشرة من Firebase
-      if(typeof db !== 'undefined') {
-        if(typeof loadPriceSheetFromFirebase === 'function') loadPriceSheetFromFirebase();
-        db.ref('priceSheet').once('value').then(snap => {
-          const d = snap.val();
-          if(!d || !d.baz) { if(statusEl) statusEl.textContent='❌ لا يوجد شيت'; return; }
-          const map = new Map(Object.entries(d.baz));
-          finish(map);
-        }).catch(e => { if(statusEl) statusEl.textContent='❌ '+e.message; showLoading(false); });
+      } catch(e) {
+        if(statusEl) statusEl.textContent = '❌ ' + (e.message || e);
+        showLoading(false);
       }
     },
     init,
@@ -19879,7 +19954,7 @@ const XL = (() => {
     const map = new Map();
 
     rows.forEach(row => {
-      const bc = String(row[cB]||'').trim().replace(/^\*+|\*+$/g,'').replace(/^[^\w\u0600-\u06FF]/,'');
+      const bc = normalizeBarcode(row[cB]);
       if(!bc||bc==='nan'||bc==='') return;
 
       const vc  = cV  ? String(row[cV]||'').trim()  : '';
@@ -20213,7 +20288,17 @@ function renderHist() {
    TOAST
 ===================================================== */
 function prToast(msg,type='',dur=3000){
-  const c=document.getElementById('prTstC'), t=document.createElement('div');
+  const mapType = {ok:'success',er:'error',warn:'warning',info:'info'};
+  const centralType = mapType[type] || (type || 'info');
+  if(typeof UI !== 'undefined' && typeof UI.toast === 'function') {
+    return UI.toast(msg, centralType, dur);
+  }
+  if(typeof toast === 'function') {
+    return toast(msg, type || '', dur);
+  }
+  const c=document.getElementById('prTstC');
+  if(!c) return;
+  const t=document.createElement('div');
   t.className=`tst ${type}`; t.textContent=msg; c.appendChild(t);
   setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),300);},dur);
 }
@@ -20348,24 +20433,68 @@ function handleFile(file){
   if(!file)return;
   if(!file.name.match(/\.(xlsx|xls)$/i)){prToast('يرجى اختيار ملف Excel','er');return;}
   prToast('⏳ جارٍ قراءة الملف...','',6000);
-  XL.parse(file).then(({baz,cai,total})=>{
+  const parser = window.AlloshPriceSheetParser;
+  if(typeof parser !== 'function') { prToast('❌ قارئ Excel غير متاح','er'); return; }
+
+  parser(file).then(({baz,cai,total,duplicates={count:0,uniqueCount:0,barcodes:[],missingNames:0}})=>{
     if(window.S && window.S.setData) window.S.setData(baz, cai);
-    document.getElementById('flRow').classList.add('on');
-    document.getElementById('flNm').textContent=file.name;
-    document.getElementById('flCnt').textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${window.S && window.S.total().toLocaleString('ar-EG')} باركود فريد`;
-    document.getElementById('bdg').classList.add('on');
-    document.getElementById('bdgTxt').textContent=window.S && window.S.total().toLocaleString('ar-EG')+' منتج';
-    document.getElementById('statsBar').style.display='flex';
-    document.getElementById('srcStrip').classList.add('vis');
+    try {
+      document.getElementById('flRow')?.classList.add('on');
+      const flNm=document.getElementById('flNm');
+      const flCnt=document.getElementById('flCnt');
+      const bdg=document.getElementById('bdg');
+      const bdgTxt=document.getElementById('bdgTxt');
+      const statsBar=document.getElementById('statsBar');
+      const srcStrip=document.getElementById('srcStrip');
+      if(flNm) flNm.textContent=file.name;
+      if(flCnt) flCnt.textContent=`البازار: ${baz.size.toLocaleString('ar-EG')} منتج | القاهرة: ${cai.size.toLocaleString('ar-EG')} منتج | الإجمالي: ${window.S && window.S.total().toLocaleString('ar-EG')} باركود فريد`;
+      bdg?.classList.add('on');
+      if(bdgTxt) bdgTxt.textContent=window.S && window.S.total().toLocaleString('ar-EG')+' منتج';
+      if(statsBar) statsBar.style.display='flex';
+      srcStrip?.classList.add('vis');
+    } catch(e) {}
     try { if(typeof updStats==='function') updStats(); } catch(e){}
+
+    if(duplicates.count){
+      prToast(`⚠️ ${(duplicates.uniqueCount || duplicates.barcodes.length).toLocaleString('ar-EG')} باركود مكرر — تم اعتماد أحدث سجل لكل باركود`,'warn',7000);
+    }
+    if(duplicates.missingNames){
+      prToast(`ℹ️ ${duplicates.missingNames.toLocaleString('ar-EG')} صنف بدون اسم — تم حفظها بالباركود وعدم إسقاطها`,'info',7000);
+    }
     prToast(`✅ تم التحميل — بازار: ${baz.size.toLocaleString('ar-EG')} | قاهرة: ${cai.size.toLocaleString('ar-EG')}`,'ok');
 
-    // ── حفظ في Firebase (يحذف القديم ويضع الجديد) ──────────────────
-// Firebase upload handled in handleFile directly
-
+    if(typeof PriceSheetService !== 'undefined') {
+      const uploader = (typeof State!=='undefined'&&State.currentUser) ? State.currentUser.username : '-';
+      PriceSheetService.publish(baz,cai,{
+        fileName:file.name,
+        uploadedBy:uploader,
+        duplicateCount:duplicates.count || 0,
+        duplicateBarcodes:(duplicates.barcodes||[]).slice(0,100),
+        missingNames:duplicates.missingNames || 0
+      },(pct,step)=>{
+        try{
+          const c=document.getElementById('uploadProgressContainer');
+          const b=document.getElementById('uploadProgressBar');
+          const t=document.getElementById('uploadProgressText');
+          const st=document.getElementById('uploadProgressStep');
+          if(c) c.style.display='block';
+          if(b) b.style.width=pct+'%';
+          if(t) t.textContent=pct+'%';
+          if(st) st.textContent=step||'';
+        }catch(e){}
+      }).then(result=>{
+        try{document.getElementById('uploadProgressContainer').style.display='none';}catch(e){}
+        try{if(typeof SystemLog!=='undefined') SystemLog.add('UploadPriceSheet',file.name,(baz.size+cai.size)+' منتج | نسخة '+result.versionId);}catch(e){}
+        try{localStorage.setItem('priceSheetName',file.name);}catch(e){}
+        prToast('☁️ تم نشر نسخة أسعار جديدة بأمان — النسخة الحالية القديمة لم تتأثر أثناء الرفع','ok',7000);
+      }).catch(err=>{
+        try{document.getElementById('uploadProgressContainer').style.display='none';}catch(e){}
+        console.error('Firebase priceSheet publish:',err);
+        prToast('⚠️ لم يتم تغيير النسخة الحالية: '+(err.message||err),'warn',7000);
+      });
+    }
   }).catch(err=>prToast('❌ '+err,'er'));
 }
-
 // حفظ شيت الأسعار في Firebase
 
 // تحميل شيت الأسعار من Firebase عند بدء التطبيق
