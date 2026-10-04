@@ -15838,7 +15838,7 @@ const BAZAR_HR_PATHS = Object.freeze({
 });
 
 const BazarHRSuite = {
-  _version:'V39',
+  _version:'V40',
   _initialized:false,
   _active:'employees',
   _listeners:Object.create(null),
@@ -15945,8 +15945,9 @@ const BazarHRSuite = {
     };return c[key]||[];
   },
   _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,90,110,210,125,95,115],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,80,105,105,130,110,95,105,95,120,120,90],payroll:[150,90,120,110,75,75,110,110,110,110,110,125]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
-  _table(key,rowsHtml,actions){const cols=this._cols(key);const actionCount=actions?2:0;const widths=[...this._widths(key,0),...(actions?[90,90]:[])];const head=cols.map(c=>`<th>${this._esc(c[1])}</th>`).join('')+(actions?'<th class="bhr-action-cell">تعديل</th><th class="bhr-action-cell">حذف</th>':'');const colgroup=widths.map(w=>`<col style="width:${w}px">`).join('');const count=cols.length+actionCount;return `<div class="bhr-table-box"><table class="bhr-table"><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${rowsHtml||`<tr><td colspan="${count}" class="bhr-empty">لا توجد بيانات</td></tr>`}</tbody></table></div>`;},
-  _actionCells(codes){const id=this._esc(codes);const edit=this._canEdit()?`<button class="bhr-row-btn" data-bhr-row="edit" data-id="${id}">✏️ تعديل</button>`:'-';const del=this._canDelete()?`<button class="bhr-row-btn danger" data-bhr-row="delete" data-id="${id}">🗑 حذف</button>`:'-';return `<td class="bhr-action-cell">${edit}</td><td class="bhr-action-cell">${del}</td>`;},
+  _actionMeta(){return {edit:this._canEdit(),delete:this._canDelete()};},
+  _table(key,rowsHtml,actions){const cols=this._cols(key);const meta=this._actionMeta();const showEdit=!!actions&&meta.edit;const showDelete=!!actions&&meta.delete;const actionCount=(showEdit?1:0)+(showDelete?1:0);const widths=[...this._widths(key,0),...(showEdit?[90]:[]),...(showDelete?[90]:[])];const head=cols.map(c=>`<th>${this._esc(c[1])}</th>`).join('')+(showEdit?'<th class="bhr-action-cell">تعديل</th>':'')+(showDelete?'<th class="bhr-action-cell">حذف</th>':'');const colgroup=widths.map(w=>`<col style="width:${w}px">`).join('');const count=cols.length+actionCount;return `<div class="bhr-table-box"><table class="bhr-table"><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${rowsHtml||`<tr><td colspan="${count}" class="bhr-empty">لا توجد بيانات</td></tr>`}</tbody></table></div>`;},
+  _actionCells(codes){const id=this._esc(codes);const cells=[];if(this._canEdit())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn" data-bhr-row="edit" data-id="${id}">✏️ تعديل</button></td>`);if(this._canDelete())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn danger" data-bhr-row="delete" data-id="${id}">🗑 حذف</button></td>`);return cells.join('');},
 
   _renderShell(pane,title,toolbar,table){pane.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3></div><div class="bhr-toolbar-right">${toolbar||''}</div></div></div>${table}`;},
 
@@ -16009,10 +16010,10 @@ const BazarHRSuite = {
   _rowIdDecode(v){try{return decodeURIComponent(String(v));}catch(_){return String(v);}},
   _handleClick(e){const t=e.target.closest('[data-bhr-tab]');if(t)return this.openPane(t.dataset.bhrTab);const top=e.target.closest('[data-bhr-action]');if(top){const a=top.dataset.bhrAction;if(a==='sync')return this.syncFromDevice();if(a==='refresh')return this.refreshAll();if(a==='export')return this.exportCurrent();if(a==='add-employee')return this.openEmployeeForm();if(a==='add-advance')return this.openAdvanceForm();if(a==='add-incentive')return this.openIncentiveForm();if(a==='add-penalty')return this.openPenaltyForm();if(a==='add-permit')return this.openPermitForm();if(a==='add-attendance')return this.openAttendanceForm();if(a==='show-payslip')return this._showPayslip(document.querySelector('#bh-pane-payslip [data-filter="employee"]')?.value||'',document.querySelector('#bh-pane-payslip [data-filter="month"]')?.value||this._today().slice(0,7));if(a==='print-slip')return window.print();if(a==='close-modal')return this.closeModal();if(a==='export-payroll')return this.exportCurrent();}
     const row=e.target.closest('[data-bhr-row]');if(!row)return;const a=row.dataset.bhrRow,id=this._rowIdDecode(row.dataset.id);if(a==='edit'){if(this._active==='employees')return this.openEmployeeForm(id);if(this._active==='advances')return this.openAdvanceForm(id);if(this._active==='incentives')return this.openIncentiveForm(id);if(this._active==='penalties')return this.openPenaltyForm(id);if(this._active==='permits')return this.openPermitForm(id);if(this._active==='attendance'){const [code,date]=id.split('|');return this.openAttendanceForm(code,date);}}if(a==='delete'){if(this._active==='employees'){const r=this._employee(id);const key=r?.firebaseKey||r?.id||id;return this._delete('bazarEmpData',key,'الموظف');}if(this._active==='advances')return this._delete('bazarAdvances',id,'السلفة');if(this._active==='incentives')return this._delete('bazarIncentives',id,'المكافأة');if(this._active==='penalties')return this._delete('bazarPenalties',id,'الجزاء');if(this._active==='permits')return this._delete('bazarBreaks',id,'الإذن');}if(a==='return-permit')return this._returnPermit(id);},
-  init(){if(this._initialized){this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.openPane('employees');this._toast('✅ بصمة البازار V37 — نظام موحد بدون طبقات متداخلة','success');}
+  init(){if(this._initialized){this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.openPane('employees');this._toast('✅ بصمة البازار V40 — أعمدة الجداول مرتبطة بالصلاحيات','success');}
 };
 window.BazarHRSuite=BazarHRSuite;
-console.info('[Allosh Bazar HR] V39 single-core');
+console.info('[Allosh Bazar HR] V40 single-core permission columns');
 
 // FINGERPRINT BAZAR SERVICE - بصمة البازار
 // ════════════════════════════════════════════════════════════
