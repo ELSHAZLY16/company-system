@@ -9850,6 +9850,27 @@ function saveEmployeeEdit() {
       SystemLog.add("EditEmployee", code, name, { branch, employeeCode: String(code) });
     }).catch(err => UI.toast("❌ "+err.message,"error"));
 }
+// ========================= حفظ موحد أونلاين / أوفلاين =========================
+// هذه الدالة جزء من الـCore العام للنظام، وليست Override.
+// تُستخدم بواسطة الحضور والاستئذانات وأي حركة تحتاج دعم الأوفلاين.
+async function saveOrQueue(collection, data) {
+    if (navigator.onLine) {
+        return db.ref(collection).push(data);
+    } else {
+        const offlineData = Object.assign({}, data);
+        Object.keys(offlineData).forEach(k => {
+            if (offlineData[k] && typeof offlineData[k] === 'object' && offlineData[k]['.sv'] === 'timestamp') {
+                offlineData[k] = TimeUtils.now();
+            }
+        });
+        await OfflineDB.save(collection, offlineData);
+        if (typeof UI !== 'undefined') {
+            UI.toast('💾 تم الحفظ محلياً — سيُرفع عند عودة الإنترنت', 'warning');
+        }
+        return Promise.resolve();
+    }
+}
+
 // ========================= خدمة الحضور (Attendance) =========================
 // إخفاء تلقائي لمعرّف الباركود (barcodeId) بس — شكله دايمًا فيه حروف إنجليزية (EMP-XXXXXX)
 // الكود العادي أرقام بس فبيفضل ظاهر عادي. القيمة الحقيقية جوه الحقل مش بتتغيّر، بس شكل العرض.
