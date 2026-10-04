@@ -51,6 +51,8 @@
   background: #fff;
 }
 
+
+
 </style>
 
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -2628,16 +2630,103 @@ body.light-mode .user-menu-head { border-bottom-color:#e2e8f0; }
 
 </style>
 
-<style id="bazar-hr-suite-css">
-.bazar-hr-tab{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);color:#cbd5e1;padding:9px 13px;border-radius:9px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;white-space:nowrap}
-.bazar-hr-tab.active{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.45);color:#c7d2fe}
-.bazar-hr-pane .suite-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.bazar-hr-pane .suite-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700}
-.suite-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:8px 12px;border-radius:8px;cursor:pointer;font-family:inherit;font-weight:700}
-.suite-btn.primary{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.45);color:#c7d2fe}.suite-btn.warn{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24}
-.bh-input{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit}
-.bh-card{padding:15px;margin-bottom:12px}.bh-card h3{margin:0 0 12px;font-size:14px}.bh-stat{padding:12px;text-align:center}.bh-stat b{display:block;font-size:20px;margin-top:6px}.bh-table-wrap{overflow:auto}.bh-table{width:100%;min-width:980px;border-collapse:collapse}.bh-table th,.bh-table td{padding:8px;border-bottom:1px solid rgba(255,255,255,.06);font-size:11px;text-align:center}.bh-table th{color:#94a3b8;position:sticky;top:0;background:#101827;z-index:2}.bh-row-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px}.bh-danger{color:#fca5a5!important;border-color:rgba(239,68,68,.3)!important;background:rgba(239,68,68,.10)!important}.bh-success{color:#86efac!important;border-color:rgba(34,197,94,.3)!important;background:rgba(34,197,94,.10)!important}.bh-money{font-weight:800;color:#fbbf24}.bh-muted{color:#94a3b8}
-@media(max-width:700px){.bh-table{min-width:900px}.bazar-hr-tab{padding:8px 10px;font-size:11px}.bh-card{padding:12px}}
+
+
+<style id="bazar-v25-table-consistency">
+#tab-fingerprint-bazar .bh-table-wrap{width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;direction:rtl!important;-webkit-overflow-scrolling:touch!important;}
+#tab-fingerprint-bazar .bh-table{width:max-content!important;min-width:100%!important;table-layout:auto!important;direction:rtl!important;border-collapse:collapse!important;}
+#tab-fingerprint-bazar .bh-table th,#tab-fingerprint-bazar .bh-table td{box-sizing:border-box!important;white-space:nowrap!important;vertical-align:middle!important;text-align:center!important;}
+#tab-fingerprint-bazar .bh-table th{position:sticky!important;top:0!important;z-index:4!important;}
+#tab-fingerprint-bazar .bh-table td{overflow:visible!important;text-overflow:clip!important;}
+@media(max-width:700px){#tab-fingerprint-bazar .bh-table{min-width:1180px!important;}#tab-fingerprint-bazar .bh-table-wrap{margin:0!important;}}
+</style>
+<style>
+/* V28 — hard column alignment: every header and cell keeps a stable physical column.
+   This prevents blank/short cells (مثل ملاحظة) from collapsing and shifting later cells. */
+#tab-fingerprint-bazar .bh-table{
+  table-layout:fixed!important;
+  width:max-content!important;
+  border-collapse:separate!important;
+  border-spacing:0!important;
+}
+#tab-fingerprint-bazar .bh-table col{display:table-column!important;}
+#tab-fingerprint-bazar .bh-table th,
+#tab-fingerprint-bazar .bh-table td{
+  box-sizing:border-box!important;
+  white-space:nowrap!important;
+  vertical-align:middle!important;
+}
+#tab-fingerprint-bazar .bh-table thead tr,
+#tab-fingerprint-bazar .bh-table tbody tr{display:table-row!important;}
+#tab-fingerprint-bazar .bh-table th,
+#tab-fingerprint-bazar .bh-table td{display:table-cell!important;}
+</style>
+
+<style id="bazar-hr-master-css-v37">
+/* ============================================================
+   ALLosh Bazar HR V36 — one and only one Bazar HR UI layer.
+   No sticky columns, no display:table overrides, no global table rules.
+   Every table owns its header/row order and uses one scoped layout.
+   ============================================================ */
+#tab-fingerprint-bazar.bazar-hr-root{direction:rtl;box-sizing:border-box}
+#tab-fingerprint-bazar .bhr-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px;margin-bottom:12px}
+#tab-fingerprint-bazar .bhr-header-title{min-width:0;flex:1}
+#tab-fingerprint-bazar .bhr-title{font-size:clamp(17px,3vw,24px);font-weight:900;line-height:1.25}
+#tab-fingerprint-bazar .bhr-subtitle{margin-top:5px;color:#94a3b8;font-size:11px}
+#tab-fingerprint-bazar .bhr-header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#tab-fingerprint-bazar .bhr-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:9px 12px;border-radius:9px;cursor:pointer;font:inherit;font-weight:800;white-space:nowrap}
+#tab-fingerprint-bazar .bhr-btn:hover{filter:brightness(1.08)}
+#tab-fingerprint-bazar .bhr-btn:disabled{opacity:.55;cursor:not-allowed}
+#tab-fingerprint-bazar .bhr-primary{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.45);color:#c7d2fe}
+#tab-fingerprint-bazar .bhr-warn{background:rgba(245,158,11,.14);border-color:rgba(245,158,11,.35);color:#fbbf24}
+#tab-fingerprint-bazar .bhr-tabs{display:flex;gap:7px;overflow-x:auto;padding:8px;margin-bottom:12px;scrollbar-width:thin}
+#tab-fingerprint-bazar .bhr-tab{flex:0 0 auto;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);color:#cbd5e1;padding:9px 12px;border-radius:9px;cursor:pointer;font:inherit;font-size:12px;font-weight:800;white-space:nowrap}
+#tab-fingerprint-bazar .bhr-tab.active{background:rgba(99,102,241,.18);border-color:rgba(99,102,241,.45);color:#c7d2fe}
+#tab-fingerprint-bazar .bhr-pane{display:none}
+#tab-fingerprint-bazar .bhr-pane:not([hidden]){display:block}
+#tab-fingerprint-bazar .bhr-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#tab-fingerprint-bazar .bhr-toolbar-left,#tab-fingerprint-bazar .bhr-toolbar-right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#tab-fingerprint-bazar .bhr-card{padding:14px;margin-bottom:12px}
+#tab-fingerprint-bazar .bhr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px}
+#tab-fingerprint-bazar .bhr-filter-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(170px,1fr);gap:9px;overflow-x:auto;align-items:end;padding:2px 0 3px;-webkit-overflow-scrolling:touch}
+#tab-fingerprint-bazar .bhr-filter-row .bhr-field{min-width:170px}
+#tab-fingerprint-bazar .bhr-action-cell{width:90px;min-width:90px;max-width:90px;text-align:center;white-space:nowrap!important}
+#tab-fingerprint-bazar .bhr-action-cell .bhr-row-btn{width:78px;max-width:100%;padding:6px 7px}
+#tab-fingerprint-bazar .bhr-field{display:flex;flex-direction:column;gap:5px;min-width:0}
+#tab-fingerprint-bazar .bhr-field>span{font-size:11px;color:#94a3b8}
+#tab-fingerprint-bazar .bhr-input{width:100%;box-sizing:border-box;padding:9px 10px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font:inherit;min-width:0}
+#tab-fingerprint-bazar .bhr-count{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;border:1px solid rgba(99,102,241,.28);background:rgba(99,102,241,.08);white-space:nowrap}
+#tab-fingerprint-bazar .bhr-count b{font-size:17px;color:#e2e8f0}
+#tab-fingerprint-bazar .bhr-note{color:#94a3b8;font-size:11px}
+#tab-fingerprint-bazar .bhr-table-box{width:100%;overflow-x:auto;overflow-y:hidden;direction:rtl;-webkit-overflow-scrolling:touch;border-radius:10px}
+#tab-fingerprint-bazar .bhr-table{width:max-content;min-width:100%;border-collapse:collapse;border-spacing:0;table-layout:fixed;direction:rtl}
+#tab-fingerprint-bazar .bhr-table th,#tab-fingerprint-bazar .bhr-table td{box-sizing:border-box;padding:8px 9px;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px;text-align:center;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tab-fingerprint-bazar .bhr-table th{background:#101827;color:#cbd5e1;font-weight:900}
+#tab-fingerprint-bazar .bhr-table tbody tr:hover td{background:rgba(255,255,255,.025)}
+#tab-fingerprint-bazar .bhr-table .bhr-long{white-space:normal;overflow-wrap:anywhere;text-overflow:clip;max-width:260px}
+#tab-fingerprint-bazar .bhr-table .bhr-money{font-weight:900;color:#fbbf24}
+#tab-fingerprint-bazar .bhr-actions{display:flex;justify-content:center;gap:5px;flex-wrap:wrap}
+#tab-fingerprint-bazar .bhr-row-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:5px 7px;border-radius:7px;cursor:pointer;font:inherit;font-size:11px;white-space:nowrap}
+#tab-fingerprint-bazar .bhr-row-btn.danger{color:#fda4af;border-color:rgba(239,68,68,.30);background:rgba(239,68,68,.08)}
+#tab-fingerprint-bazar .bhr-row-btn.success{color:#86efac;border-color:rgba(34,197,94,.30);background:rgba(34,197,94,.08)}
+#tab-fingerprint-bazar .bhr-empty{text-align:center;color:#94a3b8;padding:24px}
+#tab-fingerprint-bazar .bhr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:9px;margin-bottom:12px}
+#tab-fingerprint-bazar .bhr-stat{padding:12px;text-align:center}
+#tab-fingerprint-bazar .bhr-stat span{display:block;color:#94a3b8;font-size:11px}
+#tab-fingerprint-bazar .bhr-stat b{display:block;margin-top:5px;font-size:20px;color:#c7d2fe}
+#tab-fingerprint-bazar .bhr-modal{position:fixed;inset:0;z-index:10020;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:12px}
+#tab-fingerprint-bazar .bhr-modal[hidden]{display:none!important}
+#tab-fingerprint-bazar .bhr-modal-box{width:min(720px,96vw);max-height:92vh;overflow:auto;background:#0f172a;border:1px solid rgba(99,102,241,.35);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+#tab-fingerprint-bazar .bhr-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+#tab-fingerprint-bazar .bhr-modal-body{padding:16px}
+#tab-fingerprint-bazar .bhr-modal-actions{display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap;margin-top:14px}
+@media(max-width:700px){
+  #tab-fingerprint-bazar .bhr-header{align-items:flex-start;flex-direction:column}
+  #tab-fingerprint-bazar .bhr-header-actions{width:100%}
+  #tab-fingerprint-bazar .bhr-header-actions .bhr-btn{flex:1 1 130px}
+  #tab-fingerprint-bazar .bhr-table{min-width:1100px}
+  #tab-fingerprint-bazar .bhr-table th,#tab-fingerprint-bazar .bhr-table td{font-size:11px;padding:8px 7px}
+}
 </style>
 </head>
 <body>
@@ -5094,44 +5183,40 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
 
 </div>
 
-<div id="tab-fingerprint-bazar" class="tab-content" style="display:none;">
-  <div class="glass-card" style="padding:16px;margin-bottom:14px;position:sticky;top:0;z-index:20">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-      <div>
-        <div style="font-size:21px;font-weight:800">🖐️ بصمة البازار — إدارة الموارد والمرتبات</div>
-        <div style="font-size:12px;color:#94a3b8;margin-top:4px">بيانات الموظفين مستقلة كمصدر رئيسي، وباقي التابات تعتمد عليها بدون تكرار بيانات الموظف.</div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button onclick="BazarHRSuite.syncFromDevice()" class="suite-btn primary">🖐️ مزامنة البصمة</button>
-        <button onclick="BazarHRSuite.refreshAll()" class="suite-btn">🔄 تحديث</button>
-        <button onclick="BazarHRSuite.exportCurrent()" class="suite-btn warn">📊 تصدير التاب</button>
-      </div>
+<div id="tab-fingerprint-bazar" class="bazar-hr-root tab-content" style="display:none;">
+  <div class="bhr-header glass-card">
+    <div class="bhr-header-title">
+      <div class="bhr-title">🖐️ بصمة البازار — إدارة الموارد والمرتبات</div>
+      <div class="bhr-subtitle">نظام مستقل عن بيانات المحل • مصدر بيانات واحد من Firebase</div>
+    </div>
+    <div class="bhr-header-actions">
+      <button class="bhr-btn bhr-primary" data-bhr-action="sync">🖐️ مزامنة البصمة</button>
+      <button class="bhr-btn" data-bhr-action="refresh">🔄 تحديث البيانات</button>
+      <button class="bhr-btn bhr-warn" data-bhr-action="export">📊 تصدير التاب</button>
     </div>
   </div>
 
-  <div class="glass-card" style="padding:8px;margin-bottom:14px">
-    <div id="bazarHrTabs" style="display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:thin">
-      <button class="bazar-hr-tab active" data-bh-tab="employees">👥 بيانات الموظفين</button>
-      <button class="bazar-hr-tab" data-bh-tab="attendance">🕘 الحضور والانصراف</button>
-      <button class="bazar-hr-tab" data-bh-tab="advances">💵 سلف الموظفين</button>
-      <button class="bazar-hr-tab" data-bh-tab="incentives">🎁 مكافأة الموظفين</button>
-      <button class="bazar-hr-tab" data-bh-tab="penalties">⚠️ جزاءات الموظفين</button>
-      <button class="bazar-hr-tab" data-bh-tab="permits">📝 تصريح اذن</button>
-      <button class="bazar-hr-tab" data-bh-tab="payroll">💰 بيان المرتبات</button>
-      <button class="bazar-hr-tab" data-bh-tab="payslip">🧾 شيك قبض الموظف</button>
-    </div>
+  <div class="bhr-tabs glass-card" id="bazarHrTabs">
+    <button class="bhr-tab active" data-bhr-tab="employees">👥 بيانات الموظفين</button>
+    <button class="bhr-tab" data-bhr-tab="attendance">🕘 الحضور والانصراف</button>
+    <button class="bhr-tab" data-bhr-tab="advances">💵 سلف الموظفين</button>
+    <button class="bhr-tab" data-bhr-tab="incentives">🎁 مكافآت الموظفين</button>
+    <button class="bhr-tab" data-bhr-tab="penalties">⚠️ جزاءات الموظفين</button>
+    <button class="bhr-tab" data-bhr-tab="permits">📝 الأذونات</button>
+    <button class="bhr-tab" data-bhr-tab="payroll">💰 بيان المرتبات</button>
+    <button class="bhr-tab" data-bhr-tab="payslip">🧾 شيك قبض</button>
   </div>
 
-  <section id="bh-pane-employees" class="bazar-hr-pane"></section>
-  <section id="bh-pane-attendance" class="bazar-hr-pane" style="display:none"></section>
-  <section id="bh-pane-advances" class="bazar-hr-pane" style="display:none"></section>
-  <section id="bh-pane-incentives" class="bazar-hr-pane" style="display:none"></section>
-  <section id="bh-pane-penalties" class="bazar-hr-pane" style="display:none"></section>
-  <section id="bh-pane-permits" class="bazar-hr-pane" style="display:none"></section>
-  <section id="bh-pane-payroll" class="bazar-hr-pane" style="display:none"></section>
-  <section id="bh-pane-payslip" class="bazar-hr-pane" style="display:none"></section>
+  <section id="bh-pane-employees" class="bhr-pane"></section>
+  <section id="bh-pane-attendance" class="bhr-pane" hidden></section>
+  <section id="bh-pane-advances" class="bhr-pane" hidden></section>
+  <section id="bh-pane-incentives" class="bhr-pane" hidden></section>
+  <section id="bh-pane-penalties" class="bhr-pane" hidden></section>
+  <section id="bh-pane-permits" class="bhr-pane" hidden></section>
+  <section id="bh-pane-payroll" class="bhr-pane" hidden></section>
+  <section id="bh-pane-payslip" class="bhr-pane" hidden></section>
 
-  <div id="bh-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:10020;align-items:center;justify-content:center;padding:12px"></div>
+  <div id="bh-modal" class="bhr-modal" hidden></div>
 </div>
 
 <div id="tab-fingerprint-sabah" class="tab-content" style="display:none;">
@@ -15537,7 +15622,11 @@ function onProductBarcodeInput(barcode) {
     if(costField  && (obj.costPrice || obj.cost))  costField.value  = obj.costPrice || obj.cost  || '';
     if(priceField && (obj.sellPrice || obj.price)) priceField.value = obj.sellPrice || obj.price || '';
     return true;
-  };
+};
+
+// Expose the suite on window as well as the global lexical binding.
+// This is required by later override layers and Firebase callbacks.
+if (!window.BazarHRSuite) window.BazarHRSuite = BazarHRSuite;
 
   // 1. من شيت الأسعار (window.S) - المصدر الأساسي للأسعار
   const priceData = getProductData(barcode);
@@ -15733,490 +15822,197 @@ SystemLog.add("DeleteTransfer", id, "حذف تحويل")
 
 
 // ═══════════════════════════════════════════════════════════════════
-// BAZAR HR SUITE — نظام مستقل تمامًا عن بيانات المحل
-// ═══════════════════════════════════════════════════════════════════
+
+// ============================================================
+// ALLOSH BAZAR HR V39 — SINGLE SOURCE OF TRUTH
+// The only active Bazar HR implementation in this file.
+// No override layers. No V27/V32/V33 patches. No duplicate listeners.
+// ============================================================
 const BAZAR_HR_PATHS = Object.freeze({
-  employees: 'bazarEmpData',
-  attendance: 'fingerprintBazar',
-  advances: 'bazarAdvances',
-  incentives: 'bazarIncentives',
-  penalties: 'bazarPenalties',
-  permits: 'bazarBreaks'
+  employees:'bazarEmpData',
+  attendance:'fingerprintBazar',
+  advances:'bazarAdvances',
+  incentives:'bazarIncentives',
+  penalties:'bazarPenalties',
+  permits:'bazarBreaks'
 });
 
 const BazarHRSuite = {
+  _version:'V39',
   _initialized:false,
   _active:'employees',
-  _listeners:{},
-  _cache:{employees:[],attendance:[],advances:[],incentives:[],penalties:[],permits:[]},
-  _networkBound:false,
-  _connectionBound:false,
-  _online: navigator.onLine !== false,
-  _firebaseConnected: false,
-  _graceMin:15,
+  _listeners:Object.create(null),
+  _connectedListener:false,
+  _renderTimer:null,
+  _data:{employees:[],attendance:[],advances:[],incentives:[],penalties:[],permits:[]},
+  _ready:{employees:false,attendance:false,advances:false,incentives:false,penalties:false,permits:false},
+  _firebaseConnected:false,
   _targetDays:26,
+  _graceMin:15,
+
   _esc(v){return String(v??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));},
-  _today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;},
-  _fmtMin(m){m=Math.max(0,Math.round(Number(m)||0));return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;},
-  _parseTime(v){if(!v)return null;const s=String(v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));const m=s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);if(!m)return null;const h=+m[1],mi=+(m[2]||0);return h>=0&&h<24&&mi>=0&&mi<60?h*60+mi:null;},
+  _latin(v){return String(v??'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g,'.').replace(/٬/g,',');},
+  _num(v){const n=Number(this._latin(v).replace(/,/g,''));return Number.isFinite(n)?n:0;},
+  _money(v){const s=this._latin(v).replace(/[,٬]/g,'').replace(/[^0-9.\-]/g,'');const n=Number(s);return Number.isFinite(n)?n:0;},
+  _now(){try{return typeof TimeUtils!=='undefined'&&typeof TimeUtils.now==='function'?TimeUtils.now():Date.now();}catch(_){return Date.now();}},
+  _today(){const d=new Date(this._now());return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;},
+  _normDate(v){const s=this._latin(v).trim();if(!s)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;const d=new Date(s);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:s;},
+  _dateText(v){const s=this._normDate(v);if(!s)return '-';const d=new Date(s+'T00:00:00');return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-EG'):s;},
   _dayKey(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';},
-  _time(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
-  _date(v){if(!v)return '-';const d=new Date(v+'T00:00:00');return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-EG'):v;},
-  _num(v){const n=Number(v);return Number.isFinite(n)?n:0;},
-  _employeeMasterList(){
-    let raw={};
-    if(this._firebaseConnected){
-      raw=State.bazarEmpData&&typeof State.bazarEmpData==='object'&&!Array.isArray(State.bazarEmpData)?State.bazarEmpData:{};
-    }else{
-      // لا نستخدم النسخة المحلية إلا عند عدم وجود اتصال Firebase فعلي.
-      const cached=Array.isArray(this._cache.employees)?this._cache.employees:[];
-      cached.forEach(e=>{const k=String(e?.code??e?.id??'').trim();if(k)raw[k]=e;});
+  _timeText(ts){if(!ts)return '-';const d=new Date(Number(ts));return Number.isFinite(d.getTime())?d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
+  _parseTime(v){const s=this._latin(v).trim();const m=s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);if(!m)return null;const h=Number(m[1]),mi=Number(m[2]||0);return h>=0&&h<24&&mi>=0&&mi<60?h*60+mi:null;},
+  _fmtMin(m){m=Math.max(0,Math.round(Number(m)||0));return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;},
+  _status(v){const s=String(v??'').trim().toLowerCase();if(['resigned','مستقيل'].includes(s))return 'مستقيل';if(['stopped','موقوف'].includes(s))return 'موقوف';return 'نشط';},
+  _canEdit(){return hasPermission('edit')||hasPermission('all');},
+  _canDelete(){return hasPermission('delete')||hasPermission('all');},
+  _canExcel(){return hasPermission('excel')||hasPermission('all');},
+  _toast(m,t='info'){if(typeof UI!=='undefined'&&UI.toast)UI.toast(m,t);else console.log(m);},
+
+  _looksRecord(v,key){
+    if(!v||typeof v!=='object'||Array.isArray(v))return false;
+    const k=Object.keys(v);
+    if(k.some(x=>['code','fingerprintCode','employeeCode','user_id','action','timestamp','date','dateKey','amount','value','hours','breakTime','returnTime','name','employeeName','job','salary'].includes(x))) return true;
+    return false;
+  },
+  _collectRecords(value,rootKey,kind,out){
+    if(value==null)return;
+    if(Array.isArray(value)){value.forEach((v,i)=>this._collectRecords(v,String(i),kind,out));return;}
+    if(typeof value!=='object')return;
+    if(this._looksRecord(value,rootKey)){out.push({key:String(rootKey??''),raw:value});return;}
+    Object.entries(value).forEach(([k,v])=>{
+      if(v&&typeof v==='object') this._collectRecords(v,k,kind,out);
+    });
+  },
+  _extractArray(snapshot,kind){
+    const value=snapshot?.val?.();const found=[];this._collectRecords(value,'',kind,found);
+    return found.map(x=>this._normalize(kind,x.raw,x.key)).filter(Boolean);
+  },
+  _normalize(kind,raw,key){
+    const r=(raw&&typeof raw==='object')?raw:{};const id=String(key||r.id||r.firebaseKey||'').trim();
+    if(kind==='employees'){
+      const code=String(r.code??r.fingerprintCode??id).trim();
+      if(!code)return null;
+      return {...r,id,firebaseKey:id,code,name:String(r.name??r.employeeName??'').trim(),job:String(r.job??r.position??r.title??'').trim(),branch:String(r.branch??'البازار').trim()||'البازار',salary:this._money(r.salary??r.baseSalary),hireDate:this._normDate(r.hireDate??r.hire_date??''),nationalId:String(r.nationalId??r.nationalID??'').trim(),phone:String(r.phone??r.mobile??'').trim(),checkIn:String(r.checkIn??r.workStart??'').trim(),checkOut:String(r.checkOut??r.workEnd??'').trim(),workHours:this._num(r.workHours??r.workHoursPerDay),employmentStatus:this._status(r.employmentStatus??r.status)};
     }
-    return Object.entries(raw).map(([k,e])=>({
-      code:String(e?.code??k),name:String(e?.name??''),job:String(e?.job??''),branch:String(e?.branch??''),salary:this._num(e?.salary??e?.baseSalary),
-      checkIn:String(e?.checkIn??e?.workStart??''),checkOut:String(e?.checkOut??e?.workEnd??''),workHours:this._num(e?.workHours??e?.workHoursPerDay)||0,
-      hireDate:e?.hireDate||'',nationalId:e?.nationalId||'',phone:e?.phone||'',status:e?.status||'',employmentStatus:e?.employmentStatus||'',
-      isFingerprintOnly:false, fingerprintName:'', fingerprintJob:'', fingerprintSourceCount:0
-    })).filter(e=>e.code);
-  },
-  _fingerprintDiscoveredList(){
-    const source= (this._firebaseConnected || this._online)
-      ? (Array.isArray(State.fingerprintBazar)?State.fingerprintBazar:[])
-      : (Array.isArray(this._cache.attendance)?this._cache.attendance:[]);
-    const map={};
-    source.forEach(a=>{
-      const code=String(a?.code??a?.user_id??'').trim();
-      if(!code)return;
-      const ts=Number(a?.timestamp)||0;
-      const cur=map[code];
-      if(!cur || ts>=Number(cur.timestamp||0)){
-        map[code]={
-          code, name:String(a?.name||code), job:String(a?.job||''), branch:String(a?.branch||'البازار'),
-          checkIn:String(a?.expectedIn||''), checkOut:String(a?.expectedOut||''), workHours:Number(a?.workHoursPerDay||0)||0,
-          timestamp:ts
-        };
-      }
-      map[code].fingerprintSourceCount=(map[code].fingerprintSourceCount||0)+1;
-    });
-    return Object.values(map);
-  },
-  _employees(){
-    // جدول بيانات الموظفين هو السجل الرسمي المستقل للبازار فقط.
-    // الكود هنا هو كود البصمة الذي يتم إدخاله في نموذج "موظف جديد".
-    // لا نضيف أي موظف تلقائيًا من fingerprintBazar إلى جدول بيانات الموظفين.
-    // سجلات fingerprintBazar تبقى مصدر الحضور والانصراف فقط، وتُطابق بالكود.
-    return this._employeeMasterList()
-      .filter(e=>e.code)
-      .sort((a,b)=>String(a.name||a.code).localeCompare(String(b.name||b.code),'ar'));
-  },
-  _masterEmp(code){return this._employeeMasterList().find(e=>String(e.code)===String(code))||null;},
-  _emp(code){return this._employees().find(e=>String(e.code)===String(code))||null;},
-  _loadOnce(path,key){return db.ref(path).once('value').then(s=>{const out=[];s.forEach(c=>out.push({id:c.key,...(c.val()||{})}));this._cache[key]=out;return out;});},
-  _setRangeDefaults(ids){const t=this._today(); ids.forEach(id=>{const e=document.getElementById(id);if(e&&!e.value)e.value=t;});},
-  _openModal(title,body){const m=document.getElementById('bh-modal');if(!m)return;m.innerHTML=`<div style="background:#0f172a;border:1px solid rgba(99,102,241,.35);border-radius:14px;width:min(650px,96vw);max-height:92vh;overflow:auto"><div style="padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between"><b>${title}</b><button class="bh-row-btn" onclick="BazarHRSuite.closeModal()">✕</button></div><div style="padding:16px">${body}</div></div>`;m.style.display='flex';},
-  closeModal(){const m=document.getElementById('bh-modal');if(m){m.style.display='none';m.innerHTML='';}},
-  _field(id,label,value='',type='text',extra=''){return `<label style="font-size:11px;color:#94a3b8;display:block">${label}<input id="${id}" class="bh-input" type="${type}" value="${this._esc(value)}" ${extra}></label>`;},
-  _empSelect(id,cur='',all=true){const opts=all?'<option value="">اختر الموظف</option>':'';return `<select id="${id}" class="bh-input">${opts}${this._employees().map(e=>`<option value="${this._esc(e.code)}" ${String(cur)===String(e.code)?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('')}</select>`;},
-
-  init(){
-    if(!this._initialized){
-      this._initialized=true;
-      document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(btn=>btn.addEventListener('click',()=>this.openPane(btn.dataset.bhTab)));
-      this._bindNetwork();
-      this._attachListeners();
-      this.openPane('employees');
-      // عند وجود إنترنت: قراءة مباشرة من Firebase. عند الانقطاع فقط نستخدم النسخة المحلية.
-      if(this._online) this.refreshAll().catch(()=>{});
-      if(!this._interval)this._interval=setInterval(()=>{if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none')this.refreshActivePane();},60000);
+    if(kind==='attendance'){
+      const ts=this._num(r.timestamp??r.ts??r.dateTime??r.datetime??0);const actionRaw=this._latin(r.action??r.type??'').trim().toLowerCase();let action=actionRaw;if(['checkin','check-in','in','entry','دخول','حضور','1'].includes(actionRaw))action='CheckIn';else if(['checkout','check-out','out','exit','خروج','انصراف','0'].includes(actionRaw))action='CheckOut';const code=String(r.code??r.user_id??r.employeeCode??'').trim()||String(key||'').split('_')[0];if(!code||!action)return null;const workDate=this._normDate(r.workDate??r.dateISO??r.date??(ts?this._dayKey(ts):''));return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),job:String(r.job??'').trim(),branch:String(r.branch??'البازار').trim()||'البازار',action,timestamp:ts,date:workDate,workDate,timeDisplay:String(r.timeDisplay??r.time??'').trim(),source:String(r.source??'fingerprint').trim()||'fingerprint',note:String(r.note??'').trim(),addedBy:String(r.addedBy??r.user??r.by??'-').trim()||'-'};
     }
-    this.refreshActivePane();
-  },
-  _bindNetwork(){
-    if(this._networkBound)return;
-    this._networkBound=true;
-    this._online=navigator.onLine !== false;
-    window.addEventListener('online',()=>{
-      // ننتظر تأكيد Firebase الفعلي بدل اعتبار المتصفح متصلًا وحده.
-      this._online=true;
-      if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none'){
-        UI.toast('🌐 تم استعادة الإنترنت — انتظار تأكيد اتصال Firebase...','info');
-      }
-      this.refreshAll().catch(()=>{});
-    });
-    window.addEventListener('offline',()=>{
-      this._online=false;
-      this._firebaseConnected=false;
-      if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none'){
-        UI.toast('📴 انقطع الإنترنت — سيتم استخدام آخر بيانات محفوظة فقط','warning');
-      }
-      this.refreshPaneFromOfflineCache();
-    });
-    this._bindFirebaseConnection();
-  },
-  _bindFirebaseConnection(){
-    if(this._connectionBound)return;
-    this._connectionBound=true;
-    try{
-      db.ref('.info/connected').on('value',snap=>{
-        const connected=snap.val()===true;
-        const was=this._firebaseConnected;
-        this._firebaseConnected=connected;
-        this._online=connected;
-        if(connected){
-          if(!was && document.getElementById('tab-fingerprint-bazar')?.style.display!=='none'){
-            UI.toast('✅ اتصال Firebase مباشر — جاري تحميل بيانات البازار من السيرفر','success');
-          }
-          this.refreshAll().catch(()=>{});
-        }else{
-          this.refreshPaneFromOfflineCache();
-        }
-      });
-    }catch(e){
-      // fallback للـ navigator.onLine لو Firebase connection state غير متاح.
-      this._online=navigator.onLine !== false;
+    if(kind==='advances'){
+      const code=String(r.code??r.employeeCode??'').trim();if(!code)return null;return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),amount:this._money(r.amount??r.value??r.val??r.salaryAdvance),date:this._normDate(r.date??r.dateKey??''),note:String(r.note??r.notes??r.reason??'').trim(),addedBy:String(r.addedBy??r.by??r.user??r.createdBy??'-').trim()||'-',timestamp:this._num(r.timestamp??r.ts??0),updatedAt:this._num(r.updatedAt??0)};
     }
-  },
-  _attachListeners(){
-    const add=(path,key,onData)=>{
-      if(this._listeners[path])return;
-      const ref=db.ref(path);
-      const cb=snap=>{
-        const arr=[];
-        snap.forEach(c=>arr.push({id:c.key,...(c.val()||{})}));
-        this._cache[key]=arr;
-        if(onData)onData(arr);
-        if(document.getElementById('tab-fingerprint-bazar')?.style.display!=='none')this.refreshActivePane();
-      };
-      ref.on('value',cb);
-      this._listeners[path]=ref;
-    };
-    add(BAZAR_HR_PATHS.employees,'employees',arr=>{
-      const map={};
-      arr.forEach(e=>{const code=String(e.code??e.id??'').trim();if(code)map[code]=e;});
-      State.bazarEmpData=map;
-    });
-    add(BAZAR_HR_PATHS.attendance,'attendance',arr=>{State.fingerprintBazar=arr;});
-    add(BAZAR_HR_PATHS.advances,'advances',arr=>{State.bazarAdvances=arr;});
-    add(BAZAR_HR_PATHS.incentives,'incentives',arr=>{State.bazarIncentives=arr;});
-    add(BAZAR_HR_PATHS.penalties,'penalties',arr=>{State.bazarPenalties=arr;});
-    add(BAZAR_HR_PATHS.permits,'permits',arr=>{State.bazarBreaks=arr;});
-  },
-  openPane(tab){
-    this._active=tab;document.querySelectorAll('#bazarHrTabs .bazar-hr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bazar-hr-pane').forEach(p=>p.style.display='none');const pane=document.getElementById('bh-pane-'+tab);if(pane)pane.style.display='block';this.renderPane(tab);
-  },
-  refreshActivePane(){this.renderPane(this._active);},
-  async refreshAll(){
-    // لا نقرأ من cache أثناء وجود الإنترنت: كل تحديث هنا من Firebase مباشرة.
-    if(!this._online){
-      this.refreshPaneFromOfflineCache();
-      UI.toast('📴 غير متصل — تم عرض آخر بيانات محفوظة مؤقتًا','warning');
-      return;
+    if(kind==='incentives'){
+      const code=String(r.code??r.employeeCode??'').trim();if(!code)return null;return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),type:String(r.type??r.category??'مالي').trim()||'مالي',amount:this._money(r.amount??r.value??r.val??0),unit:String(r.unit??'جنيه').trim()||'جنيه',note:String(r.note??r.notes??r.reason??'').trim(),manager:String(r.manager??r.managerName??r.responsible??'-').trim()||'-',date:this._normDate(r.date??r.dateKey??''),by:String(r.by??r.addedBy??r.createdBy??'-').trim()||'-',timestamp:this._num(r.timestamp??r.ts??0),updatedAt:this._num(r.updatedAt??0)};
     }
-    try{
-      const paths=[
-        [BAZAR_HR_PATHS.employees,'employees'],
-        [BAZAR_HR_PATHS.attendance,'attendance'],
-        [BAZAR_HR_PATHS.advances,'advances'],
-        [BAZAR_HR_PATHS.incentives,'incentives'],
-        [BAZAR_HR_PATHS.penalties,'penalties'],
-        [BAZAR_HR_PATHS.permits,'permits']
-      ];
-      await Promise.all(paths.map(async ([path,key])=>{
-        const snap=await db.ref(path).once('value');
-        const arr=[];
-        snap.forEach(c=>arr.push({id:c.key,...(c.val()||{})}));
-        this._cache[key]=arr;
-        if(key==='employees'){
-          const map={};
-          arr.forEach(e=>{const code=String(e.code??e.id??'').trim();if(code)map[code]=e;});
-          State.bazarEmpData=map;
-        }else if(key==='attendance') State.fingerprintBazar=arr;
-        else if(key==='advances') State.bazarAdvances=arr;
-        else if(key==='incentives') State.bazarIncentives=arr;
-        else if(key==='penalties') State.bazarPenalties=arr;
-        else if(key==='permits') State.bazarBreaks=arr;
-      }));
-      this.renderPane(this._active);
-      const count=Object.keys(State.bazarEmpData||{}).length;
-      UI.toast(`✅ تم تحديث بيانات إدارة البازار من Firebase — ${count} موظف`, 'success');
-    }catch(e){
-      console.error('Bazar refresh error:',e);
-      UI.toast('❌ فشل التحديث من Firebase: '+(e?.message||e),'error');
+    if(kind==='penalties'){
+      const code=String(r.code??r.employeeCode??'').trim();if(!code)return null;const amount=this._money(r.amount??r.value??0);return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),hours:this._num(r.hours??r.durationHours??r.penaltyHours),amount,value:amount,reason:String(r.reason??r.note??r.notes??'').trim(),manager:String(r.manager??r.managerName??r.responsible??'-').trim()||'-',type:r.auto?'تلقائي':String(r.type??'يدوي'),auto:!!(r.auto??r.automatic),by:String(r.createdBy??r.by??r.user??'-').trim()||'-',date:this._normDate(r.date??r.dateKey??''),timestamp:this._num(r.timestamp??r.ts??0),updatedAt:this._num(r.updatedAt??0)};
     }
-  },
-
-  refreshPaneFromOfflineCache(){
-    // هذا المسار يعمل فقط عند انقطاع الإنترنت.
-    const map={};
-    (this._cache.employees||[]).forEach(e=>{const code=String(e?.code??e?.id??'').trim();if(code)map[code]=e;});
-    State.bazarEmpData=map;
-    if(Array.isArray(this._cache.attendance))State.fingerprintBazar=this._cache.attendance;
-    if(Array.isArray(this._cache.advances))State.bazarAdvances=this._cache.advances;
-    if(Array.isArray(this._cache.incentives))State.bazarIncentives=this._cache.incentives;
-    if(Array.isArray(this._cache.penalties))State.bazarPenalties=this._cache.penalties;
-    if(Array.isArray(this._cache.permits))State.bazarBreaks=this._cache.permits;
-    this.renderPane(this._active);
-  },
-
-  renderPane(tab){
-    if(tab==='employees')return this.renderEmployees();
-    if(tab==='attendance')return this.renderAttendance();
-    if(tab==='advances')return this.renderAdvances();
-    if(tab==='incentives')return this.renderIncentives();
-    if(tab==='penalties')return this.renderPenalties();
-    if(tab==='permits')return this.renderPermits();
-    if(tab==='payroll')return this.renderPayroll();
-    if(tab==='payslip')return this.renderPayslip();
-  },
-
-  renderEmployees(){
-    const p=document.getElementById('bh-pane-employees');
-    if(!p)return;
-    const emps=this._employees();
-    p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>بيانات الموظفين</h3><div class="bh-muted">☁️ المصدر الرسمي: <b>Firebase / bazarEmpData</b> — نفس البيانات التي يتم إدخالها من «موظف جديد». كود الموظف هو <b>كود البصمة</b>. سجلات البصمة لا تُنشئ موظفًا تلقائيًا.</div></div><button class="suite-btn primary" onclick="BazarHRSuite.openEmployeeForm()">➕ موظف جديد</button></div>
-    <div class="suite-grid" style="margin-top:12px"><input id="bhEmpSearch" class="bh-input" placeholder="بحث بالاسم أو الكود" oninput="BazarHRSuite.renderEmployees()"><select id="bhEmpStatus" class="bh-input" onchange="BazarHRSuite.renderEmployees()"><option value="">كل الحالات</option><option value="active">نشط</option><option value="resigned">مستقيل</option><option value="stopped">موقوف</option></select><div class="bh-stat glass-card"><span>إجمالي الموظفين</span><b>${emps.length}</b></div><div class="bh-stat glass-card"><span>مصدر البيانات</span><b>Firebase</b></div></div></div>
-    <div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>الكود (البصمة)</th><th>اسم الموظف</th><th>الوظيفة</th><th>الفرع</th><th>الراتب</th><th>تاريخ التعيين</th><th>الرقم القومي</th><th>الهاتف</th><th>ميعاد الحضور</th><th>ميعاد الانصراف</th><th>ساعات العمل</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody id="bhEmpBody"></tbody></table></div></div>`;
-    const q=(document.getElementById('bhEmpSearch')?.value||'').toLowerCase().trim(),st=document.getElementById('bhEmpStatus')?.value||'';
-    const rows=emps.filter(e=>{
-      const name=String(e.name||'').toLowerCase();
-      const code=String(e.code||'');
-      const status=String(e.employmentStatus||e.status||'active');
-      return (!q||name.includes(q)||code.includes(q)) && (!st||status===st);
-    });
-    document.getElementById('bhEmpBody').innerHTML=rows.map(e=>`<tr>
-      <td style="font-weight:900;color:#c7d2fe">${this._esc(e.code)}</td>
-      <td style="font-weight:800">${this._esc(e.name)}</td>
-      <td>${this._esc(e.job||'-')}</td>
-      <td>${this._esc(e.branch||'-')}</td>
-      <td class="bh-money">${this._num(e.salary).toLocaleString('ar-EG')} ج</td>
-      <td>${this._esc(e.hireDate||'-')}</td>
-      <td>${this._esc(e.nationalId||'-')}</td>
-      <td>${this._esc(e.phone||'-')}</td>
-      <td>${this._esc(e.checkIn||'-')}</td>
-      <td>${this._esc(e.checkOut||'-')}</td>
-      <td>${e.workHours?this._esc(e.workHours):'-'}</td>
-      <td>${this._esc(e.employmentStatus||e.status||'active')}</td>
-      <td><button class="bh-row-btn" onclick="BazarHRSuite.openEmployeeForm('${this._esc(e.code)}')">✏️ تعديل</button></td>
-    </tr>`).join('')||'<tr><td colspan="13" class="bh-muted">لا توجد بيانات</td></tr>';
-  },
-  openEmployeeForm(code=''){
-    const e=code?this._emp(code):{code:'',name:'',job:'',branch:'',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'active'};
-    this._openModal(code?'تعديل بيانات الموظف':'إضافة موظف',`<div class="suite-grid">${this._field('bheCode','كود الموظف',e.code)}${this._field('bheName','اسم الموظف',e.name)}${this._field('bheJob','الوظيفة',e.job)}${this._field('bheBranch','الفرع',e.branch)}${this._field('bheSalary','المرتب',e.salary,'number','min="0"')}${this._field('bheHire','تاريخ التعيين',e.hireDate,'date')}${this._field('bheNational','الرقم القومي',e.nationalId)}${this._field('bhePhone','الهاتف',e.phone)}${this._field('bheIn','ميعاد الحضور',e.checkIn,'time')}${this._field('bheOut','ميعاد الانصراف',e.checkOut,'time')}<label style="font-size:11px;color:#94a3b8">الحالة<select id="bheStatus" class="bh-input"><option value="active" ${e.employmentStatus==='active'?'selected':''}>نشط</option><option value="resigned" ${e.employmentStatus==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${e.employmentStatus==='stopped'?'selected':''}>موقوف</option></select></label></div><div style="margin-top:14px;display:flex;gap:8px"><button class="suite-btn primary" onclick="BazarHRSuite.saveEmployee('${this._esc(code)}')">💾 حفظ</button><button class="suite-btn" onclick="BazarHRSuite.closeModal()">إلغاء</button></div>`);
-  },
-  async saveEmployee(oldCode=''){
-    const code=String(document.getElementById('bheCode')?.value||'').trim();
-    const name=String(document.getElementById('bheName')?.value||'').trim();
-    if(!code||!name){UI.toast('الكود والاسم مطلوبان','error');return;}
-    if(!oldCode && this._masterEmp(code)){UI.toast('كود الموظف موجود بالفعل في بيانات موظفي البازار','error');return;}
-
-    const cin=document.getElementById('bheIn')?.value||'';
-    const cout=document.getElementById('bheOut')?.value||'';
-    let wh=0;
-    const a=this._parseTime(cin), b=this._parseTime(cout);
-    if(a!=null&&b!=null) wh=((b<=a?b+1440:b)-a)/60;
-
-    const old=this._emp(oldCode||code)||{};
-    const data={
-      ...old,
-      code:Number(code)||code,
-      name,
-      job:document.getElementById('bheJob')?.value||'',
-      branch:document.getElementById('bheBranch')?.value||'',
-      salary:this._num(document.getElementById('bheSalary')?.value),
-      hireDate:document.getElementById('bheHire')?.value||'',
-      nationalId:document.getElementById('bheNational')?.value||'',
-      phone:document.getElementById('bhePhone')?.value||'',
-      checkIn:cin,
-      checkOut:cout,
-      workHours:Number(wh.toFixed(2)),
-      employmentStatus:document.getElementById('bheStatus')?.value||'active',
-      updatedAt:new Date().toISOString(),
-      updatedBy:State.currentUser?.username||'-'
-    };
-
-    const updates={};
-    if(oldCode && String(oldCode)!==code) updates['bazarEmpData/'+oldCode]=null;
-    updates['bazarEmpData/'+code]=data;
-
-    try{
-      await db.ref().update(updates);
-
-      // أعد قراءة المصدر المستقل بعد الحفظ لضمان ظهور البيانات فورًا،
-      // حتى لو كان Firebase listener لم يصل بعد.
-      const snap=await db.ref(BAZAR_HR_PATHS.employees).once('value');
-      const arr=[];
-      const map={};
-      snap.forEach(c=>{
-        const rec={id:c.key,...(c.val()||{})};
-        arr.push(rec);
-        const k=String(rec.code??rec.id??'').trim();
-        if(k) map[k]=rec;
-      });
-      this._cache.employees=arr;
-      State.bazarEmpData=map;
-
-      this.closeModal();
-      UI.toast('✅ تم حفظ بيانات الموظف وظهرت في بيانات البازار','success');
-      SystemLog.add(oldCode?'EditEmployee':'AddEmployee',code,name);
-      this.renderEmployees();
-    }catch(e){
-      console.error('Bazar employee save error:',e);
-      UI.toast('❌ فشل حفظ بيانات الموظف: '+(e?.message||e),'error');
+    if(kind==='permits'){
+      const code=String(r.code??r.employeeCode??'').trim();if(!code)return null;const rawDur=this._num(r.durationMinutes??r.duration??r.durationMs??r.minutes??0);const durationMs=r.durationMs!=null?this._num(r.durationMs):(rawDur>10000?rawDur:rawDur*60000);return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),type:String(r.type??r.kind??'شخصي').trim()||'شخصي',breakTime:String(r.breakTime??r.outTime??r.startTime??'').trim(),breakTimestamp:this._num(r.breakTimestamp??r.outTimestamp??0),returnTime:String(r.returnTime??r.inTime??r.endTime??'').trim(),returnTimestamp:this._num(r.returnTimestamp??r.inTimestamp??0),durationMs,status:String(r.status??(durationMs>0?'closed':'open')).trim(),date:this._normDate(r.date??r.dateKey??''),dateKey:this._normDate(r.dateKey??r.date??''),user:String(r.user??r.addedBy??r.by??r.createdBy??'-').trim()||'-',note:String(r.note??r.notes??'').trim(),updatedAt:this._num(r.updatedAt??0)};
     }
+    return null;
   },
 
-  _schedule(emp,date){const a=this._parseTime(emp.checkIn),b=this._parseTime(emp.checkOut);if(a==null||b==null)return null;const d=new Date(date+'T00:00:00');const inTs=new Date(d);inTs.setHours(Math.floor(a/60),a%60,0,0);const outTs=new Date(d);outTs.setHours(Math.floor(b/60),b%60,0,0);if(b<=a)outTs.setDate(outTs.getDate()+1);return {inTs:inTs.getTime(),outTs:outTs.getTime(),officialMin:Math.round(((b<=a?b+1440:b)-a))};},
-  _safeAttendance(){
-    const raw=Array.isArray(this._cache.attendance)?this._cache.attendance:[];
-    return raw.filter(a=>a&&a.code&&Number(a.timestamp)&&['CheckIn','CheckOut'].includes(a.action)).map(a=>({...a,code:String(a.code),timestamp:Number(a.timestamp)}));
+  _setData(kind,rows){
+    this._data[kind]=Array.isArray(rows)?rows:[];this._ready[kind]=true;
+    const map={employees:'bazarEmpData',attendance:'fingerprintBazar',advances:'bazarAdvances',incentives:'bazarIncentives',penalties:'bazarPenalties',permits:'bazarBreaks'};
+    const stateKey=map[kind];if(kind==='employees'){const obj={};this._data.employees.forEach(e=>{obj[e.code]=e;});State.bazarEmpData=obj;}else if(stateKey)State[stateKey]=this._data[kind].slice();
+    this._saveSnapshotSoon();
+    if(this._active) this._renderActiveSoon();
   },
+  _snapshotKey:'allosh_bazar_hr_v36_snapshot',
+  _snapshotTimer:null,
+  _saveSnapshotSoon(){clearTimeout(this._snapshotTimer);this._snapshotTimer=setTimeout(()=>{try{localStorage.setItem(this._snapshotKey,JSON.stringify({version:1,savedAt:Date.now(),...this._data,attendance:this._data.attendance.slice(-5000)}));}catch(_){ }},400);},
+  _loadOffline(){try{const s=JSON.parse(localStorage.getItem(this._snapshotKey)||'null');if(!s)return false;['employees','attendance','advances','incentives','penalties','permits'].forEach(k=>{this._data[k]=Array.isArray(s[k])?s[k]:[];this._ready[k]=Array.isArray(s[k]);});State.bazarEmpData=Object.fromEntries(this._data.employees.filter(e=>e.code).map(e=>[e.code,e]));State.fingerprintBazar=this._data.attendance.slice();State.bazarAdvances=this._data.advances.slice();State.bazarIncentives=this._data.incentives.slice();State.bazarPenalties=this._data.penalties.slice();State.bazarBreaks=this._data.permits.slice();return true;}catch(_){return false;}},
+  _startListener(kind){if(this._listeners[kind])return;const path=BAZAR_HR_PATHS[kind];const ref=db.ref(path);const cb=snap=>{this._setData(kind,this._extractArray(snap,kind));};ref.on('value',cb);this._listeners[kind]=ref;},
+  _startListeners(){Object.keys(BAZAR_HR_PATHS).forEach(k=>this._startListener(k));},
+  _startConnection(){if(this._connectedListener)return;this._connectedListener=true;try{db.ref('.info/connected').on('value',snap=>{this._firebaseConnected=snap.val()===true;if(this._firebaseConnected)this._renderActiveSoon();});}catch(_){this._firebaseConnected=navigator.onLine!==false;}window.addEventListener('online',()=>{this._firebaseConnected=true;this._renderActiveSoon();});window.addEventListener('offline',()=>{this._firebaseConnected=false;this._loadOffline();this._renderActiveSoon();});},
+  refreshAll(){if(!this._firebaseConnected&&navigator.onLine===false){this._loadOffline();this._renderActiveSoon();return;}this._startListeners();this._renderActiveSoon();this._toast('✅ تم تحديث واجهة بصمة البازار — البيانات تُقرأ مباشرة من Firebase','success');},
+  _renderActiveSoon(){clearTimeout(this._renderTimer);this._renderTimer=setTimeout(()=>this.renderActive(),30);},
 
-  _pairEvents(){
-    // إصلاح نهائي لمشكلة sort/type: نضمن أن المصدر Array قبل map/sort.
-    const ev=this._safeAttendance().sort((a,b)=>a.timestamp-b.timestamp);
-    const grouped={},pairs=[];
-    ev.forEach(a=>{(grouped[a.code] ||= []).push(a);});
-    Object.entries(grouped).forEach(([code,arr])=>{
-      const opens=[];
-      arr.sort((a,b)=>a.timestamp-b.timestamp);
-      arr.forEach(ev=>{
-        if(ev.action==='CheckIn'){
-          opens.push({checkIn:ev,checkOut:null});
-        }else{
-          let idx=-1;
-          for(let i=opens.length-1;i>=0;i--){
-            if(!opens[i].checkOut&&opens[i].checkIn.timestamp<=ev.timestamp){idx=i;break;}
-          }
-          if(idx>=0){
-            opens[idx].checkOut=ev;
-            pairs.push(opens[idx]);
-            opens.splice(idx,1);
-          }
-        }
-      });
-      opens.forEach(p=>pairs.push(p));
-    });
-    return Array.isArray(pairs)?pairs.sort((a,b)=>(a.checkIn?.timestamp||a.checkOut?.timestamp||0)-(b.checkIn?.timestamp||b.checkOut?.timestamp||0)):[];
+  _employees(){return this._data.employees.slice().sort((a,b)=>String(a.name||a.code).localeCompare(String(b.name||b.code),'ar'));},
+  _employee(code){const c=String(code??'');return this._data.employees.find(e=>String(e.code)===c)||null;},
+  _filtered(key,search,month){const q=String(search||'').trim().toLowerCase();return this._data[key].filter(r=>{const name=String(r.name||'').toLowerCase(),code=String(r.code||'');const date=String(r.date||r.dateKey||'');return (!q||name.includes(q)||code.includes(q))&&(!month||date.startsWith(month));});},
+
+  _cols(key){
+    const c={
+      employees:[['code','كود البصمة'],['name','الموظف'],['job','الوظيفة'],['branch','الفرع'],['salary','الراتب'],['hireDate','التعيين'],['nationalId','الرقم القومي'],['phone','الهاتف'],['checkIn','الحضور الرسمي'],['checkOut','الانصراف الرسمي'],['workHours','ساعات العمل'],['employmentStatus','الحالة']],
+      advances:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['amount','القيمة'],['note','الملاحظة'],['addedBy','بواسطة']],
+      incentives:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['type','النوع'],['amount','القيمة'],['unit','الوحدة'],['note','السبب'],['manager','المدير'],['by','بواسطة']],
+      penalties:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['hours','الساعات'],['value','القيمة'],['reason','السبب'],['manager','المدير'],['type','النوع'],['by','بواسطة']],
+      permits:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['type','النوع'],['breakTime','الخروج'],['returnTime','الرجوع'],['duration','المدة'],['status','الحالة'],['user','المستخدم'],['note','الملاحظة']],
+      attendance:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['presence','الحضور'],['checkIn','الحضور الفعلي'],['checkOut','الانصراف الفعلي'],['official','الرسمي'],['actual','الساعات الفعلية'],['late','التأخير'],['early','الخروج المبكر'],['overtime','الإضافي'],['status','الحالة'],['source','المصدر'],['events','عدد الحركات']],
+      payroll:[['name','الموظف'],['code','الكود'],['job','الوظيفة'],['salary','الراتب'],['present','حضور'],['absence','غياب'],['advances','سلف'],['bonuses','مكافآت'],['penalties','جزاءات'],['deductPay','خصم'],['overtimePay','إضافي'],['net','الصافي']]
+    };return c[key]||[];
   },
+  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,90,110,210,125,95,115],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,80,105,105,130,110,95,105,95,120,120,90],payroll:[150,90,120,110,75,75,110,110,110,110,110,125]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
+  _table(key,rowsHtml,actions){const cols=this._cols(key);const actionCount=actions?2:0;const widths=[...this._widths(key,0),...(actions?[90,90]:[])];const head=cols.map(c=>`<th>${this._esc(c[1])}</th>`).join('')+(actions?'<th class="bhr-action-cell">تعديل</th><th class="bhr-action-cell">حذف</th>':'');const colgroup=widths.map(w=>`<col style="width:${w}px">`).join('');const count=cols.length+actionCount;return `<div class="bhr-table-box"><table class="bhr-table"><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${rowsHtml||`<tr><td colspan="${count}" class="bhr-empty">لا توجد بيانات</td></tr>`}</tbody></table></div>`;},
+  _actionCells(codes){const id=this._esc(codes);const edit=this._canEdit()?`<button class="bhr-row-btn" data-bhr-row="edit" data-id="${id}">✏️ تعديل</button>`:'-';const del=this._canDelete()?`<button class="bhr-row-btn danger" data-bhr-row="delete" data-id="${id}">🗑 حذف</button>`:'-';return `<td class="bhr-action-cell">${edit}</td><td class="bhr-action-cell">${del}</td>`;},
 
-  _attendanceRows(from,to){
-    const masterEmps=this._employees().filter(e=>!['resigned','stopped','مستقيل','موقوف'].includes(String(e.employmentStatus)));
-    const masterCodes=new Set(masterEmps.map(e=>String(e.code)));
-    const raw=this._safeAttendance();
-    const pairs=this._pairEvents();
-    const pairByDay={};
-    pairs.forEach(p=>{
-      const anchor=p.checkIn||p.checkOut;if(!anchor)return;
-      const k=this._dayKey(anchor.timestamp)+'|'+String(anchor.code);
-      (pairByDay[k] ||= []).push(p);
-    });
-    const rawByDayCode={};
-    raw.forEach(a=>{
-      const k=this._dayKey(a.timestamp)+'|'+String(a.code);
-      (rawByDayCode[k] ||= []).push(a);
-    });
-    Object.values(rawByDayCode).forEach(arr=>arr.sort((a,b)=>a.timestamp-b.timestamp));
+  _renderShell(pane,title,toolbar,table){pane.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3></div><div class="bhr-toolbar-right">${toolbar||''}</div></div></div>${table}`;},
 
-    const out=[];
-    const fromD=new Date(from+'T00:00:00'), toD=new Date(to+'T00:00:00');
-    for(let d=new Date(fromD);d<=toD;d.setDate(d.getDate()+1)){
-      const dk=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const dayUnknownCodes=[...new Set((raw.filter(a=>this._dayKey(a.timestamp)===dk && !masterCodes.has(String(a.code)))).map(a=>String(a.code)))];
-      const dayEmps=[...masterEmps];
-      dayUnknownCodes.forEach(code=>{
-        const evs=rawByDayCode[dk+'|'+code]||[];
-        const base=evs[0]||{};
-        dayEmps.push({code,name:String(base.name||code),job:String(base.job||''),branch:String(base.branch||''),salary:0,checkIn:String(base.expectedIn||''),checkOut:String(base.expectedOut||''),workHours:0,employmentStatus:'',isUnregistered:true});
-      });
+  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=p.querySelector('[data-filter="search"]')?.value||'',status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف'))));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>`<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td><td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours?this._esc(e.workHours):'-'}</td><td>${this._esc(e.employmentStatus)}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`).join('');p.innerHTML=filters+`<div class="bhr-card glass-card">${this._renderShellTmp?'': ''}${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
+  _renderShellTmp:false,
 
-      dayEmps.forEach(emp=>{
-        const code=String(emp.code), rawEvents=rawByDayCode[dk+'|'+code]||[], list=pairByDay[dk+'|'+code]||[];
-        let cin=null,cout=null,actual=0;
-        const allIns=rawEvents.filter(a=>a.action==='CheckIn').sort((a,b)=>a.timestamp-b.timestamp);
-        const allOuts=rawEvents.filter(a=>a.action==='CheckOut').sort((a,b)=>a.timestamp-b.timestamp);
-        if(list.length){
-          cin=list.map(p=>p.checkIn).filter(Boolean).sort((a,b)=>a.timestamp-b.timestamp)[0]||null;
-          cout=list.map(p=>p.checkOut).filter(Boolean).sort((a,b)=>b.timestamp-a.timestamp)[0]||null;
-          list.forEach(p=>{if(p.checkIn&&p.checkOut)actual+=Math.max(0,Math.round((p.checkOut.timestamp-p.checkIn.timestamp)/60000));});
-        }else{
-          cin=allIns[0]||null; cout=allOuts[allOuts.length-1]||null;
-          if(cin&&cout)actual=Math.max(0,Math.round((cout.timestamp-cin.timestamp)/60000));
-        }
-        if(cin&&cout && actual===0) actual=Math.max(0,Math.round((cout.timestamp-cin.timestamp)/60000));
+  renderAdvances(){return this._renderTransaction('advances','سلف الموظفين','advance');},
+  renderIncentives(){return this._renderTransaction('incentives','مكافآت الموظفين','incentive');},
+  renderPenalties(){return this._renderTransaction('penalties','جزاءات الموظفين','penalty');},
+  _renderTransaction(key,title,prefix){const p=document.getElementById('bh-pane-'+key);if(!p)return;const q=p.querySelector('[data-filter="search"]')?.value||'',m=p.querySelector('[data-filter="month"]')?.value||'';const rows=this._filtered(key,q,m).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.timestamp||0)-Number(a.timestamp||0));const add=this._canEdit()?`<button class="bhr-btn bhr-primary" data-bhr-action="add-${prefix}">➕ إضافة</button>`:'';const extra=`<div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div>`;let body='';if(key==='advances')body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td class="bhr-money">${r.amount.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})} ج</td><td class="bhr-long">${this._esc(r.note||'-')}</td><td>${this._esc(r.addedBy||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');if(key==='incentives')body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.type)}</td><td class="bhr-money">${r.amount.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${this._esc(r.unit)}</td><td class="bhr-long">${this._esc(r.note||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.by||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');if(key==='penalties')body=rows.map(r=>{const emp=this._employee(r.code);const hourly=(this._money(emp?.salary)/30)/Math.max(.01,this._num(emp?.workHours)||8);const value=r.value||r.hours*hourly;return `<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||emp?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${r.hours.toFixed(2)}</td><td class="bhr-money">${value.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})} ج</td><td class="bhr-long">${this._esc(r.reason||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.type||'يدوي')}</td><td>${this._esc(r.by||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`;}).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3><span class="bhr-count">عدد السجلات <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${add}</div></div>${extra}</div><div class="bhr-card glass-card">${this._table(key,body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this['_renderTransaction'](key,title,prefix));},
 
-        const sc=this._schedule(emp,dk);
-        const hasIn=!!cin,hasOut=!!cout;
-        let late=0,early=0,earlyArr=0,lateExit=0;
-        if(sc&&cin){late=Math.max(0,Math.round((cin.timestamp-sc.inTs)/60000));earlyArr=Math.max(0,Math.round((sc.inTs-cin.timestamp)/60000));}
-        if(sc&&cout){early=Math.max(0,Math.round((sc.outTs-cout.timestamp)/60000));lateExit=Math.max(0,Math.round((cout.timestamp-sc.outTs)/60000));}
-        const net=Math.max(0,late+early-earlyArr-lateExit),deduct=Math.max(0,net-this._graceMin),overtime=Math.max(0,earlyArr+lateExit);
-        let status='غياب';
-        if(emp.isUnregistered){
-          if(hasIn&&hasOut)status='مكتمل - غير مضاف';
-          else if(hasIn)status='جارٍ - غير مضاف';
-          else if(hasOut)status='انصراف فقط - غير مضاف';
-          else status='غير مضاف';
-        }else if(!sc){
-          status=hasIn?'حاضر - بدون جدول':'بدون جدول';
-        }else if(hasIn&&hasOut){status='مكتمل';}
-        else if(hasIn){status='جارٍ';}
-        out.push({
-          date:dk,code,name:emp.name,job:emp.job,salary:emp.salary||0,officialIn:sc?this._time(sc.inTs):'-',officialOut:sc?this._time(sc.outTs):'-',
-          officialMin:sc?.officialMin||0,checkIn:cin,checkOut:cout,actualMin:actual,lateMin:late,earlyMin:early,earlyArrMin:earlyArr,lateExitMin:lateExit,
-          deductMin:deduct,overtimeMin:overtime,graceMin:Math.min(this._graceMin,net),status,source:cin?.source==='fingerprint-bazar'?'بصمة':(cout?.source==='fingerprint-bazar'?'بصمة':'يدوي'),pair:list[0]||null,
-          isUnregistered:!!emp.isUnregistered
-        });
-      });
-    }
-    return out;
+  _attendanceEvents(){return this._data.attendance.slice().sort((a,b)=>Number(a.timestamp||0)-Number(b.timestamp||0));},
+  _attendanceDailyRows(from,to){
+    const raw=this._attendanceEvents().filter(a=>{const d=a.workDate||this._dayKey(a.timestamp);return (!from||d>=from)&&(!to||d<=to);});
+    const map=new Map();raw.forEach(a=>{const date=a.workDate||this._dayKey(a.timestamp),key=`${date}|${a.code}`;if(!map.has(key))map.set(key,{date,code:a.code,name:a.name||this._employee(a.code)?.name||a.code,job:a.job||this._employee(a.code)?.job||'-',events:[]});map.get(key).events.push(a);});
+    return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date)||String(a.name).localeCompare(String(b.name),'ar')).map(r=>{const emp=this._employee(r.code);const ins=r.events.filter(x=>x.action==='CheckIn').sort((a,b)=>a.timestamp-b.timestamp);const outs=r.events.filter(x=>x.action==='CheckOut').sort((a,b)=>b.timestamp-a.timestamp);const cin=ins[0]||null,cout=outs[0]||null;const actual=cin&&cout?Math.max(0,Math.round((cout.timestamp-cin.timestamp)/60000)):0;const sc=this._schedule(emp,r.date);let late=0,early=0,earlyArr=0,lateExit=0;if(sc&&cin){late=Math.max(0,Math.round((cin.timestamp-sc.inTs)/60000));earlyArr=Math.max(0,Math.round((sc.inTs-cin.timestamp)/60000));}if(sc&&cout){early=Math.max(0,Math.round((sc.outTs-cout.timestamp)/60000));lateExit=Math.max(0,Math.round((cout.timestamp-sc.outTs)/60000));}return {...r,cin,cout,actual,late,early,earlyArr,lateExit,status:cin&&cout?'مكتمل':cin?'دخول بدون خروج':cout?'خروج فقط':'حركة غير مكتملة',source:[...new Set(r.events.map(x=>x.source||'fingerprint'))].join(' / '),officialIn:sc?this._timeText(sc.inTs):'-',officialOut:sc?this._timeText(sc.outTs):'-',delta:this._fmtMin(Math.max(0,late+early-this._graceMin)),overtime:this._fmtMin(Math.max(0,earlyArr+lateExit)),eventCount:r.events.length};});
   },
-  renderAttendance(){
-    const p=document.getElementById('bh-pane-attendance');if(!p)return;
-    const oldFrom=document.getElementById('bhaFrom')?.value||this._today();
-    const oldTo=document.getElementById('bhaTo')?.value||oldFrom;
-    const oldSearch=document.getElementById('bhaSearch')?.value||'';
-    const from=oldFrom,to=oldTo,q=oldSearch.toLowerCase().trim();
-    const rows=this._attendanceRows(from,to).filter(r=>!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q));
-    const sum=k=>rows.reduce((a,r)=>a+(Number(r[k])||0),0);
-    const unknown=rows.filter(r=>r.isUnregistered).length;
-    p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>الحضور والانصراف</h3><div class="bh-muted">السجلات تُقرأ مباشرة من <b>fingerprintBazar</b>. بيانات الموظفين الرسمية منفصلة في <b>bazarEmpData</b>.</div></div><div style="display:flex;gap:7px;flex-wrap:wrap"><button class="suite-btn primary" onclick="BazarHRSuite.openAttendanceModal()">➕ إضافة يدوية</button><button class="suite-btn" onclick="BazarHRSuite.syncFromDevice()">🖐️ مزامنة</button></div></div><div class="suite-grid"><label>من<input id="bhaFrom" class="bh-input" type="date" value="${this._esc(from)}" onchange="BazarHRSuite.renderAttendance()"></label><label>إلى<input id="bhaTo" class="bh-input" type="date" value="${this._esc(to)}" onchange="BazarHRSuite.renderAttendance()"></label><input id="bhaSearch" class="bh-input" placeholder="بحث بالاسم أو الكود" value="${this._esc(oldSearch)}" oninput="BazarHRSuite.renderAttendance()"></div></div><div id="bhaStats" class="suite-grid" style="margin-bottom:12px"></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الكود</th><th>الرسمي</th><th>الحضور</th><th>الانصراف</th><th>الساعات الفعلية</th><th>التأخير</th><th>خروج مبكر</th><th>قبل الموعد</th><th>بعد الموعد</th><th>السماح</th><th>خصم</th><th>إضافي</th><th>الحالة</th><th>المصدر</th><th>إجراء</th></tr></thead><tbody id="bhaBody"></tbody></table></div></div>`;
-    document.getElementById('bhaStats').innerHTML=[['السجلات',rows.length],['حضور',rows.filter(r=>String(r.status).includes('مكتمل')||String(r.status).includes('جارٍ')).length],['غياب',rows.filter(r=>r.status==='غياب').length],['غير مضاف',unknown],['التأخير',this._fmtMin(sum('lateMin'))],['الخصم بعد السماح',this._fmtMin(sum('deductMin'))],['الإضافي',this._fmtMin(sum('overtimeMin'))],['الساعات الفعلية',this._fmtMin(sum('actualMin'))]].map(x=>`<div class="glass-card bh-stat"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
-    document.getElementById('bhaBody').innerHTML=rows.map(r=>`<tr><td>${this._date(r.date)}</td><td style="font-weight:800">${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${r.officialIn} → ${r.officialOut}</td><td class="bh-success">${r.checkIn?this._time(r.checkIn.timestamp):'-'}</td><td>${r.checkOut?this._time(r.checkOut.timestamp):'-'}</td><td>${this._fmtMin(r.actualMin)}</td><td>${this._fmtMin(r.lateMin)}</td><td>${this._fmtMin(r.earlyMin)}</td><td>${this._fmtMin(r.earlyArrMin)}</td><td>${this._fmtMin(r.lateExitMin)}</td><td>${this._fmtMin(r.graceMin)}</td><td style="color:#fb7185">${this._fmtMin(r.deductMin)}</td><td class="bh-money">${this._fmtMin(r.overtimeMin)}</td><td>${this._esc(r.status)}</td><td>${r.source||'-'}</td><td>${r.checkIn&&!r.isUnregistered?`<button class="bh-row-btn" onclick="BazarHRSuite.editAttendance('${this._esc(r.code)}','${r.date}')">✏️</button>`:r.isUnregistered?'<span class="bh-muted">أضف الموظف أولًا</span>':''}</td></tr>`).join('')||'<tr><td colspan="17" class="bh-muted">لا توجد بيانات</td></tr>';
+  _schedule(emp,date){if(!emp)return null;const a=this._parseTime(emp.checkIn),b=this._parseTime(emp.checkOut);if(a==null||b==null)return null;const d=new Date(date+'T00:00:00');const inD=new Date(d);inD.setHours(Math.floor(a/60),a%60,0,0);const outD=new Date(d);let bm=b;if(b<=a)bm+=1440;outD.setHours(Math.floor(bm/60),bm%60,0,0);return {inTs:inD.getTime(),outTs:outD.getTime()};},
+  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=p.querySelector('[data-filter="search"]')?.value||'';const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td>${r.cin?'حضور':'-'}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
+
+  renderPermits(){const p=document.getElementById('bh-pane-permits');if(!p)return;const q=p.querySelector('[data-filter="search"]')?.value||'',m=p.querySelector('[data-filter="month"]')?.value||'',rows=this._filtered('permits',q,m).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date||r.dateKey))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.type)}</td><td>${this._esc(r.breakTime||'-')}</td><td>${r.returnTimestamp?this._esc(r.returnTime||'-'):(this._canEdit()?`<button class="bhr-row-btn success" data-bhr-row="return-permit" data-id="${this._esc(r.id)}">🔄 رجوع</button>`:'-')}</td><td>${this._fmtMin(Number(r.durationMs||0)/60000)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.user||'-')}</td><td class="bhr-long">${this._esc(r.note||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الأذونات</h3><span class="bhr-count">عدد السجلات <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-permit">➕ إضافة إذن</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div></div><div class="bhr-card glass-card">${this._table('permits',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderPermits());},
+
+  _payrollRows(month){
+    const empRows=this._employees();const start=new Date(month+'-01T00:00:00');const daysIn=new Date(start.getFullYear(),start.getMonth()+1,0).getDate();const from=`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-01`;const to=`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(daysIn).padStart(2,'0')}`;const daily=this._attendanceDailyRows(from,to);const by={};daily.forEach(r=>(by[r.code]??=[]).push(r));const advances=this._filtered('advances','',month),bonuses=this._filtered('incentives','',month),penalties=this._filtered('penalties','',month),permits=this._filtered('permits','',month);return empRows.map(e=>{const rows=by[e.code]||[];const present=rows.filter(r=>r.cin).length;const target=Math.max(0,Math.min(this._targetDays,daysIn));const absence=Math.max(0,target-present);const salary=this._money(e.salary);const dailyPay=salary/30;const hourly=dailyPay/Math.max(.01,this._num(e.workHours)||8);const adv=advances.filter(x=>x.code===e.code).reduce((s,x)=>s+x.amount,0);const bonus=bonuses.filter(x=>x.code===e.code).reduce((s,x)=>s+x.amount,0);const pen=penalties.filter(x=>x.code===e.code).reduce((s,x)=>s+(x.value||x.hours*hourly),0);const deduct=rows.reduce((s,r)=>s+Math.max(0,(r.late+r.early-this._graceMin)*hourly/60),0);const overtime=rows.reduce((s,r)=>s+((r.earlyArr+r.lateExit)*hourly/60),0);const net=salary+bonus+overtime-(absence*dailyPay)-deduct-pen-adv;return {e,present,absence,advances:adv,bonuses:bonus,penalties:pen,deductPay:deduct,overtimePay:overtime,net};});
   },
-  openAttendanceModal(code='',date=''){
-    const emp=this._emp(code)||this._employees()[0];const dk=date||this._today();const row=this._attendanceRows(dk,dk).find(r=>String(r.code)===String(code));const cin=row?.checkIn||null,cout=row?.checkOut||null;
-    if(!emp){UI.toast('أضف الموظف في تبويب بيانات الموظفين أولًا','warning');return;}
-    this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<div class="suite-grid"><label>الموظف${this._empSelect('bhaEmp',code||emp?.code,false)}</label>${this._field('bhaDate','التاريخ',dk,'date')}${this._field('bhaIn','وقت الحضور',cin?new Date(cin.timestamp).toTimeString().slice(0,5):'','time')}${this._field('bhaOut','وقت الانصراف',cout?new Date(cout.timestamp).toTimeString().slice(0,5):'','time')}${this._field('bhaNote','ملاحظة','','text')}</div><div style="margin-top:14px;display:flex;gap:8px"><button class="suite-btn primary" onclick="BazarHRSuite.saveAttendance()">💾 حفظ</button><button class="suite-btn" onclick="BazarHRSuite.closeModal()">إلغاء</button></div>`);
-  },
-  editAttendance(code,date){this.openAttendanceModal(code,date);},
-  saveAttendance(){const code=document.getElementById('bhaEmp')?.value,date=document.getElementById('bhaDate')?.value,iv=document.getElementById('bhaIn')?.value,ov=document.getElementById('bhaOut')?.value,note=document.getElementById('bhaNote')?.value||'';const emp=this._emp(code);if(!emp||!date||!iv){UI.toast('الموظف والتاريخ ووقت الحضور مطلوبين','error');return;}const inTs=new Date(`${date}T${iv}:00`).getTime();let outTs=null;if(ov){outTs=new Date(`${date}T${ov}:00`).getTime();if(outTs<=inTs)outTs+=86400000;}const row=this._attendanceRows(date,date).find(r=>String(r.code)===String(code));const writes={};const ids=[];if(row?.pair?.checkIn?.id)ids.push(row.pair.checkIn.id);if(row?.pair?.checkOut?.id)ids.push(row.pair.checkOut.id);ids.forEach(id=>{writes['fingerprintBazar/'+id]=null;});const base=`fingerprintBazar/manual_${Date.now()}`;writes[base+'_in']={code:String(code),name:emp.name,job:emp.job,action:'CheckIn',source:'manual',branch:'البازار',date:this._date(date),timeDisplay:new Date(inTs).toLocaleTimeString('ar-EG'),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};if(outTs)writes[base+'_out']={code:String(code),name:emp.name,job:emp.job,action:'CheckOut',source:'manual',branch:'البازار',date:this._date(this._dayKey(outTs)),timeDisplay:new Date(outTs).toLocaleTimeString('ar-EG'),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};db.ref().update(writes).then(()=>{this.closeModal();UI.toast('✅ تم حفظ الحضور والانصراف','success');SystemLog.add('BazarAttendanceEdit',String(code),emp.name);}).catch(e=>UI.toast('❌ '+e.message,'error'));},
+  renderPayroll(){const p=document.getElementById('bh-pane-payroll');if(!p)return;const old=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);const rows=this._payrollRows(old);const body=rows.map(r=>`<tr><td>${this._esc(r.e.name)}</td><td>${this._esc(r.e.code)}</td><td>${this._esc(r.e.job||'-')}</td><td class="bhr-money">${r.e.salary.toLocaleString('ar-EG')} ج</td><td>${r.present}</td><td>${r.absence}</td><td class="bhr-money">${r.advances.toLocaleString('ar-EG')}</td><td class="bhr-money">${r.bonuses.toLocaleString('ar-EG')}</td><td class="bhr-money">${r.penalties.toLocaleString('ar-EG')}</td><td>${r.deductPay.toFixed(2)}</td><td>${r.overtimePay.toFixed(2)}</td><td class="bhr-money">${r.net.toFixed(2)} ج</td></tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">بيان المرتبات</h3><span class="bhr-count">الموظفون <b>${rows.length}</b></span></div><div class="bhr-toolbar-right"><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(old)}"></label><button class="bhr-btn bhr-warn" data-bhr-action="export-payroll">📊 Excel</button></div></div></div><div class="bhr-card glass-card">${this._table('payroll',body,false)}</div>`;this._bindPaneFilters(p,()=>this.renderPayroll());},
+  renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const empCode=p.querySelector('[data-filter="employee"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);const opts=this._employees().map(e=>`<option value="${this._esc(e.code)}" ${empCode===e.code?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" data-filter="employee"><option value="">اختر الموظف</option>${opts}</select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" type="month" data-filter="month" value="${this._esc(month)}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="show-payslip">🧾 عرض الشيك</button></div></div><div id="bhr-slip-result" style="margin-top:14px"></div></div>`;if(empCode)this._showPayslip(empCode,month);},
+  _showPayslip(code,month){const emp=this._employee(code);if(!emp){this._toast('اختر الموظف','warning');return;}const row=this._payrollRows(month).find(r=>r.e.code===code);if(!row){this._toast('لا توجد بيانات لهذا الموظف','warning');return;}const box=document.getElementById('bhr-slip-result');if(!box)return;box.innerHTML=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;font-size:21px;font-weight:900">علوش البازار</div><div style="text-align:center;margin-top:4px">شيك قبض الموظف — ${this._esc(month)}</div><hr><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><div><b>الموظف:</b> ${this._esc(emp.name)}</div><div><b>الكود:</b> ${this._esc(emp.code)}</div><div><b>الوظيفة:</b> ${this._esc(emp.job||'-')}</div><div><b>صافي المرتب:</b> ${row.net.toFixed(2)} ج</div></div><div style="margin-top:18px;display:flex;justify-content:center"><button class="bhr-btn" data-bhr-action="print-slip">🖨️ طباعة</button></div></div>`;},
 
-  renderAdvances(){const p=document.getElementById('bh-pane-advances');if(!p)return;const a=this._cache.advances||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>سلف الموظفين</h3><button class="suite-btn primary" onclick="BazarHRSuite.openAdvanceForm()">➕ إضافة سلفة</button></div><div class="suite-grid"><input id="bhAdvSearch" class="bh-input" placeholder="بحث بالموظف أو الكود" oninput="BazarHRSuite.renderAdvances()"><input id="bhAdvMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderAdvances()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الكود</th><th>القيمة</th><th>ملاحظة</th><th>بواسطة</th><th>إجراء</th></tr></thead><tbody id="bhAdvBody"></tbody></table></div></div>`;const q=(document.getElementById('bhAdvSearch')?.value||'').toLowerCase(),m=document.getElementById('bhAdvMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.date||'').startsWith(m))).sort((x,y)=>String(y.date).localeCompare(String(x.date)));document.getElementById('bhAdvBody').innerHTML=rows.map(r=>`<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td class="bh-money">${this._num(r.amount).toLocaleString('ar-EG')} ج</td><td>${this._esc(r.note||'-')}</td><td>${this._esc(r.addedBy||'-')}</td><td><button class="bh-row-btn" onclick="BazarHRSuite.openAdvanceForm('${r.id}')">✏️</button> <button class="bh-row-btn bh-danger" onclick="BazarHRSuite.deleteRecord('bazarAdvances','${r.id}','السلفة')">🗑</button></td></tr>`).join('')||'<tr><td colspan="7" class="bh-muted">لا توجد بيانات</td></tr>';},
-  openAdvanceForm(id=''){const old=(this._cache.advances||[]).find(r=>r.id===id)||{};this._openModal(id?'تعديل سلفة':'إضافة سلفة',`<div class="suite-grid"><label>الموظف${this._empSelect('bhaAdvEmp',old.code,false)}</label>${this._field('bhaAdvAmount','القيمة',old.amount,'number','min="0"')}${this._field('bhaAdvDate','التاريخ',old.date||this._today(),'date')}${this._field('bhaAdvNote','ملاحظة',old.note||'')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.saveAdvance('${this._esc(id)}')">💾 حفظ</button></div>`);},
-  saveAdvance(id=''){const code=document.getElementById('bhaAdvEmp')?.value,emp=this._emp(code),amount=this._num(document.getElementById('bhaAdvAmount')?.value),date=document.getElementById('bhaAdvDate')?.value||this._today(),note=document.getElementById('bhaAdvNote')?.value||'';if(!emp||amount<=0){UI.toast('اختر موظفًا وأدخل قيمة صحيحة','error');return;}const rec={code:String(emp.code),name:emp.name,amount,date,note,timestamp:new Date(date+'T12:00:00').getTime(),addedBy:State.currentUser?.username||'-'};const ref=id?db.ref('bazarAdvances/'+id):db.ref('bazarAdvances').push();(id?ref.update(rec):ref.set(rec)).then(()=>{this.closeModal();UI.toast('✅ تم حفظ السلفة','success');});},
+  _bindPaneFilters(pane,draw){const bindings=Array.from(pane.querySelectorAll('[data-filter]'));bindings.forEach(el=>{el.addEventListener(el.type==='month'||el.tagName==='SELECT'?'change':'input',draw);});},
+  openPane(tab){this._active=tab;document.querySelectorAll('#bazarHrTabs .bhr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhrTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bhr-pane').forEach(p=>p.hidden=true);const p=document.getElementById('bh-pane-'+tab);if(p)p.hidden=false;this.renderActive();},
+  renderActive(){const m={employees:'renderEmployees',attendance:'renderAttendance',advances:'renderAdvances',incentives:'renderIncentives',penalties:'renderPenalties',permits:'renderPermits',payroll:'renderPayroll',payslip:'renderPayslip'};const fn=this[m[this._active]];if(typeof fn==='function')fn.call(this);},
 
-  renderIncentives(){const p=document.getElementById('bh-pane-incentives');if(!p)return;const a=this._cache.incentives||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>مكافأة الموظفين</h3><button class="suite-btn primary" onclick="BazarHRSuite.openIncentiveForm()">➕ إضافة مكافأة</button></div><div class="suite-grid"><input id="bhIncSearch" class="bh-input" placeholder="بحث" oninput="BazarHRSuite.renderIncentives()"><input id="bhIncMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderIncentives()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>النوع</th><th>القيمة</th><th>السبب</th><th>المدير</th><th>إجراء</th></tr></thead><tbody id="bhIncBody"></tbody></table></div></div>`;const q=(document.getElementById('bhIncSearch')?.value||'').toLowerCase(),m=document.getElementById('bhIncMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.date||'').startsWith(m)));document.getElementById('bhIncBody').innerHTML=rows.map(r=>`<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.type||'مالي')}</td><td class="bh-money">${this._num(r.amount).toLocaleString('ar-EG')} ${this._esc(r.unit||'جنيه')}</td><td>${this._esc(r.note||'-')}</td><td>${this._esc(r.manager||'-')}</td><td><button class="bh-row-btn bh-danger" onclick="BazarHRSuite.deleteRecord('bazarIncentives','${r.id}','المكافأة')">🗑</button></td></tr>`).join('')||'<tr><td colspan="7" class="bh-muted">لا توجد بيانات</td></tr>';},
-  openIncentiveForm(){this._openModal('إضافة مكافأة',`<div class="suite-grid"><label>الموظف${this._empSelect('bhiEmp','',false)}</label>${this._field('bhiAmount','القيمة',0,'number','min="0"')}${this._field('bhiDate','التاريخ',this._today(),'date')}${this._field('bhiType','النوع','مالي')}${this._field('bhiManager','المدير','')}${this._field('bhiNote','السبب','')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.saveIncentive()">💾 حفظ</button></div>`);},
-  saveIncentive(){const code=document.getElementById('bhiEmp')?.value,emp=this._emp(code),amount=this._num(document.getElementById('bhiAmount')?.value),date=document.getElementById('bhiDate')?.value||this._today();if(!emp||amount<=0){UI.toast('اختر موظفًا وأدخل قيمة صحيحة','error');return;}const id='inc_'+Date.now();const rec={id,code:String(code),name:emp.name,type:document.getElementById('bhiType')?.value||'مالي',amount,unit:'جنيه',note:document.getElementById('bhiNote')?.value||'',manager:document.getElementById('bhiManager')?.value||'-',date,by:State.currentUser?.username||'-',ts:Date.now()};db.ref('bazarIncentives/'+id).set(rec).then(()=>{this.closeModal();UI.toast('✅ تم تسجيل المكافأة','success');});},
+  _openModal(title,body){const m=document.getElementById('bh-modal');if(!m)return;m.innerHTML=`<div class="bhr-modal-box"><div class="bhr-modal-head"><b>${this._esc(title)}</b><button class="bhr-row-btn" data-bhr-action="close-modal">✕</button></div><div class="bhr-modal-body">${body}</div></div>`;m.hidden=false;},
+  closeModal(){const m=document.getElementById('bh-modal');if(m){m.hidden=true;m.innerHTML='';}},
+  _employeeOptions(selected){return `<option value="">اختر الموظف</option>`+this._employees().map(e=>`<option value="${this._esc(e.code)}" ${String(selected)===String(e.code)?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');},
+  _attachForm(id,save){const f=document.getElementById(id);if(f)f.addEventListener('submit',e=>{e.preventDefault();save();});},
 
-  renderPenalties(){const p=document.getElementById('bh-pane-penalties');if(!p)return;const a=this._cache.penalties||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>جزاءات الموظفين</h3><button class="suite-btn primary" onclick="BazarHRSuite.openPenaltyForm()">➕ إضافة جزاء</button></div><div class="suite-grid"><input id="bhPenSearch" class="bh-input" placeholder="بحث" oninput="BazarHRSuite.renderPenalties()"><input id="bhPenMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderPenalties()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>الساعات</th><th>القيمة</th><th>السبب</th><th>المدير</th><th>النوع</th><th>إجراء</th></tr></thead><tbody id="bhPenBody"></tbody></table></div></div>`;const q=(document.getElementById('bhPenSearch')?.value||'').toLowerCase(),m=document.getElementById('bhPenMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.date||'').startsWith(m)));document.getElementById('bhPenBody').innerHTML=rows.map(r=>{const e=this._emp(r.code),hour=(e?.salary||0)/30/Math.max(1,(e?.workHours||8));return `<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name)}</td><td>${this._num(r.hours).toFixed(2)}</td><td>${(this._num(r.hours)*hour).toFixed(2)} ج</td><td>${this._esc(r.reason||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${r.auto?'تلقائي':'يدوي'}</td><td><button class="bh-row-btn bh-danger" onclick="BazarHRSuite.deleteRecord('bazarPenalties','${r.id}','الجزاء')">🗑</button></td></tr>`;}).join('')||'<tr><td colspan="8" class="bh-muted">لا توجد بيانات</td></tr>';},
-  openPenaltyForm(){this._openModal('إضافة جزاء',`<div class="suite-grid"><label>الموظف${this._empSelect('bhpEmp','',false)}</label>${this._field('bhpHours','ساعات الخصم',0,'number','min="0" step="0.25"')}${this._field('bhpDate','التاريخ',this._today(),'date')}${this._field('bhpManager','المدير','')}${this._field('bhpReason','السبب','')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.savePenalty()">💾 حفظ</button></div>`);},
-  savePenalty(){const code=document.getElementById('bhpEmp')?.value,emp=this._emp(code),hours=this._num(document.getElementById('bhpHours')?.value);if(!emp||hours<=0){UI.toast('اختر موظفًا وأدخل ساعات الخصم','error');return;}const rec={code:String(code),name:emp.name,hours,manager:document.getElementById('bhpManager')?.value||'-',reason:document.getElementById('bhpReason')?.value||'',date:document.getElementById('bhpDate')?.value||this._today(),time:new Date().toLocaleTimeString('ar-EG'),createdBy:State.currentUser?.username||'-'};db.ref('bazarPenalties').push(rec).then(()=>{this.closeModal();UI.toast('✅ تم تسجيل الجزاء','success');});},
+  openEmployeeForm(code=''){if(!this._canEdit()){this._toast('⛔ لا توجد صلاحية تعديل','error');return;}const old=this._employee(code)||{code:'',name:'',job:'',branch:'البازار',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'نشط'};this._openModal(code?'تعديل موظف':'موظف جديد',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الكود</span><input class="bhr-input" id="bhr-code" required value="${this._esc(old.code)}"></label><label class="bhr-field"><span>الاسم</span><input class="bhr-input" id="bhr-name" required value="${this._esc(old.name)}"></label><label class="bhr-field"><span>الوظيفة</span><input class="bhr-input" id="bhr-job" value="${this._esc(old.job)}"></label><label class="bhr-field"><span>الفرع</span><input class="bhr-input" id="bhr-branch" value="${this._esc(old.branch)}"></label><label class="bhr-field"><span>الراتب</span><input class="bhr-input" id="bhr-salary" type="number" min="0" value="${this._esc(old.salary)}"></label><label class="bhr-field"><span>التعيين</span><input class="bhr-input" id="bhr-hire" type="date" value="${this._esc(old.hireDate)}"></label><label class="bhr-field"><span>الرقم القومي</span><input class="bhr-input" id="bhr-national" value="${this._esc(old.nationalId)}"></label><label class="bhr-field"><span>الهاتف</span><input class="bhr-input" id="bhr-phone" value="${this._esc(old.phone)}"></label><label class="bhr-field"><span>الحضور الرسمي</span><input class="bhr-input" id="bhr-in" type="time" value="${this._esc(old.checkIn)}"></label><label class="bhr-field"><span>الانصراف الرسمي</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.checkOut)}"></label><label class="bhr-field"><span>ساعات العمل</span><input class="bhr-input" id="bhr-hours" type="number" step="0.25" min="0" value="${this._esc(old.workHours)}"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" id="bhr-status"><option value="نشط" ${old.employmentStatus==='نشط'?'selected':''}>نشط</option><option value="مستقيل" ${old.employmentStatus==='مستقيل'?'selected':''}>مستقيل</option><option value="موقوف" ${old.employmentStatus==='موقوف'?'selected':''}>موقوف</option></select></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button><button class="bhr-btn" type="button" data-bhr-action="close-modal">إلغاء</button></div></form>`);this._attachForm('bhr-form',()=>this._saveEmployee(code));},
+  async _saveEmployee(oldCode){const code=String(document.getElementById('bhr-code')?.value||'').trim(),name=String(document.getElementById('bhr-name')?.value||'').trim();if(!code||!name){this._toast('الكود والاسم مطلوبان','error');return;}if(!oldCode&&this._employee(code)){this._toast('هذا الكود موجود بالفعل','error');return;}if(oldCode&&code!==String(oldCode)&&this._employee(code)){this._toast('الكود الجديد مستخدم بالفعل','error');return;}const old=this._employee(oldCode)||{};const rec={...old,code,name,job:String(document.getElementById('bhr-job')?.value||'').trim(),branch:String(document.getElementById('bhr-branch')?.value||'البازار').trim()||'البازار',salary:this._money(document.getElementById('bhr-salary')?.value),hireDate:this._normDate(document.getElementById('bhr-hire')?.value||''),nationalId:String(document.getElementById('bhr-national')?.value||'').trim(),phone:String(document.getElementById('bhr-phone')?.value||'').trim(),checkIn:String(document.getElementById('bhr-in')?.value||'').trim(),checkOut:String(document.getElementById('bhr-out')?.value||'').trim(),workHours:this._num(document.getElementById('bhr-hours')?.value),employmentStatus:String(document.getElementById('bhr-status')?.value||'نشط'),updatedAt:Date.now(),updatedBy:State.currentUser?.username||'-'};try{if(oldCode&&code!==String(oldCode)){const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode));const oldKey=oldRow?.firebaseKey||oldRow?.id||oldCode;await db.ref().update({[`bazarEmpData/${oldKey}`]:null,[`bazarEmpData/${code}`]:rec});}else{const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode||code));const key=oldRow?.firebaseKey||oldRow?.id||code;await db.ref('bazarEmpData/'+key).set(rec);}this.closeModal();this._toast('✅ تم حفظ الموظف','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  openAdvanceForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.advances.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل سلفة':'إضافة سلفة',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>القيمة</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" required value="${this._esc(old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAdvance(id));},
+  async _saveAdvance(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value),date=this._normDate(document.getElementById('bhr-date')?.value||this._today());if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date,note:String(document.getElementById('bhr-note')?.value||''),addedBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarAdvances/'+id):db.ref('bazarAdvances').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ السلفة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  openIncentiveForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.incentives.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل مكافأة':'إضافة مكافأة',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>القيمة</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" required value="${this._esc(old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'مالي')}"></label><label class="bhr-field"><span>الوحدة</span><input class="bhr-input" id="bhr-unit" value="${this._esc(old.unit||'جنيه')}"></label><label class="bhr-field"><span>المدير</span><input class="bhr-input" id="bhr-manager" value="${this._esc(old.manager||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>السبب</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveIncentive(id));},
+  async _saveIncentive(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),type:String(document.getElementById('bhr-type')?.value||'مالي'),unit:String(document.getElementById('bhr-unit')?.value||'جنيه'),manager:String(document.getElementById('bhr-manager')?.value||''),note:String(document.getElementById('bhr-note')?.value||''),by:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarIncentives/'+id):db.ref('bazarIncentives').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ المكافأة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  openPenaltyForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.penalties.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل جزاء':'إضافة جزاء',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>الساعات</span><input class="bhr-input" id="bhr-hours" type="number" min="0" step="0.25" value="${this._esc(old.hours??'')}"></label><label class="bhr-field"><span>القيمة (اختياري)</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" value="${this._esc(old.value??old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field"><span>المدير</span><input class="bhr-input" id="bhr-manager" value="${this._esc(old.manager||'')}"></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'يدوي')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>السبب</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.reason||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePenalty(id));},
+  async _savePenalty(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),hours=this._num(document.getElementById('bhr-hours')?.value),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||(!hours&&!amount))return this._toast('اختر الموظف وأدخل الساعات أو القيمة','error');const rec={code:emp.code,name:emp.name,hours,amount,value:amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ الجزاء','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  openPermitForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.permits.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل إذن':'إضافة إذن',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'شخصي')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||old.dateKey||this._today())}"></label><label class="bhr-field"><span>وقت الخروج</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.breakTime||'')}"></label><label class="bhr-field"><span>وقت الرجوع</span><input class="bhr-input" id="bhr-back" type="time" value="${this._esc(old.returnTime||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePermit(id));},
+  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _saveAttendance(code,date,inTime,outTime,note){const emp=this._employee(code);if(!emp||!inTime)return this._toast('اختر الموظف وأدخل وقت الحضور','error');const inTs=new Date(date+'T'+inTime+':00').getTime();let outTs=outTime?new Date(date+'T'+outTime+':00').getTime():0;if(outTs&&outTs<=inTs)outTs+=86400000;const updates={};this._data.attendance.filter(a=>String(a.code)===String(code)&&(a.workDate||this._dayKey(a.timestamp))===date).forEach(a=>{updates[`fingerprintBazar/${a.id}`]=null;});const base=`manual_${Date.now()}_${code}`;updates[`fingerprintBazar/${base}_in`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckIn',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(inTs),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};if(outTs)updates[`fingerprintBazar/${base}_out`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckOut',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(outTs),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};await db.ref().update(updates);this.closeModal();this._toast('✅ تم حفظ الحضور والانصراف','success');},
+  openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value=""></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
 
-  renderPermits(){const p=document.getElementById('bh-pane-permits');if(!p)return;const a=this._cache.permits||[];p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3>تصريح اذن</h3><button class="suite-btn primary" onclick="BazarHRSuite.openPermitForm()">➕ إضافة إذن</button></div><div class="suite-grid"><input id="bhBrSearch" class="bh-input" placeholder="بحث" oninput="BazarHRSuite.renderPermits()"><input id="bhBrMonth" class="bh-input" type="month" onchange="BazarHRSuite.renderPermits()"></div></div><div class="glass-card bh-card"><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>التاريخ</th><th>الموظف</th><th>النوع</th><th>الخروج</th><th>الرجوع</th><th>المدة</th><th>الحالة</th><th>المستخدم</th></tr></thead><tbody id="bhBrBody"></tbody></table></div></div>`;const q=(document.getElementById('bhBrSearch')?.value||'').toLowerCase(),m=document.getElementById('bhBrMonth')?.value||'';const rows=a.filter(r=>(!q||String(r.name||'').toLowerCase().includes(q)||String(r.code||'').includes(q))&&(!m||String(r.dateKey||r.date||'').includes(m.replace('-','/'))||String(r.date||'').includes(m)));document.getElementById('bhBrBody').innerHTML=rows.map(r=>`<tr><td>${this._esc(r.date||'-')}</td><td>${this._esc(r.name||this._emp(r.code)?.name||r.code)}</td><td>${this._esc(r.type||'-')}</td><td>${this._esc(r.breakTime||'-')}</td><td>${this._esc(r.returnTime||'-')}</td><td>${this._fmtMin((this._num(r.duration)/60000))}</td><td>${this._esc(r.status||'-')}</td><td>${this._esc(r.user||'-')}</td></tr>`).join('')||'<tr><td colspan="8" class="bh-muted">لا توجد بيانات</td></tr>';},
-  openPermitForm(){this._openModal('تصريح اذن',`<div class="suite-grid"><label>الموظف${this._empSelect('bhbEmp','',false)}</label>${this._field('bhbType','نوع الاستئذان','شخصي')}${this._field('bhbDate','التاريخ',this._today(),'date')}${this._field('bhbIn','وقت الخروج','','time')}${this._field('bhbOut','وقت الرجوع','','time')}${this._field('bhbNote','ملاحظة','')}</div><div style="margin-top:14px"><button class="suite-btn primary" onclick="BazarHRSuite.savePermit()">💾 حفظ</button></div>`);},
-  savePermit(){const code=document.getElementById('bhbEmp')?.value,emp=this._emp(code),date=document.getElementById('bhbDate')?.value||this._today(),iv=document.getElementById('bhbIn')?.value,ov=document.getElementById('bhbOut')?.value;if(!emp||!iv){UI.toast('اختر موظفًا ووقت الخروج','error');return;}const it=this._parseTime(iv),ot=this._parseTime(ov);let dur=0;if(it!=null&&ot!=null)dur=((ot<=it?ot+1440:ot)-it)*60000;const rec={code:String(code),name:emp.name,type:document.getElementById('bhbType')?.value||'شخصي',breakTime:iv,breakTimestamp:new Date(`${date}T${iv}:00`).getTime(),returnTime:ov||null,returnTimestamp:ov?new Date(`${date}T${ov}:00`).getTime():null,duration:dur,status:ov?'closed':'open',date:this._date(date),dateKey:date,user:State.currentUser?.username||'-',note:document.getElementById('bhbNote')?.value||''};db.ref('bazarBreaks').push(rec).then(()=>{this.closeModal();UI.toast('✅ تم تسجيل تصريح الإذن','success');});},
+  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');showConfirm(`حذف ${label}؟`,async()=>{try{await db.ref(path+'/'+id).remove();this._toast('🗑️ تم الحذف','warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
+  async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs:Math.max(0,now-Number(row.breakTimestamp||0)),status:'closed',updatedAt:Date.now()});},
 
-  _payrollRows(month){const daysStart=new Date(month+'-01T00:00:00'),end=new Date(daysStart.getFullYear(),daysStart.getMonth()+1,0),days=end.getDate(),from=`${daysStart.getFullYear()}-${String(daysStart.getMonth()+1).padStart(2,'0')}-01`,to=`${daysStart.getFullYear()}-${String(daysStart.getMonth()+1).padStart(2,'0')}-${String(days).padStart(2,'0')}`;const rows=this._attendanceRows(from,to),by={};rows.forEach(r=>(by[r.code] ||= []).push(r));return this._employees().map(e=>{const rr=by[e.code]||[],present=rr.filter(r=>r.status==='مكتمل'||r.status==='جارٍ').length,absence=Math.max(0,this._targetDays-present),extra=Math.max(0,present-this._targetDays),daily=e.salary/30,hourly=daily/Math.max(.01,e.workHours||8);const overtimeMin=rr.reduce((s,r)=>s+r.overtimeMin,0),deductMin=rr.reduce((s,r)=>s+r.deductMin,0),actualMin=rr.reduce((s,r)=>s+r.actualMin,0);const bonuses=(this._cache.incentives||[]).filter(x=>String(x.code)===e.code&&String(x.date||'').startsWith(month)).reduce((s,x)=>s+this._num(x.amount),0),advances=(this._cache.advances||[]).filter(x=>String(x.code)===e.code&&String(x.date||'').startsWith(month)).reduce((s,x)=>s+this._num(x.amount),0),penalties=(this._cache.penalties||[]).filter(x=>String(x.code)===e.code&&String(x.date||'').startsWith(month)).reduce((s,x)=>s+this._num(x.hours)*hour,0),perm=(this._cache.permits||[]).filter(x=>String(x.code)===e.code&&String(x.dateKey||'').startsWith(month)).reduce((s,x)=>s+this._num(x.duration)/60000,0),absenceVal=absence*daily,extraVal=extra*daily,overtimePay=(overtimeMin/60)*hour,deductPay=(deductMin/60)*hour,net=e.salary+bonuses+extraVal+overtimePay-absenceVal-deductPay-penalties-advances;return {e,present,absence,extra,daily,hourly,overtimeMin,deductMin,actualMin,bonuses,advances,penalties,perm,absenceVal,extraVal,overtimePay,deductPay,net};});},
-  renderPayroll(){const p=document.getElementById('bh-pane-payroll');if(!p)return;const month=(document.getElementById('bhPayrollMonth')?.value)||this._today().slice(0,7);const rows=this._payrollRows(month);p.innerHTML=`<div class="glass-card bh-card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><h3>بيان المرتبات — ${month}</h3><div class="bh-muted">المعادلات مطبقة بالدقائق والجنيه، مع فصل بيانات الموظفين عن العمليات المالية.</div></div><div style="display:flex;gap:7px"><input id="bhPayrollMonth" class="bh-input" type="month" value="${month}" onchange="BazarHRSuite.renderPayroll()"><button class="suite-btn warn" onclick="BazarHRSuite.exportPayroll()">📊 Excel</button></div></div><div class="bh-table-wrap"><table class="bh-table"><thead><tr><th>الموظف</th><th>المرتب الأساسي</th><th>أيام الحضور</th><th>غياب</th><th>إضافي أيام</th><th>سلف</th><th>مكافآت</th><th>جزاءات</th><th>تأخير بعد السماح</th><th>إضافي ساعات</th><th>إذن</th><th>صافي المرتب</th><th>البيان</th></tr></thead><tbody>${rows.map(r=>`<tr><td style="font-weight:800">${this._esc(r.e.name)}<br><span class="bh-muted">${this._esc(r.e.code)}</span></td><td>${r.e.salary.toFixed(2)}</td><td>${r.present}</td><td>${r.absence}</td><td>${r.extra}</td><td>${r.advances.toFixed(2)}</td><td class="bh-success">${r.bonuses.toFixed(2)}</td><td style="color:#fca5a5">${r.penalties.toFixed(2)}</td><td>${r.deductPay.toFixed(2)}</td><td class="bh-money">${r.overtimePay.toFixed(2)}</td><td>${this._fmtMin(r.perm)}</td><td style="font-weight:900;color:#c7d2fe">${r.net.toFixed(2)} ج</td><td><button class="bh-row-btn" onclick="BazarHRSuite.openPayslip('${this._esc(r.e.code)}','${month}')">🧾</button></td></tr>`).join('')||'<tr><td colspan="13" class="bh-muted">لا توجد بيانات</td></tr>'}</tbody></table></div></div>`;},
-  renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const emps=this._employees();p.innerHTML=`<div class="glass-card bh-card"><h3>شيك قبض الموظف</h3><div class="suite-grid"><label>الموظف${this._empSelect('bhSlipEmp','',true)}</label><label>الشهر<input id="bhSlipMonth" class="bh-input" type="month" value="${this._today().slice(0,7)}"></label><button class="suite-btn primary" style="align-self:end" onclick="BazarHRSuite.openPayslip(document.getElementById('bhSlipEmp').value,document.getElementById('bhSlipMonth').value)">🧾 عرض الشيك</button></div><div id="bhSlipResult" style="margin-top:14px"></div></div>`;},
-  openPayslip(code,month){const e=this._emp(code);if(!e){UI.toast('اختر الموظف','warning');return;}const m=month||this._today().slice(0,7),r=this._payrollRows(m).find(x=>x.e.code===e.code);this.openPane('payslip');const box=document.getElementById('bhSlipResult')||document.getElementById('bh-pane-payslip');const html=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;border-bottom:2px solid #111;padding-bottom:12px"><div style="font-size:21px;font-weight:900">علوش البازار</div><div style="font-size:14px">شيك قبض الموظف</div></div><div class="suite-grid" style="margin-top:16px"><div><b>الموظف:</b> ${this._esc(e.name)}</div><div><b>الكود:</b> ${this._esc(e.code)}</div><div><b>الوظيفة:</b> ${this._esc(e.job||'-')}</div><div><b>الفترة:</b> ${m}</div></div><table style="width:100%;margin-top:18px;border-collapse:collapse"><tr><td style="padding:7px;border-bottom:1px solid #ddd">المرتب الأساسي</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">${r.e.salary.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">مكافآت</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">+ ${r.bonuses.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">إضافي أيام</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">+ ${r.extraVal.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">إضافي ساعات</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">+ ${r.overtimePay.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">غياب</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.absenceVal.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">خصم تأخير/خروج قبل الموعد</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.deductPay.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">جزاءات</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.penalties.toFixed(2)} ج</td></tr><tr><td style="padding:7px;border-bottom:1px solid #ddd">سلف</td><td style="padding:7px;border-bottom:1px solid #ddd;text-align:left">- ${r.advances.toFixed(2)} ج</td></tr><tr><td style="padding:10px;font-weight:900;font-size:17px">الصافي</td><td style="padding:10px;font-weight:900;font-size:17px;text-align:left">${r.net.toFixed(2)} ج</td></tr></table><div style="display:flex;justify-content:space-between;margin-top:35px"><span>توقيع الموظف: __________</span><span>المسؤول: __________</span></div><div style="margin-top:15px;text-align:center"><button class="suite-btn" onclick="window.print()">🖨️ طباعة</button></div></div>`;if(box)box.innerHTML=html;},
+  async syncFromDevice(){const b=[...document.querySelectorAll('#tab-fingerprint-bazar .bhr-btn')].find(x=>String(x.textContent||'').includes('مزامنة'));if(b){b.disabled=true;b.textContent='⏳ جارٍ المزامنة...';}try{const ref=db.ref('syncRequests').push();await ref.set({status:'pending',requestedBy:State.currentUser?.username||'-',requestedAt:new Date().toISOString(),device:'fingerprintBazar'});this._toast('📡 تم إرسال طلب المزامنة','info');const key=ref.key;let waited=0;const timer=setInterval(async()=>{waited+=3;try{const snap=await db.ref('syncRequests/'+key).once('value');const d=snap.val();if(d?.status==='done'){clearInterval(timer);this._toast('✅ تمت المزامنة — '+(d.uploaded||0)+' سجل','success');this.refreshAll();if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}else if(d?.status==='error'||waited>=180){clearInterval(timer);this._toast(d?.message||'⏰ انتهت مهلة المزامنة','warning');if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}}catch(e){clearInterval(timer);if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}},3000);}catch(e){if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}this._toast('❌ '+e.message,'error');}},
 
-  exportCurrent(){const t=this._active;let rows=[],name=t;if(t==='employees')rows=this._employees().map(e=>({الكود:e.code,الموظف:e.name,الوظيفة:e.job,الفرع:e.branch,المرتب:e.salary,الحضور_الرسمي:e.checkIn,الانصراف_الرسمي:e.checkOut,الساعات:e.workHours,الحالة:e.employmentStatus}));else if(t==='attendance')rows=this._attendanceRows(document.getElementById('bhaFrom')?.value||this._today(),document.getElementById('bhaTo')?.value||this._today()).map(r=>({التاريخ:r.date,الكود:r.code,الموظف:r.name,الحضور:r.checkIn?this._time(r.checkIn.timestamp):'',الانصراف:r.checkOut?this._time(r.checkOut.timestamp):'',التأخير:this._fmtMin(r.lateMin),خروج_مبكر:this._fmtMin(r.earlyMin),قبل_الموعد:this._fmtMin(r.earlyArrMin),بعد_الموعد:this._fmtMin(r.lateExitMin),السماح:this._fmtMin(r.graceMin),الخصم:this._fmtMin(r.deductMin),الإضافي:this._fmtMin(r.overtimeMin),الساعات_الفعلية:this._fmtMin(r.actualMin)}));else {const map={advances:'advances',incentives:'incentives',penalties:'penalties',permits:'permits'};rows=(this._cache[map[t]]||[]).map(x=>({...x}));}if(!rows.length){UI.toast('لا توجد بيانات للتصدير','warning');return;}const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,name);XLSX.writeFile(wb,`bazar_${t}_${this._today()}.xlsx`);UI.toast('✅ تم تصدير البيانات','success');},
-  exportPayroll(){const month=document.getElementById('bhPayrollMonth')?.value||this._today().slice(0,7),rows=this._payrollRows(month).map(r=>({الموظف:r.e.name,الكود:r.e.code,المرتب_الأساسي:r.e.salary,أيام_الحضور:r.present,الغياب:r.absence,إضافي_أيام:r.extra,قيمة_الغياب:r.absenceVal,قيمة_الإضافي_أيام:r.extraVal,السلف:r.advances,المكافآت:r.bonuses,الجزاءات:r.penalties,خصم_التأخير:r.deductPay,إضافي_الساعات:r.overtimePay,ساعات_الإذن:this._fmtMin(r.perm),صافي_المرتب:r.net}));const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'بيان المرتبات');XLSX.writeFile(wb,`bazar_payroll_${month}.xlsx`);UI.toast('✅ تم تصدير بيان المرتبات','success');},
-  deleteRecord(path,id,label){showConfirm(`حذف ${label}؟`,()=>db.ref(`${path}/${id}`).remove().then(()=>UI.toast('🗑️ تم الحذف','warning')).catch(e=>UI.toast('❌ '+e.message,'error')));},
-  syncFromDevice(){const btn=[...document.querySelectorAll('#tab-fingerprint-bazar button')].find(b=>String(b.textContent||'').includes('مزامنة'));if(btn){btn.disabled=true;btn.textContent='⏳ جارٍ المزامنة...';}return (async()=>{try{const ref=db.ref('syncRequests').push();await ref.set({status:'pending',requestedBy:State.currentUser?.username||'-',requestedAt:new Date().toISOString(),device:'fingerprintBazar'});UI.toast('📡 تم إرسال طلب المزامنة','info');const key=ref.key;let waited=0;const timer=setInterval(async()=>{waited+=3;try{const snap=await db.ref('syncRequests/'+key).once('value'),d=snap.val();if(d?.status==='done'){clearInterval(timer);UI.toast('✅ تمت المزامنة — '+(d.uploaded||0)+' سجل','success');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}else if(d?.status==='error'||waited>=180){clearInterval(timer);UI.toast(d?.message||'⏰ انتهت مهلة المزامنة','warning');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}}catch(e){clearInterval(timer);if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}},3000);}catch(e){UI.toast('❌ '+e.message,'error');if(btn){btn.disabled=false;btn.textContent='🖐️ مزامنة البصمة';}}})();}
+  exportCurrent(){if(!this._canExcel())return this._toast('ليس لديك صلاحية تصدير Excel','error');const t=this._active;const name={employees:'بيانات الموظفين',attendance:'الحضور والانصراف',advances:'السلف',incentives:'المكافآت',penalties:'الجزاءات',permits:'الأذونات',payroll:'المرتبات'}[t]||t;let rows=[];if(t==='employees')rows=this._employees().map(e=>({'الكود':e.code,'الموظف':e.name,'الوظيفة':e.job,'الفرع':e.branch,'الراتب':e.salary,'التعيين':e.hireDate,'الرقم القومي':e.nationalId,'الهاتف':e.phone,'الحضور الرسمي':e.checkIn,'الانصراف الرسمي':e.checkOut,'ساعات العمل':e.workHours,'الحالة':e.employmentStatus}));if(t==='attendance')rows=this._attendanceDailyRows(document.querySelector('#bh-pane-attendance [data-filter="from"]')?.value||'',document.querySelector('#bh-pane-attendance [data-filter="to"]')?.value||'').map(r=>({'التاريخ':r.date,'الموظف':r.name,'الكود':r.code,'الوظيفة':r.job,'الحضور':r.cin?this._timeText(r.cin.timestamp):'-','الانصراف':r.cout?this._timeText(r.cout.timestamp):'-','الساعات الفعلية':this._fmtMin(r.actual),'التأخير':this._fmtMin(r.late),'الخروج المبكر':this._fmtMin(r.early),'الإضافي':this._fmtMin(r.earlyArr+r.lateExit),'الحالة':r.status}));if(t==='advances')rows=this._filtered('advances',document.querySelector('#bh-pane-advances [data-filter="search"]')?.value||'',document.querySelector('#bh-pane-advances [data-filter="month"]')?.value||'').map(r=>({'التاريخ':r.date,'الموظف':r.name,'الكود':r.code,'القيمة':r.amount,'الملاحظة':r.note,'بواسطة':r.addedBy}));if(t==='incentives')rows=this._filtered('incentives',document.querySelector('#bh-pane-incentives [data-filter="search"]')?.value||'',document.querySelector('#bh-pane-incentives [data-filter="month"]')?.value||'').map(r=>({'التاريخ':r.date,'الموظف':r.name,'الكود':r.code,'النوع':r.type,'القيمة':r.amount,'الوحدة':r.unit,'السبب':r.note,'المدير':r.manager,'بواسطة':r.by}));if(t==='penalties')rows=this._filtered('penalties',document.querySelector('#bh-pane-penalties [data-filter="search"]')?.value||'',document.querySelector('#bh-pane-penalties [data-filter="month"]')?.value||'').map(r=>({'التاريخ':r.date,'الموظف':r.name,'الكود':r.code,'الساعات':r.hours,'القيمة':r.value,'السبب':r.reason,'المدير':r.manager,'النوع':r.type,'بواسطة':r.by}));if(t==='permits')rows=this._filtered('permits',document.querySelector('#bh-pane-permits [data-filter="search"]')?.value||'',document.querySelector('#bh-pane-permits [data-filter="month"]')?.value||'').map(r=>({'التاريخ':r.date,'الموظف':r.name,'الكود':r.code,'النوع':r.type,'الخروج':r.breakTime,'الرجوع':r.returnTime,'المدة':this._fmtMin(Number(r.durationMs||0)/60000),'الحالة':r.status,'المستخدم':r.user,'الملاحظة':r.note}));if(t==='payroll')rows=this._payrollRows(document.querySelector('#bh-pane-payroll [data-filter="month"]')?.value||this._today().slice(0,7)).map(r=>({'الموظف':r.e.name,'الكود':r.e.code,'الوظيفة':r.e.job,'الراتب':r.e.salary,'حضور':r.present,'غياب':r.absence,'سلف':r.advances,'مكافآت':r.bonuses,'جزاءات':r.penalties,'خصم':r.deductPay,'إضافي':r.overtimePay,'الصافي':r.net}));if(!rows.length)return this._toast('لا توجد بيانات للتصدير','warning');const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,name);XLSX.writeFile(wb,`bazar_${t}_${this._today()}.xlsx`);this._toast('✅ تم تصدير نفس البيانات الظاهرة في الجدول','success');},
+  _exportPayroll(){return this.exportCurrent();},
+
+  _rowIdDecode(v){try{return decodeURIComponent(String(v));}catch(_){return String(v);}},
+  _handleClick(e){const t=e.target.closest('[data-bhr-tab]');if(t)return this.openPane(t.dataset.bhrTab);const top=e.target.closest('[data-bhr-action]');if(top){const a=top.dataset.bhrAction;if(a==='sync')return this.syncFromDevice();if(a==='refresh')return this.refreshAll();if(a==='export')return this.exportCurrent();if(a==='add-employee')return this.openEmployeeForm();if(a==='add-advance')return this.openAdvanceForm();if(a==='add-incentive')return this.openIncentiveForm();if(a==='add-penalty')return this.openPenaltyForm();if(a==='add-permit')return this.openPermitForm();if(a==='add-attendance')return this.openAttendanceForm();if(a==='show-payslip')return this._showPayslip(document.querySelector('#bh-pane-payslip [data-filter="employee"]')?.value||'',document.querySelector('#bh-pane-payslip [data-filter="month"]')?.value||this._today().slice(0,7));if(a==='print-slip')return window.print();if(a==='close-modal')return this.closeModal();if(a==='export-payroll')return this.exportCurrent();}
+    const row=e.target.closest('[data-bhr-row]');if(!row)return;const a=row.dataset.bhrRow,id=this._rowIdDecode(row.dataset.id);if(a==='edit'){if(this._active==='employees')return this.openEmployeeForm(id);if(this._active==='advances')return this.openAdvanceForm(id);if(this._active==='incentives')return this.openIncentiveForm(id);if(this._active==='penalties')return this.openPenaltyForm(id);if(this._active==='permits')return this.openPermitForm(id);if(this._active==='attendance'){const [code,date]=id.split('|');return this.openAttendanceForm(code,date);}}if(a==='delete'){if(this._active==='employees'){const r=this._employee(id);const key=r?.firebaseKey||r?.id||id;return this._delete('bazarEmpData',key,'الموظف');}if(this._active==='advances')return this._delete('bazarAdvances',id,'السلفة');if(this._active==='incentives')return this._delete('bazarIncentives',id,'المكافأة');if(this._active==='penalties')return this._delete('bazarPenalties',id,'الجزاء');if(this._active==='permits')return this._delete('bazarBreaks',id,'الإذن');}if(a==='return-permit')return this._returnPermit(id);},
+  init(){if(this._initialized){this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.openPane('employees');this._toast('✅ بصمة البازار V37 — نظام موحد بدون طبقات متداخلة','success');}
 };
+window.BazarHRSuite=BazarHRSuite;
+console.info('[Allosh Bazar HR] V39 single-core');
 
 // FINGERPRINT BAZAR SERVICE - بصمة البازار
 // ════════════════════════════════════════════════════════════
@@ -18984,14 +18780,6 @@ UI.renderTransfers()
         } },
                 { ref: "advances",  stateKey: "advances",  render: () => {} }
             ];
-            db.ref("fingerprintBazar").on("value", snap => {
-                const data = [];
-                snap.forEach(c => { data.push({ id: c.key, ...c.val() }); });
-                State.fingerprintBazar = data;
-                if(document.getElementById('tab-fingerprint-bazar')?.style.display !== 'none') {
-                    if(window.BazarHRSuite) BazarHRSuite.refreshActivePane();
-                }
-            });
             db.ref("autoDeductExemptions").on("value", snap => {
                 const map = {};
                 snap.forEach(c => { map[c.key] = c.val(); });
@@ -20873,258 +20661,9 @@ document.addEventListener('DOMContentLoaded', () => PWAInstall.init());
 </script>
 
 
-<script>
-// ── تسجيل Service Worker ──────────────────────────────
-if ('serviceWorker' in navigator) {
-  const swBase = location.pathname.substring(0, location.pathname.lastIndexOf('/') + 1);
-  navigator.serviceWorker.register(swBase + 'sw.js', { scope: swBase })
-    .then(reg => {
-      window.PWARegistration = reg;
-      console.log('[PWA] SW registered');
-
-      // تحديث تلقائي لو في نسخة جديدة
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // في تحديث جديد — نعلم المستخدم
-            if(typeof UI !== 'undefined') {
-              UI.toast('🔄 تحديث جديد متاح — أعد التحميل لتطبيقه', 'info');
-            }
-          }
-        });
-      });
-    })
-    .catch(err => console.warn('[PWA] SW registration failed:', err));
-
-  // استقبال رسائل من SW
-  navigator.serviceWorker.addEventListener('message', event => {
-    const { type, actions, count } = event.data || {};
-    if (type === 'SYNC_PENDING' && actions && actions.length > 0) {
-      console.log(`[PWA] Syncing ${count} offline actions...`);
-      OfflineDB.syncAll(actions);
-    }
-  });
-}
-
-// ── IndexedDB — حفظ البيانات أوف لاين ────────────────
-const OfflineDB = {
-  _db: null,
-  DB_NAME:    'allosh-offline',
-  STORE_NAME: 'pending-actions',
-
-  async open() {
-    if (this._db) return this._db;
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(this.DB_NAME, 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
-          const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id', autoIncrement: true });
-          store.createIndex('collection', 'collection', { unique: false });
-        }
-      };
-      req.onsuccess = e => { this._db = e.target.result; resolve(this._db); };
-      req.onerror   = e => reject(e.target.error);
-    });
-  },
-
-  async save(collection, data) {
-    const db    = await this.open();
-    const tx    = db.transaction(this.STORE_NAME, 'readwrite');
-    const store = tx.objectStore(this.STORE_NAME);
-    return new Promise((resolve, reject) => {
-      const req = store.add({ collection, data, savedAt: Date.now() });
-      req.onsuccess = () => resolve(req.result);
-      req.onerror   = e => reject(e.target.error);
-    });
-  },
-
-  async getAll() {
-    const db    = await this.open();
-    const tx    = db.transaction(this.STORE_NAME, 'readonly');
-    const store = tx.objectStore(this.STORE_NAME);
-    return new Promise((resolve, reject) => {
-      const req = store.getAll();
-      req.onsuccess = e => resolve(e.target.result);
-      req.onerror   = e => reject(e.target.error);
-    });
-  },
-
-  async delete(id) {
-    const db    = await this.open();
-    const tx    = db.transaction(this.STORE_NAME, 'readwrite');
-    const store = tx.objectStore(this.STORE_NAME);
-    return new Promise((resolve, reject) => {
-      const req = store.delete(id);
-      req.onsuccess = () => resolve();
-      req.onerror   = e => reject(e.target.error);
-    });
-  },
-
-  // رفع كل البيانات المحلية لـ Firebase لما النت يرجع
-  async syncAll(actions) {
-    if (!actions || !actions.length) return;
-    let synced = 0, failed = 0;
-
-    for (const action of actions) {
-      try {
-        // رفع على Firebase
-        await db.ref(action.collection).push(action.data);
-        // حذف من الـ IndexedDB
-        await this.delete(action.id);
-        // إبلاغ الـ SW
-        if (navigator.serviceWorker.controller) {
-          navigator.serviceWorker.controller.postMessage({ type: 'ACTION_SYNCED', id: action.id });
-        }
-        synced++;
-      } catch (err) {
-        console.error('[OfflineDB] Failed to sync action:', action.id, err);
-        failed++;
-      }
-    }
-
-    if (synced > 0) {
-      if (typeof UI !== 'undefined') UI.toast(`✅ تم رفع ${synced} عملية محفوظة أوف لاين`, 'success');
-      console.log(`[OfflineDB] Synced: ${synced}, Failed: ${failed}`);
-    }
-  }
-};
-
-// ── مراقبة حالة الشبكة ───────────────────────────────
-window.addEventListener('online', async () => {
-  console.log('[PWA] Back online — checking pending actions...');
-  if (typeof UI !== 'undefined') UI.toast('📶 عاد الاتصال بالإنترنت', 'success');
-
-  // تسجيل Background Sync
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    const reg = await navigator.serviceWorker.ready;
-    await reg.sync.register('allosh-sync');
-  } else {
-    // Fallback — sync مباشرة
-    const pending = await OfflineDB.getAll();
-    if (pending.length > 0) OfflineDB.syncAll(pending);
-  }
-});
-
-window.addEventListener('offline', () => {
-  console.log('[PWA] Gone offline');
-  if (typeof UI !== 'undefined') UI.toast('📵 انقطع الاتصال — البيانات تُحفظ محلياً', 'warning');
-});
-
-// ── دالة مساعدة — حفظ في Firebase أو IndexedDB ──────
-async function saveOrQueue(collection, data) {
-  if (navigator.onLine) {
-    // النت شغّال — ارفع مباشرة
-    return db.ref(collection).push(data);
-  } else {
-    // أوف لاين — استبدال أي timestamp سيرفر بوقت مُصحَّح (نفس فرق التوقيت مع السيرفر)
-    // بدل ساعة الجهاز الخام، عشان لو ساعة الموبايل مش مظبوطة، حساب "ساعات العمل"
-    // بين حضور وانصراف اتسجلوا في ظروف اتصال مختلفة يفضل دقيق ومايبقاش "قريب بس مش مطابق"
-    const offlineData = Object.assign({}, data);
-    Object.keys(offlineData).forEach(k => {
-      if (offlineData[k] && typeof offlineData[k] === 'object' && offlineData[k]['.sv'] === 'timestamp') {
-        offlineData[k] = TimeUtils.now();
-      }
-    });
-    await OfflineDB.save(collection, offlineData);
-    if (typeof UI !== 'undefined') UI.toast('💾 تم الحفظ محلياً — سيُرفع عند عودة الإنترنت', 'warning');
-    return Promise.resolve();
-  }
-}
-
-// ── مؤشر حالة الشبكة في الـ UI ──────────────────────
-function updateNetworkBadge() {
-  const badge = document.getElementById('networkBadge');
-  if (!badge) return;
-  if (navigator.onLine) {
-    badge.style.background = 'rgba(16,185,129,0.2)';
-    badge.style.color      = '#34d399';
-    badge.textContent      = '📶 متصل';
-  } else {
-    badge.style.background = 'rgba(239,68,68,0.2)';
-    badge.style.color      = '#f87171';
-    badge.textContent      = '📵 أوف لاين';
-  }
-}
-window.addEventListener('online',  updateNetworkBadge);
-window.addEventListener('offline', updateNetworkBadge);
-window.addEventListener('load',    updateNetworkBadge);
 
 
-/* =========================================================
-   توحيد وتصحيح عمود الوظيفة في جداول الموظفين
-   المصدر الأساسي: empData حسب كود الموظف، والاسم فقط كحل أخير.
-   ========================================================= */
-function __empHeaderText(cell) {
-  return (cell?.textContent || '').replace(/\s+/g,' ').trim();
-}
 
-function repairEmployeeJobColumns(root = document) {
-  if (!root || !root.querySelectorAll) return;
-  const tables = root.querySelectorAll('table');
-  tables.forEach(table => {
-    const headerRow = table.querySelector('thead tr');
-    if (!headerRow) return;
-    const headers = Array.from(headerRow.children);
-    const h = headers.map(__empHeaderText);
-    const empIndex = h.findIndex(t => t === 'الموظف' || t.includes('اسم الموظف'));
-    if (empIndex < 0) return;
-    const codeIndex = h.findIndex(t => t === 'الكود' || t.includes('كود الموظف'));
-    let jobIndex = h.findIndex(t => t === 'الوظيفة' || t.includes('الوظيفة'));
-
-    if (jobIndex < 0) {
-      const insertIndex = codeIndex >= 0 ? codeIndex + 1 : empIndex + 1;
-      const th = document.createElement('th');
-      th.textContent = 'الوظيفة';
-      th.style.whiteSpace = 'nowrap';
-      headerRow.insertBefore(th, headerRow.children[insertIndex] || null);
-      jobIndex = insertIndex;
-    }
-
-    const currentHeaders = Array.from(headerRow.children).map(__empHeaderText);
-    const currentEmpIndex = currentHeaders.findIndex(t => t === 'الموظف' || t.includes('اسم الموظف'));
-    const currentCodeIndex = currentHeaders.findIndex(t => t === 'الكود' || t.includes('كود الموظف'));
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach(row => {
-      const cells = Array.from(row.children);
-      if (!cells.length) return;
-      if (cells.length === 1 && cells[0].hasAttribute('colspan')) {
-        cells[0].setAttribute('colspan', String(headerRow.children.length));
-        return;
-      }
-      const code = currentCodeIndex >= 0 ? (cells[currentCodeIndex]?.textContent || '').trim() : '';
-      const name = currentEmpIndex >= 0 ? (cells[currentEmpIndex]?.textContent || '').trim() : '';
-      const canonical = findCanonicalEmployee(code, name);
-      const canonicalJob = canonical && String(canonical.job || '').trim() ? String(canonical.job).trim() : '';
-      if (!canonicalJob) return;
-      const cell = row.children[jobIndex];
-      if (cell && cell.textContent.trim() !== canonicalJob) cell.textContent = canonicalJob;
-    });
-    table.dataset.employeeJobColumn = '1';
-  });
-}
-
-function initEmployeeJobRepair() {
-  const run = () => { try { repairEmployeeJobColumns(document); } catch (_) {} };
-  run();
-  if (window.__employeeJobObserver) return;
-  if (!document.body || !window.MutationObserver) return;
-  let queued = false;
-  window.__employeeJobObserver = new MutationObserver(() => {
-    if (queued) return;
-    queued = true;
-    requestAnimationFrame(() => { queued = false; run(); });
-  });
-  window.__employeeJobObserver.observe(document.body, { childList: true, subtree: true });
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initEmployeeJobRepair, { once: true });
-} else {
-  setTimeout(initEmployeeJobRepair, 0);
-}
-</script>
 
 </body>
 </html>
