@@ -21343,6 +21343,392 @@ function initPricesModule() {
 </div>
 
 
+
+<!-- ═══════════════════════════════════════════════════
+     UNIVERSAL PICKER — توحيد كل قوائم الاختيار المنبثقة
+     الشكل مطابق لفكرة قائمة صلاحيات بصمة البازار
+     ويعمل على select داخل الصفحة بدون تغيير منطق القيم.
+     ═══════════════════════════════════════════════════ -->
+<style id="universal-picker-style">
+  .universal-picker-modal{
+    position:fixed;inset:0;z-index:32000;
+    background:rgba(2,6,23,.76);
+    display:flex;align-items:center;justify-content:center;
+    padding:14px;
+    direction:rtl;
+    backdrop-filter:blur(3px);
+    -webkit-backdrop-filter:blur(3px);
+  }
+  .universal-picker-modal[hidden]{display:none!important;}
+  .universal-picker-box{
+    width:min(620px,96vw);
+    max-height:min(88vh,760px);
+    overflow:hidden;
+    display:flex;flex-direction:column;
+    background:#0f172a;
+    border:1px solid rgba(99,102,241,.42);
+    border-radius:18px;
+    box-shadow:0 24px 80px rgba(0,0,0,.55);
+    color:#e2e8f0;
+  }
+  .universal-picker-head{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:15px 18px;
+    border-bottom:1px solid rgba(255,255,255,.08);
+    background:#0f172a;
+    position:sticky;top:0;z-index:3;
+  }
+  .universal-picker-title-wrap{min-width:0;}
+  .universal-picker-title{
+    font-size:17px;font-weight:900;line-height:1.25;color:#e2e8f0;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .universal-picker-sub{
+    margin-top:3px;font-size:11px;color:#94a3b8;line-height:1.5;
+  }
+  .universal-picker-close{
+    flex:0 0 auto;
+    width:36px;height:36px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.045);
+    color:#cbd5e1;
+    border-radius:10px;
+    cursor:pointer;
+    font:inherit;font-size:17px;font-weight:800;
+    display:grid;place-items:center;
+  }
+  .universal-picker-close:hover{background:rgba(255,255,255,.08);}
+  .universal-picker-search-wrap{padding:12px 14px 0;}
+  .universal-picker-search{
+    width:100%;box-sizing:border-box;
+    padding:10px 12px;
+    border-radius:11px;
+    border:1px solid rgba(255,255,255,.12);
+    outline:none;
+    background:rgba(0,0,0,.20);
+    color:#f8fafc;
+    font:inherit;
+    text-align:right;
+  }
+  .universal-picker-search:focus{border-color:rgba(129,140,248,.75);box-shadow:0 0 0 3px rgba(99,102,241,.12);}
+  .universal-picker-list{
+    overflow:auto;
+    padding:8px 0 10px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .universal-picker-group-title{
+    padding:8px 18px 6px;
+    font-size:11px;font-weight:900;
+    color:#a5b4fc;
+    border-top:1px solid rgba(255,255,255,.06);
+  }
+  .universal-picker-option{
+    width:100%;
+    min-height:58px;
+    display:grid;
+    grid-template-columns:42px minmax(0,1fr);
+    align-items:center;
+    gap:8px;
+    padding:9px 16px;
+    box-sizing:border-box;
+    border:0;
+    border-top:1px solid rgba(255,255,255,.075);
+    background:transparent;
+    color:#e5e7eb;
+    cursor:pointer;
+    text-align:left;
+    direction:ltr;
+    font:inherit;
+  }
+  .universal-picker-option:first-child{border-top:0;}
+  .universal-picker-option:hover,.universal-picker-option:focus-visible{background:rgba(99,102,241,.10);outline:none;}
+  .universal-picker-option.is-selected{background:rgba(99,102,241,.12);}
+  .universal-picker-option.is-disabled{opacity:.42;cursor:not-allowed;}
+  .universal-picker-radio{
+    width:22px;height:22px;border-radius:50%;
+    border:2px solid #cbd5e1;
+    box-sizing:border-box;
+    position:relative;
+    justify-self:start;
+  }
+  .universal-picker-option.is-selected .universal-picker-radio{
+    border-color:#a5b4fc;
+    box-shadow:0 0 0 2px rgba(99,102,241,.08);
+  }
+  .universal-picker-option.is-selected .universal-picker-radio::after{
+    content:"";
+    position:absolute;inset:4px;
+    border-radius:50%;
+    background:#a5b4fc;
+  }
+  .universal-picker-option-text{
+    min-width:0;
+    direction:rtl;
+    text-align:right;
+    font-size:16px;font-weight:700;
+    line-height:1.45;
+    overflow-wrap:anywhere;
+  }
+  .universal-picker-empty{
+    padding:28px 18px;
+    text-align:center;
+    color:#94a3b8;
+    font-size:14px;
+  }
+  .universal-picker-foot{
+    padding:10px 14px;
+    border-top:1px solid rgba(255,255,255,.08);
+    font-size:10px;color:#64748b;
+    text-align:center;
+    background:#0f172a;
+  }
+
+  /* Light mode — نفس الفكرة مع ألوان الوضع الفاتح */
+  body.light-mode .universal-picker-modal{background:rgba(15,23,42,.42);}
+  body.light-mode .universal-picker-box{background:#fff;border-color:#c7d2fe;box-shadow:0 24px 80px rgba(15,23,42,.24);color:#0f172a;}
+  body.light-mode .universal-picker-head,
+  body.light-mode .universal-picker-foot{background:#fff;border-color:#e2e8f0;}
+  body.light-mode .universal-picker-title{color:#0f172a;}
+  body.light-mode .universal-picker-sub{color:#64748b;}
+  body.light-mode .universal-picker-close{background:#f8fafc;border-color:#e2e8f0;color:#334155;}
+  body.light-mode .universal-picker-search{background:#f8fafc;border-color:#cbd5e1;color:#0f172a;}
+  body.light-mode .universal-picker-group-title{color:#4f46e5;border-color:#e2e8f0;}
+  body.light-mode .universal-picker-option{color:#0f172a;border-color:#e2e8f0;}
+  body.light-mode .universal-picker-option:hover,
+  body.light-mode .universal-picker-option:focus-visible,
+  body.light-mode .universal-picker-option.is-selected{background:#eef2ff;}
+  body.light-mode .universal-picker-radio{border-color:#64748b;}
+  body.light-mode .universal-picker-option.is-selected .universal-picker-radio{border-color:#6366f1;}
+  body.light-mode .universal-picker-option.is-selected .universal-picker-radio::after{background:#6366f1;}
+
+  @media(max-width:520px){
+    .universal-picker-modal{padding:10px;align-items:flex-end;}
+    .universal-picker-box{width:100%;max-height:86vh;border-radius:18px 18px 14px 14px;}
+    .universal-picker-title{font-size:16px;}
+    .universal-picker-option{min-height:60px;padding:10px 14px;}
+    .universal-picker-option-text{font-size:16px;}
+  }
+</style>
+<script>
+(function(){
+  'use strict';
+
+  const UniversalPicker = {
+    root: null,
+    select: null,
+    opened: false,
+    lastPointerAt: 0,
+
+    _esc(v){
+      return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    },
+
+    _titleFor(select){
+      const explicit = select.getAttribute('data-picker-title') || select.getAttribute('aria-label');
+      if(explicit) return explicit;
+      const id = String(select.id || '').trim();
+      const label = select.closest('div,section,form,td')?.querySelector(`label[for="${CSS.escape(id)}"]`);
+      if(label?.textContent?.trim()) return label.textContent.trim();
+      const parentLabel = select.closest('label');
+      if(parentLabel){
+        const txt = parentLabel.textContent.replace(select.textContent,'').trim();
+        if(txt) return txt;
+      }
+      const first = select.options?.[0]?.textContent?.trim();
+      if(first && /^[-—–]/.test(first)) return first.replace(/^[-—–\s]+/,'') || 'اختيار';
+      const aliases = {
+        transferFrom:'من فرع',transferTo:'إلى فرع',transferBranchFilter:'فلترة الفرع',
+        transferDirFilter:'اتجاه التحويل',productBranch:'الفرع',productBranchFilter:'فرع المنتجات',
+        productStatusFilter:'حالة المنتجات',productSourceFilter:'مصدر البيانات',productExpirySoonFilter:'حالة الانتهاء',
+        pricing_orientation:'اتجاه التسعيرة',pricing_layout:'عدد البطاقات',pricing_fontFamily:'خط التسعيرة',
+        attAction:'نوع العملية',attFilterJob:'الوظيفة',attFilterEmp:'الموظف',breakType:'نوع الاستئذان',
+        breakAction:'نوع الإجراء',vehicleType:'نوع المركبة',vehicleStatusFilter:'حالة المركبة',
+        analyticsFromFilter:'الفترة من',analyticsToFilter:'الفترة إلى',analyticsUserFilter:'المستخدم',
+        fpSabahFilterAction:'عملية بصمة الصباح',fpSabahAddCode:'الموظف',fpSabahAddAction:'نوع العملية',
+        fpSabahDelEmp:'الموظف',companyReason:'سبب الحركة',companyAction:'نوع الحركة',companyStatusFilter:'الحالة',
+        incType:'نوع المكافأة',incUnit:'الوحدة',incTypeFilter:'فلترة نوع المكافأة',leavesStatusFilter:'حالة الإجازة',
+        editLeaveStatus:'حالة الإجازة',newEmpBranch:'الفرع',archiveCollection:'اختر نوع البيانات',archiveMode:'نطاق البيانات',
+        archiveMonth:'الشهر',archiveYear:'السنة',editBreakType:'نوع الاستئذان',editCompanyReason:'سبب الحركة',
+        editVehicleTypeInput:'نوع المركبة',editEmployeeStatus:'الحالة الوظيفية',editProductBranch:'الفرع',
+        editTransferFrom:'من فرع',editTransferTo:'إلى فرع',srMonth:'الشهر',srYear:'السنة'
+      };
+      return aliases[id] || 'اختيار';
+    },
+
+    _ensure(){
+      if(this.root) return this.root;
+      const m = document.createElement('div');
+      m.id = 'universalPickerModal';
+      m.className = 'universal-picker-modal';
+      m.hidden = true;
+      m.innerHTML = `
+        <div class="universal-picker-box" role="dialog" aria-modal="true" aria-labelledby="universalPickerTitle">
+          <div class="universal-picker-head">
+            <div class="universal-picker-title-wrap">
+              <div class="universal-picker-title" id="universalPickerTitle">اختيار</div>
+              <div class="universal-picker-sub" id="universalPickerSub">اختر قيمة واحدة من القائمة</div>
+            </div>
+            <button type="button" class="universal-picker-close" data-up-close aria-label="إغلاق">✕</button>
+          </div>
+          <div class="universal-picker-search-wrap" id="universalPickerSearchWrap" hidden>
+            <input id="universalPickerSearch" class="universal-picker-search" type="search" placeholder="ابحث في القائمة..." autocomplete="off">
+          </div>
+          <div class="universal-picker-list" id="universalPickerList"></div>
+          <div class="universal-picker-foot" id="universalPickerFoot"></div>
+        </div>`;
+      document.body.appendChild(m);
+      this.root = m;
+      m.addEventListener('click', (e) => {
+        if(e.target === m || e.target.closest('[data-up-close]')) this.close();
+      });
+      const search = m.querySelector('#universalPickerSearch');
+      search.addEventListener('input', () => this._renderList(search.value));
+      document.addEventListener('keydown', (e) => {
+        if(!this.opened) return;
+        if(e.key === 'Escape') { e.preventDefault(); this.close(); }
+      });
+      return m;
+    },
+
+    _optionEntries(){
+      const select = this.select;
+      const entries = [];
+      Array.from(select.children || []).forEach(node => {
+        if(node.tagName === 'OPTGROUP'){
+          const group = {group:node.label || '', options:[]};
+          Array.from(node.children || []).forEach(opt => {
+            if(opt.tagName === 'OPTION') group.options.push(opt);
+          });
+          entries.push(group);
+        }else if(node.tagName === 'OPTION'){
+          entries.push(node);
+        }
+      });
+      return entries;
+    },
+
+    _renderList(query=''){
+      if(!this.opened || !this.select || !this.root) return;
+      const list = this.root.querySelector('#universalPickerList');
+      const q = String(query || '').trim().toLocaleLowerCase('ar');
+      const selected = String(this.select.value ?? '');
+      const entries = this._optionEntries();
+      let total = 0;
+      let html = '';
+
+      const renderOpt = (opt) => {
+        const txt = String(opt.textContent || '').trim();
+        const value = String(opt.value ?? '');
+        if(q && !(txt.toLocaleLowerCase('ar').includes(q) || value.toLocaleLowerCase('ar').includes(q))) return '';
+        total++;
+        const isSelected = String(opt.value ?? '') === selected;
+        const isDisabled = !!opt.disabled;
+        return `<button type="button" class="universal-picker-option${isSelected?' is-selected':''}${isDisabled?' is-disabled':''}" data-up-value="${this._esc(value)}" ${isDisabled?'disabled':''}>
+          <span class="universal-picker-radio" aria-hidden="true"></span>
+          <span class="universal-picker-option-text">${this._esc(txt || value || '—')}</span>
+        </button>`;
+      };
+
+      entries.forEach(entry => {
+        if(entry?.group !== undefined){
+          const groupRows = entry.options.map(renderOpt).filter(Boolean).join('');
+          if(groupRows){
+            html += `<div class="universal-picker-group-title">${this._esc(entry.group)}</div>${groupRows}`;
+          }
+        }else{
+          html += renderOpt(entry);
+        }
+      });
+
+      list.innerHTML = html || `<div class="universal-picker-empty">لا توجد نتائج مطابقة</div>`;
+      list.querySelectorAll('[data-up-value]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if(btn.disabled) return;
+          this._choose(btn.getAttribute('data-up-value') ?? '');
+        });
+      });
+      this.root.querySelector('#universalPickerFoot').textContent = total ? `عدد الاختيارات: ${total}` : 'لا توجد اختيارات';
+    },
+
+    open(select){
+      if(!select || select.disabled || select.hidden) return;
+      if(select.closest('[hidden]')) return;
+      // لا نغيّر القوائم الخاصة التي تحتاج سلوكًا مخصصًا لاحقًا.
+      if(select.matches('[data-native-picker="true"]')) return;
+      this._ensure();
+      this.select = select;
+      this.opened = true;
+      const currentText = select.options?.[select.selectedIndex]?.textContent?.trim() || 'لم يتم الاختيار';
+      const title = this._titleFor(select);
+      this.root.querySelector('#universalPickerTitle').textContent = title;
+      this.root.querySelector('#universalPickerSub').textContent = `القيمة الحالية: ${currentText}`;
+      const searchWrap = this.root.querySelector('#universalPickerSearchWrap');
+      const search = this.root.querySelector('#universalPickerSearch');
+      const count = Array.from(select.options || []).length;
+      searchWrap.hidden = count < 9;
+      search.value = '';
+      this._renderList('');
+      this.root.hidden = false;
+      document.body.classList.add('universal-picker-open');
+      document.body.style.overflow = 'hidden';
+      if(!searchWrap.hidden) setTimeout(() => search.focus({preventScroll:true}), 40);
+    },
+
+    _choose(value){
+      if(!this.select) return;
+      const select = this.select;
+      const oldValue = String(select.value ?? '');
+      if(oldValue !== String(value ?? '')){
+        select.value = String(value ?? '');
+        try{ select.dispatchEvent(new Event('input',{bubbles:true})); }catch(_){ }
+        try{ select.dispatchEvent(new Event('change',{bubbles:true})); }catch(_){ }
+      }
+      this.close();
+    },
+
+    close(){
+      if(!this.root) return;
+      this.opened = false;
+      this.select = null;
+      this.root.hidden = true;
+      document.body.classList.remove('universal-picker-open');
+      document.body.style.overflow = '';
+    },
+
+    init(){
+      if(this._bound) return;
+      this._bound = true;
+      // Delegated pointer handler: يمنع Android/Chrome من فتح نافذة select الأصلية
+      // ويستخدم نفس القائمة الموحدة لكل select في التطبيق.
+      document.addEventListener('pointerdown', (e) => {
+        const select = e.target.closest?.('select');
+        if(!select || select.disabled || e.button === 2) return;
+        if(select.matches('[data-native-picker="true"]')) return;
+        if(Date.now() - this.lastPointerAt < 250) return;
+        this.lastPointerAt = Date.now();
+        e.preventDefault();
+        e.stopPropagation();
+        this.open(select);
+      }, true);
+
+      document.addEventListener('keydown', (e) => {
+        if(e.key !== 'Enter' && e.key !== ' ' ) return;
+        const select = document.activeElement;
+        if(!(select instanceof HTMLSelectElement) || select.disabled) return;
+        if(select.matches('[data-native-picker="true"]')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.open(select);
+      }, true);
+    }
+  };
+
+  window.UniversalPicker = UniversalPicker;
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => UniversalPicker.init(), {once:true});
+  else UniversalPicker.init();
+})();
+</script>
+
 <!-- ═══════════════════════════════════════════════════
      PWA — Service Worker + Offline + Background Sync
      ═══════════════════════════════════════════════════ -->
