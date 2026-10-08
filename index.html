@@ -1681,8 +1681,18 @@ body.light-mode .filter-btn.active { background: linear-gradient(135deg,#3b82f6,
   th { font-size:10px; padding:6px 5px; }
   td { font-size:11px; padding:4px 5px; }
 
-  .permissions-grid { grid-template-columns: repeat(3,1fr); gap:8px; }
-  .permission-card { padding:12px 8px; }
+  /* الهاتف: 4 خانات في الصف الواحد داخل صلاحيات الإدارة */
+  .permissions-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .permission-card {
+    padding: 9px 4px !important;
+    min-width: 0;
+    gap: 5px !important;
+    border-radius: 12px;
+  }
+  .permission-card span { font-size: 10px !important; line-height: 1.25; }
 
   .perm-box { max-width:96vw; padding:14px; grid-template-columns:1fr 1fr 1fr; }
 
@@ -1691,6 +1701,13 @@ body.light-mode .filter-btn.active { background: linear-gradient(135deg,#3b82f6,
 }
 
 @media (max-width: 480px) {
+  /* يظل نظام الهاتف 4 أعمدة حتى على الشاشات الصغيرة */
+  .permissions-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+  }
+  .permission-card { padding: 8px 3px !important; }
+  .permission-card span { font-size: 9px !important; }
   .stat-card { min-width:110px; }
   .stat-value { font-size:20px; }
   .tab-btn { padding:6px 10px; font-size:11px; }
@@ -4925,7 +4942,7 @@ onchange="UI.renderBreaks()"
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span style="font-size:22px"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span></span>
     <div>
-      <div style="font-weight:700;color:#f87171;font-size:14px">موظفون تجاوزوا 30 دقيقة استئذان الآن!</div>
+      <div style="font-weight:700;color:#f87171;font-size:14px">موظفون تجاوزوا 35 دقيقة استئذان الآن!</div>
       <div id="breakAlertNames" style="font-size:12px;color:#fca5a5;margin-top:3px"></div>
     </div>
   </div>
@@ -4972,7 +4989,7 @@ onchange="UI.renderBreaks()"
 </div>
 
 <div class="glass-card" style="padding:20px;margin-top:16px">
-  <h3 style="margin-bottom:14px"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> تجاوزوا 30 دقيقة استئذان (بدون الصلاة — بنفس فترة الملخص أعلاه)</h3>
+  <h3 style="margin-bottom:14px"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> تجاوزوا 35 دقيقة استئذان (بدون الصلاة — بنفس فترة الملخص أعلاه)</h3>
   <div class="table-container">
     <table>
       <thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>إجمالي الاستئذان</th><th>آخر استئذان</th></tr></thead>
@@ -10082,10 +10099,16 @@ const AttendanceService = {
 
                     let duration = TimeUtils.now() - openBreak.breakTimestamp
 
+                    const autoClosedBreak = {...openBreak, returnTime:new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"), returnTimestamp:TimeUtils.now(), duration:duration, status:"closed", deviceReturnTime:TimeUtils.now()};
                     db.ref("breaks/" + openBreak.id).update({
-                        returnTime: new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"),
+                        returnTime: autoClosedBreak.returnTime,
                         returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
-                        duration: duration
+                        deviceReturnTime: autoClosedBreak.deviceReturnTime,
+                        duration: duration,
+                        status:"closed"
+                    }).then(()=>{
+                        AutoDeductionService.recalcBreakOverage(code,{oldRow:openBreak,newRow:autoClosedBreak}).catch(e=>console.error('[BreakPenalty] checkout reconcile',e));
+                        AutoDeductionService.checkPrayerOverage(code,new Date(autoClosedBreak.deviceBreakTime||autoClosedBreak.breakTimestamp).toLocaleDateString('ar-EG'),openBreak.id,autoClosedBreak);
                     })
 
                 }
@@ -10175,8 +10198,9 @@ function breakQuickReturn(id, code, name) {
       UI.renderBreaks();
       setTimeout(()=>{
         const d = openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
-        AutoDeductionService.checkBreakOverage(code, d);
-        AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'});
+        const returnedBreak = {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'};
+        AutoDeductionService.recalcBreakOverage(code,{oldRow:openBreakObj,newRow:returnedBreak}).catch(e=>console.error('[BreakPenalty] reconcile',e));
+        AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, returnedBreak);
       }, 500)
     }).catch(e=>UI.toast("❌ "+e.message,"error"));
   });
@@ -10557,8 +10581,9 @@ UI.renderBreaks()
 
 setTimeout(()=>{
 const d = openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
-AutoDeductionService.checkBreakOverage(code, d);
-AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'});
+const returnedBreak = {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'};
+AutoDeductionService.recalcBreakOverage(code,{oldRow:openBreakObj,newRow:returnedBreak}).catch(e=>console.error('[BreakPenalty] reconcile',e));
+AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, returnedBreak);
 }, 500)
 
 })
@@ -10631,55 +10656,39 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
 
 },
 
-/* تصدير المتجاوزين 30 دقيقة */
+/* تصدير المتجاوزين 35 دقيقة حسب الوردية الفعلية */
 
-exportOver30Excel(){
+exportOver35Excel(){
 
 if(!checkExcelPermission()) return
 
-let totals = {}
-
-State.breaks.forEach(b=>{
-
-let duration = b.duration
-
-if(!duration && b.deviceBreakTime){
-duration = TimeUtils.now() - b.deviceBreakTime
+const grouped={};
+const codes=[...new Set((State.breaks||[]).map(b=>String(b.code||'')).filter(Boolean))];
+for(const code of codes){
+  const sessions=AutoDeductionService._attendanceSessions(code);
+  (State.breaks||[]).filter(b=>String(b.code)===code && String(b.type||'')!=='صلاة').forEach(b=>{
+    const duration=AutoDeductionService._breakDurationMs(b);
+    if(duration<=0)return;
+    const shift=AutoDeductionService._sessionForBreak(b,sessions);
+    const key=shift?.key || `${code}|fallback|${b.date||'-'}`;
+    if(!grouped[key]) grouped[key]={name:b.name||getEmpName(code)||code,code,total:0,date:shift?.startDate||b.date||'-',shiftStart:shift?.startText||'-',shiftEnd:shift?.endText||'-'};
+    grouped[key].total+=duration;
+  });
 }
 
-if(duration && b.type !== "صلاة"){
+const rows=Object.values(grouped).filter(e=>e.total>=2100000).map(e=>({
+الموظف:e.name,
+الكود:e.code,
+اجمالي_الاستئذان:TimeUtils.format(e.total),
+التاريخ:e.date,
+بداية_الوردية:e.shiftStart,
+انتهاء_الوردية:e.shiftEnd
+}));
 
-if(!totals[b.code]){
-totals[b.code] = {
-name:b.name,
-code:b.code,
-total:0,
-date:b.date
-}
-}
-
-totals[b.code].total += duration
-
-}
-
-})
-
-let rows = Object.values(totals)
-.filter(e => e.total >= 1800000)
-.map(e => ({
-الموظف: e.name,
-الكود: e.code,
-اجمالي_الاستئذان: TimeUtils.format(e.total),
-التاريخ: e.date
-}))
-
-let ws = XLSX.utils.json_to_sheet(rows)
-
-let wb = XLSX.utils.book_new()
-
-XLSX.utils.book_append_sheet(wb, ws, "Breaks Over 30")
-
-XLSX.writeFile(wb, "breaks_over_30_minutes.xlsx")
+const ws=XLSX.utils.json_to_sheet(rows.length?rows:[{"لا توجد بيانات":""}]);
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,ws,"Breaks Over 35");
+XLSX.writeFile(wb,"breaks_over_35_minutes.xlsx");
 
 }
 
@@ -11083,18 +11092,193 @@ UI.renderCompanies()
             }
         },
 
-        // فحص إجمالي الاستئذان اليومي (بدون الصلاة) وإنشاء جزاء تلقائي عند الحاجة
-        checkBreakOverage(code, dateStr) {
-            const emp = getEmpData(code) || State.employees.find(e => String(e.code) === String(code));
-            if(!emp) return;
-            const totalMs = State.breaks
-                .filter(b => String(b.code) === String(code) && b.date === dateStr && b.type !== "صلاة")
-                .reduce((sum, b) => sum + (b.duration || (b.deviceReturnTime && b.deviceBreakTime ? b.deviceReturnTime - b.deviceBreakTime : 0)), 0);
-            const totalMinutes = Math.round(totalMs / 60000);
-            if(totalMinutes < 35) return;
-            const dailyHours = getEmpDailyHours(emp);
-            const hours = this.calcBreakHours(totalMinutes, dailyHours);
-            this.createAutoPenalty(code, emp.name, hours, `تجاوز استئذان ${totalMinutes} دقيقة`, "break", dateStr);
+        // ============================================================
+        // الاستئذان يحسب على "الوردية الفعلية" وليس على التاريخ.
+        // بداية الوردية = أول حضور فعلي، ونهايتها = الانصراف الفعلي.
+        // لذلك وردية 7/10 18:00 → 8/10 02:00 تظل وردية واحدة.
+        // الحد المسموح = 35 دقيقة لكل وردية فعلية.
+        // ============================================================
+        _attendanceSessions(code) {
+            const excluded = new Set(['fingerprint-bazar','fingerprint-sabah']);
+            const events = (State.attendance||[])
+                .filter(a => String(a.code)===String(code) && !excluded.has(String(a.source||'')))
+                .map(a => ({action:String(a.action||''), ts:Number(a.timestamp||0)}))
+                .filter(a => a.ts>0 && (a.action==='CheckIn' || a.action==='CheckOut'))
+                .sort((a,b)=>a.ts-b.ts);
+            const sessions=[];
+            let open=null;
+            for(const ev of events){
+                if(ev.action==='CheckIn'){
+                    // دخول جديد قبل وجود خروج: نعتبر الدخول الجديد بداية وردية جديدة.
+                    if(open){
+                        sessions.push({start:open,end:ev.ts});
+                    }
+                    open=ev.ts;
+                }else if(ev.action==='CheckOut' && open){
+                    if(ev.ts>=open){
+                        sessions.push({start:open,end:ev.ts});
+                        open=null;
+                    }
+                }
+            }
+            if(open){
+                sessions.push({start:open,end:Number(TimeUtils.now())||Date.now()});
+            }
+            return sessions.map((x,i)=>({
+                ...x,
+                key:`${String(code)}|${x.start}`,
+                index:i,
+                startDate:new Date(x.start).toLocaleDateString('ar-EG'),
+                endDate:x.end?new Date(x.end).toLocaleDateString('ar-EG'):'-',
+                startText:new Date(x.start).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
+                endText:x.end?new Date(x.end).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-'
+            }));
+        },
+
+        _breakStartTs(row){
+            const ts=Number(row?.breakTimestamp||row?.deviceBreakTime||0);
+            return Number.isFinite(ts)&&ts>0?ts:0;
+        },
+
+        _breakDurationMs(row){
+            if(!row)return 0;
+            const explicit=Number(row.duration||0);
+            if(explicit>0)return explicit;
+            const a=Number(row.deviceBreakTime||row.breakTimestamp||0);
+            const b=Number(row.deviceReturnTime||row.returnTimestamp||0);
+            return a>0&&b>a?b-a:0;
+        },
+
+        _sessionForBreak(row,sessions){
+            const ts=this._breakStartTs(row);
+            if(!ts)return null;
+            let best=null;
+            for(const s of sessions){
+                if(ts < s.start) continue;
+                if(s.end!=null && ts > s.end) continue;
+                if(!best || s.start>best.start) best=s;
+            }
+            return best;
+        },
+
+        _findAutoBreakPenalties(code, shift, fallbackDate){
+            const list=(State.penalties||[]).filter(p=>String(p.code)===String(code)&&String(p.autoType||'')==='break');
+            const key=shift?.key||'';
+            let matched=list.filter(p=>key && String(p.sourceShiftKey||'')===key);
+            if(!matched.length && fallbackDate){
+                matched=list.filter(p=>String(p.date||'')===String(fallbackDate));
+            }
+            return matched;
+        },
+
+        async _syncBreakShiftPenalty(code, shift, rows){
+            const emp=getEmpData(code) || State.employees.find(e=>String(e.code)===String(code));
+            if(!emp || !shift)return;
+            const nonPrayer=(rows||[]).filter(b=>String(b.type||'')!=='صلاة' && this._breakDurationMs(b)>0);
+            const totalMs=nonPrayer.reduce((sum,b)=>sum+this._breakDurationMs(b),0);
+            const totalMinutes=Math.round(totalMs/60000);
+            const shiftDate=shift.startDate;
+            const existing=this._findAutoBreakPenalties(code,shift,shiftDate);
+            const exempt=this.isExempt(code,shiftDate,'break');
+
+            if(totalMinutes<35 || exempt){
+                const removes=[];
+                for(const p of existing){
+                    if(!p.exempted) removes.push(db.ref('penalties/'+p.id).remove());
+                }
+                if(removes.length) await Promise.all(removes);
+                return;
+            }
+
+            const dailyHours=getEmpDailyHours(emp);
+            const hours=this.calcBreakHours(totalMinutes,dailyHours);
+            if(hours<=0)return;
+            const reasonText=`تجاوز استئذان ${totalMinutes} دقيقة خلال الوردية الفعلية ${shift.startText} → ${shift.endText}`;
+            const base={
+                code:String(code),name:emp.name,hours:Number(hours.toFixed(2)),manager:'تلقائي',reason:reasonText,
+                date:shiftDate,time:new Date(TimeUtils.now()).toLocaleTimeString('ar-EG'),
+                timestamp:firebase.database.ServerValue.TIMESTAMP,createdBy:'النظام (تلقائي)',auto:true,autoType:'break',
+                sourceShiftKey:shift.key,shiftStartTimestamp:shift.start,shiftEndTimestamp:shift.end,
+                shiftStartDate:shift.startDate,shiftEndDate:shift.endDate,shiftStartTime:shift.startText,shiftEndTime:shift.endText,
+                totalBreakMinutes:totalMinutes,recalculatedAt:new Date(TimeUtils.now()).toLocaleString('ar-EG')
+            };
+
+            const primary=existing[0]||null;
+            const ops=[];
+            if(primary){
+                ops.push(db.ref('penalties/'+primary.id).update({...base,recalculated:true}));
+                existing.slice(1).forEach(p=>ops.push(db.ref('penalties/'+p.id).remove()));
+                await Promise.all(ops);
+                return;
+            }
+
+            const ref=db.ref('penalties').push();
+            await ref.set({...base,id:ref.key});
+            UI.toast(`⚠️ تم تسجيل جزاء نصف يوم لتجاوز ${totalMinutes} دقيقة من الاستئذان في نفس الوردية — ${emp.name}`,'warning');
+            SystemLog.add('AutoPenalty',code,`${reasonText} (${emp.name})`);
+        },
+
+        async recalcBreakOverage(code,{oldRow=null,newRow=null,removeId=null}={}){
+            const c=String(code||oldRow?.code||newRow?.code||'');
+            if(!c)return;
+            const sessions=this._attendanceSessions(c);
+            const affected=new Map();
+            const addAffected=row=>{
+                if(!row)return;
+                const s=this._sessionForBreak(row,sessions);
+                if(s) affected.set(s.key,s);
+            };
+            addAffected(oldRow);
+            addAffected(newRow);
+
+            // عند عدم وجود حضور مطابق، نستخدم تاريخ السجل كحل احتياطي حتى لا تضيع الجزاءات القديمة.
+            if(!affected.size){
+                const rows=(State.breaks||[]).filter(b=>String(b.code)===c && String(b.id)!==String(removeId||''));
+                const refRow=newRow||oldRow||rows[0];
+                if(refRow){
+                    const d=String(refRow.date||'');
+                    const pseudo={start:this._breakStartTs(refRow)||Date.now(),end:null,key:`${c}|fallback|${d}`,index:-1,startDate:d||new Date().toLocaleDateString('ar-EG'),endDate:'-',startText:'-',endText:'-'};
+                    affected.set(pseudo.key,pseudo);
+                }
+            }
+
+            const replacementId=String(newRow?.id||'');
+            const excludedIds=new Set([String(removeId||''),replacementId].filter(Boolean));
+            const baseRows=(State.breaks||[]).filter(b=>String(b.code)===c && !excludedIds.has(String(b.id)));
+            if(newRow && String(newRow.code)===c) baseRows.push(newRow);
+
+            for(const shift of affected.values()){
+                const rows=baseRows.filter(b=>{
+                    const s=this._sessionForBreak(b,sessions);
+                    if(s)return s.key===shift.key;
+                    return !sessions.length && String(b.date||'')===String(shift.startDate||'');
+                });
+                await this._syncBreakShiftPenalty(c,shift,rows);
+            }
+        },
+
+        async recalcBreakOveragesForEmployee(code){
+            const c=String(code||'');
+            if(!c)return;
+            const sessions=this._attendanceSessions(c);
+            const rows=(State.breaks||[]).filter(b=>String(b.code)===c && String(b.type||'')!=='صلاة');
+            const affected=new Map();
+            rows.forEach(b=>{const sh=this._sessionForBreak(b,sessions);if(sh)affected.set(sh.key,sh);});
+            for(const shift of affected.values()){
+                const shiftRows=rows.filter(b=>{const sh=this._sessionForBreak(b,sessions);return sh&&sh.key===shift.key;});
+                await this._syncBreakShiftPenalty(c,shift,shiftRows);
+            }
+            const validKeys=new Set(affected.keys());
+            const stale=(State.penalties||[]).filter(p=>String(p.code)===c&&String(p.autoType||'')==='break'&&String(p.sourceShiftKey||'')&&!validKeys.has(String(p.sourceShiftKey)));
+            for(const p of stale){if(!p.exempted){try{await db.ref('penalties/'+p.id).remove();}catch(e){console.error('[BreakPenalty] stale cleanup',e);}}}
+        },
+
+        // نقطة التوافق مع الاستدعاءات القديمة: أصبح الحساب حسب الوردية الفعلية.
+        async checkBreakOverage(code, dateStr, rowOverride=null){
+            const row=rowOverride || (State.breaks||[]).filter(b=>String(b.code)===String(code) && String(b.date||'')===String(dateStr||''))
+                .sort((a,b)=>this._breakStartTs(b)-this._breakStartTs(a))[0] || null;
+            if(!row)return;
+            await this.recalcBreakOverage(code,{newRow:row});
         }
     };
 
@@ -12899,7 +13083,9 @@ function saveEditBreak() {
   db.ref("breaks/"+_editBreakId).update(updates).then(async()=>{
     const d = updates.date || _editBreakData?.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
     const c = _editBreakData?.code || "-";
-    await AutoDeductionService.checkPrayerOverage(c, d, _editBreakId, {..._editBreakData, ...updates, id:_editBreakId, duration:updates.duration ?? _editBreakData?.duration ?? 0});
+    const updatedBreak = {..._editBreakData, ...updates, id:_editBreakId, code:c, duration:updates.duration ?? _editBreakData?.duration ?? 0};
+    await AutoDeductionService.recalcBreakOverage(c,{oldRow:_editBreakData,newRow:updatedBreak});
+    await AutoDeductionService.checkPrayerOverage(c, d, _editBreakId, {...updatedBreak, returnTimestamp:updates.returnTimestamp ?? _editBreakData?.returnTimestamp, deviceReturnTime:updates.deviceReturnTime ?? _editBreakData?.deviceReturnTime});
     UI.toast("✅ تم تعديل الاستئذان","success");
     SystemLog.add("EditBreak", c, "تعديل استئذان بواسطة: "+(State.currentUser?.username||"-"));
     UI.renderBreaks();
@@ -12916,6 +13102,7 @@ function deleteBreakRecord(id) {
     let empName = rec?.name || "؟";
     showConfirm("هل تريد حذف استئذان " + empName + "؟", () => {
         db.ref("breaks/" + id).remove().then(async () => {
+            await AutoDeductionService.recalcBreakOverage(rec?.code,{oldRow:rec,removeId:id});
             await AutoDeductionService.removePrayerPenalty(id);
             UI.toast("✅ تم حذف الاستئذان", "success");
             SystemLog.add("DeleteBreak", rec?.code || "-", empName);
@@ -13055,6 +13242,8 @@ Promise.all(updates).then(()=>{
   UI.toast("✅ تم تعديل سجل الحضور","success")
   SystemLog.add("EditAttendance", editData.checkIn?.code||"-", "تعديل بواسطة: "+editedBy)
   UI.renderAttendance()
+  // إعادة احتساب استئذانات نفس الموظف بعد تعديل حدود الوردية الفعلية.
+  AutoDeductionService.recalcBreakOveragesForEmployee(editData.checkIn?.code || editData.checkOut?.code).catch(e=>console.error('[BreakPenalty] attendance edit reconcile',e));
   // إعادة احتساب جزاء التأخير بعد تعديل وقت الحضور
   if(timeIn){
     const [h3,m3] = timeIn.split(":").map(Number)
@@ -13148,7 +13337,9 @@ db.ref("breaks/"+editId).update(updates).then(async()=>{
 
 const d = updates.date || editData?.date || date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
 const c = editData?.code || "-";
-await AutoDeductionService.checkPrayerOverage(c, d, editId, {...editData, ...updates, id:editId, duration:updates.duration ?? editData?.duration ?? 0});
+const updatedBreak = {...editData, ...updates, id:editId, code:c, duration:updates.duration ?? editData?.duration ?? 0};
+await AutoDeductionService.recalcBreakOverage(c,{oldRow:editData,newRow:updatedBreak});
+await AutoDeductionService.checkPrayerOverage(c, d, editId, updatedBreak);
 UI.toast("تم تعديل الاستئذان بنجاح","success")
 SystemLog.add("EditBreak", editId || "-", "تعديل استئذان")
 UI.renderBreaks()
@@ -18431,7 +18622,7 @@ duration = correctDuration
 }
 
 let durationText = duration ? TimeUtils.format(duration) : "-"
-let durColor = duration >= 1800000 ? "#f87171" : duration >= 900000 ? "#fbbf24" : ""
+let durColor = duration >= 2100000 ? "#f87171" : duration >= 1050000 ? "#fbbf24" : ""
 let durStyle = durColor ? `style="color:${durColor};font-weight:700;"` : ""
 
 let rowStyle = !b.returnTimestamp
@@ -18500,20 +18691,20 @@ let openBreaks = filtered.filter(b=>!b.returnTimestamp)
 let box = document.getElementById("breakCount")
 if(box) box.innerText = openBreaks.length
 
-/* تنبيه الموظفين المتجاوزين 30 دقيقة الآن */
+/* تنبيه الموظفين المتجاوزين 35 دقيقة الآن */
 const nowTs = TimeUtils.now();
-const over30Now = State.breaks.filter(b => {
+const over35Now = State.breaks.filter(b => {
   if(b.returnTimestamp) return false;
   if(b.type === "صلاة") return false;
   const start = b.deviceBreakTime || b.breakTimestamp || 0;
-  return (nowTs - start) >= 1800000;
+  return (nowTs - start) >= 2100000;
 });
 const alertBanner = document.getElementById("breakAlertBanner");
 const alertNames  = document.getElementById("breakAlertNames");
 if(alertBanner) {
-  if(over30Now.length > 0) {
+  if(over35Now.length > 0) {
     alertBanner.style.display = "block";
-    if(alertNames) alertNames.textContent = over30Now.map(b=>b.name).join(" — ");
+    if(alertNames) alertNames.textContent = over35Now.map(b=>b.name).join(" — ");
   } else {
     alertBanner.style.display = "none";
   }
@@ -18575,12 +18766,12 @@ renderSummary() {
 
   let list = Object.values(empMap).map(e => ({ ...e, avgMs: e.count ? e.totalMs / e.count : 0 }));
 
-  // قائمة المتجاوزين 30 دقيقة (بنفس فترة الملخص بالظبط — نفس البيانات، من غير أي تضارب)
+  // قائمة المتجاوزين 35 دقيقة (بنفس فترة الملخص بالظبط — نفس البيانات، من غير أي تضارب)
   {
     const overBody = document.getElementById("breaksOver30QuickBody");
     if(overBody){
-      const over30 = list.filter(e => e.totalMsExcl >= 1800000).sort((a,b)=>b.totalMsExcl-a.totalMsExcl);
-      overBody.innerHTML = over30.length ? over30.map(e => `<tr style="background:rgba(239,68,68,.12);color:#fca5a5;font-weight:bold">
+      const over35 = list.filter(e => e.totalMsExcl >= 2100000).sort((a,b)=>b.totalMsExcl-a.totalMsExcl);
+      overBody.innerHTML = over35.length ? over35.map(e => `<tr style="background:rgba(239,68,68,.12);color:#fca5a5;font-weight:bold">
         <td>${e.name}</td><td>${e.code}</td><td>${getEmpJob(e.code)}</td><td>${fmtDur(e.totalMsExcl)}</td><td>${e.lastDate}</td>
       </tr>`).join('')
       : '<tr><td colspan="5" style="text-align:center;padding:14px;color:#64748b">لا يوجد متجاوزين في هذه الفترة</td></tr>';
@@ -18608,7 +18799,7 @@ renderSummary() {
 
   body.innerHTML = list.map(e => {
     const topType = Object.entries(e.types).sort((a,b)=>b[1]-a[1])[0];
-    const color = e.totalMsExcl>=3600000?"#f87171":e.totalMsExcl>=1800000?"#fbbf24":"#e2e8f0";
+    const color = e.totalMsExcl>=4200000?"#f87171":e.totalMsExcl>=2100000?"#fbbf24":"#e2e8f0";
     return `<tr>
       <td style="font-weight:700">${e.name}</td>
       <td style="color:#818cf8">${e.code}</td>
@@ -21360,6 +21551,11 @@ function initPricesModule() {
     -webkit-backdrop-filter:blur(3px);
   }
   .universal-picker-modal[hidden]{display:none!important;}
+  /* القوائم التي يديرها UniversalPicker تظل بنفس شكل الـ select الأصلي،
+     لكن نمنع long-press selection/zoom أثناء فتحها باللمس. */
+  select:not([data-native-picker="true"]){
+    -webkit-tap-highlight-color:transparent;
+  }
   .universal-picker-box{
     width:min(620px,96vw);
     max-height:min(88vh,760px);
@@ -21698,21 +21894,65 @@ function initPricesModule() {
     init(){
       if(this._bound) return;
       this._bound = true;
-      // Delegated pointer handler: يمنع Android/Chrome من فتح نافذة select الأصلية
-      // ويستخدم نفس القائمة الموحدة لكل select في التطبيق.
-      document.addEventListener('pointerdown', (e) => {
-        const select = e.target.closest?.('select');
-        if(!select || select.disabled || e.button === 2) return;
-        if(select.matches('[data-native-picker="true"]')) return;
-        if(Date.now() - this.lastPointerAt < 250) return;
-        this.lastPointerAt = Date.now();
+
+      // مهم: لا نعترض pointerdown / pointerup. على Android بعض نسخ Chrome
+      // تعيد تشغيل الـ native select أو ترسل click متأخرًا بعد اعتراض pointer events،
+      // وده كان سبب فتح القائمة ثم إغلاقها أو الحاجة لضغط مطول.
+      // الحل المستقر هو اعتراض touchend للّمس و mousedown للماوس، مع click كـ fallback.
+      this._suppressClickSelect = null;
+      this._suppressClickUntil = 0;
+      this._lastTouchAt = 0;
+
+      const getSelect = (e) => {
+        const el = e?.target?.closest?.('select');
+        if(!el || el.disabled || el.matches('[data-native-picker="true"]')) return null;
+        if(el.closest('[hidden]')) return null;
+        return el;
+      };
+
+      const openFromEvent = (e, select) => {
+        if(!select) return;
         e.preventDefault();
-        e.stopPropagation();
+        if(typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        else e.stopPropagation();
+        this._suppressClickSelect = select;
+        this._suppressClickUntil = Date.now() + 900;
+        this.lastPointerAt = Date.now();
         this.open(select);
+      };
+
+      // اللمس: touchend هو أقرب نقطة لسلوك النقر الفعلي على Android،
+      // وبالتالي القائمة تفتح فور رفع الإصبع في نفس النقرة بدون long-press.
+      document.addEventListener('touchend', (e) => {
+        const select = getSelect(e);
+        if(!select || e.changedTouches?.length === 0) return;
+        this._lastTouchAt = Date.now();
+        openFromEvent(e, select);
+      }, true);
+
+      // الماوس/التابلت بقلم: فتح فوري عند بداية النقرة مثل سلوك select الطبيعي.
+      document.addEventListener('mousedown', (e) => {
+        if(Date.now() - this._lastTouchAt < 500) return; // لا نعالج mouse event الناتج عن اللمس
+        const select = getSelect(e);
+        if(!select || e.button !== 0) return;
+        openFromEvent(e, select);
+      }, true);
+
+      // بعض البيئات قد لا ترسل touchend للعنصر كما نتوقع؛ click هنا fallback فقط.
+      document.addEventListener('click', (e) => {
+        const select = getSelect(e);
+        if(!select) return;
+        if(select === this._suppressClickSelect && Date.now() < this._suppressClickUntil){
+          e.preventDefault();
+          if(typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+          else e.stopPropagation();
+          return;
+        }
+        openFromEvent(e, select);
       }, true);
 
       document.addEventListener('keydown', (e) => {
-        if(e.key !== 'Enter' && e.key !== ' ' ) return;
+        if(e.key !== 'Enter' && e.key !== ' ') return;
         const select = document.activeElement;
         if(!(select instanceof HTMLSelectElement) || select.disabled) return;
         if(select.matches('[data-native-picker="true"]')) return;
