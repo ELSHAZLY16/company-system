@@ -1386,6 +1386,37 @@ body.light-mode .filter-btn.active { background: linear-gradient(135deg,#3b82f6,
 .permission-card.active::after { opacity: 1; transform: scale(1); }
 
 /* ============================================================
+   بصمة البازار — الصلاحيات الداخلية
+   ============================================================ */
+.fingerprint-perm-card{position:relative;}
+.fingerprint-perm-card .fingerprint-perm-gear{font-size:11px;color:#a5b4fc;margin-top:2px;display:block;}
+.fingerprint-perm-modal{position:fixed;inset:0;z-index:20050;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:14px;}
+.fingerprint-perm-modal[hidden]{display:none!important;}
+.fingerprint-perm-box{width:min(760px,96vw);max-height:92vh;overflow:auto;background:#0f172a;border:1px solid rgba(99,102,241,.42);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.5);direction:rtl;}
+.fingerprint-perm-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;background:#0f172a;z-index:2;}
+.fingerprint-perm-head-title{font-size:17px;font-weight:900;color:#e2e8f0;}
+.fingerprint-perm-head-sub{font-size:11px;color:#94a3b8;margin-top:3px;}
+.fingerprint-perm-close{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#cbd5e1;border-radius:8px;padding:6px 9px;cursor:pointer;font:inherit;}
+.fingerprint-perm-body{padding:16px;}
+.fingerprint-parent-toggle{display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;border:1px solid rgba(99,102,241,.25);background:rgba(99,102,241,.08);margin-bottom:14px;cursor:pointer;}
+.fingerprint-parent-toggle input{width:18px;height:18px;accent-color:#6366f1;}
+.fingerprint-parent-toggle b{font-size:13px;color:#e2e8f0;}
+.fingerprint-parent-toggle span{display:block;font-size:11px;color:#94a3b8;margin-top:2px;}
+.fingerprint-perm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
+.fingerprint-perm-item{border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);border-radius:11px;padding:11px;display:flex;align-items:center;gap:9px;cursor:pointer;transition:.18s;}
+.fingerprint-perm-item:hover{border-color:rgba(99,102,241,.38);background:rgba(99,102,241,.08);}
+.fingerprint-perm-item.active{border-color:rgba(99,102,241,.55);background:rgba(99,102,241,.15);}
+.fingerprint-perm-item input{width:17px;height:17px;accent-color:#6366f1;flex:0 0 auto;}
+.fingerprint-perm-item .fp-icon{font-size:18px;width:22px;text-align:center;}
+.fingerprint-perm-item .fp-label{font-size:12px;font-weight:800;color:#e2e8f0;}
+.fingerprint-perm-actions{display:flex;gap:8px;justify-content:flex-start;flex-wrap:wrap;margin-top:16px;}
+.fingerprint-perm-actions button{border:1px solid rgba(255,255,255,.12);padding:9px 13px;border-radius:9px;cursor:pointer;font:inherit;font-weight:800;}
+.fingerprint-perm-save{background:rgba(99,102,241,.20);border-color:rgba(99,102,241,.42)!important;color:#c7d2fe;}
+.fingerprint-perm-cancel{background:rgba(148,163,184,.08);color:#cbd5e1;}
+@media(max-width:700px){.fingerprint-perm-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.fingerprint-perm-box{max-height:95vh;}.fingerprint-perm-body{padding:12px;}}
+@media(max-width:420px){.fingerprint-perm-grid{grid-template-columns:1fr;}}
+
+/* ============================================================
    Transfer Inputs
    ============================================================ */
 .transfer-input {
@@ -6248,6 +6279,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <div><label>كلمة المرور</label><input type="password" id="newPassword" placeholder="أدخل كلمة المرور"></div>
                 </div>
                 <div class="permissions-grid" id="permissionsGrid" style="grid-column:span 3">
+                    <div id="fingerprintSubPermsNew" style="display:none" aria-hidden="true"></div>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="attendance" hidden><span><span class="ui-icon-slot" data-icon="fingerprint" aria-hidden="true"></span></span><span>الحضور</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="products" hidden><span><span class="ui-icon-slot" data-icon="box" aria-hidden="true"></span></span><span>التواريخ</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="viewPrices" hidden><span><span class="ui-icon-slot" data-icon="money" aria-hidden="true"></span></span><span>رؤية الأسعار</span></label>
@@ -6288,7 +6320,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="empdata" hidden><span><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span><span>بيانات الموظفين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="transfer-analytics" hidden><span><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></span><span>تحليل التحويلات</span></label>
-                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="fingerprint" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span><span>بصمة البازار</span></label>
+                    <label class="permission-card fingerprint-perm-card" data-fingerprint-picker="new"><input type="checkbox" class="perm-checkbox" value="fingerprint" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span><span>بصمة البازار</span><span class="fingerprint-perm-gear">⚙ إعداد التابات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="fingerprint-sabah" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span><span>بصمة الصباح</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><span><span class="ui-icon-slot" data-icon="coffee" aria-hidden="true"></span></span><span>الاستئذانات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><span><span class="ui-icon-slot" data-icon="gear" aria-hidden="true"></span></span><span>المستخدمين</span></label>
@@ -6356,6 +6388,20 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <option value="loginLogs">🔐 سجل تسجيل الدخول</option>
                     <option value="missingScheduleAlerts">⚠️ تنبيهات نقص المعاد الرسمي</option>
                     <option value="archiveLogs">🗄️ سجل عمليات الأرشفة</option>
+                  </optgroup>
+                  <optgroup label="🖐️ بصمة البازار — البيانات الداخلية">
+                    <option value="bazarEmpData">👥 بيانات الموظفين — بصمة البازار</option>
+                    <option value="fingerprintBazar">🕘 الحضور والانصراف — بصمة البازار</option>
+                    <option value="bazarAdvances">💵 السلف — بصمة البازار</option>
+                    <option value="bazarIncentives">🎁 المكافآت — بصمة البازار</option>
+                    <option value="bazarPenalties">⚠️ الجزاءات — بصمة البازار</option>
+                    <option value="bazarLeaves">🏖️ الإجازات — بصمة البازار</option>
+                    <option value="bazarBreaks">📝 الأذونات — بصمة البازار</option>
+                    <option value="bazarPenaltyExemptions">🛡️ إعفاءات الجزاءات — بصمة البازار</option>
+                  </optgroup>
+                  <optgroup label="📑 بصمة البازار — بيانات مشتقة (عرض فقط)">
+                    <option value="bazarPayrollDerived" disabled>💰 بيان المرتبات — مشتق من البيانات</option>
+                    <option value="bazarPayslipDerived" disabled>🧾 شيك قبض الموظف — مشتق من البيانات</option>
                   </optgroup>
                   <optgroup label="🗃️ البيانات الأساسية">
                     <option value="products">📦 المنتجات والمخزون</option>
@@ -6925,7 +6971,10 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 
         <label><input type="checkbox" value="empdata"> بيانات الموظفين</label>
         <label><input type="checkbox" value="transfer-analytics"> تحليل التحويلات</label>
-        <label><input type="checkbox" value="fingerprint"> بصمة البازار</label>
+        <label class="fingerprint-perm-card" data-fingerprint-picker="edit" style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);border-radius:9px;padding:10px;">
+          <input type="checkbox" class="perm-checkbox" value="fingerprint"> 🖐️ بصمة البازار <span class="fingerprint-perm-gear">⚙ التابات</span>
+        </label>
+        <div id="fingerprintSubPermsEdit" style="display:none" aria-hidden="true"></div>
         <label><input type="checkbox" value="fingerprint-sabah"> بصمة الصباح</label>
         <label><input type="checkbox" value="users"> المستخدمين</label>
         <label><input type="checkbox" value="all"> <span class="ui-icon-slot" data-icon="shield" aria-hidden="true"></span> كل الصلاحيات</label>
@@ -7119,6 +7168,13 @@ const ArchiveService = {
     syncRequests:'طلبات المزامنة',
     notificationTokens:'رموز الإشعارات',
     archiveLogs:'سجل عمليات الأرشفة',
+    bazarEmpData:'بيانات موظفي بصمة البازار',
+    bazarAdvances:'سلف بصمة البازار',
+    bazarIncentives:'مكافآت بصمة البازار',
+    bazarPenalties:'جزاءات بصمة البازار',
+    bazarLeaves:'إجازات بصمة البازار',
+    bazarBreaks:'أذونات بصمة البازار',
+    bazarPenaltyExemptions:'إعفاءات جزاءات بصمة البازار',
     products_expired:'التواريخ المنتهية'
   },
 
@@ -7209,6 +7265,29 @@ const ArchiveService = {
         UI.toast('❌ خطأ في تحميل البيانات: '+err.message,'error');
         return;
       }
+    }
+
+    // بيانات موظفي بصمة البازار هي بيانات رئيسية وليست سجلات زمنية.
+    // لذلك تُعرض كاملة مهما كان وضع التاريخ المختار.
+    if(col === 'bazarEmpData') {
+      try {
+        UI.toast('⏳ جارٍ تحميل بيانات موظفي بصمة البازار...','info');
+        this._data = await this.fetchData(col);
+        this._filtered = this._data.slice();
+        this._lastCol = col;
+        this._lastRange = {mode:'master'};
+        const count=this._filtered.length, sizeKB=Math.round(JSON.stringify(this._filtered).length/1024);
+        if(statsEl){
+          statsEl.style.display='block';
+          const ce=document.getElementById('archiveCount'); if(ce){ce.textContent=count.toLocaleString('ar-EG');ce.style.color='#34d399';}
+          const se=document.getElementById('archiveSizeKB'); if(se) se.textContent=sizeKB.toLocaleString('ar-EG');
+          const re=document.getElementById('archiveDateRange'); if(re) re.textContent='بيانات الموظفين الحالية — بصمة البازار';
+        }
+        if(previewSection) previewSection.style.display='none';
+        this._selectedArchiveIds.clear();
+        if(document.getElementById('archiveMode')?.value==='all') this.renderDataTable();
+        return;
+      } catch(err) { UI.toast('❌ خطأ في تحميل بيانات موظفي بصمة البازار: '+err.message,'error'); return; }
     }
 
     // معالجة خاصة للتواريخ المنتهية
@@ -7420,6 +7499,8 @@ const ArchiveService = {
 
   exportAndDelete() {
     if(!hasPermission('all')&&!hasPermission('archive')) { UI.toast('ليس لديك صلاحية','error'); return; }
+    const selectedCol=document.getElementById('archiveCollection')?.value;
+    if(selectedCol==='bazarEmpData'){ UI.toast('⚠️ بيانات موظفي بصمة البازار بيانات رئيسية؛ استخدم "عرض كل بيانات النوع" ثم "حذف المحدد" لحذف موظف محدد.','warning'); return; }
     if(document.getElementById('archiveMode')?.value==='all') { UI.toast('في وضع إدارة البيانات استخدم "حذف المحدد" لحماية البيانات الأساسية','warning'); return; }
     if(!this._filtered.length) { UI.toast('يرجى الضغط على معاينة أولاً','warning'); return; }
     const col=document.getElementById('archiveCollection')?.value;
@@ -10092,7 +10173,11 @@ function breakQuickReturn(id, code, name) {
       UI.toast(`🔄 تم تسجيل رجوع ${name}`, "success");
       SystemLog.add("Return", code, name);
       UI.renderBreaks();
-      setTimeout(()=>AutoDeductionService.checkBreakOverage(code, openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG")), 500)
+      setTimeout(()=>{
+        const d = openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+        AutoDeductionService.checkBreakOverage(code, d);
+        AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'});
+      }, 500)
     }).catch(e=>UI.toast("❌ "+e.message,"error"));
   });
 }
@@ -10470,7 +10555,11 @@ status:"closed"
 
 UI.renderBreaks()
 
-setTimeout(()=>AutoDeductionService.checkBreakOverage(code, openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG")), 500)
+setTimeout(()=>{
+const d = openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+AutoDeductionService.checkBreakOverage(code, d);
+AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'});
+}, 500)
 
 })
 
@@ -10793,6 +10882,13 @@ UI.renderCompanies()
             return 0;
         },
 
+        // إذن الصلاة: 20 دقيقة مسموحة لكل إذن على حدة.
+        // من 21 دقيقة فأكثر = خصم نصف يوم.
+        calcPrayerHours(prayerMinutes, dailyHours) {
+            if(prayerMinutes > 20) return dailyHours / 2;
+            return 0;
+        },
+
         isExempt(code, dateStr, type) {
             const key = `${code}_${dateStr}_${type}`;
             return !!(State.autoExemptions && State.autoExemptions[key]);
@@ -10917,6 +11013,76 @@ UI.renderCompanies()
             }
         },
 
+        // جزاء خاص بتجاوز مدة إذن الصلاة — لكل إذن صلاة على حدة.
+        hasAutoPrayerPenalty(code, dateStr, breakId) {
+            return State.penalties.some(p =>
+                String(p.code) === String(code) &&
+                p.date === dateStr &&
+                p.autoType === "prayer" &&
+                String(p.sourceBreakId || "") === String(breakId || "")
+            );
+        },
+
+        async checkPrayerOverage(code, dateStr, breakId, rowOverride = null) {
+            const emp = getEmpData(code) || State.employees.find(e => String(e.code) === String(code));
+            if(!emp || !breakId) return;
+            const row = rowOverride || State.breaks.find(b => String(b.id) === String(breakId));
+            if(!row || String(row.type || '').trim() !== 'صلاة') return;
+
+            const totalMs = Number(row.duration || 0) || ((row.deviceReturnTime && row.deviceBreakTime) ? Number(row.deviceReturnTime) - Number(row.deviceBreakTime) : 0);
+            const totalMinutes = Math.max(0, Math.round(totalMs / 60000));
+            const existing = State.penalties.find(p => String(p.code) === String(code) && p.date === dateStr && p.autoType === 'prayer' && String(p.sourceBreakId || '') === String(breakId));
+
+            if(totalMinutes <= 20) {
+                if(existing && !existing.exempted) {
+                    try { await db.ref('penalties/' + existing.id).remove(); UI.toast('✅ تم إلغاء جزاء إذن الصلاة بعد تصحيح المدة', 'success'); }
+                    catch(e) { console.error('[PrayerPenalty] cancel', e); }
+                }
+                return;
+            }
+
+            if(this.isExempt(code, dateStr, 'prayer')) return;
+            const dailyHours = getEmpDailyHours(emp);
+            const hours = this.calcPrayerHours(totalMinutes, dailyHours);
+            if(hours <= 0) return;
+            const reasonText = `تجاوز إذن صلاة ${totalMinutes} دقيقة (المسموح 20 دقيقة)`;
+
+            if(existing) {
+                if(existing.exempted) return;
+                await db.ref('penalties/' + existing.id).update({
+                    name: emp.name, hours: Number(hours.toFixed(2)), reason: reasonText, manager: 'تلقائي',
+                    auto: true, autoType: 'prayer', sourceBreakId: String(breakId), recalculated: true,
+                    recalculatedAt: new Date(TimeUtils.now()).toLocaleString('ar-EG')
+                });
+                return;
+            }
+
+            const penalty = {
+                code: String(code), name: emp.name, hours: Number(hours.toFixed(2)), manager: 'تلقائي',
+                reason: reasonText, date: dateStr, time: new Date(TimeUtils.now()).toLocaleTimeString('ar-EG'),
+                timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: 'النظام (تلقائي)', auto: true,
+                autoType: 'prayer', sourceBreakId: String(breakId)
+            };
+            try {
+                await db.ref('penalties').push(penalty);
+                UI.toast(`⚠️ تم تسجيل جزاء نصف يوم بسبب تجاوز إذن الصلاة ${totalMinutes} دقيقة — ${emp.name}`, 'warning');
+                SystemLog.add('AutoPenalty', code, `${reasonText} (${emp.name})`);
+            } catch(e) {
+                console.error('[PrayerPenalty] create', e);
+                UI.toast('❌ تعذر تسجيل جزاء إذن الصلاة: ' + (e.message || e), 'error');
+            }
+        },
+
+        async removePrayerPenalty(breakId) {
+            if(!breakId) return;
+            const rows = State.penalties.filter(p => p.autoType === 'prayer' && String(p.sourceBreakId || '') === String(breakId));
+            for(const p of rows) {
+                if(!p.exempted) {
+                    try { await db.ref('penalties/' + p.id).remove(); } catch(e) { console.error('[PrayerPenalty] remove', e); }
+                }
+            }
+        },
+
         // فحص إجمالي الاستئذان اليومي (بدون الصلاة) وإنشاء جزاء تلقائي عند الحاجة
         checkBreakOverage(code, dateStr) {
             const emp = getEmpData(code) || State.employees.find(e => String(e.code) === String(code));
@@ -10963,7 +11129,7 @@ UI.renderCompanies()
             "الموظف": p.name, "الكود": p.code, "الساعات": p.hours,
             "السبب": p.reason, "المدير": p.manager, "التاريخ": p.date,
             "الوقت": p.time || "-", "المستخدم": p.createdBy || "-",
-            "نوع الجزاء": p.auto ? "تلقائي (" + (p.autoType === "late" ? "تأخير" : "تجاوز استئذان") + ")" : "يدوي"
+            "نوع الجزاء": p.auto ? "تلقائي (" + (p.autoType === "late" ? "تأخير" : p.autoType === "prayer" ? "تجاوز إذن صلاة" : "تجاوز استئذان") + ")" : "يدوي"
           }));
 
           // ورقة 2: ملخص الجزاءات حسب الموظف (بنفس الفترة)
@@ -11544,9 +11710,11 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
           const modal = document.getElementById("permModal");
           modal.style.display = "flex";
           // تحديد الصلاحيات الحالية
+          FingerprintPermissionPicker._ensureHiddenInputs('edit');
           document.querySelectorAll("#permModal input").forEach(c => {
             c.checked = user.permissions?.includes(c.value) || user.permissions?.includes("all");
           });
+          FingerprintPermissionPicker._set('edit', user.permissions||[]);
 
           // all checkbox toggle
           const allCb = modal.querySelector('input[value="all"]');
@@ -11671,7 +11839,7 @@ let password = document.getElementById("newPassword").value
 password = CryptoJS.SHA256(password).toString()
 
 let perms = [];
-document.querySelectorAll(".perm-checkbox").forEach(cb => {
+document.querySelectorAll("#permissionsGrid .perm-checkbox").forEach(cb => {
 if (cb.checked) perms.push(cb.value);
 });
 
@@ -12338,6 +12506,34 @@ window.addEventListener('resize', () => {
             State.sessionRestored = true;
         }
     };
+// ============================================================
+// صلاحيات بصمة البازار الداخلية — Nested Tab Permissions
+// ============================================================
+const FingerprintPermissionPicker = {
+  tabs:[
+    {key:'employees',perm:'fingerprint-bazar:employees',label:'بيانات الموظفين',icon:'👥'},
+    {key:'attendance',perm:'fingerprint-bazar:attendance',label:'الحضور والانصراف',icon:'🕘'},
+    {key:'advances',perm:'fingerprint-bazar:advances',label:'سلف الموظفين',icon:'💵'},
+    {key:'incentives',perm:'fingerprint-bazar:incentives',label:'مكافآت الموظفين',icon:'🎁'},
+    {key:'penalties',perm:'fingerprint-bazar:penalties',label:'جزاءات الموظفين',icon:'⚠️'},
+    {key:'leaves',perm:'fingerprint-bazar:leaves',label:'الإجازات',icon:'🏖️'},
+    {key:'permits',perm:'fingerprint-bazar:permits',label:'الأذونات',icon:'📝'},
+    {key:'payroll',perm:'fingerprint-bazar:payroll',label:'بيان المرتبات',icon:'💰'},
+    {key:'payslip',perm:'fingerprint-bazar:payslip',label:'شيك قبض الموظف',icon:'🧾'}
+  ],
+  _context:null,_root:null,
+  _ensureHiddenInputs(context){const rootId=context==='edit'?'fingerprintSubPermsEdit':'fingerprintSubPermsNew',root=document.getElementById(rootId);if(!root)return null;if(!root.dataset.ready){root.innerHTML=this.tabs.map(t=>`<input type="checkbox" class="perm-checkbox fingerprint-subperm-checkbox" value="${t.perm}" data-fingerprint-child="${t.key}">`).join('');root.dataset.ready='1';}return root;},
+  _set(context,permissions){const perms=Array.isArray(permissions)?permissions:[],root=this._ensureHiddenInputs(context);root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=perms.includes(cb.value)||perms.includes('all'));const parent=document.querySelector(context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(parent){parent.checked=perms.includes('fingerprint')||perms.includes('all');if(context==='new')parent.closest('.permission-card')?.classList.toggle('active',parent.checked);}},
+  _ensureModal(){let m=document.getElementById('fingerprintPermModal');if(m)return m;m=document.createElement('div');m.id='fingerprintPermModal';m.className='fingerprint-perm-modal';m.hidden=true;m.innerHTML=`<div class="fingerprint-perm-box" role="dialog" aria-modal="true"><div class="fingerprint-perm-head"><div><div class="fingerprint-perm-head-title">🖐️ صلاحيات بصمة البازار</div><div class="fingerprint-perm-head-sub" id="fingerprintPermUserLabel">تحديد التابات المسموح بها</div></div><button class="fingerprint-perm-close" type="button" data-fp-close>✕</button></div><div class="fingerprint-perm-body"><label class="fingerprint-parent-toggle"><input id="fingerprintParentAccess" type="checkbox"><div><b>السماح بالدخول إلى صفحة بصمة البازار</b><span>لو لم تحدد أي تاب فرعي فسيتم التعامل معها كصلاحية كاملة للحسابات القديمة.</span></div></label><div class="fingerprint-perm-grid" id="fingerprintPermGrid"></div><div class="fingerprint-perm-actions"><button class="fingerprint-perm-save" type="button" data-fp-save>💾 حفظ التابات</button><button class="fingerprint-perm-cancel" type="button" data-fp-close>إلغاء</button></div></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-fp-close]'))this.close();else if(e.target.closest('[data-fp-save]'))this.save();});return m;},
+  open(context,user){this._context=context;this._root=this._ensureHiddenInputs(context);const perms=context==='edit'?(user?.permissions||[]):Array.from(document.querySelectorAll('#permissionsGrid .perm-checkbox:checked')).map(x=>x.value);this._set(context,perms);const m=this._ensureModal(),parent=m.querySelector('#fingerprintParentAccess');parent.checked=perms.includes('fingerprint')||perms.includes('all');m.querySelector('#fingerprintPermUserLabel').textContent=context==='edit'?`المستخدم: ${user?.username||'-'} • اختر التابات المسموح له بها`:'صلاحيات المستخدم الجديد • اختر التابات المسموح بها';const grid=m.querySelector('#fingerprintPermGrid');grid.innerHTML=this.tabs.map(t=>`<label class="fingerprint-perm-item"><input type="checkbox" value="${t.perm}" data-fp-child="${t.key}"><span class="fp-icon">${t.icon}</span><span class="fp-label">${t.label}</span></label>`).join('');grid.querySelectorAll('input[data-fp-child]').forEach(cb=>{const hidden=this._root?.querySelector(`.fingerprint-subperm-checkbox[value="${cb.value}"]`);cb.checked=!!hidden?.checked;cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);cb.addEventListener('change',()=>{if(hidden)hidden.checked=cb.checked;cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);});});parent.onchange=()=>{const enabled=parent.checked,main=document.querySelector(context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(main){main.checked=enabled;main.closest('.permission-card')?.classList.toggle('active',enabled);}if(!enabled){this._root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);m.querySelectorAll('input[data-fp-child]').forEach(cb=>{cb.checked=false;cb.closest('.fingerprint-perm-item')?.classList.remove('active');});}};m.hidden=false;},
+  save(){const m=this._ensureModal(),parent=!!m.querySelector('#fingerprintParentAccess')?.checked,main=document.querySelector(this._context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(main){main.checked=parent;main.closest('.permission-card')?.classList.toggle('active',parent);}if(!parent)this._root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);this.close();UI.toast(parent?'✅ تم حفظ صلاحيات تابات بصمة البازار':'ℹ️ تم تعطيل الدخول إلى بصمة البازار','success');},
+  close(){const m=document.getElementById('fingerprintPermModal');if(m)m.hidden=true;},
+  bind(){document.addEventListener('click',e=>{const card=e.target.closest('[data-fingerprint-picker]');if(!card)return;e.preventDefault();e.stopImmediatePropagation();const context=card.getAttribute('data-fingerprint-picker');if(context==='edit')this.open('edit',UserService.editingUser||{});else this.open('new',null);},true);}
+};
+FingerprintPermissionPicker.bind();
+FingerprintPermissionPicker._ensureHiddenInputs('new');
+FingerprintPermissionPicker._ensureHiddenInputs('edit');
+
 // ========================= خدمة الصلاحيات (Permissions) =========================
 const PermissionService = {
 
@@ -12416,6 +12612,10 @@ let tabBtn = document.querySelector(`.tab-btn[data-tab="${targetTab}"]`)
 if(tabBtn) tabBtn.click()
 
 }
+
+    if(typeof BazarHRSuite !== 'undefined' && BazarHRSuite && BazarHRSuite._initialized && typeof BazarHRSuite.applyPermissionVisibility === 'function'){
+      BazarHRSuite.applyPermissionVisibility();
+    }
 
 /* عمود التعديل */
 
@@ -12696,9 +12896,12 @@ function saveEditBreak() {
     updates.duration        = newReturn.getTime()-newBreak.getTime();
   }
 
-  db.ref("breaks/"+_editBreakId).update(updates).then(()=>{
+  db.ref("breaks/"+_editBreakId).update(updates).then(async()=>{
+    const d = updates.date || _editBreakData?.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+    const c = _editBreakData?.code || "-";
+    await AutoDeductionService.checkPrayerOverage(c, d, _editBreakId, {..._editBreakData, ...updates, id:_editBreakId, duration:updates.duration ?? _editBreakData?.duration ?? 0});
     UI.toast("✅ تم تعديل الاستئذان","success");
-    SystemLog.add("EditBreak", _editBreakData?.code||"-", "تعديل استئذان بواسطة: "+(State.currentUser?.username||"-"));
+    SystemLog.add("EditBreak", c, "تعديل استئذان بواسطة: "+(State.currentUser?.username||"-"));
     UI.renderBreaks();
     closeEditBreak();
   }).catch(err=>UI.toast("❌ "+err.message,"error"));
@@ -12712,7 +12915,8 @@ function deleteBreakRecord(id) {
     let rec = State.breaks.find(b => b.id === id);
     let empName = rec?.name || "؟";
     showConfirm("هل تريد حذف استئذان " + empName + "؟", () => {
-        db.ref("breaks/" + id).remove().then(() => {
+        db.ref("breaks/" + id).remove().then(async () => {
+            await AutoDeductionService.removePrayerPenalty(id);
             UI.toast("✅ تم حذف الاستئذان", "success");
             SystemLog.add("DeleteBreak", rec?.code || "-", empName);
             UI.renderBreaks();
@@ -12940,8 +13144,11 @@ newDuration = 0
 updates.duration = newDuration
 }
 
-db.ref("breaks/"+editId).update(updates).then(()=>{
+db.ref("breaks/"+editId).update(updates).then(async()=>{
 
+const d = updates.date || editData?.date || date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+const c = editData?.code || "-";
+await AutoDeductionService.checkPrayerOverage(c, d, editId, {...editData, ...updates, id:editId, duration:updates.duration ?? editData?.duration ?? 0});
 UI.toast("تم تعديل الاستئذان بنجاح","success")
 SystemLog.add("EditBreak", editId || "-", "تعديل استئذان")
 UI.renderBreaks()
@@ -15901,6 +16108,9 @@ const BazarHRSuite = {
   _canEdit(){return hasPermission('edit')||hasPermission('all');},
   _canDelete(){return hasPermission('delete')||hasPermission('all');},
   _canExcel(){return hasPermission('excel')||hasPermission('all');},
+  _fingerprintChildPerms(){return (Array.isArray(State.securePermissions)?State.securePermissions:[]).filter(p=>String(p).startsWith('fingerprint-bazar:'));},
+  _canFingerprintTab(tab){if(hasPermission('all'))return true;if(!hasPermission('fingerprint'))return false;const explicit=this._fingerprintChildPerms();if(explicit.length===0)return true;return explicit.includes('fingerprint-bazar:'+tab);},
+  applyPermissionVisibility(){const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;const buttons=Array.from(root.querySelectorAll('#bazarHrTabs .bhr-tab'));let firstAllowed=null;buttons.forEach(btn=>{const allowed=this._canFingerprintTab(btn.dataset.bhrTab);btn.style.display=allowed?'':'none';if(allowed&&!firstAllowed)firstAllowed=btn.dataset.bhrTab;});const actions={sync:this._canFingerprintTab('attendance'),refresh:!!firstAllowed,export:this._canExcel()};Object.entries(actions).forEach(([k,ok])=>{const b=root.querySelector(`[data-bhr-action="${k}"]`);if(b)b.style.display=ok?'':'none';});if(!this._canFingerprintTab(this._active)){if(firstAllowed)this.openPane(firstAllowed);else{this._active='';root.querySelectorAll('.bhr-pane').forEach(p=>p.hidden=true);}}},
   _canExempt(){return hasPermission('permit')||hasPermission('all');},
   _canLeaves(){return hasPermission('leaves')||hasPermission('leaveApprove')||hasPermission('all');},
   _canLeaveEdit(){return hasPermission('edit')||hasPermission('all');},
@@ -16055,6 +16265,42 @@ const BazarHRSuite = {
   },
   _findAutoLatePenalty(code,date){
     return this._data.penalties.find(p=>String(p.code)===String(code)&&String(p.date)===String(date)&&String(p.autoType||'')==='late');
+  },
+  _findAutoPrayerPenalty(permitId){
+    return this._data.penalties.find(p=>String(p.autoType||'')==='prayer'&&String(p.sourcePermitId||'')===String(permitId));
+  },
+  _prayerPenaltyMeta(minutes,dailyHours){
+    const mins=Math.round(Number(minutes)||0);
+    if(mins<=20)return null;
+    return {hours:dailyHours/2,label:'نصف يوم',reason:`تجاوز إذن صلاة ${mins} دقيقة (المسموح 20 دقيقة)`};
+  },
+  async _recalcPrayerPermitPenalty(row){
+    if(!row||String(row.type||'').trim()!=='صلاة'||!row.id)return;
+    const emp=this._employee(row.code);
+    if(!emp)return;
+    const durationMin=Math.max(0,Math.round(this._num(row.durationMs)/60000));
+    const existing=this._findAutoPrayerPenalty(row.id);
+    if(durationMin<=20){
+      if(existing&&!existing.exempted) await db.ref('bazarPenalties/'+existing.id).remove();
+      return;
+    }
+    if(existing&&existing.exempted)return;
+    const dailyHours=this._dailyHoursForPenalty(emp,row.date||row.dateKey||this._today());
+    const meta=this._prayerPenaltyMeta(durationMin,dailyHours);
+    if(!meta)return;
+    const amount=this._hourlyRate(emp,dailyHours)*meta.hours;
+    const base={code:emp.code,name:emp.name,job:emp.job||'',date:row.date||row.dateKey||this._today(),hours:Number(meta.hours.toFixed(2)),amount:Number(amount.toFixed(2)),value:Number(amount.toFixed(2)),reason:meta.reason,manager:'تلقائي',type:meta.label,penaltyLevel:meta.label,auto:true,autoType:'prayer',source:'تجاوز إذن صلاة',sourcePermitId:String(row.id),by:'النظام',createdBy:'النظام (تلقائي)',updatedAt:Date.now(),timestamp:firebase.database.ServerValue.TIMESTAMP};
+    if(existing){
+      await db.ref('bazarPenalties/'+existing.id).update({...base,updatedAt:Date.now(),recalculated:true});
+    }else{
+      const ref=db.ref('bazarPenalties').push();
+      await ref.set({...base,id:ref.key});
+      this._toast(`⚠️ تم تسجيل جزاء نصف يوم بسبب تجاوز إذن الصلاة ${durationMin} دقيقة — ${emp.name}`,'warning');
+    }
+  },
+  async _removePrayerPenaltyForPermit(permitId){
+    const p=this._findAutoPrayerPenalty(permitId);
+    if(p&&!p.exempted) await db.ref('bazarPenalties/'+p.id).remove();
   },
   _scheduleAutoPenaltySync(){
     clearTimeout(this._autoPenaltyTimer);
@@ -16279,7 +16525,7 @@ const BazarHRSuite = {
   _showPayslip(code,month){const emp=this._employee(code);if(!emp){this._toast('اختر الموظف','warning');return;}const row=this._payrollRows(month).find(r=>r.e.code===code);if(!row){this._toast('لا توجد بيانات لهذا الموظف','warning');return;}const box=document.getElementById('bhr-slip-result');if(!box)return;box.innerHTML=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;font-size:21px;font-weight:900">علوش البازار</div><div style="text-align:center;margin-top:4px">شيك قبض الموظف — ${this._esc(month)}</div><hr><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><div><b>الموظف:</b> ${this._esc(emp.name)}</div><div><b>الكود:</b> ${this._esc(emp.code)}</div><div><b>الوظيفة:</b> ${this._esc(emp.job||'-')}</div><div><b>صافي المرتب:</b> ${row.net.toFixed(2)} ج</div></div><div style="margin-top:18px;display:flex;justify-content:center"><button class="bhr-btn" data-bhr-action="print-slip">🖨️ طباعة</button></div></div>`;},
 
   _bindPaneFilters(pane,draw){const bindings=Array.from(pane.querySelectorAll('[data-filter]'));bindings.forEach(el=>{el.addEventListener(el.type==='month'||el.tagName==='SELECT'?'change':'input',draw);});},
-  openPane(tab){this._active=tab;document.querySelectorAll('#bazarHrTabs .bhr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhrTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bhr-pane').forEach(p=>p.hidden=true);const p=document.getElementById('bh-pane-'+tab);if(p)p.hidden=false;this.renderActive();},
+  openPane(tab){if(!this._canFingerprintTab(tab)){const first=document.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');if(first&&first.dataset.bhrTab!==tab)return this.openPane(first.dataset.bhrTab);this._toast('⛔ ليس لديك صلاحية لهذا التاب في بصمة البازار','error');return;}this._active=tab;document.querySelectorAll('#bazarHrTabs .bhr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhrTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bhr-pane').forEach(p=>p.hidden=true);const p=document.getElementById('bh-pane-'+tab);if(p)p.hidden=false;this.renderActive();},
   renderActive(){const m={employees:'renderEmployees',attendance:'renderAttendance',advances:'renderAdvances',penalties:'renderPenalties',leaves:'renderLeaves',incentives:'renderIncentives',permits:'renderPermits',payroll:'renderPayroll',payslip:'renderPayslip'};const fn=this[m[this._active]];if(typeof fn==='function')fn.call(this);},
 
   _openModal(title,body){const m=document.getElementById('bh-modal');if(!m)return;m.innerHTML=`<div class="bhr-modal-box"><div class="bhr-modal-head"><b>${this._esc(title)}</b><button class="bhr-row-btn" data-bhr-action="close-modal">✕</button></div><div class="bhr-modal-body">${body}</div></div>`;m.hidden=false;},
@@ -16333,12 +16579,12 @@ const BazarHRSuite = {
   openPenaltyForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.penalties.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل جزاء':'إضافة جزاء',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>الساعات</span><input class="bhr-input" id="bhr-hours" type="number" min="0" step="0.25" value="${this._esc(old.hours??'')}"></label><label class="bhr-field"><span>القيمة (اختياري)</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" value="${this._esc(old.value??old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field"><span>المدير</span><input class="bhr-input" id="bhr-manager" value="${this._esc(old.manager||'')}"></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'يدوي')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>السبب</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.reason||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePenalty(id));},
   async _savePenalty(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),hours=this._num(document.getElementById('bhr-hours')?.value),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||(!hours&&!amount))return this._toast('اختر الموظف وأدخل الساعات أو القيمة','error');const rec={code:emp.code,name:emp.name,hours,amount,value:amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ الجزاء','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openPermitForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.permits.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل إذن':'إضافة إذن',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'شخصي')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||old.dateKey||this._today())}"></label><label class="bhr-field"><span>وقت الخروج</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.breakTime||'')}"></label><label class="bhr-field"><span>وقت الرجوع</span><input class="bhr-input" id="bhr-back" type="time" value="${this._esc(old.returnTime||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePermit(id));},
-  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);if(backTs||id)await this._recalcPrayerPermitPenalty({...rec,id:ref.key});this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   async _saveAttendance(code,date,inTime,outTime,note){const emp=this._employee(code);if(!emp||!inTime)return this._toast('اختر الموظف وأدخل وقت الحضور','error');const inTs=new Date(date+'T'+inTime+':00').getTime();let outTs=outTime?new Date(date+'T'+outTime+':00').getTime():0;if(outTs&&outTs<=inTs)outTs+=86400000;const updates={};this._data.attendance.filter(a=>String(a.code)===String(code)&&(a.workDate||this._dayKey(a.timestamp))===date).forEach(a=>{updates[`fingerprintBazar/${a.id}`]=null;});const base=`manual_${Date.now()}_${code}`;updates[`fingerprintBazar/${base}_in`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckIn',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(inTs),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};if(outTs)updates[`fingerprintBazar/${base}_out`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckOut',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(outTs),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};await db.ref().update(updates);this.closeModal();this._toast('✅ تم حفظ الحضور والانصراف','success');},
   openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value=""></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
 
-  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{await db.ref(path+'/'+id).remove();this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
-  async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs:Math.max(0,now-Number(row.breakTimestamp||0)),status:'closed',updatedAt:Date.now()});},
+  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
+  async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();const durationMs=Math.max(0,now-Number(row.breakTimestamp||0));await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed',updatedAt:Date.now()});await this._recalcPrayerPermitPenalty({...row,returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed'});},
 
   async syncFromDevice(){const b=[...document.querySelectorAll('#tab-fingerprint-bazar .bhr-btn')].find(x=>String(x.textContent||'').includes('مزامنة'));if(b){b.disabled=true;b.textContent='⏳ جارٍ المزامنة...';}try{const ref=db.ref('syncRequests').push();await ref.set({status:'pending',requestedBy:State.currentUser?.username||'-',requestedAt:new Date().toISOString(),device:'fingerprintBazar'});this._toast('📡 تم إرسال طلب المزامنة','info');const key=ref.key;let waited=0;const timer=setInterval(async()=>{waited+=3;try{const snap=await db.ref('syncRequests/'+key).once('value');const d=snap.val();if(d?.status==='done'){clearInterval(timer);this.refreshAll();setTimeout(()=>{const ignored=this._attendanceIgnoredCodes?.length||0;this._toast(ignored?('✅ تمت المزامنة — تم اعتماد الحركات المطابقة لبيانات الموظفين فقط. تم تجاهل '+ignored+' كود غير مسجل.'):('✅ تمت المزامنة — تم اعتماد الحركات المطابقة لبيانات الموظفين فقط.'),'success');},250);if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}else if(d?.status==='error'||waited>=180){clearInterval(timer);this._toast(d?.message||'⏰ انتهت مهلة المزامنة','warning');if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}}catch(e){clearInterval(timer);if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}},3000);}catch(e){if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}this._toast('❌ '+e.message,'error');}},
 
@@ -16486,7 +16732,7 @@ const BazarHRSuite = {
   _rowIdDecode(v){try{return decodeURIComponent(String(v));}catch(_){return String(v);}},
   _handleClick(e){const t=e.target.closest('[data-bhr-tab]');if(t)return this.openPane(t.dataset.bhrTab);const top=e.target.closest('[data-bhr-action]');if(top){const a=top.dataset.bhrAction;if(a==='sync')return this.syncFromDevice();if(a==='refresh')return this.refreshAll();if(a==='export')return this.exportCurrent();if(a==='add-employee')return this.openEmployeeForm();if(a==='add-advance')return this.openAdvanceForm();if(a==='add-incentive')return this.openIncentiveForm();if(a==='add-penalty')return this.openPenaltyForm();if(a==='add-leave')return this.openLeaveForm();if(a==='save-leave')return this._saveBazarLeave(this._rowIdDecode(top.dataset.id||''));if(a==='check-bazar-absence')return this._checkBazarAbsence();if(a==='add-permit')return this.openPermitForm();if(a==='add-attendance')return this.openAttendanceForm();if(a==='show-payslip')return this._showPayslip(document.querySelector('#bh-pane-payslip [data-filter="employee"]')?.value||'',document.querySelector('#bh-pane-payslip [data-filter="month"]')?.value||this._today().slice(0,7));if(a==='print-slip')return window.print();if(a==='close-modal')return this.closeModal();}
     const row=e.target.closest('[data-bhr-row]');if(!row)return;const a=row.dataset.bhrRow,id=this._rowIdDecode(row.dataset.id);if(a==='edit'){if(this._active==='employees')return this.openEmployeeForm(id);if(this._active==='advances')return this.openAdvanceForm(id);if(this._active==='incentives')return this.openIncentiveForm(id);if(this._active==='penalties')return this.openPenaltyForm(id);if(this._active==='permits')return this.openPermitForm(id);if(this._active==='attendance'){const [code,date]=id.split('|');return this.openAttendanceForm(code,date);}}if(a==='delete'){if(this._active==='employees'){const r=this._employee(id);const key=r?.firebaseKey||r?.id||id;return this._delete('bazarEmpData',key,'الموظف');}if(this._active==='advances')return this._delete('bazarAdvances',id,'السلفة');if(this._active==='incentives')return this._delete('bazarIncentives',id,'المكافأة');if(this._active==='penalties')return this._delete('bazarPenalties',id,'الجزاء');if(this._active==='permits')return this._delete('bazarBreaks',id,'الإذن');}if(a==='leave-edit')return this.openLeaveForm(id);if(a==='leave-delete')return this._delete('bazarLeaves',id,'الإجازة');if(a==='leave-approve')return this.approveLeave(id,true);if(a==='leave-reject')return this.approveLeave(id,false);if(a==='bazar-absence'){const [code,date]=id.split('|');return this._applyBazarAbsencePenalty(code,date);}if(a==='exempt-penalty')return this.openPenaltyExemptForm(id);if(a==='restore-penalty')return this._restorePenaltyExemption(id);if(a==='return-permit')return this._returnPermit(id);},
-  init(){if(this._initialized){this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();const leaveTab=root.querySelector('[data-bhr-tab="leaves"]');if(leaveTab&&!this._canLeaves())leaveTab.style.display='none';this.openPane('employees');this._toast('✅ بصمة البازار V49 — تصدير التاب هو التصدير الرسمي','success');}
+  init(){if(this._initialized){this.applyPermissionVisibility();if(this._active&&this._canFingerprintTab(this._active))this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.applyPermissionVisibility();const first=root.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');this.openPane(first?.dataset?.bhrTab||'employees');this._toast('✅ بصمة البازار V49 — تصدير التاب هو التصدير الرسمي','success');}
 };
 window.BazarHRSuite=BazarHRSuite;
 console.info('[Allosh Bazar HR] V49 single-core — official tab export, responsive penalty headers');
@@ -18907,6 +19153,15 @@ body.innerHTML = html
                 breaks: "الاستئذانات", products: "التواريخ", system: "النظام",
                 transfers: "التحويلات", "transfer-analytics": "تحليل التحويلات",
                 fingerprint: "بصمة البازار", "fingerprint-sabah": "بصمة الصباح",
+                "fingerprint-bazar:employees":"بصمة البازار — بيانات الموظفين",
+                "fingerprint-bazar:attendance":"بصمة البازار — الحضور والانصراف",
+                "fingerprint-bazar:advances":"بصمة البازار — السلف",
+                "fingerprint-bazar:incentives":"بصمة البازار — المكافآت",
+                "fingerprint-bazar:penalties":"بصمة البازار — الجزاءات",
+                "fingerprint-bazar:leaves":"بصمة البازار — الإجازات",
+                "fingerprint-bazar:permits":"بصمة البازار — الأذونات",
+                "fingerprint-bazar:payroll":"بصمة البازار — بيان المرتبات",
+                "fingerprint-bazar:payslip":"بصمة البازار — شيك قبض الموظف",
                 excel: "تصدير Excel", edit: "التعديل", prices: "الأسعار",
                 all: "كل الصلاحيات"
             };
