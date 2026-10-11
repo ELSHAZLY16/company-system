@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+<!-- Compatible with Python V9 database-source bridge. UI/API contract intentionally unchanged: localhost:8768 and Firebase syncRequestsV8. -->
+
     
    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script> 
 
@@ -21623,7 +21625,7 @@ window.requestBazarFingerprintSync = async function(options={}){
     const began=Date.now();
     while(Date.now()-began<180000){
       await pause(1800);
-      const response=await timedFetch(`http://127.0.0.1:8765/api/status?jobId=${encodeURIComponent(jobId)}`,{method:'GET'},4000);
+      const response=await timedFetch(`http://127.0.0.1:8768/api/status?jobId=${encodeURIComponent(jobId)}`,{method:'GET'},4000);
       if(!response.ok)throw new Error('تعذر قراءة حالة المزامنة المحلية');
       const status=await response.json();
       if(status.status==='done')return {...status,route:'local'};
@@ -21635,7 +21637,11 @@ window.requestBazarFingerprintSync = async function(options={}){
   // الجهاز/المتصفح على نفس الكمبيوتر فقط. إن لم يكن الجسر متاحًا، يتم التحويل تلقائيًا إلى Firebase.
   let localJobId=null;
   try{
-    const response=await timedFetch('http://127.0.0.1:8765/api/sync',{
+    const healthResponse=await timedFetch('http://127.0.0.1:8768/api/health',{method:'GET'},1800);
+    if(!healthResponse.ok)throw new Error('جسر V8 المحلي غير جاهز');
+    const health=await healthResponse.json();
+    if(health?.version!==8||health?.syncStartDate!=='2026-10-01')throw new Error('إصدار الجسر المحلي غير مطابق للمزامنة من 1 أكتوبر');
+    const response=await timedFetch('http://127.0.0.1:8768/api/sync',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({requestedBy,device:'fingerprintBazar',origin:location.origin})
     },2200);
@@ -21649,13 +21655,13 @@ window.requestBazarFingerprintSync = async function(options={}){
   // إذا قبل الجسر المحلي الطلب، لا نكرر الطلب عبر Firebase حتى لو تعطلت قراءة حالته.
   if(localJobId)return await pollLocal(localJobId);
   // Fallback: request consumed by the Python agent on the computer connected to ZKTeco.
-  const requestRef=db.ref('syncRequests').push();
-  await requestRef.set({status:'pending',requestedBy,requestedAt:new Date().toISOString(),device:'fingerprintBazar',transport:'firebase-queue'});
+  const requestRef=db.ref('syncRequestsV8').push();
+  await requestRef.set({status:'pending',requestedBy,requestedAt:new Date().toISOString(),device:'fingerprintBazar',transport:'firebase-queue-v8',minimumScriptVersion:8,syncStartDate:'2026-10-01'});
   const key=requestRef.key;
   const began=Date.now();
   while(Date.now()-began<180000){
     await pause(2500);
-    const snap=await db.ref('syncRequests/'+key).once('value');
+    const snap=await db.ref('syncRequestsV8/'+key).once('value');
     const data=snap.val();
     if(data?.status==='done')return {...data,route:'firebase'};
     if(data?.status==='error')throw new Error(data.message||'فشلت مزامنة البصمة');
