@@ -6395,7 +6395,6 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                   <option value="">— اختر نوع البيانات —</option>
                   <optgroup label="📊 السجلات التاريخية">
                     <option value="attendance">🔏 سجل الحضور والانصراف</option>
-                    <option value="fingerprintBazar">🖐️ سجل بصمة البازار/الصباح</option>
                     <option value="breaks">☕ سجل الاستئذانات</option>
                     <option value="systemLogs">📋 سجل النظام</option>
                     <option value="penalties">⚠️ سجل الجزاءات</option>
@@ -7167,9 +7166,10 @@ function applyEditColVisibility() {
 // ════════════════════════════════════════════════════
 const ArchiveService = {
   _data: [], _filtered: [], _lastCol: null, _lastRange: null,
+  _requestSeq: 0, _collectionCache: new Map(), _collectionSchema: new Map(), _pendingDelete: null, _operationLock: false, _tableQuery: '', _tablePage: 0, _tablePageSize: 200, _tableColumns: [],
 
   collectionNames: {
-    attendance:'سجل الحضور', fingerprintBazar:'سجل بصمة البازار/الصباح', breaks:'الاستئذانات', companies:'الشركات',
+    attendance:'سجل الحضور', fingerprintBazar:'الحضور والانصراف — بصمة البازار', breaks:'الاستئذانات', companies:'الشركات',
     vehicles:'العربيات', systemLogs:'سجل النظام', penalties:'الجزاءات',
     penaltyExemptLog:'سجل الإعفاءات من الخصم التلقائي',
     loginLogs:'سجل الدخول',
@@ -7204,220 +7204,301 @@ const ArchiveService = {
     document.getElementById('archiveModeBefore').style.display = mode==='before' ? 'block' : 'none';
     const allTools=document.getElementById('archiveAllDataTools');
     if(allTools) allTools.style.display = mode==='all' ? 'block' : 'none';
-    this._filtered = []; this._data=[]; this._lastCol=null; this._lastRange=null; this.updateStats();
+    this._requestSeq=(this._requestSeq||0)+1; this._filtered = []; this._data=[]; this._lastCol=null; this._lastRange=null; this._selectedArchiveIds.clear(); this._tablePage=0; this._tableQuery=''; this._tableColumns=[]; this.updateStats();
+  },
+
+  _escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  },
+
+  _clone(value) {
+    if(value == null) return value;
+    return JSON.parse(JSON.stringify(value));
+  },
+
+  _stableStringify(value) {
+    const normalize = v => {
+      if(Array.isArray(v)) return v.map(normalize);
+      if(v && typeof v === 'object') {
+        const out = {};
+        Object.keys(v).sort().forEach(k => { out[k] = normalize(v[k]); });
+        return out;
+      }
+      return v;
+    };
+    return JSON.stringify(normalize(value));
+  },
+
+  _parseDateString(raw) {
+    if(raw instanceof Date) return Number.isFinite(raw.getTime()) ? raw.getTime() : 0;
+    if(typeof raw === 'number' && Number.isFinite(raw)) {
+      if(raw > 1e12) return raw;
+      if(raw >= 1e9) return raw * 1000;
+      return 0;
+    }
+    const s = String(raw == null ? '' : raw).trim();
+    if(!s) return 0;
+    const latin = s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    // ISO date-times with an explicit timezone are absolute instants, not local wall-clock values.
+    if(/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:?\d{2})$/i.test(latin)) { const absolute=Date.parse(latin); return Number.isFinite(absolute)?absolute:0; }
+    let m = latin.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+(\d{1,2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?$/);
+    if(m) {
+      const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]), Number(m[4]||0), Number(m[5]||0), Number(m[6]||0), Number(String(m[7]||'0').padEnd(3,'0').slice(0,3)));
+      return Number.isFinite(d.getTime()) ? d.getTime() : 0;
+    }
+    // تاريخ النظام مخزن غالبًا بصيغة يوم/شهر/سنة؛ نقرأه صراحةً لتجنب اختلاف المتصفحات.
+    m = latin.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:[ ,T]+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(ص|م|AM|PM)?\s*)?$/i);
+    if(m) {
+      let hour = Number(m[4]||0);
+      const minute = Number(m[5]||0), second = Number(m[6]||0), period = String(m[7]||'').toLowerCase();
+      if((period==='م'||period==='pm') && hour < 12) hour += 12;
+      if((period==='ص'||period==='am') && hour === 12) hour = 0;
+      const d = new Date(Number(m[3]), Number(m[2])-1, Number(m[1]), hour, minute, second, 0);
+      return Number.isFinite(d.getTime()) ? d.getTime() : 0;
+    }
+    // صيغة نصية غير ملتبسة فقط كاحتياطي؛ الصيغ الرقمية dd/mm تمت معالجتها قبل ذلك.
+    if(/[A-Za-z]/.test(latin) && !/^\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}/.test(latin)) {
+      const parsed = new Date(latin).getTime();
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+    return 0;
+  },
+
+  _timeParts(raw) {
+    if(raw == null || raw === '') return null;
+    const s = String(raw).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    const m = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(ص|م|AM|PM)?/i);
+    if(!m) return null;
+    let h = Number(m[1]);
+    const period = String(m[4]||'').toLowerCase();
+    if((period==='م'||period==='pm') && h < 12) h += 12;
+    if((period==='ص'||period==='am') && h === 12) h = 0;
+    if(h > 23 || Number(m[2]) > 59 || Number(m[3]||0) > 59) return null;
+    return {h, m:Number(m[2]), s:Number(m[3]||0)};
+  },
+
+  _dateOnlyTimestamp(value) {
+    if(value instanceof Date) return new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+    const raw = String(value == null ? '' : value).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    let m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(m) return new Date(Number(m[1]), Number(m[2])-1, Number(m[3])).getTime();
+    m = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/);
+    if(m) return new Date(Number(m[3]), Number(m[2])-1, Number(m[1])).getTime();
+    const ts = this._parseDateString(raw);
+    if(!ts) return 0;
+    const d = new Date(ts);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   },
 
   getDateRange() {
     const mode = document.getElementById('archiveMode')?.value || 'month';
     const mn = ['','يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const localDate = (value, endOfDay=false) => {
+      const m = String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(!m) return 0;
+      const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]), endOfDay?23:0, endOfDay?59:0, endOfDay?59:0, endOfDay?999:0);
+      return Number.isFinite(d.getTime()) ? d.getTime() : 0;
+    };
     if(mode === 'month') {
-      const month = parseInt(document.getElementById('archiveMonth')?.value || new Date().getMonth()+1);
-      const year  = parseInt(document.getElementById('archiveYear')?.value  || new Date().getFullYear());
-      return { from: new Date(year,month-1,1).getTime(), to: new Date(year,month,0,23,59,59,999).getTime(), label: `${mn[month]} ${year}` };
+      const month = parseInt(document.getElementById('archiveMonth')?.value || new Date().getMonth()+1, 10);
+      const year = parseInt(document.getElementById('archiveYear')?.value || new Date().getFullYear(), 10);
+      if(!Number.isInteger(month)||month<1||month>12||!Number.isInteger(year)||year<1970||year>2200) return null;
+      return {mode, from:new Date(year,month-1,1,0,0,0,0).getTime(), to:new Date(year,month,0,23,59,59,999).getTime(), label:`${mn[month]} ${year}`};
     }
     if(mode === 'range') {
       const f = document.getElementById('archiveDateFrom')?.value;
       const t = document.getElementById('archiveDateTo')?.value;
       if(!f||!t) return null;
-      return { from: new Date(f).getTime(), to: new Date(t+'T23:59:59.999').getTime(), label: `${f} → ${t}` };
+      const from=localDate(f,false), to=localDate(t,true);
+      if(!from||!to||from>to) return null;
+      return {mode, from, to, label:`${f} → ${t}`, fromDate:f, toDate:t};
     }
     if(mode === 'before') {
       const b = document.getElementById('archiveDateBefore')?.value;
       if(!b) return null;
-      return { from:0, to: new Date(b).getTime()-1, label: `قبل ${b}` };
+      const dayStart=localDate(b,false);
+      if(!dayStart) return null;
+      return {mode, from:0, to:dayStart-1, label:`قبل ${b}`, beforeDate:b};
     }
+    if(mode === 'all') return {mode:'all', label:'كل بيانات النوع'};
     return null;
   },
 
   getTimestamp(item) {
-    if(item.timestamp && typeof item.timestamp==='number' && item.timestamp>1e12) return item.timestamp;
-    if(item.deviceBreakTime && typeof item.deviceBreakTime==='number') return item.deviceBreakTime;
-    if(item.breakTimestamp  && typeof item.breakTimestamp==='number')  return item.breakTimestamp;
-    if(item.timeIn && typeof item.timeIn==='number') return item.timeIn;
-    if(item.loginTs && typeof item.loginTs==='number') return item.loginTs;
-    const ds = item.date||'';
-    if(ds) { try { const ts=new Date(ds).getTime(); if(!isNaN(ts)) return ts; } catch(e){} }
-    return 0;
+    if(!item || typeof item !== 'object') return 0;
+    const epoch = value => {
+      if(typeof value === 'string' && /^\d{10,13}$/.test(value.trim())) value = Number(value);
+      if(typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 0;
+      if(value > 1e12) return value;
+      if(value >= 1e9) return value * 1000;
+      return 0;
+    };
+    for(const key of ['timestamp','deviceBreakTime','breakTimestamp','loginTs','ts','createdAt','updatedAt','timeIn']) {
+      const ts=epoch(item[key]);
+      if(ts) return ts;
+    }
+    const ds = item.dateISO || item.dateKey || item.date || item.createdAt || item.updatedAt || '';
+    const clock = item.timeDisplay || item.time || item.actionTime || item.breakTime || item.outTime || '';
+    let ts=this._parseDateString(ds);
+    if(!ts) return 0;
+    // إذا كان التاريخ يومًا فقط ومعه حقل وقت منفصل، نجمعهما كتوقيت محلي.
+    const rawDate=String(ds);
+    const containsClock=/[T\s]\d{1,2}:\d{2}/.test(rawDate);
+    const p=this._timeParts(clock);
+    if(p && !containsClock) {
+      const d=new Date(ts);
+      ts=new Date(d.getFullYear(),d.getMonth(),d.getDate(),p.h,p.m,p.s,0).getTime();
+    }
+    return ts;
   },
 
   filterByDate(data, range) {
-    return data.filter(item => { const ts=this.getTimestamp(item); return ts && ts>=range.from && ts<=range.to; });
+    if(!range || !Number.isFinite(range.from) || !Number.isFinite(range.to)) return [];
+    return (data||[]).filter(item => { const ts=this.getTimestamp(item); return ts>0 && ts>=range.from && ts<=range.to; });
   },
 
-  fetchData(col) {
-    return new Promise((res,rej) => db.ref(col).once('value', snap => {
-      const raw = snap.val()||{};
-      res(Object.entries(raw).map(([id,val]) => ({...val, _id:id, id:id})));
-    }, rej));
+  _rowsFromSnapshot(snap) {
+    const raw=snap?.val()||{};
+    return Object.entries(raw).filter(([,val])=>val!==null&&val!==undefined).map(([key,val])=>{
+      const row=val&&typeof val==='object'?{...val,_id:String(key),_firebaseKey:String(key)}:{value:val,_id:String(key),_firebaseKey:String(key)};
+      if(row.id==null) row.id=String(key);
+      Object.defineProperty(row,'_archiveOriginal',{value:this._clone(val),enumerable:false,configurable:false});
+      return row;
+    });
   },
 
-  async updateStats() {
+  _buildTableColumns(rows) {
+    const keys=new Set();
+    (rows||[]).forEach(item=>Object.keys(item||{}).forEach(k=>{
+      if(!['_archiveOriginal','_archiveSearchText','_id','_firebaseKey'].includes(k)) keys.add(k);
+    }));
+    this._tableColumns=Array.from(keys);
+  },
+
+  async fetchData(col, options={}) {
+    const now=Date.now(), ttl=20000;
+    if(!this._collectionCache) this._collectionCache=new Map();
+    if(!this._collectionSchema) this._collectionSchema=new Map();
+    const cached=this._collectionCache.get(col);
+    // الكاش الكامل يقلل إعادة تنزيل نفس المجموعة أثناء تعديل الفلاتر.
+    if(!options.forceFresh && cached && now-cached.at<ttl) return cached.rows;
+
+    // عندما نعرف من قراءة كاملة أن جميع سجلات المجموعة تحمل timestamp رقميًا،
+    // نستخدم استعلام Firebase زمنيًا للفترات والشهور بدل تنزيل المجموعة كلها.
+    // المجموعات ذات المخطط المختلط تبقى على القراءة الكاملة الآمنة.
+    const canQuery=options.range && options.range.mode!=='all' && !options.skipTimestampQuery && this._collectionSchema.get(col)===true;
+    let queryFailed=false;
+    if(canQuery) {
+      try {
+        const snap=await db.ref(col).orderByChild('timestamp').startAt(options.range.from).endAt(options.range.to).once('value');
+        return this._rowsFromSnapshot(snap);
+      } catch(queryErr) {
+        // الاستعلام الزمني قد لا يتاح في بعض إعدادات Firebase؛ ارجع للقراءة الكاملة الآمنة بدل إظهار بيانات قديمة أو فشل المعاينة.
+        console.warn('[Archive] timestamp query unavailable; falling back to full read:',queryErr);
+        this._collectionSchema.set(col,false); queryFailed=true;
+      }
+    }
+
+    const snap=await db.ref(col).once('value');
+    const rows=this._rowsFromSnapshot(snap);
+    const indexable=!queryFailed && rows.length>0 && rows.every(row=>{
+      const raw=row._archiveOriginal;
+      const ts=raw&&typeof raw==='object'?raw.timestamp:null;
+      return typeof ts==='number' && Number.isFinite(ts) && ts>0;
+    });
+    this._collectionSchema.set(col,indexable);
+    if(!options.requestSeq || options.requestSeq===this._requestSeq) this._collectionCache.set(col,{at:Date.now(),rows});
+    return rows;
+  },
+  _setStats(rows, label, isAll=false) {
+    const statsEl=document.getElementById('archiveStats');
+    if(!statsEl) return;
+    statsEl.style.display='block';
+    const ce=document.getElementById('archiveCount');
+    if(ce){ce.textContent=Number(rows.length||0).toLocaleString('ar-EG');ce.style.color=isAll?'#34d399':(rows.length?'#f87171':'#34d399');}
+    const se=document.getElementById('archiveSizeKB');
+    if(se) { let bytes=0; for(const row of (rows||[])) { try { bytes += JSON.stringify(row).length; } catch(e) { bytes += 128; } } se.textContent=Math.round(bytes/1024).toLocaleString('ar-EG'); }
+    const re=document.getElementById('archiveDateRange');
+    if(re) re.textContent=label||'—';
+  },
+
+  async updateStats(options={}) {
     const col=document.getElementById('archiveCollection')?.value;
     const statsEl=document.getElementById('archiveStats');
     const previewSection=document.getElementById('archivePreviewSection');
-    if(!col) { if(statsEl) statsEl.style.display='none'; this._filtered=[]; this._data=[]; return; }
+    const dataTools=document.getElementById('archiveAllDataTools');
+    const priorCol=this._lastCol;
+    const seq=(this._requestSeq||0)+1;
+    this._requestSeq=seq;
+    if(priorCol && col && priorCol!==col) this._selectedArchiveIds.clear();
+    this._filtered=[]; this._data=[]; this._lastCol=null; this._lastRange=null;
+    if(statsEl) statsEl.style.display='none';
+    if(previewSection) previewSection.style.display='none';
+    if(dataTools) dataTools.style.display='none';
+    const tableBody=document.getElementById('archiveDataBody');
+    const tableHead=document.getElementById('archiveDataHead');
+    if(tableBody) tableBody.innerHTML='<tr><td colspan="2" style="text-align:center;padding:18px;color:#94a3b8">جارٍ تحديث البيانات…</td></tr>';
+    if(tableHead) tableHead.innerHTML='';
+    if(!col) { this._selectedArchiveIds.clear(); return false; }
 
-    // وضع إدارة البيانات الكاملة: تحميل النوع المختار فقط ثم عرضه بالكامل.
-    // لا يتم تحميل كل Firebase دفعة واحدة؛ المستخدم يختار مسارًا واحدًا فقط.
-    const modeNow = document.getElementById('archiveMode')?.value || 'month';
-    if(modeNow === 'all') {
-      try {
-        UI.toast('⏳ جارٍ تحميل بيانات النوع المختار فقط...','info');
-        this._data = await this.fetchData(col);
-        this._filtered = this._data.slice();
-        this._lastCol = col;
-        this._lastRange = {mode:'all'};
-        const count=this._filtered.length;
-        const sizeKB=Math.round(JSON.stringify(this._filtered).length/1024);
-        if(statsEl){
-          statsEl.style.display='block';
-          const ce=document.getElementById('archiveCount'); if(ce){ce.textContent=count.toLocaleString('ar-EG');ce.style.color='#34d399';}
-          const se=document.getElementById('archiveSizeKB'); if(se) se.textContent=sizeKB.toLocaleString('ar-EG');
-          const re=document.getElementById('archiveDateRange'); if(re) re.textContent='كل بيانات النوع المختار';
-        }
-        const allTools=document.getElementById('archiveAllDataTools');
-        if(allTools) allTools.style.display='block';
-        this.renderDataTable();
-        if(previewSection) previewSection.style.display='none';
-        return;
-      } catch(err) {
-        UI.toast('❌ خطأ في تحميل البيانات: '+err.message,'error');
-        return;
-      }
+    // البيانات الرئيسية لا تُفلتر بالتاريخ؛ التحويل إلى «كل البيانات» صريح وواضح.
+    if(col==='bazarEmpData' && document.getElementById('archiveMode')?.value!=='all') {
+      const modeEl=document.getElementById('archiveMode'); if(modeEl) modeEl.value='all';
+      ['archiveModeMonth','archiveModeRange','archiveModeBefore'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+      if(dataTools) dataTools.style.display='block';
+    }
+    const mode=document.getElementById('archiveMode')?.value||'month';
+    let range=mode==='all'?{mode:'all',label:'كل بيانات النوع'}:this.getDateRange();
+    if(!range) {
+      if(statsEl) statsEl.style.display='none';
+      if(tableBody) tableBody.innerHTML='<tr><td colspan="2" style="text-align:center;padding:18px;color:#fbbf24">راجع التاريخ؛ تاريخ البداية يجب ألا يكون بعد تاريخ النهاية.</td></tr>';
+      if(mode==='range' && document.getElementById('archiveDateFrom')?.value && document.getElementById('archiveDateTo')?.value) UI.toast('⚠️ تاريخ البداية يجب ألا يكون بعد تاريخ النهاية','warning');
+      this._selectedArchiveIds.clear();
+      return false;
     }
 
-    // بيانات موظفي بصمة البازار هي بيانات رئيسية وليست سجلات زمنية.
-    // لذلك تُعرض كاملة مهما كان وضع التاريخ المختار.
-    if(col === 'bazarEmpData') {
-      try {
-        UI.toast('⏳ جارٍ تحميل بيانات موظفي بصمة البازار...','info');
-        this._data = await this.fetchData(col);
-        this._filtered = this._data.slice();
-        this._lastCol = col;
-        this._lastRange = {mode:'master'};
-        const count=this._filtered.length, sizeKB=Math.round(JSON.stringify(this._filtered).length/1024);
-        if(statsEl){
-          statsEl.style.display='block';
-          const ce=document.getElementById('archiveCount'); if(ce){ce.textContent=count.toLocaleString('ar-EG');ce.style.color='#34d399';}
-          const se=document.getElementById('archiveSizeKB'); if(se) se.textContent=sizeKB.toLocaleString('ar-EG');
-          const re=document.getElementById('archiveDateRange'); if(re) re.textContent='بيانات الموظفين الحالية — بصمة البازار';
-        }
-        if(previewSection) previewSection.style.display='none';
-        this._selectedArchiveIds.clear();
-        if(document.getElementById('archiveMode')?.value==='all') this.renderDataTable();
-        return;
-      } catch(err) { UI.toast('❌ خطأ في تحميل بيانات موظفي بصمة البازار: '+err.message,'error'); return; }
-    }
-
-    // معالجة خاصة للتواريخ المنتهية
-    // مهم: هذا النوع يجب أن يحترم الشهر/السنة أو النطاق الذي اختاره المستخدم،
-    // وليس أن يعرض كل المنتجات المنتهية في النظام.
-    if(col === 'products_expired') {
-      const range = this.getDateRange();
-      if(!range) {
-        this._filtered = [];
-        this._data = [];
-        if(statsEl) statsEl.style.display='none';
-        if(previewSection) previewSection.style.display='none';
-        return;
-      }
-
-      // تواريخ انتهاء المنتجات محفوظة عادة بصيغة input[type=date] = YYYY-MM-DD.
-      // نفسرها كتاريخ محلي بدون UTC حتى لا ينزاح التاريخ يومًا بسبب المنطقة الزمنية.
-      const parseExpireDate = (value) => {
-        if(value instanceof Date) {
-          const d = new Date(value.getFullYear(), value.getMonth(), value.getDate());
-          return isNaN(d.getTime()) ? null : d;
-        }
-
-        const raw = String(value || '').trim();
-        const m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-        if(m) {
-          const d = new Date(
-            Number(m[1]),
-            Number(m[2]) - 1,
-            Number(m[3])
-          );
-          return isNaN(d.getTime()) ? null : d;
-        }
-
-        // دعم احتياطي للتواريخ التي قد تكون مخزنة بصيغة أخرى.
-        const parsed = new Date(raw);
-        if(isNaN(parsed.getTime())) return null;
-        return new Date(
-          parsed.getFullYear(),
-          parsed.getMonth(),
-          parsed.getDate()
-        );
-      };
-
-      const today = new Date();
-      today.setHours(0,0,0,0);
-
-      this._filtered = (State.products || []).filter(p => {
-        const exp = parseExpireDate(p?.expire);
-        if(!exp) return false;
-
-        const expTs = exp.getTime();
-
-        // المنتج يجب أن يكون منتهيًا فعلًا، وفي نفس النطاق المختار.
-        return (
-          expTs < today.getTime() &&
-          expTs >= range.from &&
-          expTs <= range.to
-        );
-      });
-
-      this._data = this._filtered;
-      this._lastCol = col;
-      this._lastRange = range;
-
-      const count = this._filtered.length;
-      const sizeKB = Math.round(
-        JSON.stringify(this._filtered).length / 1024
-      );
-
-      if(statsEl) {
-        statsEl.style.display='block';
-
-        const ce = document.getElementById('archiveCount');
-        if(ce) {
-          ce.textContent = count;
-          ce.style.color = count > 0 ? '#f87171' : '#34d399';
-        }
-
-        const se = document.getElementById('archiveSizeKB');
-        if(se) se.textContent = sizeKB;
-
-        const re = document.getElementById('archiveDateRange');
-        if(re) re.textContent = range.label;
-      }
-
-      if(!count && previewSection) {
-        previewSection.style.display='none';
-      }
-
-      return;
-    }
-
-    const range=this.getDateRange();
-    if(!range) { if(statsEl) statsEl.style.display='none'; this._filtered=[]; return; }
     try {
-      if(col!==this._lastCol || JSON.stringify(range)!==JSON.stringify(this._lastRange)) {
-        UI.toast('⏳ جارٍ تحميل البيانات...','info');
-        this._data = await this.fetchData(col);
-        this._lastCol=col; this._lastRange=range;
+      const derivedExpired=col==='products_expired';
+      const sourceCol=derivedExpired?'products':col;
+      UI.toast('⏳ جارٍ تحميل بيانات النوع المختار…','info');
+      const data=await this.fetchData(sourceCol,{forceFresh:!!options.forceFresh,requestSeq:seq,range:(mode==='all'||derivedExpired)?null:range,mode,skipTimestampQuery:derivedExpired});
+      if(seq!==this._requestSeq) return false; // تجاهل أي استجابة أقدم من اختيار المستخدم الحالي.
+      this._data=data;
+      if(derivedExpired) {
+        const today=new Date(); today.setHours(0,0,0,0);
+        this._filtered=data.filter(p=>{
+          const exp=this._dateOnlyTimestamp(p.expire);
+          if(!exp || exp>=today.getTime()) return false;
+          return mode==='all' || (range && exp>=range.from && exp<=range.to);
+        });
+      } else {
+        this._filtered=mode==='all'?data.slice():this.filterByDate(data,range);
       }
-      this._filtered = this.filterByDate(this._data, range);
-      const count=this._filtered.length, sizeKB=Math.round(JSON.stringify(this._filtered).length/1024);
-      if(statsEl) {
-        statsEl.style.display='block';
-        const ce=document.getElementById('archiveCount'); if(ce){ce.textContent=count;ce.style.color=count>0?'#f87171':'#34d399';}
-        const se=document.getElementById('archiveSizeKB'); if(se) se.textContent=sizeKB;
-        const re=document.getElementById('archiveDateRange'); if(re) re.textContent=range.label;
+      this._lastCol=col;
+      this._lastRange={...range};
+      this._tablePage=0;
+      this._buildTableColumns(this._filtered);
+      this._tableQuery='';
+      const search=document.getElementById('archiveDataSearch'); if(search) search.value='';
+      if(mode==='all' && dataTools) dataTools.style.display='block';
+      this._setStats(this._filtered, derivedExpired&&mode==='all'?'كل المنتجات المنتهية':(range.label||'كل البيانات'), mode==='all');
+      if(mode==='all') this.renderDataTable();
+      UI.toast(`✅ تم تحميل ${this._filtered.length.toLocaleString('ar-EG')} سجل`,'success');
+      return true;
+    } catch(err) {
+      if(seq===this._requestSeq) {
+        this._data=[]; this._filtered=[]; this._lastCol=null; this._lastRange=null; this._tableColumns=[];
+        if(statsEl) statsEl.style.display='none';
+        if(tableBody) tableBody.innerHTML='<tr><td colspan="2" style="text-align:center;padding:18px;color:#f87171">فشل تحميل البيانات؛ تم مسح النتائج السابقة لمنع استخدام بيانات قديمة.</td></tr>';
       }
-      if(!count && previewSection) previewSection.style.display='none';
-    } catch(err) { UI.toast('❌ خطأ: '+err.message,'error'); }
+      UI.toast('❌ خطأ في تحميل البيانات: '+String(err?.message||err),'error');
+      return false;
+    }
+  },
+
+  changeDataPage(delta) {
+    this._tablePage=Math.max(0,Number(this._tablePage||0)+Number(delta||0));
+    this.renderDataTable();
   },
 
   renderDataTable() {
@@ -7426,162 +7507,325 @@ const ArchiveService = {
     const info=document.getElementById('archiveDataTableInfo');
     if(!head||!body) return;
     const q=String(document.getElementById('archiveDataSearch')?.value||'').trim().toLowerCase();
+    if(q!==this._tableQuery){this._tableQuery=q;this._tablePage=0;}
     const rows=(this._filtered||[]).filter(item=>{
       if(!q) return true;
-      try { return JSON.stringify(item).toLowerCase().includes(q); } catch(e){ return false; }
+      try {
+        if(!Object.prototype.hasOwnProperty.call(item,'_archiveSearchText')) Object.defineProperty(item,'_archiveSearchText',{value:JSON.stringify(item).toLowerCase(),enumerable:false,configurable:true});
+        return item._archiveSearchText.includes(q);
+      } catch(e){ return false; }
     });
-    const sample=rows.slice(0,200);
-    const keys=new Set();
-    sample.forEach(item=>Object.keys(item||{}).forEach(k=>{ if(k!=='_id') keys.add(k); }));
-    const cols=['_select','_id',...Array.from(keys).slice(0,12)];
-    head.innerHTML='<tr>'+cols.map(k=>k==='_select'?'<th style="width:40px">✓</th>':`<th>${String(k).replace(/</g,'&lt;')}</th>`).join('')+'</tr>';
+    const pageSize=Number(this._tablePageSize||200);
+    const pageCount=Math.max(1,Math.ceil(rows.length/pageSize));
+    this._tablePage=Math.min(Math.max(0,Number(this._tablePage||0)),pageCount-1);
+    const sample=rows.slice(this._tablePage*pageSize,(this._tablePage+1)*pageSize);
+    // الأعمدة محسوبة مرة واحدة بعد تحميل البيانات، لا مع كل حرف بحث.
+    const cols=['_select','_id',...(this._tableColumns||[])];
+    const esc=v=>this._escapeHtml(v);
+    head.innerHTML='<tr>'+cols.map(k=>k==='_select'?'<th style="width:40px">✓</th>':`<th>${esc(k)}</th>`).join('')+'</tr>';
     body.innerHTML=sample.map(item=>{
-      const id=String(item._id||item.id||'');
-      const safeId=id.replace(/[^a-zA-Z0-9_-]/g,'_');
+      const id=String(item._id||item._firebaseKey||item.id||'');
       return '<tr>'+cols.map(k=>{
-        if(k==='_select') return `<td><input type="checkbox" class="archive-row-check" data-archive-id="${safeId}" onchange="ArchiveService.toggleRowSelection(this)"></td>`;
+        if(k==='_select') return `<td><input type="checkbox" class="archive-row-check" data-archive-id="${esc(id)}" ${this._selectedArchiveIds.has(id)?'checked':''} onchange="ArchiveService.toggleRowSelection(this)"></td>`;
+        if(k==='_id') return `<td style="font-size:11px">${esc(id)}</td>`;
         const v=item[k];
-        let text='';
-        if(v && typeof v==='object') { try{text=JSON.stringify(v);}catch(e){text='[object]';} } else text=String(v==null?'':v);
-        if(text.length>160) text=text.slice(0,160)+'…';
-        return `<td style="font-size:11px;max-width:260px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${text.replace(/"/g,'&quot;')}">${text.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}</td>`;
+        let value='';
+        if(v&&typeof v==='object'){try{value=JSON.stringify(v);}catch(e){value='[object]';}}
+        else value=String(v==null?'':v);
+        const display=value.length>800?value.slice(0,800)+'…':value;
+        return `<td style="font-size:11px;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(display)}">${esc(display)}</td>`;
       }).join('')+'</tr>';
-    }).join('') || '<tr><td colspan="20" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>';
-    if(info) info.textContent=`عرض ${sample.length.toLocaleString('ar-EG')} من ${rows.length.toLocaleString('ar-EG')} سجل${rows.length>200?' — استخدم البحث لتضييق النتائج':''}`;
+    }).join('')||`<tr><td colspan="${Math.max(2,cols.length)}" style="text-align:center;padding:20px;color:#64748b">لا توجد بيانات</td></tr>`;
+    if(info) {
+      const start=rows.length?this._tablePage*pageSize+1:0, end=Math.min(rows.length,(this._tablePage+1)*pageSize);
+      info.innerHTML=`عرض ${start.toLocaleString('ar-EG')}–${end.toLocaleString('ar-EG')} من ${rows.length.toLocaleString('ar-EG')} سجل | المحدد: ${this._selectedArchiveIds.size.toLocaleString('ar-EG')} | صفحة ${this._tablePage+1}/${pageCount} `+
+        `<button type="button" onclick="ArchiveService.changeDataPage(-1)" ${this._tablePage<=0?'disabled':''} style="margin:4px;padding:4px 9px">السابق</button>`+
+        `<button type="button" onclick="ArchiveService.changeDataPage(1)" ${this._tablePage>=pageCount-1?'disabled':''} style="margin:4px;padding:4px 9px">التالي</button>`;
+    }
   },
 
   _selectedArchiveIds: new Set(),
 
   toggleRowSelection(cb) {
-    const id=cb?.dataset?.archiveId;
+    const id=String(cb?.dataset?.archiveId||'');
     if(!id) return;
     cb.checked ? this._selectedArchiveIds.add(id) : this._selectedArchiveIds.delete(id);
+    const info=document.getElementById('archiveDataTableInfo');
+    if(info) this.renderDataTable();
   },
 
   selectAllVisible(select) {
+    if(!select) {
+      this._selectedArchiveIds.clear();
+      document.querySelectorAll('.archive-row-check').forEach(cb=>{cb.checked=false;});
+      this.renderDataTable();
+      return;
+    }
     document.querySelectorAll('.archive-row-check').forEach(cb=>{
-      cb.checked=!!select;
-      const id=cb.dataset.archiveId;
-      if(!id) return;
-      select ? this._selectedArchiveIds.add(id) : this._selectedArchiveIds.delete(id);
+      cb.checked=true;
+      const id=String(cb.dataset.archiveId||'');
+      if(id) this._selectedArchiveIds.add(id);
     });
+    this.renderDataTable();
+  },
+
+  _canArchive() { return hasPermission('archive')||hasPermission('all'); },
+  _canDelete() { return hasPermission('delete')||hasPermission('archive')||hasPermission('all'); },
+  _canExport() { return hasPermission('excel')||hasPermission('all'); },
+
+  _snapshotRows(col, items, kind, range) {
+    const sourceCol=col==='products_expired'?'products':col;
+    const records=[];
+    for(const item of items||[]) {
+      const key=String(item?._id||item?._firebaseKey||'');
+      if(!key) continue;
+      const raw=item._archiveOriginal!=null?this._clone(item._archiveOriginal):this._clone(Object.fromEntries(Object.entries(item).filter(([k])=>!['_id','_firebaseKey'].includes(k))));
+      records.push({key,raw});
+    }
+    if(records.length!==(items||[]).length) return null;
+    return {
+      token:`${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      selectedCol:col,sourceCol,kind,mode:document.getElementById('archiveMode')?.value||'month',
+      range:range?{...range}:{mode:'all',label:'كل بيانات النوع'},
+      label:this.collectionNames[col]||col,records,
+      selectedIds:kind==='selected'?records.map(r=>r.key).sort():null,
+      requestedBy:State.currentUser?.username||'-',createdAt:Date.now()
+    };
+  },
+
+  _snapshotStillMatches(snapshot) {
+    if(document.getElementById('archiveCollection')?.value!==snapshot.selectedCol) return false;
+    if((document.getElementById('archiveMode')?.value||'month')!==snapshot.mode) return false;
+    const currentRange=snapshot.mode==='all'?{mode:'all',label:'كل بيانات النوع'}:this.getDateRange();
+    if(!currentRange || currentRange.mode!==snapshot.range.mode || currentRange.from!==snapshot.range.from || currentRange.to!==snapshot.range.to) return false;
+    if(snapshot.kind==='selected') {
+      const now=[...this._selectedArchiveIds].sort();
+      return this._stableStringify(now)===this._stableStringify(snapshot.selectedIds||[]);
+    }
+    return true;
+  },
+
+  async _downloadBackup(snapshot) {
+    if(typeof XLSX==='undefined' || !XLSX.utils || typeof Blob==='undefined' || !URL.createObjectURL) {
+      UI.toast('❌ لا يمكن تجهيز النسخة الاحتياطية في هذا المتصفح؛ لم يبدأ الحذف','error');
+      return false;
+    }
+    if(!snapshot.records.length) { UI.toast('لا توجد سجلات لإنشاء نسخة احتياطية','warning'); return false; }
+    if(snapshot.records.length>250000) { UI.toast('⚠️ عدد السجلات كبير جدًا لنسخة واحدة آمنة؛ قسّم الفترة إلى أجزاء أصغر','warning'); return false; }
+    const wb=XLSX.utils.book_new();
+    const now=new Date();
+    const meta=[
+      ['نوع البيانات',snapshot.label],['مسار Firebase الأصلي',snapshot.sourceCol],['طريقة التحديد',snapshot.mode],
+      ['النطاق',snapshot.range?.label||'كل البيانات'],['عدد السجلات',snapshot.records.length],
+      ['وقت النسخة',now.toLocaleString('ar-EG')],['المستخدم',snapshot.requestedBy],
+      ['ملاحظة الاستعادة','ورقة Raw JSON تحتوي القيمة الأصلية لكل سجل مجزأة إلى أجزاء عند الحاجة؛ استخدم Firebase Key لاستعادة المفتاح الأصلي.']
+    ];
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(meta),'Backup Info');
+    const displayRows=[];
+    const rawChunks=[['Firebase Key','Part','Parts','Raw JSON segment']];
+    for(const rec of snapshot.records) {
+      const raw=rec.raw && typeof rec.raw==='object'?rec.raw:{};
+      const json=JSON.stringify(raw);
+      const chunkSize=30000;
+      const chunks=[];
+      for(let i=0;i<json.length;i+=chunkSize) chunks.push(json.slice(i,i+chunkSize));
+      const safeChunks=chunks.length?chunks:['{}'];
+      safeChunks.forEach((part,index)=>rawChunks.push([rec.key,index+1,safeChunks.length,part]));
+      const row={'Firebase Key':rec.key};
+      Object.keys(raw).forEach(k=>{
+        if(k==='Firebase Key') return;
+        const v=raw[k];
+        let cell=(v&&typeof v==='object')?JSON.stringify(v):v;
+        if(typeof cell==='string' && cell.length>32000) cell=cell.slice(0,31950)+'… [البيانات الكاملة بورقة Raw JSON]';
+        if(cell===undefined) cell='';
+        row[k]=cell;
+      });
+      displayRows.push(row);
+    }
+    const keyUnion=new Set(['Firebase Key']);
+    displayRows.forEach(r=>Object.keys(r).forEach(k=>keyUnion.add(k)));
+    if(keyUnion.size>16000) { UI.toast('عدد حقول البيانات يتجاوز حدود Excel؛ لم يبدأ الحذف','error'); return false; }
+    const allRows=displayRows.map(r=>{const out={};keyUnion.forEach(k=>{out[k]=r[k]===undefined?'':r[k];});return out;});
+    const sheetChunk=50000;
+    for(let i=0;i<allRows.length;i+=sheetChunk) {
+      const n=Math.floor(i/sheetChunk)+1;
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(allRows.slice(i,i+sheetChunk)),`Records ${n}`);
+    }
+    if(rawChunks.length>500001) { UI.toast('عدد أجزاء النسخة الخام يتجاوز الحد الآمن؛ قسّم الفترة قبل الحذف','error'); return false; }
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rawChunks),'Raw JSON');
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    const blob=new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const slug=String(snapshot.range?.label||'كل_البيانات').replace(/[^\p{L}\p{N}_-]+/gu,'_').slice(0,80)||'all';
+    a.href=url; a.download=`archive_backup_${snapshot.sourceCol}_${slug}_${now.toISOString().slice(0,10)}.xlsx`;
+    a.style.display='none'; document.body.appendChild(a);
+    try { a.click(); } catch(err) { URL.revokeObjectURL(url); a.remove(); UI.toast('❌ تعذر بدء تنزيل النسخة؛ لم يبدأ الحذف','error'); return false; }
+    a.remove(); setTimeout(()=>URL.revokeObjectURL(url),60000);
+    UI.toast('📦 تم تجهيز وتنزيل النسخة الاحتياطية؛ الحذف لم يبدأ بعد','success');
+    return true;
+  },
+
+  async _validateSnapshotAgainstFirebase(snapshot) {
+    const BATCH=40;
+    for(let i=0;i<snapshot.records.length;i+=BATCH) {
+      const batch=snapshot.records.slice(i,i+BATCH);
+      const checks=await Promise.all(batch.map(async rec=>{
+        const snap=await db.ref(snapshot.sourceCol+'/'+rec.key).once('value');
+        if(!snap.exists()) return {key:rec.key,ok:false,reason:'missing'};
+        const current=snap.val();
+        return {key:rec.key,ok:this._stableStringify(current)===this._stableStringify(rec.raw),reason:'changed'};
+      }));
+      const bad=checks.find(x=>!x.ok);
+      if(bad) return {ok:false,problem:bad};
+    }
+    return {ok:true};
+  },
+
+  async _prepareBackupThenConfirm(snapshot) {
+    if(!this._canDelete() || !this._canExport()) { UI.toast('تحتاج صلاحية الأرشيف/الحذف وصلاحية Excel','error'); return; }
+    if(!this._snapshotStillMatches(snapshot)) { UI.toast('تغير اختيار الأرشيف بعد المعاينة؛ حدّث المعاينة وابدأ من جديد','warning'); return; }
+    let ok=false;
+    try { ok=await this._downloadBackup(snapshot); } catch(err) { console.error('[Archive] backup creation failed:',err); UI.toast('❌ فشل إنشاء النسخة الاحتياطية؛ لم يبدأ الحذف: '+String(err?.message||err),'error'); return; }
+    if(!ok) return;
+    this._pendingDelete=snapshot;
+    // تأخير فتح التأكيد الثاني حتى يغلق showConfirm الأصلي نافذته أولًا.
+    setTimeout(()=>showConfirm(
+      `تم تجهيز النسخة الاحتياطية لـ ${snapshot.records.length} سجل.\n\nافتح التنزيلات وتأكد أن ملف Excel موجود ومحفوظ.\n\nلن يُحذف أي سجل إلا بعد تأكيدك هنا. سيتم أيضًا التحقق أن بيانات Firebase لم تتغير منذ النسخة.`,
+      ()=>this._executePendingDelete(snapshot.token)
+    ),250);
+  },
+
+  async _executePendingDelete(token) {
+    const snapshot=this._pendingDelete;
+    if(!snapshot || snapshot.token!==token) { UI.toast('انتهت صلاحية عملية الحذف؛ أعد المعاينة','warning'); return; }
+    if(this._operationLock) { UI.toast('هناك عملية أرشفة تعمل بالفعل','warning'); return; }
+    this._pendingDelete=null;
+    this._operationLock=true;
+    try {
+      if(!this._canDelete() || !this._canExport()) { UI.toast('الصلاحيات الحالية لا تسمح بالحذف والتصدير','error'); return; }
+      if(!this._snapshotStillMatches(snapshot)) { UI.toast('تغير الاختيار بعد النسخة الاحتياطية؛ لم يتم الحذف. ابدأ من جديد.','warning'); return; }
+      UI.toast('🔍 جارٍ التأكد من أن البيانات لم تتغير منذ النسخة الاحتياطية…','info');
+      const validated=await this._validateSnapshotAgainstFirebase(snapshot);
+      if(!validated.ok) {
+        UI.toast(`⚠️ السجل ${validated.problem.key} تغير أو لم يعد موجودًا؛ أُلغي الحذف بالكامل. حدّث المعاينة وأنشئ نسخة جديدة.`,'warning');
+        this._collectionCache?.delete(snapshot.sourceCol);
+        return;
+      }
+      const result=await this._deleteSnapshotRecords(snapshot);
+      this._pendingDelete=null;
+      if(result.failed.length) {
+        UI.toast(`⚠️ تم حذف ${result.deleted} وفشل حذف ${result.failed.length}. التفاصيل مسجلة في سجل الأرشفة.`,'warning');
+      } else {
+        UI.toast(`✅ تم حذف ${result.deleted} سجل بعد التحقق من النسخة الاحتياطية`,'success');
+      }
+      this._collectionCache?.delete(snapshot.sourceCol);
+      this._collectionCache?.delete(snapshot.selectedCol);
+      this._selectedArchiveIds.clear();
+      this._data=[]; this._filtered=[]; this._lastCol=null; this._lastRange=null; this._tableColumns=[];
+      await this.updateStats({forceFresh:true});
+      this.loadArchiveLogs({silent:true});
+    } catch(err) {
+      UI.toast('❌ تعذر إكمال الحذف: '+String(err?.message||err),'error');
+    } finally {
+      this._operationLock=false;
+    }
+  },
+
+  async _deleteSnapshotRecords(snapshot) {
+    const results=[];
+    const BATCH=40;
+    for(let i=0;i<snapshot.records.length;i+=BATCH) {
+      const batch=snapshot.records.slice(i,i+BATCH);
+      const settled=await Promise.allSettled(batch.map(rec=>db.ref(snapshot.sourceCol+'/'+rec.key).remove()));
+      settled.forEach((r,index)=>results.push({key:batch[index].key,ok:r.status==='fulfilled',error:r.status==='rejected'?String(r.reason?.message||r.reason):''}));
+      const done=results.filter(r=>r.ok).length;
+      UI.toast(`🗑️ جاري الحذف بعد النسخة الاحتياطية… ${done}/${snapshot.records.length}`,'info');
+    }
+    const deleted=results.filter(r=>r.ok).length;
+    const failed=results.filter(r=>!r.ok);
+    const status=failed.length?(deleted?'partial':'failed'):'completed';
+    const logEntry={
+      col:snapshot.selectedCol,sourceCol:snapshot.sourceCol,colName:snapshot.label,
+      count:deleted,attempted:snapshot.records.length,failedCount:failed.length,
+      failedKeys:failed.slice(0,100).map(r=>r.key),range:snapshot.range?.label||'كل البيانات',
+      deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),
+      timestamp:Date.now(),status,mode:snapshot.kind==='selected'?'manual_selected':'range',
+      backupConfirmed:true,backupFileCreated:true
+    };
+    try {
+      const logRef=db.ref('archiveLogs').push();
+      await logRef.set(logEntry);
+      logEntry.id=logRef.key; this._prependLogRow(logEntry);
+    } catch(err) {
+      console.error('[Archive] حذف تم لكن تعذر تسجيل العملية:',err);
+      UI.toast('⚠️ عملية الحذف انتهت لكن تعذر تسجيلها في سجل الأرشفة: '+String(err?.message||err),'warning');
+    }
+    try { SystemLog.add('ArchiveDelete',snapshot.selectedCol,`حذف ${deleted} من ${snapshot.records.length} — ${snapshot.range?.label||'كل البيانات'} — ${status}`); } catch(e) { console.warn('[Archive] SystemLog failed',e); }
+    return {deleted,failed};
   },
 
   async deleteSelected() {
-    if(!hasPermission('all')&&!hasPermission('archive')) { UI.toast('ليس لديك صلاحية','error'); return; }
+    if(!this._canDelete()) { UI.toast('ليس لديك صلاحية حذف الأرشيف','error'); return; }
+    if(!this._canExport()) { UI.toast('حذف السجلات يتطلب صلاحية Excel لإنشاء نسخة احتياطية','error'); return; }
     const col=document.getElementById('archiveCollection')?.value;
-    if(!col || document.getElementById('archiveMode')?.value!=='all') { UI.toast('اختر "عرض كل بيانات النوع" أولاً','warning'); return; }
-    const selected=(this._filtered||[]).filter(item=>this._selectedArchiveIds.has(String(item._id||item.id||'').replace(/[^a-zA-Z0-9_-]/g,'_')));
-    if(!selected.length) { UI.toast('لم يتم تحديد أي سجل','warning'); return; }
-    const label=this.collectionNames[col]||col;
-    showConfirm(`⚠️ حذف بيانات محددة\n\nالنوع: ${label}\nعدد السجلات: ${selected.length}\n\nسيتم حذف السجلات المحددة فقط من Firebase ولا يمكن التراجع.`, async ()=>{
-      try {
-        const realCol=col;
-        let deleted=0;
-        for(let i=0;i<selected.length;i+=50){
-          await Promise.all(selected.slice(i,i+50).map(item=>db.ref(realCol+'/'+(item._id||item.id)).remove()));
-          deleted+=Math.min(50,selected.length-i);
-        }
-        const logEntry={col,colName:label,count:deleted,range:'حذف محدد من وضع إدارة البيانات',deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),timestamp:Date.now(),status:'completed',mode:'manual_selected'};
-        await db.ref('archiveLogs').push(logEntry);
-        SystemLog.add('ArchiveDelete',col,`حذف محدد ${deleted} سجل`);
-        this._selectedArchiveIds.clear();
-        UI.toast(`✅ تم حذف ${deleted} سجل`,'success');
-        await this.updateStats();
-        this.loadArchiveLogs({silent:true});
-      } catch(err) { UI.toast('❌ فشل الحذف: '+err.message,'error'); }
-    });
+    if(!col || document.getElementById('archiveMode')?.value!=='all') { UI.toast('اختر «عرض كل بيانات النوع» أولًا','warning'); return; }
+    const ids=[...this._selectedArchiveIds].map(String).sort();
+    if(!ids.length) { UI.toast('لم يتم تحديد أي سجل','warning'); return; }
+    const loaded=await this.updateStats({forceFresh:true});
+    if(!loaded || this._lastCol!==col) { UI.toast('تعذر تحديث بيانات النوع؛ لم يبدأ الحذف','error'); return; }
+    const byKey=new Map((this._filtered||[]).map(item=>[String(item._id||item._firebaseKey||''),item]));
+    const selected=ids.map(id=>byKey.get(id)).filter(Boolean);
+    if(selected.length!==ids.length) { UI.toast('بعض السجلات المحددة تغيرت أو اختفت؛ لم يبدأ الحذف. حدّث الصفحة وحددها من جديد.','warning'); this._selectedArchiveIds.clear(); this.renderDataTable(); return; }
+    const snapshot=this._snapshotRows(col,selected,'selected',{mode:'all',label:'حذف السجلات المحددة'});
+    if(!snapshot) { UI.toast('تعذر تجهيز قائمة ثابتة للسجلات؛ لم يبدأ الحذف','error'); return; }
+    showConfirm(`⚠️ حذف سجلات محددة\n\nالنوع: ${snapshot.label}\nعدد السجلات: ${snapshot.records.length}\n\nسيتم تنزيل نسخة احتياطية أولًا، ثم سيطلب منك تأكيد مستقل بعد حفظها.`,()=>this._prepareBackupThenConfirm(snapshot));
   },
 
   async preview() {
-    if(!hasPermission('all')&&!hasPermission('archive')) { UI.toast('ليس لديك صلاحية','error'); return; }
-    await this.updateStats();
+    if(!this._canArchive()) { UI.toast('ليس لديك صلاحية معاينة الأرشيف','error'); return; }
+    const ok=await this.updateStats({forceFresh:true});
+    if(!ok) return;
+    const mode=document.getElementById('archiveMode')?.value||'month';
+    if(!this._filtered.length) { UI.toast('لا توجد سجلات في النطاق المحدد','warning'); return; }
+    if(mode==='all') { this.renderDataTable(); UI.toast(`✅ ${this._filtered.length} سجل للعرض والإدارة`,'success'); return; }
     const tbody=document.getElementById('archivePreviewBody');
     const sec=document.getElementById('archivePreviewSection');
-    if(!this._filtered.length) { UI.toast('لا توجد سجلات','warning'); return; }
-    if(tbody) tbody.innerHTML=this._filtered.slice(0,5).map(item => {
+    if(tbody) tbody.innerHTML=this._filtered.slice(0,5).map(item=>{
       const ts=this.getTimestamp(item);
-      const d=ts?new Date(ts).toLocaleDateString('ar-EG'):item.date||'-';
+      const d=ts?new Date(ts).toLocaleDateString('ar-EG'):item.date||item.expire||'-';
       const t=ts?new Date(ts).toLocaleTimeString('ar-EG'):'-';
-      return `<tr><td style="font-size:10px;color:#64748b">${(item._id||'').slice(-6)}</td><td>${item.name||item.username||item.company||item.plate||'-'}</td><td>${item.action||item.type||item.code||'-'}</td><td>${d}</td><td style="font-size:10px">${t}</td></tr>`;
+      return `<tr><td style="font-size:10px;color:#64748b">${this._escapeHtml((item._id||'').slice(-6))}</td><td>${this._escapeHtml(item.name||item.username||item.company||item.plate||'-')}</td><td>${this._escapeHtml(item.action||item.type||item.code||'-')}</td><td>${this._escapeHtml(d)}</td><td style="font-size:10px">${this._escapeHtml(t)}</td></tr>`;
     }).join('');
     if(sec) sec.style.display='block';
-    UI.toast(`✅ ${this._filtered.length} سجل`,'success');
+    UI.toast(`✅ تمت معاينة ${this._filtered.length.toLocaleString('ar-EG')} سجل`,'success');
   },
 
-  exportOnly() {
-    if(!hasPermission('all')&&!hasPermission('archive')) { UI.toast('ليس لديك صلاحية','error'); return; }
-    if(document.getElementById('archiveMode')?.value==='all') { this._exportExcel(false); return; }
-    if(!this._filtered.length) { UI.toast('يرجى الضغط على معاينة أولاً','warning'); return; }
-    this._exportExcel();
-  },
-
-  exportAndDelete() {
-    if(!hasPermission('all')&&!hasPermission('archive')) { UI.toast('ليس لديك صلاحية','error'); return; }
-    const selectedCol=document.getElementById('archiveCollection')?.value;
-    if(selectedCol==='bazarEmpData'){ UI.toast('⚠️ بيانات موظفي بصمة البازار بيانات رئيسية؛ استخدم "عرض كل بيانات النوع" ثم "حذف المحدد" لحذف موظف محدد.','warning'); return; }
-    if(document.getElementById('archiveMode')?.value==='all') { UI.toast('في وضع إدارة البيانات استخدم "حذف المحدد" لحماية البيانات الأساسية','warning'); return; }
-    if(!this._filtered.length) { UI.toast('يرجى الضغط على معاينة أولاً','warning'); return; }
+  async exportOnly() {
+    if(!this._canArchive()) { UI.toast('ليس لديك صلاحية الأرشيف','error'); return; }
+    if(!this._canExport()) { UI.toast('ليس لديك صلاحية تصدير Excel','error'); return; }
     const col=document.getElementById('archiveCollection')?.value;
-    const range=this.getDateRange();
-    const colName=this.collectionNames[col]||col;
-    showConfirm(`⚠️ تأكيد الحذف النهائي\n\nالبيانات: ${colName}\nالنطاق: ${range?.label}\nعدد السجلات: ${this._filtered.length}\n\n1. سيتم تنزيل نسخة احتياطية Excel\n2. ثم حذف ${this._filtered.length} سجل نهائياً\n\nلا يمكن التراجع!`,
-      () => this._exportExcel(true));
+    const ok=await this.updateStats({forceFresh:true});
+    if(!ok || !col || this._lastCol!==col) return;
+    if(!this._filtered.length) { UI.toast('لا توجد بيانات للتصدير','warning'); return; }
+    const snapshot=this._snapshotRows(col,this._filtered,'export',this._lastRange);
+    if(!snapshot) { UI.toast('تعذر تجهيز بيانات التصدير','error'); return; }
+    try { await this._downloadBackup(snapshot); } catch(err) { console.error('[Archive] export failed:',err); UI.toast('❌ فشل التصدير: '+String(err?.message||err),'error'); }
   },
 
-  _exportExcel(thenDelete=false) {
+  async exportAndDelete() {
+    if(!this._canDelete()) { UI.toast('ليس لديك صلاحية حذف الأرشيف','error'); return; }
+    if(!this._canExport()) { UI.toast('الحذف يتطلب صلاحية Excel لإنشاء نسخة احتياطية','error'); return; }
     const col=document.getElementById('archiveCollection')?.value;
-    const range=this.getDateRange();
-    const colName=this.collectionNames[col]||col;
-    const rows=this._filtered.map(item => {
-      const clean={...item}; delete clean._id; delete clean.id;
-      Object.keys(clean).forEach(k => { if(typeof clean[k]==='number'&&clean[k]>1e12) clean[k]=new Date(clean[k]).toLocaleString('ar-EG'); });
-      return clean;
-    });
-    const fn=`archive_${col}_${(range?.label||'').replace(/[\/ →]/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
-    const ws=XLSX.utils.json_to_sheet(rows);
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,colName.slice(0,31));
-    XLSX.writeFile(wb,fn);
-    UI.toast('📊 تم تنزيل النسخة الاحتياطية','success');
-    if(thenDelete) setTimeout(()=>this._deleteRecords(col,range,this._filtered.length),2000);
-  },
-
-  async _deleteRecords(col, range, count) {
-    const colName=this.collectionNames[col]||col;
-    if(!this._filtered.length) { UI.toast('❌ لا توجد بيانات','error'); return; }
-
-    // حذف التواريخ المنتهية من products
-    const realCol = col === 'products_expired' ? 'products' : col;
-
-    const getKey=item=>item._id||item.id||null;
-    const valid=this._filtered.filter(item=>getKey(item));
-    if(!valid.length) { UI.toast('❌ خطأ في معرّفات السجلات','error'); return; }
-    try {
-      const BATCH=50; let deleted=0;
-      for(let i=0;i<valid.length;i+=BATCH) {
-        const batch=valid.slice(i,i+BATCH);
-        await Promise.all(batch.map(item=>db.ref(realCol+'/'+getKey(item)).remove()));
-        deleted+=batch.length;
-        UI.toast(`🗑️ جارٍ الحذف... ${deleted}/${valid.length}`,'info');
-      }
-      try {
-        const logEntry = {col,colName,count:deleted,range:range?.label||'-',deletedBy:State.currentUser?.username||'-',deletedAt:new Date().toLocaleString('ar-EG'),timestamp:Date.now(),status:'completed'};
-        const ref = await db.ref('archiveLogs').push(logEntry);
-        console.log('[Archive] تم تسجيل عملية الأرشفة بنجاح — المفتاح:', ref.key, logEntry);
-        // نضيف السطر فورًا على الشاشة من غير ما ننتظر قراءة جديدة من فايربيز
-        // (عشان نضمن إن المستخدم يشوف نتيجة العملية فورًا حتى لو حصل أي تأخير/مشكلة في القراءة بعد كده)
-        this._prependLogRow(logEntry);
-      } catch(logErr) {
-        console.error('[Archive] فشل تسجيل عملية الأرشفة في السجل:', logErr);
-        UI.toast('⚠️ تم الحذف لكن فشل تسجيله في سجل الأرشفة: '+logErr.message,'warning');
-      }
-      SystemLog.add('ArchiveDelete',col,`حذف ${deleted} سجل — ${range?.label}`);
-      UI.toast(`✅ تم حذف ${deleted} سجل من "${colName}"`, 'success');
-      if(State[col]) State[col]=(State[col]||[]).filter(item=>{const ts=this.getTimestamp(item);return !ts||ts<range.from||ts>range.to;});
-      this._filtered=[]; this._data=[]; this._lastCol=null;
-      this.updateStats(); this.loadArchiveLogs();
-    } catch(err) { UI.toast('❌ خطأ في الحذف: '+err.message,'error'); }
+    const mode=document.getElementById('archiveMode')?.value||'month';
+    if(!col) { UI.toast('اختر نوع البيانات أولًا','warning'); return; }
+    if(col==='bazarEmpData' || mode==='all') { UI.toast('لبيانات النوع بالكامل استخدم «حذف المحدد» فقط لحماية البيانات الأساسية.','warning'); return; }
+    const ok=await this.updateStats({forceFresh:true});
+    if(!ok || this._lastCol!==col) { UI.toast('تعذر تحديث البيانات؛ لم يبدأ الحذف','error'); return; }
+    if(!this._filtered.length) { UI.toast('لا توجد سجلات للحذف ضمن النطاق المحدد','warning'); return; }
+    const snapshot=this._snapshotRows(col,this._filtered,'range',this._lastRange);
+    if(!snapshot) { UI.toast('تعذر إعداد لقطة ثابتة للسجلات؛ لم يبدأ الحذف','error'); return; }
+    showConfirm(`⚠️ تأكيد الأرشفة والحذف النهائي\n\nالبيانات: ${snapshot.label}\nالنطاق: ${snapshot.range?.label||'-'}\nعدد السجلات: ${snapshot.records.length}\n\nسيتم إنشاء نسخة احتياطية Excel تحتوي مفتاح Firebase والبيانات الخام. بعد التنزيل سيُطلب منك تأكيد ثانٍ. لن يبدأ الحذف تلقائيًا.`,()=>this._prepareBackupThenConfirm(snapshot));
   },
 
   // إضافة سطر جديد فورًا في جدول السجل على الشاشة (بدون انتظار قراءة جديدة من فايربيز)
@@ -7643,7 +7887,7 @@ const ArchiveService = {
     if(monthSel) monthSel.value=new Date().getMonth()+1;
     const yearSel=document.getElementById('archiveYear');
     if(yearSel) yearSel.value=new Date().getFullYear();
-    this._filtered=[]; this._data=[]; this._lastCol=null;
+    this._requestSeq=(this._requestSeq||0)+1; this._filtered=[]; this._data=[]; this._lastCol=null; this._lastRange=null; this._selectedArchiveIds.clear(); this._tablePage=0; this._tableQuery=''; this._tableColumns=[];
     this.loadArchiveLogs();
   }
 };
@@ -16275,6 +16519,10 @@ const BazarHRSuite = {
   _listeners:Object.create(null),
   _connectedListener:false,
   _renderTimer:null,
+  _focusRenderTimer:null,
+  _pendingActiveRender:false,
+  _dataSignatures:Object.create(null),
+  _searchDraftValues:Object.create(null),
   _data:{employees:[],attendance:[],advances:[],incentives:[],penalties:[],leaves:[],exemptions:[],permits:[]},
   _rawAttendance:[],
   _attendanceIgnoredCodes:[],
@@ -16295,6 +16543,18 @@ const BazarHRSuite = {
   _dayKey(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';},
   _timeText(ts){if(!ts)return '-';const d=new Date(Number(ts));return Number.isFinite(d.getTime())?d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
   _parseTime(v){const s=this._latin(v).trim();const m=s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);if(!m)return null;const h=Number(m[1]),mi=Number(m[2]||0);return h>=0&&h<24&&mi>=0&&mi<60?h*60+mi:null;},
+  // Schedule helper needed by BazarHRSuite attendance rows and automatic penalties.
+  // It is defined here (on BazarHRSuite), not only on FingerprintBazarService.
+  _schedule(emp,dateKey){
+    const inMin=this._parseTime(emp?.checkIn ?? emp?.workStart ?? emp?.expectedIn);
+    const outMin=this._parseTime(emp?.checkOut ?? emp?.workEnd ?? emp?.expectedOut);
+    if(inMin==null || outMin==null || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey||''))) return null;
+    const [y,m,d]=String(dateKey).split('-').map(Number);
+    const inTs=new Date(y,m-1,d,Math.floor(inMin/60),inMin%60,0,0).getTime();
+    let outTs=new Date(y,m-1,d,Math.floor(outMin/60),outMin%60,0,0).getTime();
+    if(outMin<=inMin) outTs+=86400000;
+    return {inTs,outTs,inMin,outMin,officialMin:Math.max(0,Math.round((outTs-inTs)/60000))};
+  },
   _calcWorkHours(checkIn,checkOut){const a=this._parseTime(checkIn),b=this._parseTime(checkOut);if(a==null||b==null)return 0;let mins=b-a;if(mins<=0)mins+=1440;return Number((mins/60).toFixed(2));},
   _fmtMin(m){m=Math.max(0,Math.round(Number(m)||0));return `${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;},
   _status(v){const s=String(v??'').trim().toLowerCase();if(['resigned','مستقيل'].includes(s))return 'مستقيل';if(['stopped','موقوف'].includes(s))return 'موقوف';return 'نشط';},
@@ -16319,31 +16579,22 @@ const BazarHRSuite = {
   _canLeaveEdit(){return hasPermission('edit')||hasPermission('all');},
   _canLeaveApprove(){return hasPermission('leaveApprove')||hasPermission('all');},
   _toast(m,t='info'){if(typeof UI!=='undefined'&&UI.toast)UI.toast(m,t);else console.log(m);},
-  _bindPaneFilters(p,renderFn){
-    if(!p||typeof renderFn!=='function')return;
-    p.querySelectorAll('[data-filter]').forEach(el=>{
-      const filter=String(el.dataset.filter||'');
-      if(filter==='search'){
-        el.addEventListener('input',ev=>{
-          const live=ev.currentTarget;
-          const value=live.value;
-          const focused=document.activeElement===live;
-          let start=null,end=null,direction='none';
-          try{start=live.selectionStart;end=live.selectionEnd;direction=live.selectionDirection||'none';}catch(_){}
-          try{renderFn();}catch(err){console.error('[Bazar HR] search render failed',err);return;}
-          if(!focused)return;
-          const replacement=Array.from(p.querySelectorAll('[data-filter="search"]')).find(n=>n!==live&&n.tagName===live.tagName);
-          if(replacement)replacement.replaceWith(live);
-          if(!live.isConnected)return;
-          live.value=value;
-          try{live.focus({preventScroll:true});if(start!==null&&end!==null&&typeof live.setSelectionRange==='function')live.setSelectionRange(start,end,direction);}catch(_){}
-        });
-      }else{
-        el.addEventListener('change',()=>{try{renderFn();}catch(err){console.error('[Bazar HR] filter render failed',err);}});
-      }
-    });
+  _searchValue(pane){
+    if(!this._searchAppliedValues)this._searchAppliedValues=Object.create(null);
+    const key=String(pane?.id||'bhr-pane');
+    const input=pane?.querySelector('[data-filter="search"]');
+    if(!Object.prototype.hasOwnProperty.call(this._searchAppliedValues,key))this._searchAppliedValues[key]=String(input?.value||'').trim();
+    return String(this._searchAppliedValues[key]||'');
   },
-
+  _searchDraftValue(pane){
+    if(!this._searchDraftValues)this._searchDraftValues=Object.create(null);
+    const key=String(pane?.id||'bhr-pane');
+    if(Object.prototype.hasOwnProperty.call(this._searchDraftValues,key))return String(this._searchDraftValues[key]??'');
+    const current=pane?.querySelector('[data-filter="search"]');
+    const value=String(current?.value??this._searchValue(pane)??'');
+    this._searchDraftValues[key]=value;
+    return value;
+  },
   _looksRecord(v,key){
     if(!v||typeof v!=='object'||Array.isArray(v))return false;
     const k=Object.keys(v);
@@ -16496,22 +16747,61 @@ const BazarHRSuite = {
     return accepted;
   },
 
+  _dataSignature(rows){
+    // Stable enough for Realtime Database snapshots: unchanged snapshots must not redraw large tables.
+    try{return JSON.stringify(Array.isArray(rows)?rows:[]);}catch(_){return 'unserializable:'+String(rows?.length||0);}
+  },
+  _activeDependsOn(kind){
+    const deps={
+      employees:['employees'],
+      attendance:['employees','attendance'],
+      advances:['employees','advances'],
+      incentives:['employees','incentives'],
+      penalties:['employees','penalties','exemptions'],
+      leaves:['employees','leaves'],
+      permits:['employees','permits'],
+      payroll:['employees','attendance','advances','incentives','penalties','leaves','exemptions','permits'],
+      payslip:['employees','attendance','advances','incentives','penalties','leaves','exemptions','permits']
+    };
+    return (deps[this._active]||[]).includes(kind);
+  },
   _setData(kind,rows){
+    let normalized;
     if(kind==='attendance'){
       this._rawAttendance=Array.isArray(rows)?rows.slice():[];
-      this._data.attendance=this._canonicalizeAttendance(this._rawAttendance);
-    }else{
-      this._data[kind]=Array.isArray(rows)?rows:[];
-    }
+      normalized=this._canonicalizeAttendance(this._rawAttendance);
+    }else normalized=Array.isArray(rows)?rows:[];
+
+    const signature=this._dataSignature(normalized);
+    if(this._ready[kind] && this._dataSignatures[kind]===signature)return;
+
+    this._data[kind]=normalized;
+    this._dataSignatures[kind]=signature;
     this._ready[kind]=true;
+    const changedKinds=new Set([kind]);
+
     if(kind==='employees' && this._ready.attendance){
-      this._data.attendance=this._canonicalizeAttendance(this._rawAttendance);
+      const recanonicalized=this._canonicalizeAttendance(this._rawAttendance);
+      const attendanceSignature=this._dataSignature(recanonicalized);
+      if(attendanceSignature!==this._dataSignatures.attendance){
+        this._data.attendance=recanonicalized;
+        this._dataSignatures.attendance=attendanceSignature;
+        changedKinds.add('attendance');
+        State.fingerprintBazar=this._data.attendance.slice();
+      }
     }
+
     const map={employees:'bazarEmpData',attendance:'fingerprintBazar',advances:'bazarAdvances',incentives:'bazarIncentives',penalties:'bazarPenalties',leaves:'bazarLeaves',exemptions:'bazarPenaltyExemptions',permits:'bazarBreaks'};
-    const stateKey=map[kind];if(kind==='employees'){const obj={};this._data.employees.forEach(e=>{obj[e.code]=e;});State.bazarEmpData=obj;}else if(stateKey)State[stateKey]=this._data[kind].slice();
+    const stateKey=map[kind];
+    if(kind==='employees'){
+      const obj={};this._data.employees.forEach(e=>{obj[e.code]=e;});State.bazarEmpData=obj;
+      // Employee edits can change how existing raw punches are resolved.
+      if(changedKinds.has('attendance'))State.fingerprintBazar=this._data.attendance.slice();
+    }else if(stateKey)State[stateKey]=this._data[kind].slice();
+
     this._saveSnapshotSoon();
-    if(kind==='employees'||kind==='attendance'||kind==='penalties'||kind==='leaves'||kind==='exemptions') this._scheduleAutoPenaltySync();
-    if(this._active) this._renderActiveSoon();
+    if([...changedKinds].some(k=>['employees','attendance','penalties','leaves','exemptions'].includes(k)))this._scheduleAutoPenaltySync();
+    if(this._active && [...changedKinds].some(k=>this._activeDependsOn(k)))this._renderActiveSoon();
   },
   _snapshotKey:'allosh_bazar_hr_v36_snapshot',
   _snapshotTimer:null,
@@ -16521,7 +16811,37 @@ const BazarHRSuite = {
   _startListeners(){Object.keys(BAZAR_HR_PATHS).forEach(k=>this._startListener(k));},
   _startConnection(){if(this._connectedListener)return;this._connectedListener=true;try{db.ref('.info/connected').on('value',snap=>{this._firebaseConnected=snap.val()===true;if(this._firebaseConnected)this._renderActiveSoon();});}catch(_){this._firebaseConnected=navigator.onLine!==false;}window.addEventListener('online',()=>{this._firebaseConnected=true;this._renderActiveSoon();});window.addEventListener('offline',()=>{this._firebaseConnected=false;this._loadOffline();this._renderActiveSoon();});},
   refreshAll(){if(!this._firebaseConnected&&navigator.onLine===false){this._loadOffline();this._renderActiveSoon();return;}this._startListeners();this._renderActiveSoon();this._toast('✅ تم تحديث واجهة بصمة البازار — البيانات تُقرأ مباشرة من Firebase','success');},
-  _renderActiveSoon(){clearTimeout(this._renderTimer);this._renderTimer=setTimeout(()=>this.renderActive(),30);},
+  _isEditingActivePane(){
+    const pane=document.getElementById('bh-pane-'+this._active);
+    const el=document.activeElement;
+    return !!(pane&&el&&pane.contains(el)&&el.matches('input,textarea,select')&&!el.disabled);
+  },
+  _clearPendingUiRefresh(){
+    clearTimeout(this._renderTimer);this._renderTimer=null;
+    clearTimeout(this._focusRenderTimer);this._focusRenderTimer=null;
+    this._pendingActiveRender=false;
+  },
+  _flushPendingUiRefresh(){
+    clearTimeout(this._focusRenderTimer);
+    this._focusRenderTimer=setTimeout(()=>{
+      this._focusRenderTimer=null;
+      if(!this._pendingActiveRender||this._isEditingActivePane())return;
+      this._pendingActiveRender=false;
+      this.renderActive();
+    },350);
+  },
+  _renderActiveSoon(){
+    clearTimeout(this._renderTimer);
+    this._renderTimer=setTimeout(()=>{
+      this._renderTimer=null;
+      if(this._isEditingActivePane()){
+        this._pendingActiveRender=true;
+        return;
+      }
+      this._pendingActiveRender=false;
+      this.renderActive();
+    },180);
+  },
 
   _employees(){return this._data.employees.slice().sort((a,b)=>String(a.name||a.code).localeCompare(String(b.name||b.code),'ar'));},
   _safeFirebaseKey(v){return String(v??'').replace(/[.#$\[\]\/]/g,'_').slice(0,120);},
@@ -16666,18 +16986,18 @@ const BazarHRSuite = {
 
   _renderShell(pane,title,toolbar,table){pane.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3></div><div class="bhr-toolbar-right">${toolbar||''}</div></div></div>${table}`;},
 
-  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=p.querySelector('[data-filter="search"]')?.value||'',status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف'))));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>`<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td><td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours?this._esc(e.workHours):'-'}</td><td>${this._esc(e.employmentStatus)}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card bhr-employee-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">${toolbar}</div>`+filters+`<div class="bhr-card glass-card">${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
+  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=this._searchValue(p),status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف'))));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>`<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td><td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours?this._esc(e.workHours):'-'}</td><td>${this._esc(e.employmentStatus)}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card bhr-employee-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">${toolbar}</div>`+filters+`<div class="bhr-card glass-card">${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
   _renderShellTmp:false,
 
   renderAdvances(){return this._renderTransaction('advances','سلف الموظفين','advance');},
   renderIncentives(){return this._renderTransaction('incentives','مكافآت الموظفين','incentive');},
   renderPenalties(){
     const p=document.getElementById('bh-pane-penalties');if(!p)return;
-    const q=String(p.querySelector('[data-filter="search"]')?.value||'').trim(),m=String(p.querySelector('[data-filter="month"]')?.value||'');
+    const q=this._searchValue(p),m=String(p.querySelector('[data-filter="month"]')?.value||'');
     const rows=this._data.penalties.filter(r=>!r.exempted).filter(r=>{const name=String(r.name||this._employee(r.code)?.name||'').toLowerCase(),code=String(r.code||'');return (!q||name.includes(q.toLowerCase())||code.includes(q))&&(!m||String(r.date||'').startsWith(m));}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.timestamp||0)-Number(a.timestamp||0));
     const ex=this._data.exemptions.filter(r=>{const name=String(r.name||this._employee(r.code)?.name||'').toLowerCase(),code=String(r.code||'');return (!q||name.includes(q.toLowerCase())||code.includes(q))&&(!m||String(r.date||'').startsWith(m));}).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.timestamp||0)-Number(a.timestamp||0));
     const add=this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-penalty">➕ إضافة جزاء</button>':'';
-    const filter=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div></div>`;
+    const filter=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div></div>`;
     const actionCount=(this._canEdit()?1:0)+(this._canDelete()?1:0)+(this._canExempt()?1:0);
     const widths=[105,150,90,105,105,95,100,105,110,210,150,115,...(this._canEdit()?[90]:[]),...(this._canDelete()?[90]:[]),...(this._canExempt()?[90]:[])];
     const head=['التاريخ','الموظف','الكود','الحضور الرسمي','الحضور الفعلي','التأخير','الجزاء','ساعات الجزاء','القيمة','السبب','المصدر','بواسطة'].map(h=>`<th>${h}</th>`).join('')+(this._canEdit()?'<th class="bhr-action-cell">تعديل</th>':'')+(this._canDelete()?'<th class="bhr-action-cell">حذف</th>':'')+(this._canExempt()?'<th class="bhr-action-cell">إذن</th>':'');
@@ -16692,16 +17012,84 @@ const BazarHRSuite = {
     p.innerHTML=filter+table+exTable;
     this._bindPaneFilters(p,()=>this.renderPenalties());
   },
-  _renderTransaction(key,title,prefix){const p=document.getElementById('bh-pane-'+key);if(!p)return;const q=p.querySelector('[data-filter="search"]')?.value||'',m=p.querySelector('[data-filter="month"]')?.value||'';const rows=this._filtered(key,q,m).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.timestamp||0)-Number(a.timestamp||0));const add=this._canEdit()?`<button class="bhr-btn bhr-primary" data-bhr-action="add-${prefix}">➕ إضافة</button>`:'';const extra=`<div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div>`;let body='';if(key==='advances')body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td class="bhr-money">${r.amount.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})} ج</td><td class="bhr-long">${this._esc(r.note||'-')}</td><td>${this._esc(r.addedBy||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');if(key==='incentives')body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.type)}</td><td class="bhr-money">${r.amount.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${this._esc(r.unit)}</td><td class="bhr-long">${this._esc(r.note||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.by||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');if(key==='penalties')body=rows.map(r=>{const emp=this._employee(r.code);const hourly=(this._money(emp?.salary)/30)/Math.max(.01,this._num(emp?.workHours)||8);const value=r.value||r.hours*hourly;return `<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||emp?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${r.hours.toFixed(2)}</td><td class="bhr-money">${value.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})} ج</td><td class="bhr-long">${this._esc(r.reason||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.type||'يدوي')}</td><td>${this._esc(r.by||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`;}).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3><span class="bhr-count">عدد السجلات <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${add}</div></div>${extra}</div><div class="bhr-card glass-card">${this._table(key,body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this['_renderTransaction'](key,title,prefix));},
+  _renderTransaction(key,title,prefix){const p=document.getElementById('bh-pane-'+key);if(!p)return;const q=this._searchValue(p),m=p.querySelector('[data-filter="month"]')?.value||'';const rows=this._filtered(key,q,m).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.timestamp||0)-Number(a.timestamp||0));const add=this._canEdit()?`<button class="bhr-btn bhr-primary" data-bhr-action="add-${prefix}">➕ إضافة</button>`:'';const extra=`<div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div>`;let body='';if(key==='advances')body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td class="bhr-money">${r.amount.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})} ج</td><td class="bhr-long">${this._esc(r.note||'-')}</td><td>${this._esc(r.addedBy||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');if(key==='incentives')body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.type)}</td><td class="bhr-money">${r.amount.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>${this._esc(r.unit)}</td><td class="bhr-long">${this._esc(r.note||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.by||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');if(key==='penalties')body=rows.map(r=>{const emp=this._employee(r.code);const hourly=(this._money(emp?.salary)/30)/Math.max(.01,this._num(emp?.workHours)||8);const value=r.value||r.hours*hourly;return `<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||emp?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${r.hours.toFixed(2)}</td><td class="bhr-money">${value.toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})} ج</td><td class="bhr-long">${this._esc(r.reason||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.type||'يدوي')}</td><td>${this._esc(r.by||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`;}).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3><span class="bhr-count">عدد السجلات <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${add}</div></div>${extra}</div><div class="bhr-card glass-card">${this._table(key,body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this['_renderTransaction'](key,title,prefix));},
 
   _attendanceEvents(){return this._data.attendance.filter(a=>a&&(['CheckIn','CheckOut'].includes(String(a.action||'')))).slice().sort((a,b)=>Number(a.timestamp||0)-Number(b.timestamp||0));},
   _attendanceDailyRows(from,to){
-    const raw=this._attendanceEvents().filter(a=>{const d=a.workDate||this._dayKey(a.timestamp);return (!from||d>=from)&&(!to||d<=to);});
-    const map=new Map();raw.forEach(a=>{const date=a.workDate||this._dayKey(a.timestamp),key=`${date}|${a.code}`;if(!map.has(key))map.set(key,{date,code:a.code,name:a.name||this._employee(a.code)?.name||a.code,job:a.job||this._employee(a.code)?.job||'-',events:[]});map.get(key).events.push(a);});
-    return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date)||String(a.name).localeCompare(String(b.name),'ar')).map(r=>{const emp=this._employee(r.code);const ins=r.events.filter(x=>x.action==='CheckIn').sort((a,b)=>a.timestamp-b.timestamp);const outs=r.events.filter(x=>x.action==='CheckOut').sort((a,b)=>b.timestamp-a.timestamp);const cin=ins[0]||null,cout=outs[0]||null;const actual=cin&&cout?Math.max(0,Math.round((cout.timestamp-cin.timestamp)/60000)):0;const sc=this._schedule(emp,r.date);let late=0,early=0,earlyArr=0,lateExit=0;if(sc&&cin){late=Math.max(0,Math.round((cin.timestamp-sc.inTs)/60000));earlyArr=Math.max(0,Math.round((sc.inTs-cin.timestamp)/60000));}if(sc&&cout){early=Math.max(0,Math.round((sc.outTs-cout.timestamp)/60000));lateExit=Math.max(0,Math.round((cout.timestamp-sc.outTs)/60000));}return {...r,cin,cout,actual,late,early,earlyArr,lateExit,status:cin&&cout?'مكتمل':cin?'دخول بدون خروج':cout?'خروج فقط':'حركة غير مكتملة',source:[...new Set(r.events.map(x=>x.source||'fingerprint'))].join(' / '),officialIn:sc?this._timeText(sc.inTs):'-',officialOut:sc?this._timeText(sc.outTs):'-',delta:this._fmtMin(Math.max(0,late+early-this._graceMin)),overtime:this._fmtMin(Math.max(0,earlyArr+lateExit)),eventCount:r.events.length};});
+    // Pair punches against the employee's real shift window, not calendar day
+    // or the CheckIn/CheckOut label stored by the device.
+    const emps=this._employees();
+    const raw=this._attendanceEvents().slice().sort((a,b)=>Number(a.timestamp||0)-Number(b.timestamp||0));
+    const byCode=new Map(), seen=new Set(), shiftCandidates=new Set();
+    const shiftDaysAround=(key)=>{
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(key||''))return [];
+      const d=new Date(key+'T12:00:00');if(!Number.isFinite(d.getTime()))return [];
+      const keys=[];
+      for(const delta of [-1,0,1]){const x=new Date(d);x.setDate(x.getDate()+delta);keys.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`);}
+      return keys;
+    };
+    raw.forEach(a=>{
+      const code=String(a.code||'').trim(),ts=Number(a.timestamp||0);
+      if(!code||!Number.isFinite(ts)||ts<=0)return;
+      // One physical punch per employee/minute even if its action label differs.
+      const sig=code+'|'+Math.floor(ts/60000);
+      if(seen.has(sig))return;seen.add(sig);
+      const item={...a,code,timestamp:ts};
+      if(!byCode.has(code))byCode.set(code,[]);
+      byCode.get(code).push(item);
+      const day=this._dayKey(ts);if(day)shiftDaysAround(day).forEach(k=>shiftCandidates.add(k));
+    });
+    const validKey=k=>/^\d{4}-\d{2}-\d{2}$/.test(String(k||''));
+    let fromKey=validKey(from)?String(from):'',toKey=validKey(to)?String(to):'';
+    if(fromKey&&toKey&&fromKey>toKey){const tmp=fromKey;fromKey=toKey;toKey=tmp;}
+    const dayKeys=Array.from(shiftCandidates).filter(k=>(!fromKey||k>=fromKey)&&(!toKey||k<=toKey)).sort();
+    const rows=[],bufferMs=3*60*60*1000;
+    dayKeys.forEach(dk=>{
+      emps.forEach(emp=>{
+        const code=String(emp.code||'');if(!code)return;
+        const all=byCode.get(code)||[];if(!all.length)return;
+        const schedule=this._schedule(emp,dk);
+        let candidates=[],cin=null,cout=null;
+        if(schedule){
+          // Include punches shortly before an overnight shift starts and shortly after it ends.
+          const winStart=schedule.inTs-bufferMs,winEnd=schedule.outTs+bufferMs;
+          candidates=all.filter(a=>a.timestamp>=winStart&&a.timestamp<=winEnd).sort((a,b)=>a.timestamp-b.timestamp);
+          if(!candidates.length)return;
+          if(candidates.length===1){
+            const only=candidates[0];
+            // A single punch is assigned to whichever official boundary it is nearest to.
+            if(Math.abs(only.timestamp-schedule.inTs)<=Math.abs(only.timestamp-schedule.outTs))cin=only;
+            else cout=only;
+          }else{
+            // Ignore device labels: first distinct time is entry, last is exit.
+            cin=candidates[0];cout=candidates[candidates.length-1];
+            if(cout.timestamp<=cin.timestamp)cout=null;
+          }
+        }else{
+          // Employees without official shift times retain conservative calendar-day handling.
+          candidates=all.filter(a=>(a.workDate||this._dayKey(a.timestamp))===dk).sort((a,b)=>a.timestamp-b.timestamp);
+          if(!candidates.length)return;
+          if(candidates.length===1){if(candidates[0].action==='CheckOut')cout=candidates[0];else cin=candidates[0];}
+          else{cin=candidates[0];cout=candidates[candidates.length-1];}
+        }
+        if(!cin&&!cout)return;
+        const actual=cin&&cout&&cout.timestamp>cin.timestamp?Math.round((cout.timestamp-cin.timestamp)/60000):0;
+        let late=0,early=0,earlyArr=0,lateExit=0;
+        if(schedule&&cin){late=Math.max(0,Math.round((cin.timestamp-schedule.inTs)/60000));earlyArr=Math.max(0,Math.round((schedule.inTs-cin.timestamp)/60000));}
+        if(schedule&&cout){early=Math.max(0,Math.round((schedule.outTs-cout.timestamp)/60000));lateExit=Math.max(0,Math.round((cout.timestamp-schedule.outTs)/60000));}
+        rows.push({
+          date:dk,code,name:emp.name||cin?.name||cout?.name||code,job:emp.job||cin?.job||cout?.job||'-',
+          events:candidates,cin,cout,actual,late,early,earlyArr,lateExit,
+          status:cin&&cout?'مكتمل':cin?'دخول بدون خروج':cout?'خروج فقط':'حركة غير مكتملة',
+          source:[...new Set(candidates.map(x=>x.source||'fingerprint'))].join(' / '),
+          officialIn:schedule?this._timeText(schedule.inTs):'-',officialOut:schedule?this._timeText(schedule.outTs):'-',
+          delta:this._fmtMin(Math.max(0,late+early-this._graceMin)),overtime:this._fmtMin(Math.max(0,earlyArr+lateExit)),eventCount:candidates.length
+        });
+      });
+    });
+    return rows.sort((a,b)=>a.date.localeCompare(b.date)||String(a.name).localeCompare(String(b.name),'ar'));
   },
-  _schedule(emp,date){if(!emp)return null;const a=this._parseTime(emp.checkIn),b=this._parseTime(emp.checkOut);if(a==null||b==null)return null;const d=new Date(date+'T00:00:00');const inD=new Date(d);inD.setHours(Math.floor(a/60),a%60,0,0);const outD=new Date(d);let bm=b;if(b<=a)bm+=1440;outD.setHours(Math.floor(bm/60),bm%60,0,0);return {inTs:inD.getTime(),outTs:outD.getTime()};},
-  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=p.querySelector('[data-filter="search"]')?.value||'';const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td>${r.cin?'حضور':'-'}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span>${this._attendanceIgnoredCodes?.length?`<span class="bhr-count" title="حركات من الجهاز بأكواد غير موجودة في بيانات الموظفين">غير معتمدة <b>${this._attendanceIgnoredCodes.length}</b></span>`:''}</div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
+  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=this._searchValue(p);const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td>${r.cin?'حضور':'-'}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span>${this._attendanceIgnoredCodes?.length?`<span class="bhr-count" title="حركات من الجهاز بأكواد غير موجودة في بيانات الموظفين">غير معتمدة <b>${this._attendanceIgnoredCodes.length}</b></span>`:''}</div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
 
   _approvedBazarLeave(code,date){
     const d=this._normDate(date);return this._data.leaves.find(l=>String(l.code)===String(code)&&l.status==='موافق'&&this._normDate(l.date)===d)||null;
@@ -16787,20 +17175,20 @@ const BazarHRSuite = {
   renderLeaves(){
     const p=document.getElementById('bh-pane-leaves');if(!p)return;
     if(!this._canLeaves()){p.innerHTML='<div class="bhr-card glass-card bhr-empty">⛔ لا توجد صلاحية لعرض الإجازات.</div>';return;}
-    const q=p.querySelector('[data-filter="search"]')?.value||'',status=p.querySelector('[data-filter="status"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||'';
+    const q=this._searchValue(p),status=p.querySelector('[data-filter="status"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||'';
     const rows=this._data.leaves.filter(l=>(!q||String(l.name).toLowerCase().includes(q.toLowerCase())||String(l.code).includes(q))&&(!status||l.status===status)&&(!month||String(l.date).startsWith(month))).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))||Number(b.timestamp||0)-Number(a.timestamp||0));
     const body=rows.map(r=>{const actions=[];if(this._canLeaveEdit())actions.push(`<td class="bhr-action-cell"><button class="bhr-row-btn" data-bhr-row="leave-edit" data-id="${this._esc(r.id)}">✏️ تعديل</button></td>`);if(this._canDelete())actions.push(`<td class="bhr-action-cell"><button class="bhr-row-btn danger" data-bhr-row="leave-delete" data-id="${this._esc(r.id)}">🗑 حذف</button></td>`);if(this._canLeaveApprove())actions.push(`<td class="bhr-action-cell">${r.status==='موافق'?'<span style="color:#34d399">✅ موافق</span>':`<button class="bhr-row-btn success" data-bhr-row="leave-approve" data-id="${this._esc(r.id)}">✅ موافقة</button>`}</td>`);if(this._canLeaveApprove())actions.push(`<td class="bhr-action-cell">${r.status==='مرفوض'?'<span style="color:#f87171">❌ مرفوض</span>':`<button class="bhr-row-btn danger" data-bhr-row="leave-reject" data-id="${this._esc(r.id)}">❌ رفض</button>`}</td>`);return `<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name||this._employeeByCode(r.code)?.name||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job||this._employeeByCode(r.code)?.job||'-')}</td><td>${this._esc(r.type)}</td><td>${this._esc(r.requestDateText||this._dateText(r.requestDate))}</td><td>${this._esc(r.requestedBy||'-')}</td><td>${this._esc(r.manager||'-')}</td><td>${this._esc(r.status)}</td><td class="bhr-long">${this._esc(r.notes||'-')}</td>${actions.join('')}</tr>`;}).join('');
     const heads=`<th>تاريخ الإجازة</th><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>النوع</th><th>تاريخ الطلب</th><th>مقدم الطلب</th><th>المدير</th><th>الحالة</th><th>الملاحظات</th>${this._canLeaveEdit()?'<th class="bhr-action-cell">تعديل</th>':''}${this._canDelete()?'<th class="bhr-action-cell">حذف</th>':''}${this._canLeaveApprove()?'<th class="bhr-action-cell">موافقة</th><th class="bhr-action-cell">رفض</th>':''}`;
     const count=10+(this._canLeaveEdit()?1:0)+(this._canDelete()?1:0)+(this._canLeaveApprove()?2:0);
     const toolbar=`<span class="bhr-count">الطلبات <b>${rows.length}</b></span>${this._canLeaveEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-leave">➕ إضافة إجازة</button>':''}`;
-    p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الإجازات</h3>${toolbar}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="قيد المراجعة" ${status==='قيد المراجعة'?'selected':''}>قيد المراجعة</option><option value="موافق" ${status==='موافق'?'selected':''}>موافق</option><option value="مرفوض" ${status==='مرفوض'?'selected':''}>مرفوض</option></select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(month)}"></label></div></div><div class="bhr-card glass-card"><div class="bhr-table-box"><table class="bhr-table"><colgroup>${Array.from({length:count},(_,i)=>`<col style="width:${i<10?[110,150,90,120,110,110,120,125,110,220][i]:90}px">`).join('')}</colgroup><thead><tr>${heads}</tr></thead><tbody>${body||`<tr><td colspan="${count}" class="bhr-empty">لا توجد طلبات إجازات</td></tr>`}</tbody></table></div></div>`;
+    p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الإجازات</h3>${toolbar}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="قيد المراجعة" ${status==='قيد المراجعة'?'selected':''}>قيد المراجعة</option><option value="موافق" ${status==='موافق'?'selected':''}>موافق</option><option value="مرفوض" ${status==='مرفوض'?'selected':''}>مرفوض</option></select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(month)}"></label></div></div><div class="bhr-card glass-card"><div class="bhr-table-box"><table class="bhr-table"><colgroup>${Array.from({length:count},(_,i)=>`<col style="width:${i<10?[110,150,90,120,110,110,120,125,110,220][i]:90}px">`).join('')}</colgroup><thead><tr>${heads}</tr></thead><tbody>${body||`<tr><td colspan="${count}" class="bhr-empty">لا توجد طلبات إجازات</td></tr>`}</tbody></table></div></div>`;
     const summaryMap={};rows.forEach(r=>{const k=String(r.code);(summaryMap[k]??={name:r.name,code:r.code,job:r.job,count:0,ok:0,no:0,pending:0,last:''});const x=summaryMap[k];x.count++;if(r.status==='موافق')x.ok++;else if(r.status==='مرفوض')x.no++;else x.pending++;if(!x.last||r.date>x.last)x.last=r.date;});
     const summaryBody=Object.values(summaryMap).sort((a,b)=>String(a.name).localeCompare(String(b.name),'ar')).map(x=>`<tr><td>${this._esc(x.name)}</td><td>${this._esc(x.code)}</td><td>${this._esc(x.job||'-')}</td><td>${x.count}</td><td>${x.ok}</td><td>${x.no}</td><td>${x.pending}</td><td>${this._esc(this._dateText(x.last))}</td></tr>`).join('');
     p.insertAdjacentHTML('beforeend',`<div class="bhr-card glass-card"><h3 style="margin:0 0 12px">📊 ملخص الإجازات حسب الموظف</h3><div class="bhr-table-box"><table class="bhr-table"><thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>الطلبات</th><th>موافق</th><th>مرفوض</th><th>قيد المراجعة</th><th>آخر إجازة</th></tr></thead><tbody>${summaryBody||'<tr><td colspan="8" class="bhr-empty">لا توجد بيانات</td></tr>'}</tbody></table></div></div>`);
     const active=this._employees();p.insertAdjacentHTML('beforeend',`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div><h3 style="margin:0">🔎 فحص الغياب بدون إذن</h3><div class="bhr-note" style="margin-top:4px">الإجازة الموافق عليها لنفس اليوم تمنع جزاء الغياب، والغياب غير المبرر يمكن تسجيل جزاء يومين.</div></div></div><div class="bhr-filter-row"><label class="bhr-field"><span>يوم الفحص</span><input class="bhr-input" id="bhr-leave-absence-date" type="date" value="${this._esc(this._today())}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="check-bazar-absence">🔎 فحص اليوم</button></div></div><div id="bhr-leave-absence-box" style="margin-top:12px"></div></div>`);
     this._bindPaneFilters(p,()=>this.renderLeaves());
   },
-  renderPermits(){const p=document.getElementById('bh-pane-permits');if(!p)return;const q=p.querySelector('[data-filter="search"]')?.value||'',m=p.querySelector('[data-filter="month"]')?.value||'',rows=this._filtered('permits',q,m).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date||r.dateKey))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.type)}</td><td>${this._esc(r.breakTime||'-')}</td><td>${r.returnTimestamp?this._esc(r.returnTime||'-'):(this._canEdit()?`<button class="bhr-row-btn success" data-bhr-row="return-permit" data-id="${this._esc(r.id)}">🔄 رجوع</button>`:'-')}</td><td>${this._fmtMin(Number(r.durationMs||0)/60000)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.user||'-')}</td><td class="bhr-long">${this._esc(r.note||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الأذونات</h3><span class="bhr-count">عدد السجلات <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-permit">➕ إضافة إذن</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(q)}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div></div><div class="bhr-card glass-card">${this._table('permits',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderPermits());},
+  renderPermits(){const p=document.getElementById('bh-pane-permits');if(!p)return;const q=this._searchValue(p),m=p.querySelector('[data-filter="month"]')?.value||'',rows=this._filtered('permits',q,m).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date||r.dateKey))}</td><td>${this._esc(r.name||this._employee(r.code)?.name||r.code||'-')}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.type)}</td><td>${this._esc(r.breakTime||'-')}</td><td>${r.returnTimestamp?this._esc(r.returnTime||'-'):(this._canEdit()?`<button class="bhr-row-btn success" data-bhr-row="return-permit" data-id="${this._esc(r.id)}">🔄 رجوع</button>`:'-')}</td><td>${this._fmtMin(Number(r.durationMs||0)/60000)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.user||'-')}</td><td class="bhr-long">${this._esc(r.note||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.id):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الأذونات</h3><span class="bhr-count">عدد السجلات <b>${rows.length}</b></span></div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-permit">➕ إضافة إذن</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(m)}"></label></div></div><div class="bhr-card glass-card">${this._table('permits',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderPermits());},
 
   _payrollRows(month){
     const empRows=this._employees();const start=new Date(month+'-01T00:00:00');const daysIn=new Date(start.getFullYear(),start.getMonth()+1,0).getDate();const from=`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-01`;const to=`${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(daysIn).padStart(2,'0')}`;const daily=this._attendanceDailyRows(from,to);const by={};daily.forEach(r=>(by[r.code]??=[]).push(r));const advances=this._filtered('advances','',month),bonuses=this._filtered('incentives','',month),penalties=this._filtered('penalties','',month).filter(x=>!x.exempted),permits=this._filtered('permits','',month);return empRows.map(e=>{const rows=by[e.code]||[];const present=rows.filter(r=>r.cin).length;const target=Math.max(0,Math.min(this._targetDays,daysIn));const absence=Math.max(0,target-present);const salary=this._money(e.salary);const dailyPay=salary/30;const hourly=dailyPay/Math.max(.01,this._num(e.workHours)||8);const adv=advances.filter(x=>x.code===e.code).reduce((s,x)=>s+x.amount,0);const bonus=bonuses.filter(x=>x.code===e.code).reduce((s,x)=>s+x.amount,0);const pen=penalties.filter(x=>x.code===e.code).reduce((s,x)=>s+(x.value||x.hours*hourly),0);const deduct=rows.reduce((s,r)=>s+(Math.max(0,r.early)*hourly/60),0);const overtime=rows.reduce((s,r)=>s+((r.earlyArr+r.lateExit)*hourly/60),0);const net=salary+bonus+overtime-(absence*dailyPay)-deduct-pen-adv;return {e,present,absence,advances:adv,bonuses:bonus,penalties:pen,deductPay:deduct,overtimePay:overtime,net};});
@@ -16809,9 +17197,40 @@ const BazarHRSuite = {
   renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const empCode=p.querySelector('[data-filter="employee"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);const opts=this._employees().map(e=>`<option value="${this._esc(e.code)}" ${empCode===e.code?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" data-filter="employee"><option value="">اختر الموظف</option>${opts}</select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" type="month" data-filter="month" value="${this._esc(month)}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="show-payslip">🧾 عرض الشيك</button></div></div><div id="bhr-slip-result" style="margin-top:14px"></div></div>`;if(empCode)this._showPayslip(empCode,month);},
   _showPayslip(code,month){const emp=this._employee(code);if(!emp){this._toast('اختر الموظف','warning');return;}const row=this._payrollRows(month).find(r=>r.e.code===code);if(!row){this._toast('لا توجد بيانات لهذا الموظف','warning');return;}const box=document.getElementById('bhr-slip-result');if(!box)return;box.innerHTML=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;font-size:21px;font-weight:900">علوش البازار</div><div style="text-align:center;margin-top:4px">شيك قبض الموظف — ${this._esc(month)}</div><hr><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><div><b>الموظف:</b> ${this._esc(emp.name)}</div><div><b>الكود:</b> ${this._esc(emp.code)}</div><div><b>الوظيفة:</b> ${this._esc(emp.job||'-')}</div><div><b>صافي المرتب:</b> ${row.net.toFixed(2)} ج</div></div><div style="margin-top:18px;display:flex;justify-content:center"><button class="bhr-btn" data-bhr-action="print-slip">🖨️ طباعة</button></div></div>`;},
 
-  _bindPaneFilters(pane,draw){const bindings=Array.from(pane.querySelectorAll('[data-filter]'));bindings.forEach(el=>{el.addEventListener(el.type==='month'||el.tagName==='SELECT'?'change':'input',draw);});},
-  openPane(tab){if(!this._canFingerprintTab(tab)){const first=document.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');if(first&&first.dataset.bhrTab!==tab)return this.openPane(first.dataset.bhrTab);this._toast('⛔ ليس لديك صلاحية لهذا التاب في بصمة البازار','error');return;}this._active=tab;document.querySelectorAll('#bazarHrTabs .bhr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhrTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bhr-pane').forEach(p=>p.hidden=true);const p=document.getElementById('bh-pane-'+tab);if(p)p.hidden=false;this.renderActive();},
-  renderActive(){const m={employees:'renderEmployees',attendance:'renderAttendance',advances:'renderAdvances',penalties:'renderPenalties',leaves:'renderLeaves',incentives:'renderIncentives',permits:'renderPermits',payroll:'renderPayroll',payslip:'renderPayslip'};const fn=this[m[this._active]];if(typeof fn==='function')fn.call(this);},
+  _bindPaneFilters(pane,draw){
+    if(!pane||typeof draw!=='function')return;
+    if(!this._searchAppliedValues)this._searchAppliedValues=Object.create(null);
+    if(!this._searchDraftValues)this._searchDraftValues=Object.create(null);
+    const paneKey=String(pane.id||'bhr-pane');
+    pane.querySelectorAll('[data-filter]').forEach(el=>{
+      const filter=String(el.dataset.filter||'');
+      if(filter==='search'){
+        if(!Object.prototype.hasOwnProperty.call(this._searchAppliedValues,paneKey))this._searchAppliedValues[paneKey]=String(el.value||'').trim();
+        if(!Object.prototype.hasOwnProperty.call(this._searchDraftValues,paneKey))this._searchDraftValues[paneKey]=String(el.value||'');
+        el.addEventListener('input',()=>{this._searchDraftValues[paneKey]=String(el.value||'');});
+        const apply=()=>{
+          const text=String(el.value||'');
+          this._searchDraftValues[paneKey]=text;
+          this._searchAppliedValues[paneKey]=text.trim();
+          this._clearPendingUiRefresh();
+          try{draw();}catch(err){console.error('[Bazar HR] submitted search failed',err);return;}
+          const replacement=pane.querySelector('[data-filter="search"]');
+          if(replacement){replacement.value=this._searchDraftValues[paneKey];try{replacement.focus({preventScroll:true});const n=replacement.value.length;if(typeof replacement.setSelectionRange==='function')replacement.setSelectionRange(n,n);}catch(_){}}
+        };
+        el.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();apply();}});
+        // البحث يتم فقط عند ضغط Enter/زر Search في لوحة مفاتيح الهاتف؛ لا ننشئ زرًا مرئيًا.
+        el.setAttribute('enterkeyhint','search');
+        el.setAttribute('autocomplete','off');
+      }else{
+        el.addEventListener('change',()=>{
+          this._clearPendingUiRefresh();
+          try{draw();}catch(err){console.error('[Bazar HR] filter change failed',err);}
+        });
+      }
+    });
+  },
+  openPane(tab){this._clearPendingUiRefresh();if(!this._canFingerprintTab(tab)){const first=document.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');if(first&&first.dataset.bhrTab!==tab)return this.openPane(first.dataset.bhrTab);this._toast('⛔ ليس لديك صلاحية لهذا التاب في بصمة البازار','error');return;}this._active=tab;document.querySelectorAll('#bazarHrTabs .bhr-tab').forEach(b=>b.classList.toggle('active',b.dataset.bhrTab===tab));document.querySelectorAll('#tab-fingerprint-bazar .bhr-pane').forEach(p=>p.hidden=true);const p=document.getElementById('bh-pane-'+tab);if(p)p.hidden=false;this.renderActive();},
+  renderActive(){this._clearPendingUiRefresh();const m={employees:'renderEmployees',attendance:'renderAttendance',advances:'renderAdvances',penalties:'renderPenalties',leaves:'renderLeaves',incentives:'renderIncentives',permits:'renderPermits',payroll:'renderPayroll',payslip:'renderPayslip'};const fn=this[m[this._active]];if(typeof fn==='function')fn.call(this);},
 
   _openModal(title,body){const m=document.getElementById('bh-modal');if(!m)return;m.innerHTML=`<div class="bhr-modal-box"><div class="bhr-modal-head"><b>${this._esc(title)}</b><button class="bhr-row-btn" data-bhr-action="close-modal">✕</button></div><div class="bhr-modal-body">${body}</div></div>`;m.hidden=false;},
   closeModal(){const m=document.getElementById('bh-modal');if(m){m.hidden=true;m.innerHTML='';}},
@@ -17026,7 +17445,7 @@ const BazarHRSuite = {
   _rowIdDecode(v){try{return decodeURIComponent(String(v));}catch(_){return String(v);}},
   _handleClick(e){const t=e.target.closest('[data-bhr-tab]');if(t)return this.openPane(t.dataset.bhrTab);const top=e.target.closest('[data-bhr-action]');if(top){const a=top.dataset.bhrAction;if(a==='sync')return this.syncFromDevice();if(a==='refresh')return this.refreshAll();if(a==='export')return this.exportCurrent();if(a==='add-employee')return this.openEmployeeForm();if(a==='add-advance')return this.openAdvanceForm();if(a==='add-incentive')return this.openIncentiveForm();if(a==='add-penalty')return this.openPenaltyForm();if(a==='add-leave')return this.openLeaveForm();if(a==='save-leave')return this._saveBazarLeave(this._rowIdDecode(top.dataset.id||''));if(a==='check-bazar-absence')return this._checkBazarAbsence();if(a==='add-permit')return this.openPermitForm();if(a==='add-attendance')return this.openAttendanceForm();if(a==='show-payslip')return this._showPayslip(document.querySelector('#bh-pane-payslip [data-filter="employee"]')?.value||'',document.querySelector('#bh-pane-payslip [data-filter="month"]')?.value||this._today().slice(0,7));if(a==='print-slip')return window.print();if(a==='close-modal')return this.closeModal();}
     const row=e.target.closest('[data-bhr-row]');if(!row)return;const a=row.dataset.bhrRow,id=this._rowIdDecode(row.dataset.id);if(a==='edit'){if(this._active==='employees')return this.openEmployeeForm(id);if(this._active==='advances')return this.openAdvanceForm(id);if(this._active==='incentives')return this.openIncentiveForm(id);if(this._active==='penalties')return this.openPenaltyForm(id);if(this._active==='permits')return this.openPermitForm(id);if(this._active==='attendance'){const [code,date]=id.split('|');return this.openAttendanceForm(code,date);}}if(a==='delete'){if(this._active==='employees'){const r=this._employee(id);const key=r?.firebaseKey||r?.id||id;return this._delete('bazarEmpData',key,'الموظف');}if(this._active==='advances')return this._delete('bazarAdvances',id,'السلفة');if(this._active==='incentives')return this._delete('bazarIncentives',id,'المكافأة');if(this._active==='penalties')return this._delete('bazarPenalties',id,'الجزاء');if(this._active==='permits')return this._delete('bazarBreaks',id,'الإذن');}if(a==='leave-edit')return this.openLeaveForm(id);if(a==='leave-delete')return this._delete('bazarLeaves',id,'الإجازة');if(a==='leave-approve')return this.approveLeave(id,true);if(a==='leave-reject')return this.approveLeave(id,false);if(a==='bazar-absence'){const [code,date]=id.split('|');return this._applyBazarAbsencePenalty(code,date);}if(a==='exempt-penalty')return this.openPenaltyExemptForm(id);if(a==='restore-penalty')return this._restorePenaltyExemption(id);if(a==='return-permit')return this._returnPermit(id);},
-  init(){if(this._initialized){this.applyPermissionVisibility();if(this._active&&this._canFingerprintTab(this._active))this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.applyPermissionVisibility();const first=root.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');this.openPane(first?.dataset?.bhrTab||'employees');this._toast('✅ بصمة البازار V49 — تصدير التاب هو التصدير الرسمي','success');}
+  init(){if(this._initialized){this.applyPermissionVisibility();if(this._active&&this._canFingerprintTab(this._active)&&!this._isEditingActivePane())this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));root.addEventListener('focusout',e=>{if(!this._pendingActiveRender)return;this._flushPendingUiRefresh();});this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.applyPermissionVisibility();const first=root.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');this.openPane(first?.dataset?.bhrTab||'employees');this._toast('✅ بصمة البازار — تحديث ذكي دون إعادة رسم متكرر','success');}
 };
 window.BazarHRSuite=BazarHRSuite;
 console.info('[Allosh Bazar HR] V49 single-core — official tab export, responsive penalty headers');
@@ -17081,6 +17500,25 @@ const FingerprintBazarService = {
     const sign=mins<0?'-':''; const n=Math.abs(Math.round(mins));
     const h=Math.floor(n/60), m=n%60;
     return `${sign}${h}:${String(m).padStart(2,'0')}`;
+  },
+  _renderDailySummary(rows, containerId='fpSabahDailySummary'){
+    const host=document.getElementById(containerId);
+    if(!host)return;
+    const list=Array.isArray(rows)?rows:[];
+    let completed=0,open=0,totalMs=0;
+    list.forEach(r=>{
+      const start=Number(r?.checkIn?.timestamp||0);
+      const end=Number(r?.checkOut?.timestamp||0);
+      if(start>0&&end>start){completed++;totalMs+=end-start;}
+      else if(start>0)open++;
+    });
+    const totalMinutes=Math.max(0,Math.round(totalMs/60000));
+    const hours=Math.floor(totalMinutes/60),minutes=totalMinutes%60;
+    host.innerHTML=`<div style=\"display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-top:10px\">`+
+      `<div style=\"padding:10px;border:1px solid rgba(99,102,241,.25);border-radius:10px;background:rgba(99,102,241,.08);text-align:center\"><div style=\"color:#94a3b8;font-size:11px\">إجمالي السجلات</div><b style=\"font-size:18px;color:#e2e8f0\">${list.length}</b></div>`+
+      `<div style=\"padding:10px;border:1px solid rgba(16,185,129,.25);border-radius:10px;background:rgba(16,185,129,.08);text-align:center\"><div style=\"color:#94a3b8;font-size:11px\">ورديات مكتملة</div><b style=\"font-size:18px;color:#34d399\">${completed}</b></div>`+
+      `<div style=\"padding:10px;border:1px solid rgba(245,158,11,.25);border-radius:10px;background:rgba(245,158,11,.08);text-align:center\"><div style=\"color:#94a3b8;font-size:11px\">بدون انصراف</div><b style=\"font-size:18px;color:#fbbf24\">${open}</b></div>`+
+      `<div style=\"padding:10px;border:1px solid rgba(56,189,248,.25);border-radius:10px;background:rgba(56,189,248,.08);text-align:center\"><div style=\"color:#94a3b8;font-size:11px\">إجمالي الساعات</div><b style=\"font-size:18px;color:#7dd3fc\">${hours}:${String(minutes).padStart(2,'0')}</b></div></div>`;
   },
   _minValue(mins){ return Number.isFinite(mins)?Math.round(mins):0; },
   _safeEmpMap(){
@@ -17641,7 +18079,7 @@ const FingerprintSabahService = {
       }).join('')
       :'<tr><td colspan="14" style="text-align:center;padding:20px;color:#64748b">لا توجد سجلات</td></tr>';
     }
-    FingerprintBazarService._renderDailySummary.call(this, rows, 'fpSabahDailySummary');
+    if(typeof FingerprintBazarService._renderDailySummary==='function') FingerprintBazarService._renderDailySummary.call(this, rows, 'fpSabahDailySummary');
     const totalEl=document.getElementById('fpSabahTotalHours');
     if(totalEl){
       const h=Math.floor(totalMs/3600000),m=Math.floor((totalMs%3600000)/60000);
@@ -19578,9 +20016,9 @@ if(exact) attUpdateEmpPreview(value); else { const p=document.getElementById("at
         if(bEl) bEl.textContent = State.appBuild;
         // تحديث الوقت كل ثانية بكفاءة
 setInterval(() => {
-    // تحديث فقط لو صفحة الحضور ظاهرة
-    if(document.getElementById('tab-attendance')?.style.display !== 'none' ||
-       document.getElementById('tab-attendance')?.classList.contains('active')) {
+    // تحديث خفيف فقط عندما تكون صفحة الحضور الرئيسية هي التاب النشط فعلًا.
+    const attendanceTab = document.getElementById('tab-attendance');
+    if (attendanceTab && attendanceTab.classList.contains('active') && document.visibilityState === 'visible') {
       UI.renderInsideEmployees();
     }
 }, 5000);
