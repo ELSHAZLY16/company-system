@@ -16684,15 +16684,18 @@ const BazarHRSuite = {
     };
     const dayKey=(ts)=>this._dayKey(ts);
     const shiftWorkDate=(row,emp,ts)=>{
-      const supplied=String(row?.workDate||'').trim();
-      // سجلات V5 تحمل توقيعًا ثابتًا وworkDate محسوبًا من الخادم؛ القديمة تحتاج إعادة استنتاج للوردية الليلية.
-      if(row?.devicePunchSignature&&/^\d{4}-\d{2}-\d{2}$/.test(supplied))return supplied;
+      // Recompute the shift date instead of trusting older stored workDate values,
+      // because previous versions capped overnight/late departures at a few hours.
       const actual=dayKey(ts);
-      const cin=this._parseTime(emp?.checkIn||emp?.workStart),cout=this._parseTime(emp?.checkOut||emp?.workEnd);
-      if(!actual||cin==null||cout==null||cout>cin)return actual;
+      const cin=this._parseTime(emp?.checkIn||emp?.workStart||emp?.expectedIn);
+      if(!actual||cin==null)return actual;
       const d=new Date(Number(ts));
       const minute=d.getHours()*60+d.getMinutes();
-      if(minute<cin&&minute<=Math.min(1439,cout+240)){
+      // A punch earlier than 3 hours before the next official shift start
+      // belongs to the previous shift; this keeps late departures together,
+      // including overnight departures well after the official end time.
+      const priorBoundary=cin-180;
+      if(priorBoundary>0 && minute<priorBoundary){
         const prior=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);
         return `${prior.getFullYear()}-${String(prior.getMonth()+1).padStart(2,'0')}-${String(prior.getDate()).padStart(2,'0')}`;
       }
@@ -17051,18 +17054,33 @@ const BazarHRSuite = {
         const schedule=this._schedule(emp,dk);
         let candidates=[],cin=null,cout=null;
         if(schedule){
-          // Include punches shortly before an overnight shift starts and shortly after it ends.
-          const winStart=schedule.inTs-bufferMs,winEnd=schedule.outTs+bufferMs;
-          candidates=all.filter(a=>a.timestamp>=winStart&&a.timestamp<=winEnd).sort((a,b)=>a.timestamp-b.timestamp);
+          // Do not cap departure at official-out + 3 hours: employees may work
+          // 12+ hours. The shift window ends shortly before the next official
+          // shift starts, which also prevents tomorrow's arrival becoming
+          // today's checkout. Window boundaries are half-open to avoid overlap.
+          const winStart=schedule.inTs-bufferMs;
+          const nextDate=new Date(dk+'T12:00:00');
+          nextDate.setDate(nextDate.getDate()+1);
+          const nextKey=`${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}-${String(nextDate.getDate()).padStart(2,'0')}`;
+          const nextSchedule=this._schedule(emp,nextKey);
+          const winEnd=nextSchedule ? nextSchedule.inTs-bufferMs : schedule.inTs+86400000-bufferMs;
+          candidates=all.filter(a=>a.timestamp>=winStart&&a.timestamp<winEnd).sort((a,b)=>a.timestamp-b.timestamp);
           if(!candidates.length)return;
+          // Pair the first and last distinct punches for the scheduled shift.
+          // Important midnight-shift case: if the only punch is at/near the official
+          // shift end (e.g. 08:00 for a 00:00-08:00 shift), it is an OUT punch,
+          // not a new attendance just because it is the only event on that date.
+          // Prefer closeness to scheduled start/end over the device's action label.
           if(candidates.length===1){
             const only=candidates[0];
-            // A single punch is assigned to whichever official boundary it is nearest to.
-            if(Math.abs(only.timestamp-schedule.inTs)<=Math.abs(only.timestamp-schedule.outTs))cin=only;
-            else cout=only;
+            const startDistance=Math.abs(only.timestamp-schedule.inTs);
+            const endDistance=Math.abs(only.timestamp-schedule.outTs);
+            const isLikelyCheckout=endDistance<startDistance ||
+              (endDistance===startDistance && String(only.action||'')==='CheckOut');
+            if(isLikelyCheckout)cout=only; else cin=only;
           }else{
-            // Ignore device labels: first distinct time is entry, last is exit.
-            cin=candidates[0];cout=candidates[candidates.length-1];
+            cin=candidates[0];
+            cout=candidates[candidates.length-1];
             if(cout.timestamp<=cin.timestamp)cout=null;
           }
         }else{
@@ -17284,7 +17302,57 @@ const BazarHRSuite = {
   async _savePenalty(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),hours=this._num(document.getElementById('bhr-hours')?.value),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||(!hours&&!amount))return this._toast('اختر الموظف وأدخل الساعات أو القيمة','error');const rec={code:emp.code,name:emp.name,hours,amount,value:amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ الجزاء','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openPermitForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.permits.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل إذن':'إضافة إذن',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'شخصي')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||old.dateKey||this._today())}"></label><label class="bhr-field"><span>وقت الخروج</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.breakTime||'')}"></label><label class="bhr-field"><span>وقت الرجوع</span><input class="bhr-input" id="bhr-back" type="time" value="${this._esc(old.returnTime||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePermit(id));},
   async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);if(backTs||id)await this._recalcPrayerPermitPenalty({...rec,id:ref.key});this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
-  async _saveAttendance(code,date,inTime,outTime,note){const emp=this._employee(code);if(!emp||!inTime)return this._toast('اختر الموظف وأدخل وقت الحضور','error');const inTs=new Date(date+'T'+inTime+':00').getTime();let outTs=outTime?new Date(date+'T'+outTime+':00').getTime():0;if(outTs&&outTs<=inTs)outTs+=86400000;const updates={};this._data.attendance.filter(a=>String(a.code)===String(code)&&(a.workDate||this._dayKey(a.timestamp))===date).forEach(a=>{updates[`fingerprintBazar/${a.id}`]=null;});const base=`manual_${Date.now()}_${code}`;updates[`fingerprintBazar/${base}_in`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckIn',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(inTs),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};if(outTs)updates[`fingerprintBazar/${base}_out`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckOut',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(outTs),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};await db.ref().update(updates);this.closeModal();this._toast('✅ تم حفظ الحضور والانصراف','success');},
+  async _saveAttendance(code,date,inTime,outTime,note){
+    const emp=this._employee(code);
+    if(!emp||!inTime)return this._toast('اختر الموظف وأدخل وقت الحضور','error');
+    date=this._normDate(date);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return this._toast('تاريخ الوردية غير صحيح','error');
+    const schedule=this._schedule(emp,date);
+    const [yy,mm,dd]=date.split('-').map(Number);
+    const tsFor=(dayOffset,time)=>{
+      const [hh,mi]=String(time||'').split(':').map(Number);
+      const dt=new Date(yy,mm-1,dd+(dayOffset||0),hh||0,mi||0,0,0);
+      return dt.getTime();
+    };
+    // For shifts starting around midnight, a 23:xx attendance entered against
+    // the logical shift date belongs to the previous calendar evening.
+    let inOffset=0;
+    const inMinutes=this._parseTime(inTime);
+    if(schedule && schedule.inMin<=180 && inMinutes!=null && inMinutes>=18*60)inOffset=-1;
+    const inTs=tsFor(inOffset,inTime);
+    let outTs=outTime?tsFor(0,outTime):0;
+    while(outTs && outTs<=inTs)outTs+=86400000;
+
+    // Delete only raw events belonging to this shift window. Do not delete every
+    // event on the calendar date: that used to remove an adjacent overnight
+    // shift's check-in/out when editing a different day.
+    let windowStart,windowEnd;
+    if(schedule){
+      const bufferMs=3*60*60*1000;
+      windowStart=schedule.inTs-bufferMs;
+      const nd=new Date(yy,mm-1,dd+1);
+      const nextKey=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`;
+      const nextSchedule=this._schedule(emp,nextKey);
+      windowEnd=nextSchedule?nextSchedule.inTs-bufferMs:schedule.inTs+86400000-bufferMs;
+    }else{
+      windowStart=new Date(yy,mm-1,dd,0,0,0,0).getTime();
+      windowEnd=new Date(yy,mm-1,dd+1,0,0,0,0).getTime();
+    }
+    const updates={};
+    this._data.attendance.filter(a=>{
+      if(String(a.code)!==String(code))return false;
+      const ts=Number(a.timestamp||a.ts||0);
+      const source=String(a.source||'').toLowerCase();
+      const manualWorkDate=source==='manual'&&this._normDate(a.workDate||'')===date;
+      return manualWorkDate || (Number.isFinite(ts)&&ts>=windowStart&&ts<windowEnd);
+    }).forEach(a=>{if(a.id)updates[`fingerprintBazar/${a.id}`]=null;});
+    const base=`manual_${Date.now()}_${code}`;
+    updates[`fingerprintBazar/${base}_in`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckIn',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(inTs),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};
+    if(outTs)updates[`fingerprintBazar/${base}_out`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckOut',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:this._dayKey(outTs),timeDisplay:this._timeText(outTs),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};
+    await db.ref().update(updates);
+    this.closeModal();
+    this._toast('✅ تم حفظ الحضور والانصراف دون تعديل حركات الورديات الأخرى','success');
+  },
   openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value=""></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
 
   async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
@@ -17562,36 +17630,42 @@ const FingerprintBazarService = {
   _buildPairs(){
     const sig=this._pairSignature();
     if(this._pairCache.sig===sig) return this._pairCache.pairs;
-    const grouped={};
-    const seen=new Set();
-    this._data().forEach(a=>{
-      const code=String(a.code||''); const ts=Number(a.timestamp||0);
-      if(!code || !ts || (a.action!=='CheckIn' && a.action!=='CheckOut')) return;
-      const dupKey=`${code}|${a.action}|${Math.floor(ts/60000)}`;
-      if(seen.has(dupKey)) return;
-      seen.add(dupKey);
-      (grouped[code] ||= []).push({...a, code, timestamp:ts});
+    const empMap=new Map(this._safeEmpMap().map(e=>[String(e.code),e]));
+    const byCode=new Map(), minuteSeen=new Set();
+    const shiftKey=(code,ts)=>{
+      const actual=this._localKey(ts); if(!actual)return '';
+      const emp=empMap.get(String(code));
+      const start=this._parseTime(emp?.checkIn||emp?.workStart);
+      if(start==null)return actual;
+      const d=new Date(ts), minute=d.getHours()*60+d.getMinutes();
+      if(start>180 && minute<start-180){
+        const prior=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);
+        return `${prior.getFullYear()}-${String(prior.getMonth()+1).padStart(2,'0')}-${String(prior.getDate()).padStart(2,'0')}`;
+      }
+      return actual;
+    };
+    const rows=this._data().map(a=>({...a,code:String(a.code||'').trim(),timestamp:Number(a.timestamp||0)}))
+      .filter(a=>a.code&&Number.isFinite(a.timestamp)&&a.timestamp>0)
+      .sort((a,b)=>a.timestamp-b.timestamp);
+    rows.forEach(a=>{
+      const minuteKey=`${a.code}|${Math.floor(a.timestamp/60000)}`;
+      if(minuteSeen.has(minuteKey))return;
+      minuteSeen.add(minuteKey);
+      const workDate=shiftKey(a.code,a.timestamp);
+      const key=`${a.code}|${workDate}`;
+      if(!byCode.has(key))byCode.set(key,[]);
+      byCode.get(key).push({...a,workDate});
     });
     const pairs=[];
-    Object.entries(grouped).forEach(([code,events])=>{
+    byCode.forEach(events=>{
       events.sort((a,b)=>a.timestamp-b.timestamp);
-      const open=[];
-      events.forEach(ev=>{
-        if(ev.action==='CheckIn'){
-          open.push({checkIn:ev,checkOut:null});
-        }else if(ev.action==='CheckOut'){
-          let idx=-1;
-          for(let i=open.length-1;i>=0;i--){ if(!open[i].checkOut && open[i].checkIn.timestamp<=ev.timestamp){ idx=i; break; } }
-          if(idx>=0){ const p=open[idx]; p.checkOut=ev; pairs.push(p); open.splice(idx,1); }
-        }
-      });
-      open.forEach(p=>pairs.push(p));
+      if(!events.length)return;
+      pairs.push({checkIn:events[0],checkOut:events.length>1?events[events.length-1]:null});
     });
     pairs.sort((a,b)=>(a.checkIn?.timestamp||0)-(b.checkIn?.timestamp||0));
     this._pairCache={sig,pairs};
     return pairs;
   },
-
   _schedule(emp, dateKey){
     const inMin=this._parseTime(emp?.checkIn); const outMin=this._parseTime(emp?.checkOut);
     if(inMin==null || outMin==null) return null;
