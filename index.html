@@ -10124,7 +10124,39 @@ const SystemLogService = {
                 DeleteBreak:      "🗑️ حذف استئذان",
                 DeleteCompany:    "🗑️ حذف شركة",
                 DeletePenalty:    "🗑️ حذف جزاء",
-                DeleteBreak:      "🗑️ حذف استئذان"
+                DeleteBreak:      "🗑️ حذف استئذان",
+                BazarEmployeeAdd: "🖐️ بصمة البازار — إضافة موظف",
+                BazarEmployeeEdit: "🖐️ بصمة البازار — تعديل بيانات موظف",
+                BazarEmployeeDelete: "🖐️ بصمة البازار — حذف موظف",
+                BazarAdvanceAdd: "🖐️ بصمة البازار — إضافة سلفة",
+                BazarAdvanceEdit: "🖐️ بصمة البازار — تعديل سلفة",
+                BazarAdvanceDelete: "🖐️ بصمة البازار — حذف سلفة",
+                BazarIncentiveAdd: "🖐️ بصمة البازار — إضافة مكافأة",
+                BazarIncentiveEdit: "🖐️ بصمة البازار — تعديل مكافأة",
+                BazarIncentiveDelete: "🖐️ بصمة البازار — حذف مكافأة",
+                BazarPenaltyAdd: "🖐️ بصمة البازار — إضافة جزاء يدوي",
+                BazarPenaltyEdit: "🖐️ بصمة البازار — تعديل جزاء",
+                BazarPenaltyDelete: "🖐️ بصمة البازار — حذف جزاء",
+                BazarAbsencePenalty: "🖐️ بصمة البازار — تسجيل جزاء غياب",
+                BazarLeaveAdd: "🖐️ بصمة البازار — إضافة إجازة",
+                BazarLeaveEdit: "🖐️ بصمة البازار — تعديل إجازة",
+                BazarLeaveDelete: "🖐️ بصمة البازار — حذف إجازة",
+                BazarLeaveApproved: "🖐️ بصمة البازار — اعتماد إجازة",
+                BazarLeaveRejected: "🖐️ بصمة البازار — رفض إجازة",
+                BazarPermitAdd: "🖐️ بصمة البازار — إضافة إذن",
+                BazarPermitEdit: "🖐️ بصمة البازار — تعديل إذن",
+                BazarPermitDelete: "🖐️ بصمة البازار — حذف إذن",
+                BazarPermitReturned: "🖐️ بصمة البازار — تسجيل رجوع إذن",
+                BazarPenaltyExempt: "🖐️ بصمة البازار — إعفاء من جزاء",
+                BazarPenaltyExemptionRestored: "🖐️ بصمة البازار — إلغاء إعفاء جزاء",
+                BazarAttendanceAdd: "🖐️ بصمة البازار — إضافة حضور وانصراف يدوي",
+                BazarAttendanceEdit: "🖐️ بصمة البازار — تعديل حضور وانصراف يدوي",
+                BazarRecordDelete: "🖐️ بصمة البازار — حذف سجل",
+                FpBazarManualAdd: "🖐️ بصمة البازار — إضافة حركة يدوية",
+                FpBazarManualCheckout: "🖐️ بصمة البازار — تسجيل انصراف يدوي",
+                FpBazarEdit: "🖐️ بصمة البازار — تعديل حضور وانصراف",
+                FpBazarDelete: "🖐️ بصمة البازار — حذف حضور وانصراف",
+                FpBazarSync: "🖐️ بصمة البازار — مزامنة بصمة"
             };
 
             return map[action] || action;
@@ -15572,17 +15604,44 @@ const AbsenceService = {
   _lastResults: null, // نتيجة آخر فحص (مش متسجلة كجزاءات لسه)
   _lastDateLocale: null,
 
-  // تطبيع أي شكل تاريخ (ISO أو D/M/YYYY) لصيغة موحّدة YYYY-MM-DD للمقارنة
+  // تطبيع التواريخ (ISO أو D/M/YYYY أو الأرقام العربية) إلى YYYY-MM-DD.
   _normalizeDate(str) {
     if(!str) return '';
-    str = String(str).trim();
-    if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
-    const parts = str.split('/');
-    if(parts.length === 3){
-      const [d, m, y] = parts.map(p => p.trim());
-      if(y && m && d) return `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    str = String(str).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[\u200e\u200f\u202f]/g, ' ');
+    let m = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    m = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    // يدعم تاريخًا بصيغة محلية يتبعه وقت (مثل employmentStatusAt).
+    m = str.match(/(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    return '';
+  },
+
+  // هل كان الموظف مستحقًا للفحص في هذا التاريخ؟ يعتمد على تاريخ التعيين وتاريخ سريان الحالة.
+  _eligibleOnDate(employeeRecord, targetNorm) {
+    if(!employeeRecord || !/^\d{4}-\d{2}-\d{2}$/.test(String(targetNorm||''))) return false;
+
+    // الموظف لا يُحسب غائبًا قبل تاريخ أول يوم عمل.
+    const hireDate = this._normalizeDate(employeeRecord.hireDate || employeeRecord.hire_date || employeeRecord.employmentDate || employeeRecord.startDate || '');
+    if(hireDate && /^\d{4}-\d{2}-\d{2}$/.test(hireDate) && targetNorm < hireDate) return false;
+
+    const rawStatus = String(employeeRecord.employmentStatus || employeeRecord.status || 'نشط').trim().toLowerCase();
+    const inactive = ['resigned','stopped','مستقيل','مستقيلة','موقوف','موقوف عن العمل','متوقف'].includes(rawStatus);
+    if(!inactive) return true;
+
+    let effectiveDate = this._normalizeDate(employeeRecord.employmentStatusEffectiveDate || employeeRecord.resignationEffectiveDate || employeeRecord.employmentStatusDate || '');
+    if(!effectiveDate) effectiveDate = this._normalizeDate(employeeRecord.employmentStatusAt || '');
+    if(!effectiveDate && Number(employeeRecord.employmentStatusChangedAt) > 0) {
+      const d = new Date(Number(employeeRecord.employmentStatusChangedAt));
+      if(Number.isFinite(d.getTime())) effectiveDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
-    return str;
+    // للبيانات القديمة التي تسجل الحالة دون تاريخ: لا نمد الحالة إلى الماضي تلقائيًا.
+    if(!effectiveDate) {
+      const d = new Date(typeof TimeUtils!=='undefined' && TimeUtils.now ? TimeUtils.now() : Date.now());
+      effectiveDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    return targetNorm < effectiveDate;
   },
 
   // مرحلة 1: فحص فقط (Dry-run) — مبيسجّلش أي جزاء، بس بيوضح مين مستحق
@@ -15616,8 +15675,9 @@ const AbsenceService = {
     };
 
     const activeEmployees = State.employees.filter(e => {
-      const es = findFreshEmp(e.code)?.employmentStatus;
-      return es !== 'resigned' && es !== 'stopped';
+      const fresh = findFreshEmp(e.code) || e;
+      // لا نفحص أي يوم يسبق تاريخ تعيين الموظف، كما نحترم تاريخ سريان الاستقالة/الإيقاف.
+      return this._eligibleOnDate(fresh, targetNorm);
     });
     const absentees = [];
 
@@ -16568,6 +16628,52 @@ const BazarHRSuite = {
     if(Number.isFinite(updated)&&updated>100000000000){const d=new Date(updated);if(Number.isFinite(d.getTime()))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
     return this._today();
   },
+  _inactiveOnDate(record,dateKey){
+    const status=this._status(record?.employmentStatus||record?.status||'نشط');
+    if(!['مستقيل','موقوف'].includes(status))return false;
+    const day=this._normDate(dateKey||'');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return false;
+    return day>=this._employmentStatusEffectiveDate(record);
+  },
+  // أول تاريخ حضور فعلي مسجل للموظف في fingerprintBazar، مع استخدام تاريخ التعيين كقيد إضافي إن وُجد.
+  _firstAttendanceDate(code){
+    const wanted=String(code??'').trim();if(!wanted)return '';
+    let first='';
+    (this._data.attendance||[]).forEach(a=>{
+      if(String(a?.code??'').trim()!==wanted)return;
+      if(!['CheckIn','CheckOut'].includes(String(a?.action||'')))return;
+      let day=this._normDate(a.workDate||a.dateISO||a.date||'');
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(day)){
+        const ts=Number(a.timestamp||0);if(Number.isFinite(ts)&&ts>0)day=this._dayKey(ts);
+      }
+      if(/^\d{4}-\d{2}-\d{2}$/.test(day)&&(!first||day<first))first=day;
+    });
+    return first;
+  },
+  _eligibleForAbsenceOnDate(emp,dateKey){
+    const day=this._normDate(dateKey||'');
+    if(!emp||!/^\d{4}-\d{2}-\d{2}$/.test(day)||this._inactiveOnDate(emp,day))return false;
+    const starts=[];
+    const hire=this._normDate(emp.hireDate||emp.hire_date||emp.employmentDate||emp.startDate||'');
+    const first=this._firstAttendanceDate(emp.code);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(hire))starts.push(hire);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(first))starts.push(first);
+    // لا نفحص أي يوم يسبق أحدث تاريخ بداية موثوق: تاريخ التعيين أو أول حضور مسجل.
+    starts.sort();const effectiveStart=starts.length?starts[starts.length-1]:'';
+    return !effectiveStart||day>=effectiveStart;
+  },
+  _eventSource(ev){
+    if(!ev)return '';
+    const raw=String(ev.source||'').trim().toLowerCase();
+    if(ev.manualEdited===true||ev.editedBy||['manual','hand','يدوي','manual-entry'].includes(raw))return 'يدوي';
+    if(raw.includes('fingerprint')||raw.includes('zkteco')||raw==='device'||raw==='fp'||raw==='biometric')return 'بصمة';
+    return raw?'بصمة':'بصمة';
+  },
+  _sourcePair(cin,cout){
+    const a=this._eventSource(cin),b=this._eventSource(cout);
+    if(a&&b)return a===b?a:`${a} / ${b}`;
+    return a||b||'-';
+  },
   _canEdit(){return hasPermission('edit')||hasPermission('all');},
   _canDelete(){return hasPermission('delete')||hasPermission('all');},
   _canExcel(){return hasPermission('excel')||hasPermission('all');},
@@ -16579,6 +16685,13 @@ const BazarHRSuite = {
   _canLeaveEdit(){return hasPermission('edit')||hasPermission('all');},
   _canLeaveApprove(){return hasPermission('leaveApprove')||hasPermission('all');},
   _toast(m,t='info'){if(typeof UI!=='undefined'&&UI.toast)UI.toast(m,t);else console.log(m);},
+  _auditBazar(action,code,name,details={}){
+    try{
+      if(typeof SystemLog==='undefined'||typeof SystemLog.add!=='function')return Promise.resolve(null);
+      const meta={...details,module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,branch:'البازار',recordedBy:State.currentUser?.username||'system'};
+      return SystemLog.add(action,String(code??'-'),String(name??'نشاط بصمة البازار'),meta);
+    }catch(e){console.error('[Bazar audit] unable to create system log',e);return Promise.resolve(null);}
+  },
   _searchValue(pane){
     if(!this._searchAppliedValues)this._searchAppliedValues=Object.create(null);
     const key=String(pane?.id||'bhr-pane');
@@ -17099,7 +17212,7 @@ const BazarHRSuite = {
           date:dk,code,name:emp.name||cin?.name||cout?.name||code,job:emp.job||cin?.job||cout?.job||'-',
           events:candidates,cin,cout,actual,late,early,earlyArr,lateExit,
           status:cin&&cout?'مكتمل':cin?'دخول بدون خروج':cout?'خروج فقط':'حركة غير مكتملة',
-          source:[...new Set(candidates.map(x=>x.source||'fingerprint'))].join(' / '),
+          source:this._sourcePair(cin,cout),sourceIn:this._eventSource(cin),sourceOut:this._eventSource(cout),
           officialIn:schedule?this._timeText(schedule.inTs):'-',officialOut:schedule?this._timeText(schedule.outTs):'-',
           delta:this._fmtMin(Math.max(0,late+early-this._graceMin)),overtime:this._fmtMin(Math.max(0,earlyArr+lateExit)),eventCount:candidates.length
         });
@@ -17145,6 +17258,7 @@ const BazarHRSuite = {
     try{
       const ref=id?db.ref('bazarLeaves/'+id):db.ref('bazarLeaves').push();
       await (id?ref.update(rec):ref.set({...rec,id:ref.key}));
+      await this._auditBazar(id?'BazarLeaveEdit':'BazarLeaveAdd',emp.code,`${id?'تعديل':'إضافة'} طلب إجازة — ${emp.name}`,{entityType:'إجازة',entityId:id||ref.key,recordDate:date,leaveType:type,status:rec.status,notes});
       this.closeModal();this._toast(`✅ تم حفظ إجازة ${emp.name}`,'success');
     }catch(e){this._toast('❌ تعذر حفظ الإجازة: '+(e?.message||e),'error');}
   },
@@ -17161,25 +17275,38 @@ const BazarHRSuite = {
     try{
       await db.ref(`bazarLeaves/${id}`).update({status,approvedBy:State.currentUser?.username||'-',updatedAt:Date.now()});
       if(approved)await this._cancelAutoPenaltiesForLeave(leave);
+      await this._auditBazar(approved?'BazarLeaveApproved':'BazarLeaveRejected',leave.code,`${approved?'اعتماد':'رفض'} إجازة — ${leave.name||leave.code}`,{entityType:'إجازة',entityId:id,recordDate:this._normDate(leave.date),leaveType:leave.type,status,manager:leave.manager||''});
       this._toast(`${approved?'✅ تمت الموافقة على':'❌ تم رفض'} إجازة ${leave.name}` ,approved?'success':'warning');
     }catch(e){this._toast('❌ تعذر تحديث حالة الإجازة: '+(e?.message||e),'error');}
   },
   async _applyBazarAbsencePenalty(code,date){
     const emp=this._employeeByCode(code);if(!emp)return;
-    if(this._approvedBazarLeave(code,date))return this._toast(`✅ ${emp.name} لديه إجازة موافق عليها في هذا اليوم`,'success');
-    const exists=this._data.penalties.find(p=>String(p.code)===String(code)&&this._normDate(p.date)===this._normDate(date)&&p.auto&&p.autoType==='absence');
-    if(exists)return this._toast(`⚠️ جزاء الغياب لـ ${emp.name} مسجل بالفعل`,'warning');
-    const dailyHours=this._dailyHoursForPenalty(emp,date),hours=dailyHours*2,hourly=this._hourlyRate(emp,dailyHours),amount=Math.round(hours*hourly*100)/100;
-    const key=`autoAbsence_${this._safeFirebaseKey(emp.code)}_${this._normDate(date)}`;
-    const rec={id:key,code:emp.code,name:emp.name,job:emp.job||'',date:this._normDate(date),hours:Number(hours.toFixed(2)),amount,value:amount,reason:`غياب بدون إذن (${this._dateText(date)})`,manager:'الإجازات',type:'يومين',auto:true,autoType:'absence',penaltyLevel:'يومين',source:'فحص الإجازات',createdBy:State.currentUser?.username||'النظام',timestamp:Date.now(),updatedAt:Date.now(),exempted:false,dailyHours:Number(dailyHours.toFixed(2))};
-    await db.ref(`bazarPenalties/${key}`).set(rec);
-    this._toast(`✅ تم تسجيل جزاء غياب يومين لـ ${emp.name}`,'success');
+    const day=this._normDate(date);
+    if(!this._eligibleForAbsenceOnDate(emp,day))return this._toast(`⛔ ${emp.name} لا يدخل في فحص الغياب قبل تاريخ بداية عمله أو بعد سريان الاستقالة/الإيقاف`,'warning');
+    if(this._approvedBazarLeave(code,day))return this._toast(`✅ ${emp.name} لديه إجازة موافق عليها في هذا اليوم`,'success');
+    const exists=this._data.penalties.find(p=>String(p.code)===String(code)&&this._normDate(p.date)===day&&p.auto&&p.autoType==='absence');
+    if(exists){await this._checkBazarAbsence();return this._toast(`⚠️ جزاء الغياب لـ ${emp.name} مسجل بالفعل`,'warning');}
+    const dailyHours=this._dailyHoursForPenalty(emp,day),hours=dailyHours*2,hourly=this._hourlyRate(emp,dailyHours),amount=Math.round(hours*hourly*100)/100;
+    const key=`autoAbsence_${this._safeFirebaseKey(emp.code)}_${day}`;
+    const rec={id:key,code:emp.code,name:emp.name,job:emp.job||'',date:day,hours:Number(hours.toFixed(2)),amount,value:amount,reason:`غياب بدون إذن (${this._dateText(day)})`,manager:'الإجازات',type:'يومين',auto:true,autoType:'absence',penaltyLevel:'يومين',source:'فحص الإجازات',createdBy:State.currentUser?.username||'النظام',timestamp:Date.now(),updatedAt:Date.now(),exempted:false,dailyHours:Number(dailyHours.toFixed(2))};
+    try{
+      const result=await db.ref(`bazarPenalties/${key}`).transaction(current=>current==null?rec:undefined,undefined,false);
+      if(!result.committed){
+        if(!this._data.penalties.some(p=>String(p.id)===key))this._data.penalties.push({...rec,...(result.snapshot?.val?.()||{}),id:key});
+        await this._checkBazarAbsence();
+        return this._toast(`⚠️ جزاء الغياب لـ ${emp.name} مسجل بالفعل`,'warning');
+      }
+      this._data.penalties=this._data.penalties.filter(p=>String(p.id)!==key).concat({...rec,id:key});
+      await this._auditBazar('BazarAbsencePenalty',emp.code,`تطبيق جزاء غياب يومين على ${emp.name}`,{entityType:'جزاء غياب',entityId:key,recordDate:day,penaltyHours:hours,amount,reason:rec.reason,penaltyLevel:'يومين'});
+      this._toast(`✅ تم تسجيل جزاء غياب يومين لـ ${emp.name}`,'success');
+      await this._checkBazarAbsence();
+    }catch(e){this._toast('❌ تعذر تسجيل جزاء الغياب: '+(e?.message||e),'error');}
   },
   async _checkBazarAbsence(){
     if(!this._canLeaves())return this._toast('⛔ لا توجد صلاحية فحص الإجازات','error');
     const date=this._normDate(document.getElementById('bhr-leave-absence-date')?.value||'');if(!date)return this._toast('حدد يوم الفحص أولًا','warning');
     const rows=this._attendanceDailyRows(date,date);const present=new Set(rows.filter(r=>r.cin).map(r=>String(r.code)));
-    const employees=this._employees();
+    const employees=this._employees().filter(emp=>this._eligibleForAbsenceOnDate(emp,date));
     const result=employees.map(emp=>{const leave=this._approvedBazarLeave(emp.code,date);return {emp,present:present.has(String(emp.code)),leave};}).filter(x=>!x.present);
     const box=document.getElementById('bhr-leave-absence-box');
     if(!result.length){if(box)box.innerHTML='<div class="bhr-empty">✅ لا يوجد غياب في هذا اليوم.</div>';return;}
@@ -17256,11 +17383,11 @@ const BazarHRSuite = {
   _attachForm(id,save){const f=document.getElementById(id);if(f)f.addEventListener('submit',e=>{e.preventDefault();save();});},
 
   openEmployeeForm(code=''){if(!this._canEdit()){this._toast('⛔ لا توجد صلاحية تعديل','error');return;}const old=this._employee(code)||{code:'',name:'',job:'',branch:'البازار',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'نشط'};this._openModal(code?'تعديل موظف':'موظف جديد',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الكود</span><input class="bhr-input" id="bhr-code" required value="${this._esc(old.code)}"></label><label class="bhr-field"><span>الاسم</span><input class="bhr-input" id="bhr-name" required value="${this._esc(old.name)}"></label><label class="bhr-field"><span>الوظيفة</span><input class="bhr-input" id="bhr-job" value="${this._esc(old.job)}"></label><label class="bhr-field"><span>الفرع</span><input class="bhr-input" id="bhr-branch" value="${this._esc(old.branch)}"></label><label class="bhr-field"><span>الراتب</span><input class="bhr-input" id="bhr-salary" type="number" min="0" value="${this._esc(old.salary)}"></label><label class="bhr-field"><span>التعيين</span><input class="bhr-input" id="bhr-hire" type="date" value="${this._esc(old.hireDate)}"></label><label class="bhr-field"><span>الرقم القومي</span><input class="bhr-input" id="bhr-national" value="${this._esc(old.nationalId)}"></label><label class="bhr-field"><span>الهاتف</span><input class="bhr-input" id="bhr-phone" value="${this._esc(old.phone)}"></label><label class="bhr-field"><span>الحضور الرسمي</span><input class="bhr-input" id="bhr-in" type="time" value="${this._esc(old.checkIn)}"></label><label class="bhr-field"><span>الانصراف الرسمي</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.checkOut)}"></label><label class="bhr-field"><span>ساعات العمل <small style="opacity:.7">(تحسب تلقائيًا)</small></span><input class="bhr-input" id="bhr-hours" type="number" step="0.25" min="0" value="${this._esc(old.workHours||this._calcWorkHours(old.checkIn,old.checkOut))}" readonly aria-readonly="true" tabindex="-1"><small id="bhr-hours-help" style="display:block;margin-top:6px;opacity:.7">حدد الحضور والانصراف الرسمي ليتم حساب الساعات تلقائيًا.</small></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" id="bhr-status"><option value="نشط" ${old.employmentStatus==='نشط'?'selected':''}>نشط</option><option value="مستقيل" ${old.employmentStatus==='مستقيل'?'selected':''}>مستقيل</option><option value="موقوف" ${old.employmentStatus==='موقوف'?'selected':''}>موقوف</option></select></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button><button class="bhr-btn" type="button" data-bhr-action="close-modal">إلغاء</button></div></form>`);const updateHours=()=>{const cin=document.getElementById('bhr-in')?.value||'',cout=document.getElementById('bhr-out')?.value||'',hoursEl=document.getElementById('bhr-hours'),help=document.getElementById('bhr-hours-help');if(!hoursEl)return;const h=this._calcWorkHours(cin,cout);hoursEl.value=h>0?String(h):'';if(help)help.textContent=h>0?`⏱ إجمالي ساعات العمل الرسمي: ${h} ساعة — يتم حسابها تلقائيًا ولا يمكن تعديلها.`:'حدد الحضور والانصراف الرسمي ليتم حساب الساعات تلقائيًا.';};['input','change'].forEach(ev=>{document.getElementById('bhr-in')?.addEventListener(ev,updateHours);document.getElementById('bhr-out')?.addEventListener(ev,updateHours);});updateHours();this._attachForm('bhr-form',()=>this._saveEmployee(code));},
-  async _saveEmployee(oldCode){const code=String(document.getElementById('bhr-code')?.value||'').trim(),name=String(document.getElementById('bhr-name')?.value||'').trim();if(!code||!name){this._toast('الكود والاسم مطلوبان','error');return;}if(!oldCode&&this._employee(code)){this._toast('هذا الكود موجود بالفعل','error');return;}if(oldCode&&code!==String(oldCode)&&this._employee(code)){this._toast('الكود الجديد مستخدم بالفعل','error');return;}const old=this._employee(oldCode)||{};const checkIn=String(document.getElementById('bhr-in')?.value||'').trim(),checkOut=String(document.getElementById('bhr-out')?.value||'').trim(),derivedHours=this._calcWorkHours(checkIn,checkOut);const selectedStatus=this._status(document.getElementById('bhr-status')?.value||'نشط');const oldStatus=this._status(old.employmentStatus||old.status||'نشط');let statusEffectiveDate='';if(selectedStatus==='مستقيل'){statusEffectiveDate=oldStatus==='مستقيل'?this._employmentStatusEffectiveDate(old):this._today();}const rec={...old,code,name,job:String(document.getElementById('bhr-job')?.value||'').trim(),branch:String(document.getElementById('bhr-branch')?.value||'البازار').trim()||'البازار',salary:this._money(document.getElementById('bhr-salary')?.value),hireDate:this._normDate(document.getElementById('bhr-hire')?.value||''),nationalId:String(document.getElementById('bhr-national')?.value||'').trim(),phone:String(document.getElementById('bhr-phone')?.value||'').trim(),checkIn,checkOut,workHours:derivedHours,employmentStatus:selectedStatus,employmentStatusEffectiveDate:statusEffectiveDate,employmentStatusChangedAt:Date.now(),updatedAt:Date.now(),updatedBy:State.currentUser?.username||'-'};try{if(oldCode&&code!==String(oldCode)){const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode));const oldKey=oldRow?.firebaseKey||oldRow?.id||oldCode;await db.ref().update({[`bazarEmpData/${oldKey}`]:null,[`bazarEmpData/${code}`]:rec});}else{const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode||code));const key=oldRow?.firebaseKey||oldRow?.id||code;await db.ref('bazarEmpData/'+key).set(rec);}this.closeModal();this._toast('✅ تم حفظ الموظف','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _saveEmployee(oldCode){const code=String(document.getElementById('bhr-code')?.value||'').trim(),name=String(document.getElementById('bhr-name')?.value||'').trim();if(!code||!name){this._toast('الكود والاسم مطلوبان','error');return;}if(!oldCode&&this._employee(code)){this._toast('هذا الكود موجود بالفعل','error');return;}if(oldCode&&code!==String(oldCode)&&this._employee(code)){this._toast('الكود الجديد مستخدم بالفعل','error');return;}const old=this._employee(oldCode)||{};const checkIn=String(document.getElementById('bhr-in')?.value||'').trim(),checkOut=String(document.getElementById('bhr-out')?.value||'').trim(),derivedHours=this._calcWorkHours(checkIn,checkOut);const selectedStatus=this._status(document.getElementById('bhr-status')?.value||'نشط');const oldStatus=this._status(old.employmentStatus||old.status||'نشط');let statusEffectiveDate='';if(selectedStatus==='مستقيل'){statusEffectiveDate=oldStatus==='مستقيل'?this._employmentStatusEffectiveDate(old):this._today();}const rec={...old,code,name,job:String(document.getElementById('bhr-job')?.value||'').trim(),branch:String(document.getElementById('bhr-branch')?.value||'البازار').trim()||'البازار',salary:this._money(document.getElementById('bhr-salary')?.value),hireDate:this._normDate(document.getElementById('bhr-hire')?.value||''),nationalId:String(document.getElementById('bhr-national')?.value||'').trim(),phone:String(document.getElementById('bhr-phone')?.value||'').trim(),checkIn,checkOut,workHours:derivedHours,employmentStatus:selectedStatus,employmentStatusEffectiveDate:statusEffectiveDate,employmentStatusChangedAt:Date.now(),updatedAt:Date.now(),updatedBy:State.currentUser?.username||'-'};try{if(oldCode&&code!==String(oldCode)){const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode));const oldKey=oldRow?.firebaseKey||oldRow?.id||oldCode;await db.ref().update({[`bazarEmpData/${oldKey}`]:null,[`bazarEmpData/${code}`]:rec});}else{const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode||code));const key=oldRow?.firebaseKey||oldRow?.id||code;await db.ref('bazarEmpData/'+key).set(rec);}await this._auditBazar(oldCode?'BazarEmployeeEdit':'BazarEmployeeAdd',code,`${oldCode?'تعديل بيانات':'إضافة موظف'} — ${name}`,{entityType:'موظف',entityId:code,previousCode:oldCode||'',previous:{name:old.name||'',job:old.job||'',branch:old.branch||'',salary:old.salary??null,checkIn:old.checkIn||'',checkOut:old.checkOut||'',employmentStatus:old.employmentStatus||old.status||'نشط'},current:{name,job:rec.job||'',branch:rec.branch||'',salary:rec.salary,checkIn,checkOut,employmentStatus:selectedStatus},employmentStatus:selectedStatus,statusEffectiveDate});this.closeModal();this._toast('✅ تم حفظ الموظف','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openAdvanceForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.advances.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل سلفة':'إضافة سلفة',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>القيمة</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" required value="${this._esc(old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAdvance(id));},
-  async _saveAdvance(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value),date=this._normDate(document.getElementById('bhr-date')?.value||this._today());if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date,note:String(document.getElementById('bhr-note')?.value||''),addedBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarAdvances/'+id):db.ref('bazarAdvances').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ السلفة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _saveAdvance(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value),date=this._normDate(document.getElementById('bhr-date')?.value||this._today());if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date,note:String(document.getElementById('bhr-note')?.value||''),addedBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarAdvances/'+id):db.ref('bazarAdvances').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarAdvanceEdit':'BazarAdvanceAdd',emp.code,`${id?'تعديل سلفة':'إضافة سلفة'} — ${emp.name}`,{entityType:'سلفة',entityId:id||ref.key,recordDate:date,amount,note:rec.note||''});this.closeModal();this._toast('✅ تم حفظ السلفة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openIncentiveForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.incentives.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل مكافأة':'إضافة مكافأة',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>القيمة</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" required value="${this._esc(old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'مالي')}"></label><label class="bhr-field"><span>الوحدة</span><input class="bhr-input" id="bhr-unit" value="${this._esc(old.unit||'جنيه')}"></label><label class="bhr-field"><span>المدير</span><input class="bhr-input" id="bhr-manager" value="${this._esc(old.manager||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>السبب</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveIncentive(id));},
-  async _saveIncentive(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),type:String(document.getElementById('bhr-type')?.value||'مالي'),unit:String(document.getElementById('bhr-unit')?.value||'جنيه'),manager:String(document.getElementById('bhr-manager')?.value||''),note:String(document.getElementById('bhr-note')?.value||''),by:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarIncentives/'+id):db.ref('bazarIncentives').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ المكافأة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _saveIncentive(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),type:String(document.getElementById('bhr-type')?.value||'مالي'),unit:String(document.getElementById('bhr-unit')?.value||'جنيه'),manager:String(document.getElementById('bhr-manager')?.value||''),note:String(document.getElementById('bhr-note')?.value||''),by:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarIncentives/'+id):db.ref('bazarIncentives').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarIncentiveEdit':'BazarIncentiveAdd',emp.code,`${id?'تعديل مكافأة':'إضافة مكافأة'} — ${emp.name}`,{entityType:'مكافأة',entityId:id||ref.key,recordDate:rec.date,amount,type:rec.type,unit:rec.unit,reason:rec.note||''});this.closeModal();this._toast('✅ تم حفظ المكافأة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openPenaltyExemptForm(id=''){
     if(!this._canExempt())return this._toast('⛔ لا توجد صلاحية إذن لإعفاء الجزاء','error');
     const p=this._data.penalties.find(r=>String(r.id)===String(id));
@@ -17279,6 +17406,7 @@ const BazarHRSuite = {
     const rec={id:exId,penaltyId:p.id,code:p.code,name:p.name||this._employee(p.code)?.name||p.code,date:p.date,penaltyType:p.type||'جزاء',penaltyLevel:p.penaltyLevel||p.type||'جزاء',hours:Number(p.hours||0),amount:Number(p.value??p.amount??0),penaltyReason:p.reason||'-',exemptReason:reason,exemptedBy:State.currentUser?.username||'-',exemptedAt:new Date(now).toLocaleString('ar-EG'),timestamp:firebase.database.ServerValue.TIMESTAMP};
     try{
       await db.ref().update({[`bazarPenaltyExemptions/${exId}`]:rec,[`bazarPenalties/${p.id}/exempted`]:true,[`bazarPenalties/${p.id}/exemptionId`]:exId,[`bazarPenalties/${p.id}/exemptReason`]:reason,[`bazarPenalties/${p.id}/exemptedBy`]:rec.exemptedBy,[`bazarPenalties/${p.id}/exemptedAt`]:rec.exemptedAt,[`bazarPenalties/${p.id}/updatedAt`]:Date.now()});
+      await this._auditBazar('BazarPenaltyExempt',p.code,`إعفاء من جزاء — ${p.name||p.code}`,{entityType:'إعفاء جزاء',entityId:exId,penaltyId:p.id,recordDate:this._normDate(p.date),reason,amount:Number(p.value??p.amount??0),hours:Number(p.hours||0)});
       this.closeModal();this._toast('✅ تم إعفاء الموظف من الجزاء ونقل السجل لجدول المعفيين','success');
     }catch(e){this._toast('❌ فشل حفظ الإعفاء: '+(e.message||e),'error');}
   },
@@ -17294,38 +17422,42 @@ const BazarHRSuite = {
         updates[`bazarPenaltyExemptions/${id}`]=null;
         await db.ref().update(updates);
         this._scheduleAutoPenaltySync();
+        await this._auditBazar('BazarPenaltyExemptionRestored',ex.code,`إلغاء إعفاء جزاء — ${ex.name||ex.code}`,{entityType:'إعفاء جزاء',entityId:id,penaltyId,recordDate:this._normDate(ex.date),reason:ex.exemptReason||''});
         this._toast('✅ تم إلغاء الإعفاء وإعادة الجزاء للحساب','success');
       }catch(e){this._toast('❌ فشل إلغاء الإعفاء: '+(e.message||e),'error');}
     });
   },
   openPenaltyForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.penalties.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل جزاء':'إضافة جزاء',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>الساعات</span><input class="bhr-input" id="bhr-hours" type="number" min="0" step="0.25" value="${this._esc(old.hours??'')}"></label><label class="bhr-field"><span>القيمة (اختياري)</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" value="${this._esc(old.value??old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field"><span>المدير</span><input class="bhr-input" id="bhr-manager" value="${this._esc(old.manager||'')}"></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'يدوي')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>السبب</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.reason||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePenalty(id));},
-  async _savePenalty(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),hours=this._num(document.getElementById('bhr-hours')?.value),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||(!hours&&!amount))return this._toast('اختر الموظف وأدخل الساعات أو القيمة','error');const rec={code:emp.code,name:emp.name,hours,amount,value:amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);this.closeModal();this._toast('✅ تم حفظ الجزاء','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _savePenalty(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),hours=this._num(document.getElementById('bhr-hours')?.value),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||(!hours&&!amount))return this._toast('اختر الموظف وأدخل الساعات أو القيمة','error');const rec={code:emp.code,name:emp.name,hours,amount,value:amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarPenaltyEdit':'BazarPenaltyAdd',emp.code,`${id?'تعديل جزاء':'إضافة جزاء يدوي'} — ${emp.name}`,{entityType:'جزاء',entityId:id||ref.key,recordDate:rec.date,hours,amount,reason:rec.reason||'',penaltyType:rec.type||'يدوي'});this.closeModal();this._toast('✅ تم حفظ الجزاء','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openPermitForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.permits.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل إذن':'إضافة إذن',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'شخصي')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||old.dateKey||this._today())}"></label><label class="bhr-field"><span>وقت الخروج</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.breakTime||'')}"></label><label class="bhr-field"><span>وقت الرجوع</span><input class="bhr-input" id="bhr-back" type="time" value="${this._esc(old.returnTime||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePermit(id));},
-  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);if(backTs||id)await this._recalcPrayerPermitPenalty({...rec,id:ref.key});this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);if(backTs||id)await this._recalcPrayerPermitPenalty({...rec,id:ref.key});await this._auditBazar(id?'BazarPermitEdit':'BazarPermitAdd',emp.code,`${id?'تعديل إذن':'إضافة إذن'} — ${emp.name}`,{entityType:'إذن',entityId:id||ref.key,recordDate:date,permitType:rec.type,breakTime:out,returnTime:back,durationMs,status:rec.status});this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   async _saveAttendance(code,date,inTime,outTime,note){
     const emp=this._employee(code);
     if(!emp||!inTime)return this._toast('اختر الموظف وأدخل وقت الحضور','error');
     date=this._normDate(date);
     if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return this._toast('تاريخ الوردية غير صحيح','error');
     const schedule=this._schedule(emp,date);
+    const currentRow=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));
+    const originalIn=currentRow?.cin||null, originalOut=currentRow?.cout||null;
     const [yy,mm,dd]=date.split('-').map(Number);
     const tsFor=(dayOffset,time)=>{
       const [hh,mi]=String(time||'').split(':').map(Number);
       const dt=new Date(yy,mm-1,dd+(dayOffset||0),hh||0,mi||0,0,0);
       return dt.getTime();
     };
-    // For shifts starting around midnight, a 23:xx attendance entered against
-    // the logical shift date belongs to the previous calendar evening.
+    // For a shift beginning just after midnight, 23:xx belongs to the prior evening.
     let inOffset=0;
     const inMinutes=this._parseTime(inTime);
-    if(schedule && schedule.inMin<=180 && inMinutes!=null && inMinutes>=18*60)inOffset=-1;
+    if(schedule&&schedule.inMin<=180&&inMinutes!=null&&inMinutes>=18*60)inOffset=-1;
     const inTs=tsFor(inOffset,inTime);
     let outTs=outTime?tsFor(0,outTime):0;
-    while(outTs && outTs<=inTs)outTs+=86400000;
-
-    // Delete only raw events belonging to this shift window. Do not delete every
-    // event on the calendar date: that used to remove an adjacent overnight
-    // shift's check-in/out when editing a different day.
+    while(outTs&&outTs<=inTs)outTs+=86400000;
+    const minuteOf=ts=>Math.floor(Number(ts||0)/60000);
+    const inChanged=!originalIn||minuteOf(originalIn.timestamp)!==minuteOf(inTs);
+    const outChanged=!!outTime&&(!originalOut||minuteOf(originalOut.timestamp)!==minuteOf(outTs));
+    const outRemoved=!!originalOut&&!outTime;
+    // Limit the cleanup to the selected shift window, then restore an unchanged
+    // selected punch in-place so the source remains fingerprint/manual per side.
     let windowStart,windowEnd;
     if(schedule){
       const bufferMs=3*60*60*1000;
@@ -17341,22 +17473,34 @@ const BazarHRSuite = {
     const updates={};
     this._data.attendance.filter(a=>{
       if(String(a.code)!==String(code))return false;
-      const ts=Number(a.timestamp||a.ts||0);
-      const source=String(a.source||'').toLowerCase();
+      const ts=Number(a.timestamp||a.ts||0),source=String(a.source||'').toLowerCase();
       const manualWorkDate=source==='manual'&&this._normDate(a.workDate||'')===date;
-      return manualWorkDate || (Number.isFinite(ts)&&ts>=windowStart&&ts<windowEnd);
+      return manualWorkDate||(Number.isFinite(ts)&&ts>=windowStart&&ts<windowEnd);
     }).forEach(a=>{if(a.id)updates[`fingerprintBazar/${a.id}`]=null;});
-    const base=`manual_${Date.now()}_${code}`;
-    updates[`fingerprintBazar/${base}_in`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckIn',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:date,timeDisplay:this._timeText(inTs),timestamp:inTs,note,addedBy:State.currentUser?.username||'-'};
-    if(outTs)updates[`fingerprintBazar/${base}_out`]={code:emp.code,name:emp.name,job:emp.job||'',action:'CheckOut',source:'manual',branch:emp.branch||'البازار',workDate:date,dateISO:this._dayKey(outTs),timeDisplay:this._timeText(outTs),timestamp:outTs,note,addedBy:State.currentUser?.username||'-'};
+    const restoreOriginal=(event,editedNote)=>{
+      if(!event?.id)return;
+      const raw={...event};delete raw.id;delete raw.firebaseKey;delete raw._key;
+      if(editedNote)raw.note=note;
+      updates[`fingerprintBazar/${event.id}`]=raw;
+    };
+    const makeManual=(action,ts,suffix)=>({code:emp.code,name:emp.name,job:emp.job||'',action,source:'manual',manualEdited:true,branch:emp.branch||'البازار',workDate:date,dateISO:this._dayKey(ts),timeDisplay:this._timeText(ts),timestamp:ts,note,addedBy:State.currentUser?.username||'-',editedBy:State.currentUser?.username||'-',editedAt:new Date().toLocaleString('ar-EG')});
+    const base=`manual_${Date.now()}_${this._safeFirebaseKey(code)}`;
+    if(!inChanged&&originalIn)restoreOriginal(originalIn,true);
+    else updates[`fingerprintBazar/${base}_in`]=makeManual('CheckIn',inTs,'in');
+    if(outTime){
+      if(!outChanged&&originalOut)restoreOriginal(originalOut,true);
+      else updates[`fingerprintBazar/${base}_out`]=makeManual('CheckOut',outTs,'out');
+    }
+    const hadExistingEvents=!!(currentRow?.cin||currentRow?.cout)||Object.values(updates).some(v=>v===null);
     await db.ref().update(updates);
+    await this._auditBazar(hadExistingEvents?'BazarAttendanceEdit':'BazarAttendanceAdd',code,`${hadExistingEvents?'تعديل':'إضافة'} حضور وانصراف يدوي — ${emp.name}`,{entityType:'حضور وانصراف',recordDate:date,previousCheckIn:originalIn?this._timeText(originalIn.timestamp):'',previousCheckOut:originalOut?this._timeText(originalOut.timestamp):'',checkIn:inTime,checkOut:outTime||'',changedIn:inChanged,changedOut:outChanged||outRemoved,sourceIn:inChanged?'يدوي':this._eventSource(originalIn),sourceOut:outRemoved?'محذوف':outChanged?'يدوي':this._eventSource(originalOut),note,source:(inChanged?'يدوي':this._eventSource(originalIn))+(outRemoved?' / محذوف':outChanged?' / يدوي':originalOut?' / '+this._eventSource(originalOut):''),affectedKeys:Object.keys(updates),removedRawEvents:Object.keys(updates).filter(k=>k.startsWith('fingerprintBazar/')&&updates[k]===null).length});
     this.closeModal();
-    this._toast('✅ تم حفظ الحضور والانصراف دون تعديل حركات الورديات الأخرى','success');
+    this._toast('✅ تم حفظ الحضور والانصراف مع الحفاظ على مصدر كل بصمة','success');
   },
   openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value=""></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
 
-  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
-  async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();const durationMs=Math.max(0,now-Number(row.breakTimestamp||0));await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed',updatedAt:Date.now()});await this._recalcPrayerPermitPenalty({...row,returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed'});},
+  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();const actionMap={employees:'BazarEmployeeDelete',advances:'BazarAdvanceDelete',incentives:'BazarIncentiveDelete',penalties:'BazarPenaltyDelete',leaves:'BazarLeaveDelete',permits:'BazarPermitDelete'};await this._auditBazar(actionMap[kind]||'BazarRecordDelete',code||id,`حذف ${label} — ${name||code||id}`,{entityType:label,entityId:id,path,recordDate:this._normDate(row?.date||row?.dateKey||''),reason:row?.reason||row?.note||'',recordDetails:row?{name:row.name||'',code:row.code||'',job:row.job||'',date:row.date||row.dateKey||'',amount:row.amount??row.value??null,hours:row.hours??null,type:row.type||'',reason:row.reason||row.note||'',status:row.status||''}:null});this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
+  async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();const durationMs=Math.max(0,now-Number(row.breakTimestamp||0));await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed',updatedAt:Date.now()});await this._recalcPrayerPermitPenalty({...row,returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed'});await this._auditBazar('BazarPermitReturned',row.code,`تسجيل رجوع إذن — ${row.name||row.code}`,{entityType:'إذن',entityId:id,recordDate:this._normDate(row.date||row.dateKey),breakTime:row.breakTime,returnTime:this._timeText(now),durationMs,status:'closed'});},
 
   async syncFromDevice(){
     const b=[...document.querySelectorAll('#tab-fingerprint-bazar .bhr-btn')].find(x=>String(x.textContent||'').includes('مزامنة'));
@@ -17364,6 +17508,7 @@ const BazarHRSuite = {
     try{
       const result=await window.requestBazarFingerprintSync({requestedBy:State.currentUser?.username||'-'});
       this.refreshAll();
+      await this._auditBazar('FpBazarSync','-','مزامنة بصمة البازار',{entityType:'مزامنة',uploaded:Number(result.uploaded)||0,message:result.message||'',source:'device-or-relay'});
       this._toast(result.message||`✅ تمت المزامنة — ${Number(result.uploaded)||0} سجل تغير`,'success');
     }catch(e){this._toast('❌ '+(e?.message||e),'error');}
     finally{if(b){b.disabled=false;b.textContent='🖐️ مزامنة البصمة';}}
@@ -17916,13 +18061,13 @@ const FingerprintBazarService = {
     if(this._isInactive(emp)){UI.toast('لا يمكن تسجيل حركة لموظف مستقيل أو موقوف','error');return;}
     const [h,m]=time.split(':').map(Number); const dt=new Date(date); dt.setHours(h,m,0,0);
     this._db().push({code:String(code),name:emp.name||code,job:emp.job||'',action,date:dt.toLocaleDateString('ar-EG'),timeDisplay:dt.toLocaleTimeString('ar-EG'),timestamp:dt.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',note,expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0})
-      .then(()=>{UI.toast('✅ تم تسجيل الحركة','success');SystemLog.add('FpBazarManualAdd',String(code),'إضافة حركة حضور/انصراف');document.getElementById('fpBazarAddModal').style.display='none';document.getElementById('fpBazarAddNote').value='';})
+      .then(()=>{UI.toast('✅ تم تسجيل الحركة','success');SystemLog.add('FpBazarManualAdd',String(code),'إضافة حركة حضور/انصراف',{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,actionType:action,recordDate:date,time,source:'manual',note,recordTimestamp:dt.getTime()});document.getElementById('fpBazarAddModal').style.display='none';document.getElementById('fpBazarAddNote').value='';})
       .catch(e=>UI.toast('❌ '+e.message,'error'));
   },
 
   registerCheckout(code,name){
     const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;} if(this._isInactive(emp)){UI.toast('لا يمكن تسجيل خروج لموظف مستقيل أو موقوف','error');return;}
-    showConfirm(`تسجيل خروج: ${name||emp.name||code}؟`,()=>{ const now=new Date(); this._db().push({code:String(code),name:name||emp.name||code,job:emp.job||'',action:'CheckOut',date:now.toLocaleDateString('ar-EG'),timeDisplay:now.toLocaleTimeString('ar-EG'),timestamp:now.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0}).then(()=>UI.toast('✅ تم تسجيل الخروج','success')).catch(e=>UI.toast('❌ '+e.message,'error')); });
+    showConfirm(`تسجيل خروج: ${name||emp.name||code}؟`,()=>{ const now=new Date(); this._db().push({code:String(code),name:name||emp.name||code,job:emp.job||'',action:'CheckOut',date:now.toLocaleDateString('ar-EG'),timeDisplay:now.toLocaleTimeString('ar-EG'),timestamp:now.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0}).then(()=>{SystemLog.add('FpBazarManualCheckout',String(code),`تسجيل انصراف يدوي — ${name||emp.name||code}`,{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,recordDate:this._localKey(now.getTime()),time:now.toLocaleTimeString('ar-EG'),source:'manual',recordTimestamp:now.getTime()});UI.toast('✅ تم تسجيل الخروج','success');}).catch(e=>UI.toast('❌ '+e.message,'error')); });
   },
 
   openEditModal(r){
@@ -17933,6 +18078,7 @@ const FingerprintBazarService = {
     document.getElementById('fpBazarEditDate').value=r.date || this._localKey(first.timestamp);
     document.getElementById('fpBazarEditIn').value=first?`${String(new Date(first.timestamp).getHours()).padStart(2,'0')}:${String(new Date(first.timestamp).getMinutes()).padStart(2,'0')}`:'';
     document.getElementById('fpBazarEditOut').value=last?`${String(new Date(last.timestamp).getHours()).padStart(2,'0')}:${String(new Date(last.timestamp).getMinutes()).padStart(2,'0')}`:'';
+    this._editOriginal={inTs:Number(first.timestamp||0),outTs:Number(last?.timestamp||0),name:r.name||first.name||r.code,code:String(r.code||''),date:r.date||this._localKey(first.timestamp)};
     document.getElementById('fpBazarEditNote').value=''; this.previewEdit(); document.getElementById('fpBazarEditModal').style.display='flex';
   },
 
@@ -17944,19 +18090,34 @@ const FingerprintBazarService = {
 
   saveEdit(){
     if(!hasPermission('edit')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية التعديل','error');return;}
-    const keyIn=document.getElementById('fpBazarEditKeyIn').value, keyOut=document.getElementById('fpBazarEditKeyOut').value, code=document.getElementById('fpBazarEditCode').value, date=document.getElementById('fpBazarEditDate').value, iv=document.getElementById('fpBazarEditIn').value, ov=document.getElementById('fpBazarEditOut').value, note=document.getElementById('fpBazarEditNote').value||'';
+    const keyIn=document.getElementById('fpBazarEditKeyIn').value,keyOut=document.getElementById('fpBazarEditKeyOut').value,code=document.getElementById('fpBazarEditCode').value,date=document.getElementById('fpBazarEditDate').value,iv=document.getElementById('fpBazarEditIn').value,ov=document.getElementById('fpBazarEditOut').value,note=document.getElementById('fpBazarEditNote').value||'';
     if(!keyIn||!date||!iv){UI.toast('يرجى تحديد التاريخ والحضور','error');return;}
-    const [ih,im]=iv.split(':').map(Number); const inDt=new Date(date); inDt.setHours(ih,im,0,0);
-    const ops=[this._db().child(keyIn).update({date:inDt.toLocaleDateString('ar-EG'),timeDisplay:inDt.toLocaleTimeString('ar-EG'),timestamp:inDt.getTime(),editedBy:State.currentUser?.username||'-',editedAt:new Date().toLocaleString('ar-EG'),note})];
-    if(ov){ const [oh,om]=ov.split(':').map(Number); const outDt=new Date(date); outDt.setHours(oh,om,0,0); if((oh*60+om)<=ih*60+im)outDt.setDate(outDt.getDate()+1); const payload={date:outDt.toLocaleDateString('ar-EG'),timeDisplay:outDt.toLocaleTimeString('ar-EG'),timestamp:outDt.getTime(),editedBy:State.currentUser?.username||'-',editedAt:new Date().toLocaleString('ar-EG'),note}; if(keyOut) ops.push(this._db().child(keyOut).update(payload)); else { const emp=getEmpData(code)||{}; ops.push(this._db().push({...payload,code:String(code),name:emp.name||code,job:emp.job||'',action:'CheckOut',source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-'})); } }
-    Promise.all(ops).then(()=>{UI.toast('✅ تم تعديل السجل','success');SystemLog.add('FpBazarEdit',String(code),'تعديل سجل حضور وانصراف');document.getElementById('fpBazarEditModal').style.display='none';}).catch(e=>UI.toast('❌ '+e.message,'error'));
+    const original=this._editOriginal||{},[ih,im]=iv.split(':').map(Number),inDt=new Date(date);inDt.setHours(ih,im,0,0);
+    const nowText=new Date().toLocaleString('ar-EG'),user=State.currentUser?.username||'-';
+    const inChanged=!original.inTs||inDt.getTime()!==Number(original.inTs);
+    const inPayload={date:inDt.toLocaleDateString('ar-EG'),timeDisplay:inDt.toLocaleTimeString('ar-EG'),timestamp:inDt.getTime(),note};
+    if(inChanged)Object.assign(inPayload,{source:'manual',manualEdited:true,editedBy:user,editedAt:nowText});
+    const ops=[this._db().child(keyIn).update(inPayload)];
+    let outChanged=false,outDt=null;
+    if(ov){
+      const [oh,om]=ov.split(':').map(Number);outDt=new Date(date);outDt.setHours(oh,om,0,0);if((oh*60+om)<=(ih*60+im))outDt.setDate(outDt.getDate()+1);
+      outChanged=!original.outTs||outDt.getTime()!==Number(original.outTs);
+      const payload={date:outDt.toLocaleDateString('ar-EG'),timeDisplay:outDt.toLocaleTimeString('ar-EG'),timestamp:outDt.getTime(),note};
+      if(outChanged)Object.assign(payload,{source:'manual',manualEdited:true,editedBy:user,editedAt:nowText});
+      if(keyOut)ops.push(this._db().child(keyOut).update(payload));
+      else{const emp=getEmpData(code)||{};ops.push(this._db().push({...payload,code:String(code),name:emp.name||code,job:emp.job||'',action:'CheckOut',source:'manual',manualEdited:true,editedBy:user,editedAt:nowText,branch:'البازار',addedBy:user}));outChanged=true;}
+    }
+    Promise.all(ops).then(()=>{
+      UI.toast('✅ تم تعديل السجل','success');
+      SystemLog.add('FpBazarEdit',String(code),'تعديل سجل حضور وانصراف',{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,recordDate:date,checkIn:iv,checkOut:ov||'',changedIn:inChanged,changedOut:outChanged,sourceIn:inChanged?'manual':'fingerprint',sourceOut:outChanged?'manual':'fingerprint',note,changedBy:user});
+      document.getElementById('fpBazarEditModal').style.display='none';this._editOriginal=null;
+    }).catch(e=>UI.toast('❌ '+e.message,'error'));
   },
-
   deleteRecord(r){
     if(!hasPermission('delete')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية الحذف','error');return;}
     const ids=[]; (r.pairs||[]).forEach(p=>{if(p.checkIn?.id)ids.push(p.checkIn.id);if(p.checkOut?.id)ids.push(p.checkOut.id);});
     if(!ids.length){UI.toast('لا توجد سجلات للحذف','warning');return;}
-    showConfirm(`حذف سجلات ${r.name||r.code} بتاريخ ${r.dateText}؟`,()=>Promise.all([...new Set(ids)].map(id=>this._db().child(id).remove())).then(()=>{UI.toast('🗑️ تم الحذف','success');SystemLog.add('FpBazarDelete',String(r.code),'حذف سجل حضور وانصراف');}).catch(e=>UI.toast('❌ '+e.message,'error')));
+    showConfirm(`حذف سجلات ${r.name||r.code} بتاريخ ${r.dateText}؟`,()=>Promise.all([...new Set(ids)].map(id=>this._db().child(id).remove())).then(()=>{UI.toast('🗑️ تم الحذف','success');SystemLog.add('FpBazarDelete',String(r.code),'حذف سجل حضور وانصراف',{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,recordDate:r.date||r.dateText||'',recordIds:[...new Set(ids)],deletedCount:[...new Set(ids)].length,punches:(r.pairs||[]).map(p=>({in:p.checkIn?.timestamp||null,out:p.checkOut?.timestamp||null}))});}).catch(e=>UI.toast('❌ '+e.message,'error')));
   },
 
   async syncFromDevice(){
@@ -17964,6 +18125,7 @@ const FingerprintBazarService = {
     if(btn){btn.disabled=true;btn.textContent='⏳ جارٍ المزامنة...';btn.style.opacity='.6';}
     try{
       const result=await window.requestBazarFingerprintSync({requestedBy:State.currentUser?.username||'-'});
+      SystemLog.add('FpBazarSync','-','مزامنة بصمة البازار',{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,uploaded:Number(result.uploaded)||0,message:result.message||'',source:'device-or-relay'});
       UI.toast(result.message||`✅ تمت المزامنة — ${Number(result.uploaded)||0} سجل تغير`,'success');
       this.render();
     }catch(e){UI.toast('❌ '+(e?.message||e),'error');}
