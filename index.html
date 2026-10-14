@@ -6064,7 +6064,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
     <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="SystemLogService.exportExcel()">
       <span style="margin-left:6px;"><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></span> تصدير Excel
     </button>
-    <button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="SystemLogService.clearLogs()" title="مسح كل السجل" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
+    <button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="SystemLogService.clearLogs()" title="مسح كل السجل (يتطلب صلاحية النظام)" style="background:linear-gradient(135deg,#ef4444,#dc2626);">
       <span style="margin-left:6px;"><span class="ui-icon-slot" data-icon="trash" aria-hidden="true"></span></span> مسح السجل
     </button>
   </div>
@@ -6294,8 +6294,8 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
             <div class="glass-card" style="padding:25px;">
                 <h3><span class="ui-icon-slot" data-icon="users" aria-hidden="true"></span> إدارة المستخدمين</h3>
                 <div class="form-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:15px;">
-                    <div><label>اسم المستخدم</label><input id="newUsername" placeholder="مثال: admin"></div>
-                    <div><label>كلمة المرور</label><input type="password" id="newPassword" placeholder="أدخل كلمة المرور"></div>
+                    <div><label>اسم المستخدم</label><input id="newUsername" type="text" maxlength="64" autocomplete="username" placeholder="مثال: admin"></div>
+                    <div><label>كلمة المرور</label><input type="password" id="newPassword" minlength="8" maxlength="128" autocomplete="new-password" placeholder="8 أحرف على الأقل"></div>
                 </div>
                 <div class="permissions-grid" id="permissionsGrid" style="grid-column:span 3">
                     <div id="fingerprintSubPermsNew" style="display:none" aria-hidden="true"></div>
@@ -10164,19 +10164,71 @@ const SystemLogService = {
         exportExcel() { if (!checkExcelPermission()) return; let rows = State.systemLogs.map(l => ({ الحركة: this.translate(l.action), الاسم: l.name, الكود: l.code, التاريخ: l.date, الوقت: l.timeDisplay, المستخدم: l.user })); let ws = XLSX.utils.json_to_sheet(rows); let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "logs"); XLSX.writeFile(wb, "system_logs.xlsx");
             SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير سجل النظام");
         },
-        clearLogs() {
-            if (!hasPermission("all") && !hasPermission("users")) { UI.toast("ليس لديك صلاحية مسح السجل", "error"); return; }
-            const deleter = State.currentUser?.username || "unknown";
-            showConfirm("⚠️ هل أنت متأكد من مسح كل سجل النظام؟ لا يمكن التراجع!", () => {
-                // سجّل من قام بالحذف أولاً
-                SystemLog.add("ClearLogs", deleter, "مسح السجل بواسطة: " + deleter);
-                setTimeout(() => {
-                    db.ref("systemLogs").remove().then(() => {
-                        UI.toast("✅ تم مسح سجل النظام بالكامل", "success");
+        async clearLogs() {
+            if (!State.currentUser || (!hasPermission("system") && !hasPermission("all"))) {
+                UI.toast("ليس لديك صلاحية مسح سجل النظام؛ يلزم صلاحية النظام أو كل الصلاحيات.", "error");
+                return;
+            }
+            if (this._clearingLogs) {
+                UI.toast("جاري تنفيذ مسح السجل بالفعل...", "warning");
+                return;
+            }
+            const actor = State.currentUser?.username || "unknown";
+            const actorId = State.currentUser?.id || "-";
+            showConfirm("⚠️ هل أنت متأكد من مسح كل سجل النظام؟ سيتم الاحتفاظ بسجل تدقيق مستقل للعملية.", async () => {
+                if (this._clearingLogs) return;
+                this._clearingLogs = true;
+                let auditRef = null;
+                let logsRemoved = false;
+                try {
+                    const logsSnap = await db.ref("systemLogs").once("value");
+                    let deletedCount = 0;
+                    logsSnap.forEach(() => { deletedCount += 1; });
+
+                    // Keep this audit record in a separate branch so clearing systemLogs cannot erase its own trail.
+                    auditRef = db.ref("systemLogClearAudit").push();
+                    await auditRef.set({
+                        action: "ClearSystemLogs",
+                        actor,
+                        actorId,
+                        deletedCount,
+                        status: "pending",
+                        requestedAt: firebase.database.ServerValue.TIMESTAMP,
+                        appBuild: document.getElementById("appBuildBadge")?.textContent || "-"
+                    });
+
+                    await db.ref("systemLogs").remove();
+                    logsRemoved = true;
+                    await auditRef.update({
+                        status: "completed",
+                        completedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+
+                    State.systemLogs = [];
+                    UI.renderSystemLogs();
+                    UI.toast(`✅ تم مسح سجل النظام (${deletedCount} سجل) مع حفظ أثر العملية.`, "success");
+                } catch (err) {
+                    if (!logsRemoved && auditRef) {
+                        try {
+                            await auditRef.update({
+                                status: "failed",
+                                failedAt: firebase.database.ServerValue.TIMESTAMP,
+                                error: String(err?.message || err).slice(0, 300)
+                            });
+                        } catch (auditErr) {
+                            console.error("Could not update system log clear audit", auditErr);
+                        }
+                    }
+                    if (logsRemoved) {
                         State.systemLogs = [];
                         UI.renderSystemLogs();
-                    }).catch(() => UI.toast("❌ خطأ في المسح", "error"));
-                }, 1000); // نأكد حفظ السجل قبل الحذف
+                        UI.toast("⚠️ تم مسح السجل، لكن تعذر تأكيد تحديث حالة سجل التدقيق: " + String(err?.message || err), "warning");
+                    } else {
+                        UI.toast("❌ لم يكتمل مسح السجل: " + String(err?.message || err), "error");
+                    }
+                } finally {
+                    this._clearingLogs = false;
+                }
             });
         }
     };
@@ -12080,6 +12132,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
 
         // عرض كل مرات الدخول لمستخدم معين (السجلات الجديدة والقديمة)
         async viewLoginHistory(userId, username) {
+          if (!this._canManageUsers()) return;
           const modal = document.getElementById("loginHistoryModal");
           const title = document.getElementById("loginHistoryTitle");
           const body  = document.getElementById("loginHistoryBody");
@@ -12167,40 +12220,51 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
           }
         },
 
+        _canManageUsers(showMessage = true) {
+          const allowed = !!State.currentUser && (hasPermission("users") || hasPermission("all"));
+          if (!allowed && showMessage) UI.toast("ليس لديك صلاحية إدارة المستخدمين", "error");
+          return allowed;
+        },
+        _normalizeUsername(value) {
+          return String(value || "").trim().toLocaleLowerCase();
+        },
+        _validUsername(value) {
+          return !!value && value.length <= 64 && !/[\u0000-\u001F\u007F]/.test(value);
+        },
         openPerms(user) {
+          if (!this._canManageUsers()) return;
+          if (!user || !user.id) { UI.toast("تعذر تحديد المستخدم المطلوب", "error"); return; }
           this.editingUser = user;
           const modal = document.getElementById("permModal");
+          if (!modal) { UI.toast("نافذة الصلاحيات غير متاحة", "error"); return; }
           modal.style.display = "flex";
-          // تحديد الصلاحيات الحالية
           FingerprintPermissionPicker._ensureHiddenInputs('edit');
-          document.querySelectorAll("#permModal input").forEach(c => {
-            c.checked = user.permissions?.includes(c.value) || user.permissions?.includes("all");
+          const allSelected = (user.permissions || []).includes("all");
+          modal.querySelectorAll("input").forEach(c => {
+            c.checked = allSelected || (user.permissions || []).includes(c.value);
           });
-          FingerprintPermissionPicker._set('edit', user.permissions||[]);
+          FingerprintPermissionPicker._set('edit', user.permissions || []);
 
-          // all checkbox toggle
           const allCb = modal.querySelector('input[value="all"]');
-          if(allCb) {
+          if (allCb) {
             allCb.onchange = () => {
-              document.querySelectorAll("#permModal input:not([value='all'])").forEach(c => {
-                c.checked = allCb.checked;
-              });
+              modal.querySelectorAll("input:not([value='all'])").forEach(c => { c.checked = allCb.checked; });
             };
           }
-          // عند تغيير أي صلاحية → تحقق من all
-          document.querySelectorAll("#permModal input:not([value='all'])").forEach(cb => {
+          modal.querySelectorAll("input:not([value='all'])").forEach(cb => {
             cb.onchange = () => {
-              const allCb = modal.querySelector('input[value="all"]');
-              if(allCb) {
-                allCb.checked = [...document.querySelectorAll("#permModal input:not([value='all'])")]
-                  .every(c => c.checked);
+              const currentAll = modal.querySelector('input[value="all"]');
+              if (currentAll) {
+                currentAll.checked = [...modal.querySelectorAll("input:not([value='all'])")].every(c => c.checked);
               }
             };
           });
         },
-        closePerms() { document.getElementById("permModal").style.display = "none"; },
+        closePerms() { const modal = document.getElementById("permModal"); if (modal) modal.style.display = "none"; },
 
         openEditUser(user) {
+          if (!this._canManageUsers()) return;
+          if (!user || !user.id) { UI.toast('تعذر تحديد المستخدم المطلوب', 'error'); return; }
           this.editingUser = user;
           const old = document.getElementById('editUserModal');
           if(old) old.remove();
@@ -12249,109 +12313,158 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
           setTimeout(() => document.getElementById('editUsername')?.focus(), 100);
         },
 
-        saveEditUser() {
-          const user      = this.editingUser;
-          const newName   = document.getElementById('editUsername')?.value?.trim();
-          const newPass   = document.getElementById('editPassword')?.value;
-          const confirmP  = document.getElementById('editPasswordConfirm')?.value;
+        async saveEditUser() {
+          if (!this._canManageUsers()) return;
+          if (this._savingEditUser) return;
+          const user = this.editingUser;
+          const newName = String(document.getElementById('editUsername')?.value || '').trim();
+          const newPass = String(document.getElementById('editPassword')?.value || '');
+          const confirmP = String(document.getElementById('editPasswordConfirm')?.value || '');
+          if (!user?.id) { UI.toast('تعذر تحديد المستخدم المطلوب', 'error'); return; }
+          if (!this._validUsername(newName)) { UI.toast('اسم المستخدم مطلوب، وبحد أقصى 64 حرفًا ومن دون رموز تحكم.', 'error'); return; }
 
-          if(!newName) { UI.toast('اسم المستخدم مطلوب','error'); return; }
-
-          // تأكد من عدم التكرار (إلا لو نفس الاسم)
-          if(newName !== user.username && State.users.find(u => u.username === newName)) {
-            UI.toast('اسم المستخدم موجود بالفعل','error'); return;
-          }
-
-          if(newPass && newPass !== confirmP) {
-            UI.toast('كلمتا المرور غير متطابقتان','error'); return;
-          }
-
-          if(newPass && newPass.length < 4) {
-            UI.toast('كلمة المرور قصيرة جداً (4 أحرف على الأقل)','error'); return;
-          }
+          const normalized = this._normalizeUsername(newName);
+          const duplicate = State.users.find(u => String(u.id) !== String(user.id) && this._normalizeUsername(u.username) === normalized);
+          if (duplicate) { UI.toast('اسم المستخدم موجود بالفعل (مع تجاهل اختلاف حالة الأحرف والمسافات).', 'error'); return; }
+          if (newPass && newPass !== confirmP) { UI.toast('كلمتا المرور غير متطابقتين', 'error'); return; }
+          if (newPass && (newPass.length < 8 || newPass.length > 128)) { UI.toast('كلمة المرور الجديدة يجب أن تكون من 8 إلى 128 حرفًا.', 'error'); return; }
 
           const updates = { username: newName };
-          if(newPass) {
-            updates.password = CryptoJS.SHA256(newPass).toString();
-          }
-
-          db.ref('users/' + user.id).update(updates).then(() => {
+          if (newPass) updates.password = CryptoJS.SHA256(newPass).toString();
+          const saveButton = document.querySelector('#editUserModal button[onclick="UserService.saveEditUser()"]');
+          this._savingEditUser = true;
+          if (saveButton) { saveButton.disabled = true; saveButton.textContent = 'جارٍ الحفظ...'; }
+          try {
+            // Refresh the database view before committing to catch duplicates from other sessions.
+            const usersSnap = await db.ref('users').once('value');
+            let foundDuplicate = false;
+            usersSnap.forEach(child => {
+              const record = child.val() || {};
+              if (String(child.key) !== String(user.id) && this._normalizeUsername(record.username) === normalized) foundDuplicate = true;
+            });
+            if (foundDuplicate) throw new Error('اسم المستخدم موجود بالفعل.');
+            await db.ref('users/' + user.id).update(updates);
             user.username = newName;
-            if(newPass) user.password = updates.password;
+            if (newPass) user.password = updates.password;
             document.getElementById('editUserModal')?.remove();
             UI.renderUsers();
-            UI.toast('✅ تم تعديل بيانات المستخدم','success');
-            SystemLog.add('EditUser', newName, 'تعديل مستخدم');
-          }).catch(e => UI.toast('❌ ' + e.message,'error'));
+            await SystemLog.add('EditUser', newName, 'تعديل مستخدم');
+            UI.toast('✅ تم تعديل بيانات المستخدم وحفظها بنجاح', 'success');
+          } catch (e) {
+            UI.toast('❌ لم يتم حفظ بيانات المستخدم: ' + String(e?.message || e), 'error');
+            if (saveButton) { saveButton.disabled = false; saveButton.textContent = '💾 حفظ التعديلات'; }
+          } finally {
+            this._savingEditUser = false;
+          }
         },
-        savePerms() {
-          let perms = [];
-          document.querySelectorAll("#permModal input").forEach(c => { if(c.checked) perms.push(c.value); });
-          this.editingUser.permissions = perms;
-          db.ref("users/" + this.editingUser.id).update({ permissions: perms });
-          this.closePerms();
-          UI.renderUsers();
-          UI.toast("✅ تم تعديل الصلاحيات", "success");
+        async savePerms() {
+          if (!this._canManageUsers()) return;
+          if (this._savingPerms) return;
+          const user = this.editingUser;
+          const modal = document.getElementById("permModal");
+          if (!user?.id || !modal) { UI.toast("تعذر تحديد المستخدم أو نافذة الصلاحيات", "error"); return; }
+          const allCb = modal.querySelector('input[value="all"]');
+          const perms = allCb?.checked
+            ? ["all"]
+            : [...modal.querySelectorAll("input:checked")].map(c => c.value).filter(v => v && v !== "all");
+          const saveButton = modal.querySelector(".perm-actions button:last-child");
+          this._savingPerms = true;
+          if (saveButton) { saveButton.disabled = true; saveButton.textContent = "جارٍ الحفظ..."; }
+          try {
+            await db.ref("users/" + user.id).update({ permissions: perms });
+            user.permissions = perms;
+            State.users = State.users.map(u => String(u.id) === String(user.id) ? { ...u, permissions: perms } : u);
+            this.closePerms();
+            UI.renderUsers();
+            await SystemLog.add("EditUserPermissions", user.username || "-", "تعديل صلاحيات مستخدم", { targetUserId: user.id, permissions: perms, notify: false });
+            UI.toast("✅ تم حفظ الصلاحيات بنجاح", "success");
+          } catch (err) {
+            UI.toast("❌ لم يتم حفظ الصلاحيات: " + String(err?.message || err), "error");
+          } finally {
+            this._savingPerms = false;
+            if (saveButton) { saveButton.disabled = false; saveButton.textContent = "حفظ"; }
+          }
         },
-        add() {
-
-let username = document.getElementById("newUsername").value
-let password = document.getElementById("newPassword").value
-
-password = CryptoJS.SHA256(password).toString()
-
-let perms = [];
-document.querySelectorAll("#permissionsGrid .perm-checkbox").forEach(cb => {
-if (cb.checked) perms.push(cb.value);
-});
-
-if (State.users.find(u => u.username === username)) {
-UI.toast("اسم المستخدم موجود بالفعل", "error");
-return;
-}
-
-let user = { username, password, permissions: perms };
-
-db.ref("users").push(user).then(() => {
-
-UI.toast("تم إضافة المستخدم", "success");
-
-document.getElementById("newUsername").value = "";
-document.getElementById("newPassword").value = "";
-
-document.querySelectorAll(".perm-checkbox").forEach(cb => {
-cb.checked = false;
-cb.closest(".permission-card").classList.remove("active");
-});
-SystemLog.add("AddUser", username, "👤 مستخدم");
-
-}).catch(err => UI.toast("❌ فشل إضافة المستخدم: " + (err.message||err), "error"));
-
-},
-        delete(index) { 
-showConfirm("هل تريد حذف المستخدم؟", () => { 
-
-let user = State.users[index];
-
-// منع حذف admin
-if(user.username === "admin"){
-UI.toast("لا يمكن حذف المدير الرئيسي","error")
-return
-}
-
-db.ref("users").orderByChild("username").equalTo(user.username).once("value", snap => {
-  const removals = [];
-  snap.forEach(c => removals.push(c.ref.remove()));
-  return Promise.all(removals);
-}).then(() => {
-  State.users.splice(index, 1);
-  UI.renderUsers();
-  UI.toast("تم حذف المستخدم", "warning");
-  SystemLog.add("DeleteUser", user.username, "👤 مستخدم");
-}).catch(err => UI.toast("❌ فشل حذف المستخدم: " + (err.message||err), "error")); 
-
-}); 
-},
+        async add() {
+          if (!this._canManageUsers()) return;
+          if (this._addingUser) return;
+          const username = String(document.getElementById("newUsername")?.value || "").trim();
+          const password = String(document.getElementById("newPassword")?.value || "");
+          if (!this._validUsername(username)) { UI.toast("اسم المستخدم مطلوب، وبحد أقصى 64 حرفًا ومن دون رموز تحكم.", "error"); return; }
+          if (password.length < 8 || password.length > 128) { UI.toast("كلمة المرور يجب أن تكون من 8 إلى 128 حرفًا.", "error"); return; }
+          const normalized = this._normalizeUsername(username);
+          if (State.users.some(u => this._normalizeUsername(u.username) === normalized)) {
+            UI.toast("اسم المستخدم موجود بالفعل (مع تجاهل اختلاف حالة الأحرف والمسافات).", "error"); return;
+          }
+          const allSelected = !!document.getElementById("selectAllPerms")?.checked;
+          const perms = allSelected
+            ? ["all"]
+            : [...document.querySelectorAll("#permissionsGrid .perm-checkbox:checked")].map(cb => cb.value).filter(v => v && v !== "all");
+          const user = { username, password: CryptoJS.SHA256(password).toString(), permissions: perms };
+          const addButton = document.querySelector('[onclick="UserService.add()"]');
+          this._addingUser = true;
+          if (addButton) { addButton.disabled = true; addButton.textContent = "جارٍ إضافة المستخدم..."; }
+          try {
+            // Re-check against Firebase to catch duplicate names already created in another tab/device.
+            const usersSnap = await db.ref("users").once("value");
+            let duplicate = false;
+            usersSnap.forEach(child => {
+              if (this._normalizeUsername((child.val() || {}).username) === normalized) duplicate = true;
+            });
+            if (duplicate) throw new Error("اسم المستخدم موجود بالفعل.");
+            await db.ref("users").push(user);
+            await SystemLog.add("AddUser", username, "إضافة مستخدم", { targetUsername: username, permissions: perms, notify: false });
+            document.getElementById("newUsername").value = "";
+            document.getElementById("newPassword").value = "";
+            document.querySelectorAll("#permissionsGrid .perm-checkbox").forEach(cb => {
+              cb.checked = false;
+              cb.closest(".permission-card")?.classList.remove("active");
+            });
+            const selectAll = document.getElementById("selectAllPerms");
+            if (selectAll) { selectAll.checked = false; selectAll.closest(".permission-card")?.classList.remove("active"); }
+            UI.toast("✅ تم إضافة المستخدم وحفظه بنجاح", "success");
+          } catch (err) {
+            UI.toast("❌ لم تتم إضافة المستخدم: " + String(err?.message || err), "error");
+          } finally {
+            this._addingUser = false;
+            if (addButton) { addButton.disabled = false; addButton.innerHTML = '<span class="ui-icon-slot" data-icon="plus" aria-hidden="true"></span> إضافة مستخدم'; }
+          }
+        },
+        delete(userRef) {
+          if (!this._canManageUsers()) return;
+          const user = typeof userRef === "number"
+            ? State.users[userRef]
+            : State.users.find(u => String(u.id) === String(userRef));
+          if (!user || !user.id) { UI.toast("لم يتم العثور على المستخدم المطلوب", "error"); return; }
+          const targetId = String(user.id);
+          const targetName = String(user.username || "");
+          if (targetName.trim().toLocaleLowerCase() === "admin") {
+            UI.toast("لا يمكن حذف حساب المدير الرئيسي", "error");
+            return;
+          }
+          if (String(State.currentUser?.id || "") === targetId) {
+            UI.toast("لا يمكنك حذف الحساب الذي تستخدمه حاليًا", "error");
+            return;
+          }
+          if (this._deletingUserIds?.has(targetId)) return;
+          if (!this._deletingUserIds) this._deletingUserIds = new Set();
+          showConfirm("هل تريد حذف المستخدم " + targetName + "؟ سيتم حذف الحساب المحدد فقط.", async () => {
+            if (this._deletingUserIds.has(targetId)) return;
+            this._deletingUserIds.add(targetId);
+            try {
+              // Use the stable Firebase key captured before opening the confirmation modal.
+              await db.ref("users/" + targetId).remove();
+              State.users = State.users.filter(u => String(u.id) !== targetId);
+              UI.renderUsers();
+              await SystemLog.add("DeleteUser", targetName, "حذف مستخدم", { targetUserId: targetId, notify: false });
+              UI.toast("✅ تم حذف المستخدم المحدد بنجاح", "success");
+            } catch (err) {
+              UI.toast("❌ فشل حذف المستخدم: " + String(err?.message || err), "error");
+            } finally {
+              this._deletingUserIds.delete(targetId);
+            }
+          });
+        },
 
         async forceLogout(index) {
             if(!hasPermission("users") && !hasPermission("all")) {
@@ -12392,6 +12505,7 @@ db.ref("users").orderByChild("username").equalTo(user.username).once("value", sn
         },
 
         loadLoginLogs() {
+            if (!this._canManageUsers()) return;
             db.ref("loginLogs").orderByChild("loginTs").limitToLast(100).once("value", snap => {
                 const logs = [];
                 snap.forEach(c => logs.unshift({ id:c.key, ...c.val() }));
@@ -12780,8 +12894,9 @@ window.addEventListener('resize', () => {
             const usernameInput = document.getElementById("username");
             const passwordInput = document.getElementById("password");
             const loginBtn = document.getElementById("loginBtn");
-            const username = usernameInput.value.trim();
-            const password = passwordInput.value;
+            const username = String(usernameInput?.value || "").trim();
+            const normalizedUsername = username.toLocaleLowerCase();
+            const password = String(passwordInput?.value || "");
 
             if (!State.isFirebaseLoaded || State.users.length === 0) {
                 UI.toast("جاري تحميل بيانات النظام... يرجى الانتظار ثواني", "warning");
@@ -12798,7 +12913,7 @@ window.addEventListener('resize', () => {
             await new Promise(r => setTimeout(r, 300));
 
             const hash = CryptoJS.SHA256(password).toString();
-            const user = State.users.find(u => u.username.trim() === username && u.password === hash);
+            const user = State.users.find(u => String(u.username || "").trim().toLocaleLowerCase() === normalizedUsername && u.password === hash);
 
             if (!user) {
                 if(loginBtn){ loginBtn.innerHTML = '<span><span class="ui-icon-slot" data-icon="logout" aria-hidden="true"></span></span> دخول النظام'; loginBtn.disabled = false; }
@@ -12813,10 +12928,9 @@ window.addEventListener('resize', () => {
             const newSessionStartedAt = Number(TimeUtils.now()) || Date.now();
             State._sessionStartedAt = newSessionStartedAt;
             State._remoteLogoutInProgress = false;
-            localStorage.setItem("loggedUser", JSON.stringify({
-                username: user.username,
-                loginTime: newSessionStartedAt
-            }));
+            // Do not persist a username-only credential surrogate in localStorage.
+            // The authenticated state is kept in memory for this page instance only.
+            try { localStorage.removeItem("loggedUser"); } catch (_) {}
             sessionStorage.setItem("activeSession", "true");
             sessionStorage.setItem("alloshSessionStartedAt", String(newSessionStartedAt));
 
@@ -12941,31 +13055,30 @@ window.addEventListener('resize', () => {
         restoreSession() {
             if (State.sessionRestored) return;
 
-            const savedData = localStorage.getItem("loggedUser");
-            if (!savedData) {
-                State.sessionRestored = true;
-                return;
-            }
-
+            // IMPORTANT SECURITY MITIGATION:
+            // This application currently uses a custom username/hash check, not Firebase Authentication.
+            // A username and timestamp in localStorage are not proof of identity, so never auto-login from them.
+            // Require the user to enter credentials after a page reload. Firebase Rules must still enforce access.
+            let hadRememberedSession = false;
             try {
-                const session = JSON.parse(savedData);
-                const sessionStartedAt = Number(session.loginTime) || 0;
-                State._sessionStartedAt = sessionStartedAt;
-                State._remoteLogoutInProgress = false;
-                sessionStorage.setItem("alloshSessionStartedAt", String(sessionStartedAt || Date.now()));
-                const user = State.users.find(u => u.username.trim() === session.username);
-
-                if (user) {
-                    this.setCurrentUser(user);
-                    this.showDashboard();
-                } else {
-                    this.logout();
-                }
+                hadRememberedSession = !!localStorage.getItem("loggedUser");
+                localStorage.removeItem("loggedUser");
+                sessionStorage.removeItem("activeSession");
+                sessionStorage.removeItem("alloshSessionStartedAt");
             } catch (e) {
-                this.logout();
+                console.warn("Could not clear legacy session markers", e);
             }
 
+            State._sessionStartedAt = 0;
+            State._remoteLogoutInProgress = false;
+            State.currentUser = null;
+            State.securePermissions = [];
+            this.showLoginPage();
             State.sessionRestored = true;
+
+            if (hadRememberedSession) {
+                UI.toast("لأمان الحساب، يرجى تسجيل الدخول من جديد بعد إعادة فتح الصفحة.", "info");
+            }
         }
     };
 // ============================================================
@@ -17090,11 +17203,11 @@ const BazarHRSuite = {
       penalties:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['officialIn','الحضور الرسمي'],['actualIn','الحضور الفعلي'],['lateMinutes','التأخير'],['penaltyLevel','الجزاء'],['hours','ساعات الجزاء'],['value','القيمة'],['reason','السبب'],['source','المصدر'],['by','بواسطة']],
       leaves:[['date','تاريخ الإجازة'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['type','نوع الإجازة'],['requestDate','تاريخ الطلب'],['requestedBy','مقدم الطلب'],['manager','المدير'],['status','الحالة'],['notes','الملاحظات']],
       permits:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['type','النوع'],['breakTime','الخروج'],['returnTime','الرجوع'],['duration','المدة'],['status','الحالة'],['user','المستخدم'],['note','الملاحظة']],
-      attendance:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['presence','الحضور'],['checkIn','الحضور الفعلي'],['checkOut','الانصراف الفعلي'],['official','الرسمي'],['actual','الساعات الفعلية'],['late','التأخير'],['early','الخروج المبكر'],['overtime','الإضافي'],['status','الحالة'],['source','المصدر'],['events','عدد الحركات']],
+      attendance:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['checkIn','الحضور الفعلي'],['checkOut','الانصراف الفعلي'],['official','الرسمي'],['actual','الساعات الفعلية'],['late','التأخير'],['early','الخروج المبكر'],['overtime','الإضافي'],['status','الحالة'],['source','المصدر'],['events','عدد الحركات'],['note','الملاحظات']],
       payroll:[['name','الموظف'],['code','الكود'],['job','الوظيفة'],['salary','الراتب'],['present','حضور'],['absence','غياب'],['advances','سلف'],['bonuses','مكافآت'],['penalties','جزاءات'],['deductPay','خصم'],['overtimePay','إضافي'],['net','الصافي']]
     };return c[key]||[];
   },
-  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,105,105,95,100,105,110,210,150,115],leaves:[110,150,90,120,110,110,120,125,110,220],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,80,105,105,130,110,95,105,95,120,120,90],payroll:[150,90,120,110,75,75,110,110,110,110,110,125]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
+  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,105,105,95,100,105,110,210,150,115],leaves:[110,150,90,120,110,110,120,125,110,220],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,105,105,130,110,95,105,95,120,120,90,220],payroll:[150,90,120,110,75,75,110,110,110,110,110,125]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
   _actionMeta(){return {edit:this._canEdit(),delete:this._canDelete()};},
   _table(key,rowsHtml,actions){const cols=this._cols(key);const meta=this._actionMeta();const showEdit=!!actions&&meta.edit;const showDelete=!!actions&&meta.delete;const actionCount=(showEdit?1:0)+(showDelete?1:0);const widths=[...this._widths(key,0),...(showEdit?[90]:[]),...(showDelete?[90]:[])];const head=cols.map(c=>`<th>${this._esc(c[1])}</th>`).join('')+(showEdit?'<th class="bhr-action-cell">تعديل</th>':'')+(showDelete?'<th class="bhr-action-cell">حذف</th>':'');const colgroup=widths.map(w=>`<col style="width:${w}px">`).join('');const count=cols.length+actionCount;return `<div class="bhr-table-box"><table class="bhr-table"><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${rowsHtml||`<tr><td colspan="${count}" class="bhr-empty">لا توجد بيانات</td></tr>`}</tbody></table></div>`;},
   _actionCells(codes){const id=this._esc(codes);const cells=[];if(this._canEdit())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn" data-bhr-row="edit" data-id="${id}">✏️ تعديل</button></td>`);if(this._canDelete())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn danger" data-bhr-row="delete" data-id="${id}">🗑 حذف</button></td>`);return cells.join('');},
@@ -17211,6 +17324,7 @@ const BazarHRSuite = {
         rows.push({
           date:dk,code,name:emp.name||cin?.name||cout?.name||code,job:emp.job||cin?.job||cout?.job||'-',
           events:candidates,cin,cout,actual,late,early,earlyArr,lateExit,
+          note:Array.from(new Set(candidates.map(a=>String(a.note||a.notes||'').trim()).filter(Boolean))).join(' | '),
           status:cin&&cout?'مكتمل':cin?'دخول بدون خروج':cout?'خروج فقط':'حركة غير مكتملة',
           source:this._sourcePair(cin,cout),sourceIn:this._eventSource(cin),sourceOut:this._eventSource(cout),
           officialIn:schedule?this._timeText(schedule.inTs):'-',officialOut:schedule?this._timeText(schedule.outTs):'-',
@@ -17220,7 +17334,7 @@ const BazarHRSuite = {
     });
     return rows.sort((a,b)=>a.date.localeCompare(b.date)||String(a.name).localeCompare(String(b.name),'ar'));
   },
-  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=this._searchValue(p);const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td>${r.cin?'حضور':'-'}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span>${this._attendanceIgnoredCodes?.length?`<span class="bhr-count" title="حركات من الجهاز بأكواد غير موجودة في بيانات الموظفين">غير معتمدة <b>${this._attendanceIgnoredCodes.length}</b></span>`:''}</div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
+  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=this._searchValue(p);const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td><td class="bhr-long" title="${this._esc(r.note||'')}">${this._esc(r.note||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span>${this._attendanceIgnoredCodes?.length?`<span class="bhr-count" title="حركات من الجهاز بأكواد غير موجودة في بيانات الموظفين">غير معتمدة <b>${this._attendanceIgnoredCodes.length}</b></span>`:''}</div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
 
   _approvedBazarLeave(code,date){
     const d=this._normDate(date);return this._data.leaves.find(l=>String(l.code)===String(code)&&l.status==='موافق'&&this._normDate(l.date)===d)||null;
@@ -20174,7 +20288,7 @@ body.innerHTML = html
                   <button style="background:rgba(245,158,11,0.2);border:1px solid rgba(245,158,11,0.4);color:#fbbf24;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick="UserService.openEditUser(State.users[${index}])"><span class="ui-icon-slot" data-icon="shieldCheck" aria-hidden="true"></span> بيانات</button>
                   <button style="background:rgba(16,185,129,0.2);border:1px solid rgba(16,185,129,0.4);color:#34d399;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick='UserService.viewLoginHistory(${JSON.stringify(u.id || "")}, ${JSON.stringify(u.username || "")})'><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> كل مرات الدخول</button>
                   <button style="background:rgba(239,68,68,0.18);border:1px solid rgba(239,68,68,0.35);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px;margin-right:4px" onclick='showConfirm(${JSON.stringify(`هل تريد تسجيل خروج المستخدم ${u.username || ""} من جميع أجهزته الحالية؟`)}, () => UserService.forceLogout(${index}))'><span class="ui-icon-slot" data-icon="logout" aria-hidden="true"></span> تسجيل خروج</button></td>
-                  <td class="edit-col"><button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="UserService.delete(${index})">🗑 حذف</button></td>
+                  <td class="edit-col"><button style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick='UserService.delete(${JSON.stringify(String(u.id || ""))})'>🗑 حذف</button></td>
                 </tr>`;
             }).join("")
             : `<tr><td colspan="5" style="text-align:center;padding:20px;color:#64748b">لا توجد نتائج${search ? ' للبحث: "'+search+'"' : ''}</td></tr>`;
