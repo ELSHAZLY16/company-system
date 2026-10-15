@@ -10031,6 +10031,8 @@ return firebase.database.ServerValue.TIMESTAMP
       "LeaveRejected",
       "Penalty",
       "AutoPenalty",
+      "BazarPenaltyAdd",
+      "BazarAbsencePenalty",
       "EditPenalty",
       "DeletePenalty",
       "AddEmployee",
@@ -10045,12 +10047,15 @@ return firebase.database.ServerValue.TIMESTAMP
         add(action, code, name, meta = {}) {
             const now  = new Date(TimeUtils.now());
             const info = State._deviceInfo || {};
+            // Create the log key first so retries/dispatch can be tied to a stable event id.
+            const logRef = db.ref("systemLogs").push();
+            const defaultEventId = "system-log:" + logRef.key;
             const data = {
                 code, name, action,
                 date:        now.toLocaleDateString("ar-EG"),
                 timeDisplay: now.toLocaleTimeString("ar-EG"),
                 timestamp:   firebase.database.ServerValue.TIMESTAMP,
-                eventId:     meta.eventId || null,
+                eventId:     meta.eventId || defaultEventId,
                 user:        State.currentUser?.username || "system",
                 userId:      State.currentUser?.id || "-",
                 branch:      meta.branch || State.currentUser?.branch || "-",
@@ -10064,7 +10069,32 @@ return firebase.database.ServerValue.TIMESTAMP
                 ip:          info.ip        || "-"
             };
             Object.assign(data, meta);
-            return db.ref("systemLogs").push(data).catch(err => {
+            data.action = action;
+            data.eventId = meta.eventId || defaultEventId;
+            data.notify = meta.notify === true || (meta.notify !== false && NOTIFY_ACTIONS.has(action));
+
+            // Native FCM sender/Cloudflare Worker reads these fields from systemLogs.
+            // Keep notification text generic so employee HR details are not exposed on lock screens.
+            if (data.notify && ["Penalty", "AutoPenalty", "BazarPenaltyAdd", "BazarAbsencePenalty"].includes(action)) {
+                const isBazar = action === "BazarPenaltyAdd" || action === "BazarAbsencePenalty";
+                const isAutomatic = action === "AutoPenalty" || action === "BazarAbsencePenalty" || meta.auto === true;
+                data.notificationType = isAutomatic ? "penalty_auto_created" : "penalty_created";
+                data.notificationCategory = "penalties";
+                data.notificationTitle = isAutomatic ? "⚠️ تم تسجيل جزاء تلقائي" : "⚠️ تم تسجيل جزاء جديد";
+                data.notificationBody = isBazar
+                    ? "تم تسجيل جزاء جديد في بصمة البازار. افتح التطبيق لمراجعة التفاصيل."
+                    : (isAutomatic
+                        ? "تم تسجيل جزاء تلقائي جديد في النظام. افتح التطبيق لمراجعة التفاصيل."
+                        : "تم تسجيل جزاء جديد في النظام. افتح التطبيق لمراجعة التفاصيل.");
+                // Common aliases support senders that expect generic title/body fields.
+                data.title = data.notificationTitle;
+                data.body = data.notificationBody;
+                data.notificationUrl = data.appUrl;
+                data.notificationAudience = "enabled-users";
+                data.notificationDeduplicationKey = meta.notificationDeduplicationKey || data.eventId;
+            }
+
+            return logRef.set(data).then(() => logRef).catch(err => {
                 console.error("[SystemLog] failed to save log", err);
                 return null;
             });
@@ -11254,10 +11284,20 @@ UI.renderCompanies()
                 auto: true,
                 autoType: autoType
             };
-            db.ref("penalties").push(penalty).then(() => {
+            const penaltyRef = db.ref("penalties").push();
+            penaltyRef.set(penalty).then(() => {
                 UI.toast(`⚠️ تم تسجيل جزاء تلقائي: ${reasonText} — ${name}`, "warning");
-                SystemLog.add("AutoPenalty", code, `${reasonText} (${name})`);
-            });
+                const eventId = "auto-penalty-created:" + penaltyRef.key;
+                SystemLog.add("AutoPenalty", code, `${reasonText} (${name})`, {
+                    hours: penalty.hours,
+                    reason: reasonText,
+                    employeeName: name,
+                    penaltyId: penaltyRef.key,
+                    autoType,
+                    notificationDeduplicationKey: eventId,
+                    eventId
+                });
+            }).catch(err => console.error('[AutoPenalty] failed to save penalty', err));
         },
 
         // إعفاء (إلغاء الخصم) — بيحذف الجزاء التلقائي الحالي (لو موجود) ويمنع إعادة إنشائه لنفس اليوم
@@ -11403,9 +11443,15 @@ UI.renderCompanies()
                 autoType: 'prayer', sourceBreakId: String(breakId)
             };
             try {
-                await db.ref('penalties').push(penalty);
+                const penaltyRef = db.ref('penalties').push();
+                await penaltyRef.set(penalty);
                 UI.toast(`⚠️ تم تسجيل جزاء نصف يوم بسبب تجاوز إذن الصلاة ${totalMinutes} دقيقة — ${emp.name}`, 'warning');
-                SystemLog.add('AutoPenalty', code, `${reasonText} (${emp.name})`);
+                const eventId = 'auto-penalty-created:' + penaltyRef.key;
+                SystemLog.add('AutoPenalty', code, `${reasonText} (${emp.name})`, {
+                    hours: penalty.hours, reason: reasonText, employeeName: emp.name,
+                    penaltyId: penaltyRef.key, autoType: 'prayer',
+                    notificationDeduplicationKey: eventId, eventId
+                });
             } catch(e) {
                 console.error('[PrayerPenalty] create', e);
                 UI.toast('❌ تعذر تسجيل جزاء إذن الصلاة: ' + (e.message || e), 'error');
@@ -11545,7 +11591,11 @@ UI.renderCompanies()
             const ref=db.ref('penalties').push();
             await ref.set({...base,id:ref.key});
             UI.toast(`⚠️ تم تسجيل جزاء نصف يوم لتجاوز ${totalMinutes} دقيقة من الاستئذان في نفس الوردية — ${emp.name}`,'warning');
-            SystemLog.add('AutoPenalty',code,`${reasonText} (${emp.name})`);
+            const eventId = 'auto-penalty-created:' + ref.key;
+            SystemLog.add('AutoPenalty',code,`${reasonText} (${emp.name})`,{
+              hours:base.hours, reason:reasonText, employeeName:emp.name, penaltyId:ref.key,
+              autoType:'break', notificationDeduplicationKey:eventId, eventId
+            });
         },
 
         async recalcBreakOverage(code,{oldRow=null,newRow=null,removeId=null}={}){
@@ -11622,11 +11672,20 @@ UI.renderCompanies()
             if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
             let now = new Date(TimeUtils.now());
             let penalty = { code, name: emp.name, hours, manager, reason, date: now.toLocaleDateString("ar-EG"), time: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
-            db.ref("penalties").push(penalty).then(() => {
+            const penaltyRef = db.ref("penalties").push();
+            penaltyRef.set(penalty).then(() => {
               UI.renderPenalties();
               UI.toast("تم تسجيل الجزاء", "warning");
               UI.clearInputs("#tab-penalties");
-              SystemLog.add("Penalty", code, emp.name, { hours, reason });
+              const eventId = "penalty-created:" + penaltyRef.key;
+              SystemLog.add("Penalty", code, emp.name, {
+                hours,
+                reason,
+                employeeName: emp.name,
+                penaltyId: penaltyRef.key,
+                notificationDeduplicationKey: eventId,
+                eventId
+              });
             }).catch(err => UI.toast("❌ فشل تسجيل الجزاء: " + (err.message||err), "error"));
         },
         exportExcel() {
@@ -12928,9 +12987,20 @@ window.addEventListener('resize', () => {
             const newSessionStartedAt = Number(TimeUtils.now()) || Date.now();
             State._sessionStartedAt = newSessionStartedAt;
             State._remoteLogoutInProgress = false;
-            // Do not persist a username-only credential surrogate in localStorage.
-            // The authenticated state is kept in memory for this page instance only.
-            try { localStorage.removeItem("loggedUser"); } catch (_) {}
+            // Remember the session across page/browser restarts. The session is bound to
+            // the current user record and its stored password hash; it is invalidated if
+            // that hash changes or an administrator has forced logout.
+            try {
+                localStorage.setItem("loggedUser", JSON.stringify({
+                    userId: String(user.id || ""),
+                    username: String(user.username || ""),
+                    passwordHash: String(user.password || ""),
+                    loginTime: newSessionStartedAt
+                }));
+            } catch (storageError) {
+                console.warn("Could not persist the remembered session", storageError);
+                UI.toast("تم تسجيل الدخول، لكن تعذر حفظ الجلسة على هذا الجهاز.", "warning");
+            }
             sessionStorage.setItem("activeSession", "true");
             sessionStorage.setItem("alloshSessionStartedAt", String(newSessionStartedAt));
 
@@ -12962,36 +13032,37 @@ window.addEventListener('resize', () => {
             UI.toast("تم تسجيل الخروج بنجاح", "success");
         },
 
-        setCurrentUser(user) {
+        setCurrentUser(user, options = {}) {
             State.currentUser = Object.freeze({ ...user });
             State.securePermissions = Object.freeze([...(user.permissions || [])]);
             try { NotificationService.bindUser(user); } catch (_) {}
 
-            // جمع معلومات الجهاز والموقع وحفظها
-            DeviceInfo.collect().then(info => {
-              const loginRecord = {
-                ...info,
-                username: user.username,
-                userId:   user.id || "-"
-              };
-              // حفظ في Firebase
-              db.ref("loginLogs").push(loginRecord);
-              db.ref("users/" + user.id).update({
-                lastLogin:    info.loginTime,
-                lastDevice:   info.device + " | " + info.os,
-                lastBrowser:  info.browser,
-                lastLocation: info.locDisplay,
-                lastCity:     info.city,
-                lastRegion:   info.region || "-",
-                lastCountry:  info.country || "-",
-                lastLat:      info.lat || null,
-                lastLng:      info.lng || null,
-                lastLocSource:info.locSource || "-",
-                lastIP:       info.ip || "-"
-              });
-              // حفظ محلي
-              State._deviceInfo = info;
-            }).catch(()=>{});
+            // لا نسجل استعادة الجلسة باعتبارها تسجيل دخول جديدًا، ولا نغيّر بيانات
+            // آخر دخول في كل مرة يتم فيها تحديث الصفحة.
+            if (!options.restored) {
+              DeviceInfo.collect().then(info => {
+                const loginRecord = {
+                  ...info,
+                  username: user.username,
+                  userId:   user.id || "-"
+                };
+                db.ref("loginLogs").push(loginRecord);
+                db.ref("users/" + user.id).update({
+                  lastLogin:    info.loginTime,
+                  lastDevice:   info.device + " | " + info.os,
+                  lastBrowser:  info.browser,
+                  lastLocation: info.locDisplay,
+                  lastCity:     info.city,
+                  lastRegion:   info.region || "-",
+                  lastCountry:  info.country || "-",
+                  lastLat:      info.lat || null,
+                  lastLng:      info.lng || null,
+                  lastLocSource:info.locSource || "-",
+                  lastIP:       info.ip || "-"
+                });
+                State._deviceInfo = info;
+              }).catch(()=>{});
+            }
             
             UserMenu.update(user);
             try { PresenceService.start(user); } catch (_) {}
@@ -13054,31 +13125,68 @@ window.addEventListener('resize', () => {
 
         restoreSession() {
             if (State.sessionRestored) return;
-
-            // IMPORTANT SECURITY MITIGATION:
-            // This application currently uses a custom username/hash check, not Firebase Authentication.
-            // A username and timestamp in localStorage are not proof of identity, so never auto-login from them.
-            // Require the user to enter credentials after a page reload. Firebase Rules must still enforce access.
-            let hadRememberedSession = false;
-            try {
-                hadRememberedSession = !!localStorage.getItem("loggedUser");
-                localStorage.removeItem("loggedUser");
-                sessionStorage.removeItem("activeSession");
-                sessionStorage.removeItem("alloshSessionStartedAt");
-            } catch (e) {
-                console.warn("Could not clear legacy session markers", e);
-            }
-
-            State._sessionStartedAt = 0;
-            State._remoteLogoutInProgress = false;
-            State.currentUser = null;
-            State.securePermissions = [];
-            this.showLoginPage();
             State.sessionRestored = true;
 
-            if (hadRememberedSession) {
-                UI.toast("لأمان الحساب، يرجى تسجيل الدخول من جديد بعد إعادة فتح الصفحة.", "info");
+            const clearRememberedSession = () => {
+                try { localStorage.removeItem("loggedUser"); } catch (_) {}
+                try {
+                    sessionStorage.removeItem("activeSession");
+                    sessionStorage.removeItem("alloshSessionStartedAt");
+                } catch (_) {}
+                State._sessionStartedAt = 0;
+                State._remoteLogoutInProgress = false;
+                State.currentUser = null;
+                State.securePermissions = [];
+                this.showLoginPage();
+            };
+
+            let savedData = null;
+            try { savedData = localStorage.getItem("loggedUser"); } catch (_) {}
+            if (!savedData) {
+                clearRememberedSession();
+                return;
             }
+
+            let savedSession;
+            try { savedSession = JSON.parse(savedData); } catch (_) {
+                clearRememberedSession();
+                return;
+            }
+
+            const sessionStartedAt = Number(savedSession?.loginTime || savedSession?.sessionStartedAt || 0);
+            const savedUserId = String(savedSession?.userId || "");
+            const savedUsername = String(savedSession?.username || "").trim().toLocaleLowerCase();
+            const user = State.users.find(u =>
+                (savedUserId && String(u.id || "") === savedUserId) ||
+                (savedUsername && String(u.username || "").trim().toLocaleLowerCase() === savedUsername)
+            );
+
+            // Older username-only sessions are intentionally not trusted: the user signs in
+            // once after this update, then future reloads can restore the bound session.
+            if (!user || !sessionStartedAt || !savedSession.passwordHash ||
+                String(savedSession.passwordHash) !== String(user.password || "")) {
+                clearRememberedSession();
+                if (savedSession) UI.toast("انتهت صلاحية الجلسة المحفوظة. يرجى تسجيل الدخول مرة واحدة.", "info");
+                return;
+            }
+
+            const forceLogoutAt = Number(user.forceLogoutAt || 0);
+            if (forceLogoutAt > 0 && forceLogoutAt > sessionStartedAt) {
+                clearRememberedSession();
+                UI.toast("تم إنهاء الجلسة إداريًا. يرجى تسجيل الدخول من جديد.", "warning", 5000);
+                return;
+            }
+
+            State._sessionStartedAt = sessionStartedAt;
+            State._remoteLogoutInProgress = false;
+            try {
+                sessionStorage.setItem("activeSession", "true");
+                sessionStorage.setItem("alloshSessionStartedAt", String(sessionStartedAt));
+            } catch (_) {}
+
+            // Use the latest user record from Firebase, including the latest permissions.
+            this.setCurrentUser(user, { restored: true });
+            this.showDashboard();
         }
     };
 // ============================================================
@@ -16801,7 +16909,21 @@ const BazarHRSuite = {
   _auditBazar(action,code,name,details={}){
     try{
       if(typeof SystemLog==='undefined'||typeof SystemLog.add!=='function')return Promise.resolve(null);
-      const meta={...details,module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,branch:'البازار',recordedBy:State.currentUser?.username||'system'};
+      const penaltyCreation = action === 'BazarPenaltyAdd' || action === 'BazarAbsencePenalty';
+      const entityId = String(details.entityId || '');
+      const stablePenaltyEvent = penaltyCreation && entityId
+        ? `bazar-penalty-created:${entityId}`
+        : undefined;
+      const meta={
+        ...details,
+        module:'بصمة البازار',
+        moduleKey:'fingerprint-bazar',
+        manual:true,
+        notify:penaltyCreation,
+        branch:'البازار',
+        recordedBy:State.currentUser?.username||'system',
+        ...(stablePenaltyEvent ? { eventId: stablePenaltyEvent, notificationDeduplicationKey: stablePenaltyEvent } : {})
+      };
       return SystemLog.add(action,String(code??'-'),String(name??'نشاط بصمة البازار'),meta);
     }catch(e){console.error('[Bazar audit] unable to create system log',e);return Promise.resolve(null);}
   },
@@ -17130,6 +17252,11 @@ const BazarHRSuite = {
       const ref=db.ref('bazarPenalties').push();
       await ref.set({...base,id:ref.key});
       this._toast(`⚠️ تم تسجيل جزاء نصف يوم بسبب تجاوز إذن الصلاة ${durationMin} دقيقة — ${emp.name}`,'warning');
+      await this._auditBazar('BazarPenaltyAdd', emp.code, `جزاء تلقائي بسبب تجاوز إذن الصلاة — ${emp.name}`, {
+        entityType:'جزاء', entityId:ref.key, recordDate:base.date, hours:base.hours,
+        amount:base.amount, reason:base.reason, penaltyType:base.type,
+        auto:true, autoType:'prayer', source:'تجاوز إذن صلاة'
+      });
     }
   },
   async _removePrayerPenaltyForPermit(permitId){
@@ -17147,6 +17274,7 @@ const BazarHRSuite = {
     const nowDay=this._today();
     const updates={};
     const deletes=[];
+    const newPenaltyNotifications=[];
     const existing=new Map(this._data.penalties.filter(p=>String(p.autoType||'')==='late').map(p=>[`${p.code}|${p.date}`,p]));
     for(const row of rows){
       if(!row.cin||!row.date||row.date>nowDay)continue;
@@ -17186,11 +17314,21 @@ const BazarHRSuite = {
         if(changed)updates[`bazarPenalties/${current.id}`]=rec;
       }else{
         const key=`autoLate_${this._safeFirebaseKey(emp.code)}_${this._safeFirebaseKey(row.date)}`;
-        updates[`bazarPenalties/${key}`]={id:key,...rec};
+        const newRec={id:key,...rec};
+        updates[`bazarPenalties/${key}`]=newRec;
+        // Do not notify for reconstructed historical penalties; only notify newly created records for today.
+        if(row.date===nowDay)newPenaltyNotifications.push({key,rec:newRec});
       }
     }
     const writes=[];if(Object.keys(updates).length)writes.push(db.ref().update(updates));deletes.forEach(id=>{if(id)writes.push(db.ref(`bazarPenalties/${id}`).remove());});
     if(writes.length)await Promise.all(writes);
+    for(const item of newPenaltyNotifications){
+      const r=item.rec;
+      await this._auditBazar('BazarPenaltyAdd',r.code,`جزاء تأخير تلقائي — ${r.name||r.code}`,{
+        entityType:'جزاء',entityId:item.key,recordDate:r.date,hours:r.hours,amount:r.amount,
+        reason:r.reason||'',penaltyType:r.type||r.penaltyLevel||'تلقائي',auto:true,autoType:'late',source:'الحضور والانصراف'
+      });
+    }
   },
   _employee(code){const c=String(code??'');return this._data.employees.find(e=>String(e.code)===c)||null;},
   _filtered(key,search,month){const q=String(search||'').trim().toLowerCase();return this._data[key].filter(r=>{const name=String(r.name||'').toLowerCase(),code=String(r.code||'');const date=String(r.date||r.dateKey||'');return (!q||name.includes(q)||code.includes(q))&&(!month||date.startsWith(month));});},
@@ -17203,11 +17341,11 @@ const BazarHRSuite = {
       penalties:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['officialIn','الحضور الرسمي'],['actualIn','الحضور الفعلي'],['lateMinutes','التأخير'],['penaltyLevel','الجزاء'],['hours','ساعات الجزاء'],['value','القيمة'],['reason','السبب'],['source','المصدر'],['by','بواسطة']],
       leaves:[['date','تاريخ الإجازة'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['type','نوع الإجازة'],['requestDate','تاريخ الطلب'],['requestedBy','مقدم الطلب'],['manager','المدير'],['status','الحالة'],['notes','الملاحظات']],
       permits:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['type','النوع'],['breakTime','الخروج'],['returnTime','الرجوع'],['duration','المدة'],['status','الحالة'],['user','المستخدم'],['note','الملاحظة']],
-      attendance:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['checkIn','الحضور الفعلي'],['checkOut','الانصراف الفعلي'],['official','الرسمي'],['actual','الساعات الفعلية'],['late','التأخير'],['early','الخروج المبكر'],['overtime','الإضافي'],['status','الحالة'],['source','المصدر'],['events','عدد الحركات'],['note','الملاحظات']],
+      attendance:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['note','الملاحظات'],['checkIn','الحضور الفعلي'],['checkOut','الانصراف الفعلي'],['official','الرسمي'],['actual','الساعات الفعلية'],['late','التأخير'],['early','الخروج المبكر'],['overtime','الإضافي'],['status','الحالة'],['source','المصدر'],['events','عدد الحركات']],
       payroll:[['name','الموظف'],['code','الكود'],['job','الوظيفة'],['salary','الراتب'],['present','حضور'],['absence','غياب'],['advances','سلف'],['bonuses','مكافآت'],['penalties','جزاءات'],['deductPay','خصم'],['overtimePay','إضافي'],['net','الصافي']]
     };return c[key]||[];
   },
-  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,105,105,95,100,105,110,210,150,115],leaves:[110,150,90,120,110,110,120,125,110,220],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,105,105,130,110,95,105,95,120,120,90,220],payroll:[150,90,120,110,75,75,110,110,110,110,110,125]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
+  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,105,105,95,100,105,110,210,150,115],leaves:[110,150,90,120,110,110,120,125,110,220],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,220,105,105,130,110,95,105,95,120,120,90],payroll:[150,90,120,110,75,75,110,110,110,110,110,125]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
   _actionMeta(){return {edit:this._canEdit(),delete:this._canDelete()};},
   _table(key,rowsHtml,actions){const cols=this._cols(key);const meta=this._actionMeta();const showEdit=!!actions&&meta.edit;const showDelete=!!actions&&meta.delete;const actionCount=(showEdit?1:0)+(showDelete?1:0);const widths=[...this._widths(key,0),...(showEdit?[90]:[]),...(showDelete?[90]:[])];const head=cols.map(c=>`<th>${this._esc(c[1])}</th>`).join('')+(showEdit?'<th class="bhr-action-cell">تعديل</th>':'')+(showDelete?'<th class="bhr-action-cell">حذف</th>':'');const colgroup=widths.map(w=>`<col style="width:${w}px">`).join('');const count=cols.length+actionCount;return `<div class="bhr-table-box"><table class="bhr-table"><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${rowsHtml||`<tr><td colspan="${count}" class="bhr-empty">لا توجد بيانات</td></tr>`}</tbody></table></div>`;},
   _actionCells(codes){const id=this._esc(codes);const cells=[];if(this._canEdit())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn" data-bhr-row="edit" data-id="${id}">✏️ تعديل</button></td>`);if(this._canDelete())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn danger" data-bhr-row="delete" data-id="${id}">🗑 حذف</button></td>`);return cells.join('');},
@@ -17323,8 +17461,7 @@ const BazarHRSuite = {
         if(schedule&&cout){early=Math.max(0,Math.round((schedule.outTs-cout.timestamp)/60000));lateExit=Math.max(0,Math.round((cout.timestamp-schedule.outTs)/60000));}
         rows.push({
           date:dk,code,name:emp.name||cin?.name||cout?.name||code,job:emp.job||cin?.job||cout?.job||'-',
-          events:candidates,cin,cout,actual,late,early,earlyArr,lateExit,
-          note:Array.from(new Set(candidates.map(a=>String(a.note||a.notes||'').trim()).filter(Boolean))).join(' | '),
+          events:candidates,notes:[...new Set(candidates.map(e=>String(e?.note||'').trim()).filter(Boolean))].join(' / '),cin,cout,actual,late,early,earlyArr,lateExit,
           status:cin&&cout?'مكتمل':cin?'دخول بدون خروج':cout?'خروج فقط':'حركة غير مكتملة',
           source:this._sourcePair(cin,cout),sourceIn:this._eventSource(cin),sourceOut:this._eventSource(cout),
           officialIn:schedule?this._timeText(schedule.inTs):'-',officialOut:schedule?this._timeText(schedule.outTs):'-',
@@ -17334,7 +17471,7 @@ const BazarHRSuite = {
     });
     return rows.sort((a,b)=>a.date.localeCompare(b.date)||String(a.name).localeCompare(String(b.name),'ar'));
   },
-  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=this._searchValue(p);const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td><td class="bhr-long" title="${this._esc(r.note||'')}">${this._esc(r.note||'-')}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span>${this._attendanceIgnoredCodes?.length?`<span class="bhr-count" title="حركات من الجهاز بأكواد غير موجودة في بيانات الموظفين">غير معتمدة <b>${this._attendanceIgnoredCodes.length}</b></span>`:''}</div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
+  renderAttendance(){const p=document.getElementById('bh-pane-attendance');if(!p)return;const oldF=p.querySelector('[data-filter="from"]')?.value||'',oldT=p.querySelector('[data-filter="to"]')?.value||'',q=this._searchValue(p);const rows=this._attendanceDailyRows(oldF,oldT).filter(r=>!q||String(r.name).toLowerCase().includes(q.toLowerCase())||String(r.code).includes(q));const body=rows.map(r=>`<tr><td>${this._esc(this._dateText(r.date))}</td><td>${this._esc(r.name)}</td><td>${this._esc(r.code)}</td><td>${this._esc(r.job)}</td><td class="bhr-long">${this._esc(r.notes||'-')}</td><td>${r.cin?this._esc(this._timeText(r.cin.timestamp)):'-'}</td><td>${r.cout?this._esc(this._timeText(r.cout.timestamp)):'-'}</td><td>${this._esc(r.officialIn)} → ${this._esc(r.officialOut)}</td><td>${this._fmtMin(r.actual)}</td><td>${this._fmtMin(r.late)}</td><td>${this._fmtMin(r.early)}</td><td>${this._fmtMin(r.overtime)}</td><td>${this._esc(r.status)}</td><td>${this._esc(r.source)}</td><td>${r.eventCount}</td>${this._canEdit()||this._canDelete()?this._actionCells(r.code+'|'+r.date):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">الحضور والانصراف</h3><span class="bhr-count">الأيام <b>${rows.length}</b></span>${this._attendanceIgnoredCodes?.length?`<span class="bhr-count" title="حركات من الجهاز بأكواد غير موجودة في بيانات الموظفين">غير معتمدة <b>${this._attendanceIgnoredCodes.length}</b></span>`:''}</div><div class="bhr-toolbar-right">${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-attendance">➕ إضافة يدوية</button>':''}</div></div><div class="bhr-filter-row"><label class="bhr-field"><span>من</span><input class="bhr-input" data-filter="from" type="date" value="${this._esc(oldF)}"></label><label class="bhr-field"><span>إلى</span><input class="bhr-input" data-filter="to" type="date" value="${this._esc(oldT)}"></label><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الموظف أو الكود"></label></div></div><div class="bhr-card glass-card">${this._table('attendance',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderAttendance());},
 
   _approvedBazarLeave(code,date){
     const d=this._normDate(date);return this._data.leaves.find(l=>String(l.code)===String(code)&&l.status==='موافق'&&this._normDate(l.date)===d)||null;
@@ -17611,7 +17748,7 @@ const BazarHRSuite = {
     this.closeModal();
     this._toast('✅ تم حفظ الحضور والانصراف مع الحفاظ على مصدر كل بصمة','success');
   },
-  openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value=""></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
+  openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'',note=row?.notes||'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(note)}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
 
   async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();const actionMap={employees:'BazarEmployeeDelete',advances:'BazarAdvanceDelete',incentives:'BazarIncentiveDelete',penalties:'BazarPenaltyDelete',leaves:'BazarLeaveDelete',permits:'BazarPermitDelete'};await this._auditBazar(actionMap[kind]||'BazarRecordDelete',code||id,`حذف ${label} — ${name||code||id}`,{entityType:label,entityId:id,path,recordDate:this._normDate(row?.date||row?.dateKey||''),reason:row?.reason||row?.note||'',recordDetails:row?{name:row.name||'',code:row.code||'',job:row.job||'',date:row.date||row.dateKey||'',amount:row.amount??row.value??null,hours:row.hours??null,type:row.type||'',reason:row.reason||row.note||'',status:row.status||''}:null});this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
   async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();const durationMs=Math.max(0,now-Number(row.breakTimestamp||0));await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed',updatedAt:Date.now()});await this._recalcPrayerPermitPenalty({...row,returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed'});await this._auditBazar('BazarPermitReturned',row.code,`تسجيل رجوع إذن — ${row.name||row.code}`,{entityType:'إذن',entityId:id,recordDate:this._normDate(row.date||row.dateKey),breakTime:row.breakTime,returnTime:this._timeText(now),durationMs,status:'closed'});},
@@ -20021,8 +20158,11 @@ this.renderVehiclesInsideNow();
             });
             body.innerHTML = html || '<tr><td colspan="12" style="text-align:center;padding:20px;color:#64748b"><span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span> لا توجد نتائج مطابقة</td></tr>';
 applyEditColVisibility();
-            document.getElementById("penaltiesCount").innerText = State.penalties.length;
+            const penaltiesCountEl = document.getElementById("penaltiesCount");
+            if (penaltiesCountEl) penaltiesCountEl.innerText = State.penalties.length;
             this.renderPenaltiesSummary(scoped);
+            // البحث الموحد يفلتر سجل الجزاءات والملخص وسجل الإعفاءات معًا.
+            this.renderPenaltyExemptLog(pSearch);
         },
 
         renderPenaltiesSummary(scoped) {
@@ -20086,11 +20226,17 @@ applyEditColVisibility();
           document.getElementById("penaltyDetailModal").style.display = "flex";
         },
 
-        renderPenaltyExemptLog() {
+        renderPenaltyExemptLog(searchValue) {
           const body = document.getElementById("penaltyExemptLogBody");
           if(!body) return;
           const canUndo = hasPermission("all");
-          const rows = [...(State.penaltyExemptLog||[])].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+          const query = String(typeof searchValue === "string" ? searchValue : (document.getElementById("penaltiesSearch")?.value || ""))
+            .trim().toLocaleLowerCase();
+          const rows = [...(State.penaltyExemptLog||[])]
+            .filter(r => !query ||
+              String(r.name || getEmpName(r.code) || "").toLocaleLowerCase().includes(query) ||
+              String(r.code || "").toLocaleLowerCase().includes(query))
+            .sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
           body.innerHTML = rows.length ? rows.map(r => `<tr>
             <td style="font-weight:700">${r.name}</td>
             <td style="color:#818cf8">${r.code}</td>
