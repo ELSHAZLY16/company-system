@@ -6397,6 +6397,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <option value="attendance">🔏 سجل الحضور والانصراف</option>
                     <option value="breaks">☕ سجل الاستئذانات</option>
                     <option value="systemLogs">📋 سجل النظام</option>
+                    <option value="notifications">🔔 سجل الإشعارات (يمكن حذف القديم)</option>
                     <option value="penalties">⚠️ سجل الجزاءات</option>
                     <option value="penaltyExemptLog">🔓 سجل الإعفاءات من الخصم التلقائي</option>
                     <option value="leaves">🏖️ سجل الإجازات</option>
@@ -7186,6 +7187,7 @@ const ArchiveService = {
     priceSheet:'جداول الأسعار',
     syncRequests:'طلبات المزامنة',
     notificationTokens:'رموز الإشعارات',
+    notifications:'سجل الإشعارات',
     archiveLogs:'سجل عمليات الأرشفة',
     bazarEmpData:'بيانات موظفي بصمة البازار',
     bazarAdvances:'سلف بصمة البازار',
@@ -7795,7 +7797,7 @@ const ArchiveService = {
       const ts=this.getTimestamp(item);
       const d=ts?new Date(ts).toLocaleDateString('ar-EG'):item.date||item.expire||'-';
       const t=ts?new Date(ts).toLocaleTimeString('ar-EG'):'-';
-      return `<tr><td style="font-size:10px;color:#64748b">${this._escapeHtml((item._id||'').slice(-6))}</td><td>${this._escapeHtml(item.name||item.username||item.company||item.plate||'-')}</td><td>${this._escapeHtml(item.action||item.type||item.code||'-')}</td><td>${this._escapeHtml(d)}</td><td style="font-size:10px">${this._escapeHtml(t)}</td></tr>`;
+      return `<tr><td style="font-size:10px;color:#64748b">${this._escapeHtml((item._id||'').slice(-6))}</td><td>${this._escapeHtml(item.title||item.name||item.username||item.company||item.plate||'-')}</td><td>${this._escapeHtml(item.action||item.type||item.code||item.body||'-')}</td><td>${this._escapeHtml(d)}</td><td style="font-size:10px">${this._escapeHtml(t)}</td></tr>`;
     }).join('');
     if(sec) sec.style.display='block';
     UI.toast(`✅ تمت معاينة ${this._filtered.length.toLocaleString('ar-EG')} سجل`,'success');
@@ -10074,7 +10076,8 @@ return firebase.database.ServerValue.TIMESTAMP
             data.notify = meta.notify === true || (meta.notify !== false && NOTIFY_ACTIONS.has(action));
 
             // Native FCM sender/Cloudflare Worker reads these fields from systemLogs.
-            // Keep notification text generic so employee HR details are not exposed on lock screens.
+            // The in-app notification feed is stored separately under /notifications.
+            // Keep penalty notification text generic so HR details are not exposed on lock screens.
             if (data.notify && ["Penalty", "AutoPenalty", "BazarPenaltyAdd", "BazarAbsencePenalty"].includes(action)) {
                 const isBazar = action === "BazarPenaltyAdd" || action === "BazarAbsencePenalty";
                 const isAutomatic = action === "AutoPenalty" || action === "BazarAbsencePenalty" || meta.auto === true;
@@ -10094,7 +10097,61 @@ return firebase.database.ServerValue.TIMESTAMP
                 data.notificationDeduplicationKey = meta.notificationDeduplicationKey || data.eventId;
             }
 
-            return logRef.set(data).then(() => logRef).catch(err => {
+            // The audit event is always written first. The in-app notification feed
+            // is written separately so restrictive /notifications rules cannot block
+            // the existing systemLogs audit trail. Writing here recreates /notifications
+            // if it was previously emptied/deleted. The FCM Worker still uses /systemLogs.
+            const notificationTypes = {
+                Penalty: { type: "penalties", tab: "penalties", title: "⚠️ تم تسجيل جزاء جديد", body: "تم تسجيل جزاء جديد في النظام. افتح التطبيق لمراجعة التفاصيل." },
+                AutoPenalty: { type: "penalties", tab: "penalties", title: "⚠️ تم تسجيل جزاء تلقائي", body: "تم تسجيل جزاء تلقائي جديد في النظام. افتح التطبيق لمراجعة التفاصيل." },
+                BazarPenaltyAdd: { type: "penalties", tab: "fingerprint-bazar", title: "⚠️ تم تسجيل جزاء جديد", body: "تم تسجيل جزاء جديد في بصمة البازار. افتح التطبيق لمراجعة التفاصيل." },
+                BazarAbsencePenalty: { type: "penalties", tab: "fingerprint-bazar", title: "⚠️ تم تسجيل جزاء غياب", body: "تم تسجيل جزاء غياب في بصمة البازار. افتح التطبيق لمراجعة التفاصيل." },
+                TransferSaved: { type: "transfers", tab: "transfers", title: "تحويل جديد", body: "تم تسجيل تحويل جديد في النظام." },
+                EditTransfer: { type: "transfers", tab: "transfers", title: "تعديل تحويل", body: "تم تعديل تحويل في النظام." },
+                DeleteTransfer: { type: "transfers", tab: "transfers", title: "حذف تحويل", body: "تم حذف تحويل من النظام." },
+                Leave: { type: "leaves", tab: "leaves", title: "طلب إجازة جديد", body: "تم تسجيل طلب إجازة جديد." },
+                LeaveApproved: { type: "leaves", tab: "leaves", title: "اعتماد إجازة", body: "تم اعتماد طلب إجازة." },
+                LeaveRejected: { type: "leaves", tab: "leaves", title: "رفض إجازة", body: "تم تحديث حالة طلب إجازة." },
+                ProductAdd: { type: "products", tab: "priceSheet", title: "إضافة منتج", body: "تمت إضافة منتج إلى النظام." },
+                ProductIncrease: { type: "products", tab: "priceSheet", title: "تحديث منتج", body: "تم تحديث بيانات منتج في النظام." },
+                ProductRemove: { type: "products", tab: "priceSheet", title: "حذف منتج", body: "تم حذف منتج من النظام." },
+                DeleteProduct: { type: "products", tab: "priceSheet", title: "حذف منتج", body: "تم حذف منتج من النظام." },
+                EditProduct: { type: "products", tab: "priceSheet", title: "تعديل منتج", body: "تم تعديل بيانات منتج في النظام." },
+                AddEmployee: { type: "employees", tab: "admin", title: "موظف جديد", body: "تمت إضافة بيانات موظف." },
+                EditEmployee: { type: "employees", tab: "admin", title: "تعديل بيانات موظف", body: "تم تعديل بيانات موظف." },
+                DeleteEmployee: { type: "employees", tab: "admin", title: "حذف موظف", body: "تم حذف بيانات موظف." },
+                AddUser: { type: "users", tab: "admin", title: "مستخدم جديد", body: "تمت إضافة مستخدم للنظام." },
+                EditUser: { type: "users", tab: "admin", title: "تعديل مستخدم", body: "تم تعديل بيانات مستخدم." },
+                DeleteUser: { type: "users", tab: "admin", title: "حذف مستخدم", body: "تم حذف مستخدم من النظام." }
+            };
+            const noticeSpec = data.notify ? notificationTypes[action] : null;
+            return logRef.set(data).then(async () => {
+                if (noticeSpec) {
+                    const notification = {
+                        title: data.notificationTitle || noticeSpec.title,
+                        body: data.notificationBody || noticeSpec.body,
+                        createdAt: now.getTime(),
+                        sentBy: data.user || "system",
+                        delivered: false,
+                        type: noticeSpec.type,
+                        eventId: data.eventId,
+                        sourceLogId: logRef.key,
+                        notificationCategory: data.notificationCategory || noticeSpec.type,
+                        data: {
+                            tab: noticeSpec.tab,
+                            eventId: data.eventId,
+                            sourceLogId: logRef.key,
+                            moduleKey: data.moduleKey || ""
+                        }
+                    };
+                    try {
+                        await db.ref("notifications/" + logRef.key).set(notification);
+                    } catch (notificationErr) {
+                        console.error("[NotificationFeed] failed to create notification record", notificationErr);
+                    }
+                }
+                return logRef;
+            }).catch(err => {
                 console.error("[SystemLog] failed to save log", err);
                 return null;
             });
@@ -12189,93 +12246,120 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
     const UserService = {
         editingUser: null,
 
-        // عرض كل مرات الدخول لمستخدم معين (السجلات الجديدة والقديمة)
+        // عرض كل مرات الدخول لمستخدم معين. نقرأ loginLogs مباشرة ثم نطابق
+        // المعرّف واسم المستخدم مع دعم أشكال السجلات القديمة المختلفة، لتجنب
+        // الاعتماد على orderByChild/index قد لا يكون متاحاً في قواعد Firebase الحالية.
         async viewLoginHistory(userId, username) {
           if (!this._canManageUsers()) return;
           const modal = document.getElementById("loginHistoryModal");
           const title = document.getElementById("loginHistoryTitle");
           const body  = document.getElementById("loginHistoryBody");
           const count = document.getElementById("loginHistoryCount");
-          if(!modal || !body) return;
+          if (!modal || !body) return;
 
-          const safeUserId = (userId && userId !== "-") ? String(userId) : "";
-          const safeUsername = String(username || "-");
-          if(title) title.textContent = "📍 كل مرات دخول: " + safeUsername;
-          if(count) count.textContent = "";
-          body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b"><span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span> جارٍ تحميل كل سجلات الدخول...</td></tr>';
+          const safeUserId = (userId && userId !== "-") ? String(userId).trim() : "";
+          const safeUsername = String(username || "-").trim();
+          const normalize = value => String(value ?? "").trim().toLocaleLowerCase();
+          const targetName = normalize(safeUsername);
+          if (title) title.textContent = "📍 كل مرات دخول: " + safeUsername;
+          if (count) count.textContent = "";
+          body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b">جارٍ تحميل كل سجلات الدخول...</td></tr>';
           modal.style.display = "flex";
 
-          const readBy = (field, value) => new Promise(resolve => {
-            if(!value) return resolve({ ok:true, records:[] });
-            db.ref("loginLogs").orderByChild(field).equalTo(value).once("value", snap => {
-              const records = [];
-              snap.forEach(c => records.push({ id:c.key, ...c.val() }));
-              resolve({ ok:true, records });
-            }, err => resolve({ ok:false, records:[], error:err }));
-          });
+          const esc = value => String(value ?? "-").replace(/[&<>\"']/g, ch => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'
+          }[ch]));
+          const timestampOf = log => {
+            for (const key of ["loginTs", "timestamp", "ts", "createdAt", "timeStamp"]) {
+              const n = Number(log?.[key]);
+              if (Number.isFinite(n) && n > 0) return n < 100000000000 ? n * 1000 : n;
+            }
+            for (const key of ["loginTime", "time", "date", "createdAt"]) {
+              const v = log?.[key];
+              if (typeof v === "string" && v.trim()) {
+                const n = Date.parse(v);
+                if (Number.isFinite(n)) return n;
+              }
+            }
+            return 0;
+          };
 
           try {
-            // نقرأ بالمُعرّف الثابت + اسم المستخدم لدعم السجلات القديمة.
-            const results = await Promise.all([
-              readBy("userId", safeUserId),
-              readBy("username", safeUsername)
-            ]);
-
-            const merged = new Map();
-            results.forEach(r => r.records.forEach(log => merged.set(log.id, log)));
-            let logs = Array.from(merged.values());
-
-            // احتياطي للسجلات القديمة جدًا التي قد لا يكون لها userId/username مطابق تمامًا.
-            if(!logs.length && results.every(r => !r.ok)) {
-              await new Promise((resolve, reject) => {
-                db.ref("loginLogs").once("value", snap => {
-                  snap.forEach(c => {
-                    const l = c.val() || {};
-                    if((safeUserId && String(l.userId || "") === safeUserId) || String(l.username || "") === safeUsername) {
-                      merged.set(c.key, { id:c.key, ...l });
-                    }
-                  });
-                  resolve();
-                }, reject);
+            const snap = await db.ref("loginLogs").once("value");
+            const allLogs = [];
+            // السجل المعتاد يكون مباشرة تحت loginLogs/{pushId}. يدعم هذا الجزء
+            // أيضاً سجلات قديمة كانت مجمعة داخل مستوى إضافي.
+            const walk = (node, keyPath = [], depth = 0) => {
+              if (!node || typeof node !== "object" || depth > 4) return;
+              const looksLikeLog = (node.loginTime !== undefined || node.loginTs !== undefined || node.timestamp !== undefined) &&
+                (node.username !== undefined || node.user !== undefined || node.userId !== undefined || node.uid !== undefined);
+              if (looksLikeLog) {
+                allLogs.push({ ...node, id: keyPath[keyPath.length - 1] || String(node.id || "") });
+                return;
+              }
+              Object.keys(node).forEach(key => {
+                const child = node[key];
+                if (child && typeof child === "object") walk(child, keyPath.concat(key), depth + 1);
               });
-              logs = Array.from(merged.values());
-            }
-
-            logs.sort((a,b) => {
-              const ta = Number(a.loginTs) || 0;
-              const tb = Number(b.loginTs) || 0;
-              return tb - ta;
+            };
+            snap.forEach(child => {
+              const value = child.val();
+              if (value && typeof value === "object") {
+                const looksLikeLog = (value.loginTime !== undefined || value.loginTs !== undefined || value.timestamp !== undefined) &&
+                  (value.username !== undefined || value.user !== undefined || value.userId !== undefined || value.uid !== undefined);
+                if (looksLikeLog) allLogs.push({ ...value, id: child.key });
+                else walk(value, [child.key], 1);
+              }
             });
 
-            if(count) count.textContent = `(${logs.length.toLocaleString('ar-EG')} تسجيل دخول)`;
+            const matchesUser = log => {
+              const idValues = [log.userId, log.uid, log.accountId, log.targetUserId]
+                .filter(v => v !== undefined && v !== null && String(v).trim() !== "" && String(v).trim() !== "-")
+                .map(v => String(v).trim());
+              const nameValues = [log.username, log.userName, log.user, log.loginUser, log.account, log.login]
+                .filter(v => v !== undefined && v !== null && String(v).trim() !== "")
+                .map(normalize);
+              const idMatch = !!safeUserId && idValues.some(v => v === safeUserId);
+              const nameMatch = !!targetName && targetName !== "-" && nameValues.some(v => v === targetName);
+              return idMatch || nameMatch;
+            };
 
-            if(!logs.length){
-              body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b">مفيش سجلات دخول متسجلة لسه لهذا المستخدم</td></tr>';
+            const dedup = new Map();
+            allLogs.filter(matchesUser).forEach(log => {
+              const id = String(log.id || [log.userId, log.username, log.loginTs || log.timestamp || log.loginTime].join("|"));
+              dedup.set(id, log);
+            });
+            const logs = Array.from(dedup.values()).sort((a, b) => timestampOf(b) - timestampOf(a));
+            if (count) count.textContent = `(${logs.length.toLocaleString('ar-EG')} تسجيل دخول)`;
+
+            if (!logs.length) {
+              body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:#64748b">لم يتم العثور على سجلات دخول مطابقة لهذا المستخدم في loginLogs</td></tr>';
               return;
             }
-
-            const esc = value => String(value ?? "-").replace(/[&<>\"']/g, ch => ({
-              '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'
-            }[ch]));
 
             body.innerHTML = logs.map(l => {
               const hasCoords = l.lat !== null && l.lat !== undefined && l.lng !== null && l.lng !== undefined && l.lat !== "" && l.lng !== "";
               const mapLink = hasCoords
-                ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(l.lat)},${encodeURIComponent(l.lng)}" target="_blank" rel="noopener" style="color:#818cf8"><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> خريطة</a>`
+                ? `<a href="https://www.google.com/maps?q=${encodeURIComponent(l.lat)},${encodeURIComponent(l.lng)}" target="_blank" rel="noopener" style="color:#818cf8">خريطة</a>`
                 : '-';
-              const locText = [l.city, l.region, l.country].filter(c => c && c !== "-").join('، ') || l.locDisplay || '-';
+              const locText = [l.city, l.region, l.country].filter(c => c && c !== "-").join('، ') || l.locDisplay || l.location || '-';
+              const timeText = l.loginTime || l.timeDisplay || l.date || (timestampOf(l) ? new Date(timestampOf(l)).toLocaleString('ar-EG') : '-');
+              const deviceText = l.device || l.deviceName || '-';
+              const browserText = l.browser || l.app || '-';
+              const ipText = l.ip || l.ipAddress || '-';
               return `<tr>
-                <td style="font-size:12px">${esc(l.loginTime)}</td>
-                <td style="font-size:12px">${esc(l.device)}${l.os ? ' — '+esc(l.os) : ''}</td>
-                <td style="font-size:12px">${esc(l.browser)}</td>
+                <td style="font-size:12px">${esc(timeText)}</td>
+                <td style="font-size:12px">${esc(deviceText)}${l.os ? ' — '+esc(l.os) : ''}</td>
+                <td style="font-size:12px">${esc(browserText)}</td>
                 <td style="font-size:12px">${esc(locText)}</td>
-                <td style="font-size:11px">${esc(l.ip)} <span style="color:#64748b">(${esc(l.locSource)})</span></td>
+                <td style="font-size:11px">${esc(ipText)} <span style="color:#64748b">(${esc(l.locSource || l.source || '-')})</span></td>
                 <td>${mapLink}</td>
               </tr>`;
             }).join('');
-          } catch(err) {
-            if(count) count.textContent = "";
-            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:16px;color:#f87171"><span class="ui-icon-slot" data-icon="close" aria-hidden="true"></span> فشل تحميل سجل الدخول: ${String(err?.message || err)}</td></tr>`;
+          } catch (err) {
+            if (count) count.textContent = "";
+            const safeError = esc(err?.message || err);
+            body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:16px;color:#f87171">فشل تحميل سجل الدخول: ${safeError}</td></tr>`;
           }
         },
 
