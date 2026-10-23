@@ -666,12 +666,13 @@ body {
   line-height: 1;
 }
 
-#pwaInstallBtn {
+#apkDownloadBtn {
   min-height: 38px;
   margin: 0 !important;
   padding: 0 11px !important;
   border-radius: 11px !important;
   white-space: nowrap;
+  text-decoration: none !important;
 }
 
 #networkBadge {
@@ -711,7 +712,7 @@ body {
     grid-area: right;
     justify-content: flex-end;
   }
-  #pwaInstallBtn {
+  #apkDownloadBtn {
     padding: 0 9px !important;
     font-size: 11px !important;
   }
@@ -756,13 +757,13 @@ body {
     min-width: 30px;
   }
   #networkBadge .ui-icon-slot { margin: 0 !important; }
-  #pwaInstallBtn {
+  #apkDownloadBtn {
     min-width: 36px;
     width: 36px;
     padding: 0 !important;
     font-size: 0 !important;
   }
-  #pwaInstallBtn .ui-icon-slot { margin: 0 !important; }
+  #apkDownloadBtn .ui-icon-slot { margin: 0 !important; }
 }
 
 /* ============================================================
@@ -2377,6 +2378,7 @@ h4 > .ui-icon-slot {
 }
 
 .header-icon-btn {
+  text-decoration: none !important;
   width: var(--header-control-size) !important;
   height: var(--header-control-size) !important;
   min-width: var(--header-control-size) !important;
@@ -2971,9 +2973,9 @@ body.light-mode .user-menu-head { border-bottom-color:#e2e8f0; }
     
     <div class="dashboard-header">
       <div class="header-side header-side-right">
-        <button id="pwaInstallBtn" class="header-icon-btn header-install" onclick="PWAInstall.install()" title="تثبيت التطبيق" aria-label="تثبيت التطبيق">
+        <a id="apkDownloadBtn" class="header-icon-btn header-install" href="/company-system/AlloshBazar.apk?v=20261023" download="AlloshBazar.apk" onclick="return AppDownload.handleClick(event)" title="تنزيل تطبيق علوش البازار للأندرويد (APK)" aria-label="تنزيل تطبيق علوش البازار للأندرويد">
           <span class="ui-icon-slot" data-icon="install" aria-hidden="true"></span>
-        </button>
+        </a>
         <button id="notificationBtn" class="header-icon-btn header-notification" onclick="NotificationService.enable()" title="تفعيل إشعارات الهاتف" aria-label="تفعيل إشعارات الهاتف">
           <span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span>
         </button>
@@ -8947,15 +8949,38 @@ function undoPenaltyExemption(logId){
   if(!entry){ UI.toast("❌ لم يتم العثور على سجل الإعفاء", "error"); return; }
 
   showConfirm(`هل تريد إرجاع جزاء "${entry.name}" (${entry.hours} ساعة) وإلغاء هذا الإعفاء؟`, () => {
+    // Keep the penalty in its original chronological position, not at the top
+    // of the list with the current restoration timestamp. New exemption logs
+    // store penaltyTimestamp; older logs fall back to the original penalty date.
+    const normalizeDigits = value => String(value ?? "").replace(/[٠-٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d));
+    const originalDate = normalizeDigits(entry.penaltyDate || entry.dateKey || "").trim();
+    let originalTimestamp = Number(entry.penaltyTimestamp || entry.originalTimestamp || 0);
+    if(!Number.isFinite(originalTimestamp) || originalTimestamp <= 0){
+      let match = originalDate.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+      if(match){
+        originalTimestamp = new Date(Number(match[1]), Number(match[2])-1, Number(match[3]), 12, 0, 0, 0).getTime();
+      } else {
+        match = originalDate.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);
+        if(match) originalTimestamp = new Date(Number(match[3]), Number(match[2])-1, Number(match[1]), 12, 0, 0, 0).getTime();
+        else {
+          const parsed = Date.parse(originalDate);
+          if(Number.isFinite(parsed)) originalTimestamp = parsed;
+        }
+      }
+    }
+    if(!Number.isFinite(originalTimestamp) || originalTimestamp <= 0){
+      // Last-resort fallback for very old entries missing the original date.
+      originalTimestamp = Number(entry.timestamp || 0) || TimeUtils.now();
+    }
     const penalty = {
       code: String(entry.code), name: entry.name,
       hours: Number(entry.hours) || 0,
-      manager: "تلقائي",
+      manager: entry.penaltyManager || "تلقائي",
       reason: entry.reason || "-",
-      date: entry.penaltyDate,
-      time: new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"),
-      timestamp: firebase.database.ServerValue.TIMESTAMP,
-      createdBy: "النظام (تلقائي)",
+      date: entry.penaltyDate || entry.dateKey || "",
+      time: entry.penaltyTime || new Date(originalTimestamp).toLocaleTimeString("ar-EG"),
+      timestamp: originalTimestamp,
+      createdBy: entry.penaltyCreatedBy || "النظام (تلقائي)",
       auto: true,
       autoType: entry.autoType || ""
     };
@@ -8969,7 +8994,7 @@ function undoPenaltyExemption(logId){
         if(rec) db.ref("attendance/" + rec.id).update({ latePermission: false });
       }
       db.ref("penaltyExemptLog/" + logId).remove().then(() => {
-        UI.toast(`✅ تم إرجاع الجزاء لـ ${entry.name} وإلغاء الإعفاء`, "success");
+        UI.toast(`✅ تم إرجاع الجزاء لـ ${entry.name} إلى ترتيبه الأصلي وإلغاء الإعفاء`, "success");
         SystemLog.add("PenaltyExemptUndo", entry.code, entry.name + " — " + (entry.penaltyDate||"-"));
       });
     }).catch(err => UI.toast("❌ فشل إرجاع الجزاء: " + (err.message||err), "error"));
@@ -11374,11 +11399,17 @@ UI.renderCompanies()
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
 
-            // نقل الجزاء لسجل الإعفاءات بدل ما يتحذف نهائي — عشان يبقى فيه أثر واضح
+            // احتفظ بترتيب الجزاء الأصلي وبياناته قبل نقله إلى سجل الإعفاءات.
+            // عند إرجاعه لاحقًا، نعيد استخدام timestamp الأصلي بدل وقت الإرجاع الحالي.
             if(p){
                 db.ref("penaltyExemptLog").push({
                     name: p.name, code: p.code, job: empJob, hours: p.hours,
                     reason: p.reason, penaltyDate: p.date,
+                    penaltyId: p.id || penaltyId || "",
+                    penaltyTimestamp: Number(p.timestamp || p.ts || 0) || null,
+                    penaltyTime: p.time || "",
+                    penaltyManager: p.manager || "تلقائي",
+                    penaltyCreatedBy: p.createdBy || "النظام (تلقائي)",
                     exemptReason: exemptReason || "-",
                     exemptedBy: State.currentUser?.username || "-",
                     exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
@@ -17278,7 +17309,17 @@ const BazarHRSuite = {
     },180);
   },
 
-  _employees(){return this._data.employees.slice().sort((a,b)=>String(a.name||a.code).localeCompare(String(b.name||b.code),'ar'));},
+  _compareEmployeeCodes(a,b){
+    const norm=v=>String(v??'').trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+    const x=norm(a),y=norm(b);
+    const nx=x!==''&&/^[-+]?\d+(?:\.\d+)?$/.test(x)?Number(x):null;
+    const ny=y!==''&&/^[-+]?\d+(?:\.\d+)?$/.test(y)?Number(y):null;
+    if(nx!==null&&ny!==null&&nx!==ny)return nx-ny;
+    if(nx!==null&&ny===null)return -1;
+    if(nx===null&&ny!==null)return 1;
+    return x.localeCompare(y,'ar',{numeric:true,sensitivity:'base'});
+  },
+  _employees(){return this._data.employees.slice().sort((a,b)=>this._compareEmployeeCodes(a.code,b.code));},
   _safeFirebaseKey(v){return String(v??'').replace(/[.#$\[\]\/]/g,'_').slice(0,120);},
   _dailyHoursForPenalty(emp,date){
     const sc=this._schedule(emp,date);
@@ -17437,7 +17478,7 @@ const BazarHRSuite = {
 
   _renderShell(pane,title,toolbar,table){pane.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3></div><div class="bhr-toolbar-right">${toolbar||''}</div></div></div>${table}`;},
 
-  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=this._searchValue(p),status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف'))));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>`<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td><td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours?this._esc(e.workHours):'-'}</td><td>${this._esc(e.employmentStatus)}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card bhr-employee-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">${toolbar}</div>`+filters+`<div class="bhr-card glass-card">${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
+  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=this._searchValue(p),status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف')))).sort((a,b)=>this._compareEmployeeCodes(a.code,b.code));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>`<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td><td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(e.checkIn||'-')}</td><td>${this._esc(e.checkOut||'-')}</td><td>${e.workHours?this._esc(e.workHours):'-'}</td><td>${this._esc(e.employmentStatus)}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`).join('');p.innerHTML=`<div class="bhr-card glass-card bhr-employee-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">${toolbar}</div>`+filters+`<div class="bhr-card glass-card">${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
   _renderShellTmp:false,
 
   renderAdvances(){return this._renderTransaction('advances','سلف الموظفين','advance');},
@@ -23151,53 +23192,22 @@ window.requestBazarFingerprintSync = async function(options={}){
 })();
 </script>
 
-<!-- ═══════════════════════════════════════════════════
-     PWA — Service Worker + Offline + Background Sync
-     ═══════════════════════════════════════════════════ -->
+<!-- تنزيل تطبيق أندرويد APK من أيقونة الهيدر؛ تبقى آلية Service Worker/Offline مستقلة كما هي. -->
 <script>
-// ── تثبيت التطبيق (Install App) — موبايل ودسكتوب ──────
-const PWAInstall = {
-  deferredPrompt: null,
-  init() {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      // Chrome/Edge (أندرويد + دسكتوب): نمنع البانر الافتراضي ونستخدم زرارنا بدلاً منه
-      e.preventDefault();
-      this.deferredPrompt = e;
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn) btn.style.display = 'inline-block';
-    });
-    window.addEventListener('appinstalled', () => {
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn) btn.style.display = 'none';
-      this.deferredPrompt = null;
-      if(typeof UI !== 'undefined') UI.toast('✅ تم تثبيت التطبيق بنجاح', 'success');
-    });
-    // لو التطبيق شغال بالفعل كـ PWA مثبّت، نخفي الزرار
-    if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true) {
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn) btn.style.display = 'none';
+const AppDownload = {
+  handleClick(event) {
+    const isAndroid = /Android/i.test(navigator.userAgent || '');
+    if (!isAndroid) {
+      if (event) event.preventDefault();
+      const message = 'ملف تطبيق علوش البازار بصيغة APK مخصص لأجهزة أندرويد فقط.';
+      if (typeof UI !== 'undefined' && typeof UI.toast === 'function') UI.toast(message, 'info');
+      else window.alert(message);
+      return false;
     }
-  },
-  async install() {
-    if(this.deferredPrompt) {
-      // المسار العادي: كروم/إيدج على أندرويد ودسكتوب
-      this.deferredPrompt.prompt();
-      const { outcome } = await this.deferredPrompt.userChoice;
-      this.deferredPrompt = null;
-      const btn = document.getElementById('pwaInstallBtn');
-      if(btn && outcome === 'accepted') btn.style.display = 'none';
-    } else {
-      // Safari / iOS مفيهوش install prompt برمجي — نوضح الخطوات يدويًا
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-      if(isIOS) {
-        showConfirm('على آيفون: دوس على زرار المشاركة (⬆️) في المتصفح، ثم اختر "إضافة إلى الشاشة الرئيسية".', ()=>{});
-      } else {
-        showConfirm('لتثبيت التطبيق: افتح قائمة المتصفح (⋮ أو ⋯) واختر "تثبيت التطبيق" أو "Install App".', ()=>{});
-      }
-    }
+    // اترك الرابط الطبيعي يعمل حتى يلتقط DownloadManager التنزيل داخل تطبيق Android WebView.
+    return true;
   }
 };
-document.addEventListener('DOMContentLoaded', () => PWAInstall.init());
 </script>
 
 
