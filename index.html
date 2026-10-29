@@ -4508,6 +4508,116 @@ body.dates-print-only #tab-products .dates-view-toolbar{display:none!important;}
   #tab-products.dates-view-table .dates-table .dates-row-actions{width:144px;min-width:144px;max-width:144px;}
   #tab-products.dates-view-table .dates-table .dates-row-actions .dates-action-btn{padding:2px;font-size:8px;}
 }
+/* Allosh Dates UI polish: stable hierarchy and balanced mobile layout */
+@media (max-width: 600px) {
+  #tab-products.dates-page { padding: 8px; }
+  #tab-products .dates-layout { gap: 12px; }
+  #tab-products .dates-panel { padding: 12px; border-radius: 16px; }
+  #tab-products .dates-header {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 13px;
+    margin-bottom: 14px;
+  }
+  #tab-products .dates-title-wrap {
+    width: 100%;
+    align-items: center;
+    gap: 11px;
+  }
+  #tab-products .dates-title-icon {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    border-radius: 13px;
+  }
+  #tab-products .dates-title-wrap h2 { font-size: 21px; letter-spacing: -.2px; }
+  #tab-products .dates-title-wrap p { font-size: 11.5px; line-height: 1.75; max-width: 100%; }
+  #tab-products .dates-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "refresh refresh" "export print";
+    gap: 8px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(78,126,177,.18);
+  }
+  #tab-products .dates-actions #datesRefreshBtn { grid-area: refresh; }
+  #tab-products .dates-actions .dates-btn:nth-child(2) { grid-area: export; }
+  #tab-products .dates-actions .dates-btn:nth-child(3) { grid-area: print; }
+  #tab-products .dates-actions .dates-btn {
+    display: inline-flex;
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 8px;
+    gap: 7px;
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: normal;
+    border-radius: 12px;
+  }
+  #tab-products .dates-actions #datesRefreshBtn { min-height: 46px; font-size: 12.5px; }
+  #tab-products .dates-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+    margin-bottom: 0;
+  }
+  #tab-products .dates-stat {
+    min-height: 92px;
+    height: 100%;
+    padding: 10px;
+    gap: 8px;
+    border-radius: 13px;
+    align-items: center;
+  }
+  #tab-products .dates-stat-icon {
+    width: 35px;
+    height: 35px;
+    flex-basis: 35px;
+    border-radius: 10px;
+    font-size: 16px;
+  }
+  #tab-products .dates-stat-copy { display: flex; flex-direction: column; gap: 1px; }
+  #tab-products .dates-stat-label { font-size: 10.5px; line-height: 1.5; margin-bottom: 2px; }
+  #tab-products .dates-stat-value { font-size: 21px; line-height: 1.2; }
+  #tab-products .dates-stat-note { font-size: 9.5px; line-height: 1.45; margin-top: 3px; }
+  #tab-products .dates-stat.expired {
+    grid-column: 1 / -1;
+    min-height: 76px;
+  }
+  #tab-products .dates-stat.expired .dates-stat-copy {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 12px;
+    row-gap: 2px;
+  }
+  #tab-products .dates-stat.expired .dates-stat-label { grid-column: 1; grid-row: 1; }
+  #tab-products .dates-stat.expired .dates-stat-value { grid-column: 2; grid-row: 1 / span 2; }
+  #tab-products .dates-stat.expired .dates-stat-note { grid-column: 1; grid-row: 2; }
+  #tab-products .dates-add-panel { margin-top: 0; }
+  #tab-products .dates-section-title {
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 8px;
+    padding-bottom: 12px;
+    margin-bottom: 13px;
+    border-bottom: 1px solid rgba(78,126,177,.18);
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  #tab-products .dates-section-subtitle { margin-top: 7px; font-size: 11.5px; line-height: 1.75; }
+}
+@media (min-width: 601px) and (max-width: 850px) {
+  #tab-products .dates-header { align-items: stretch; }
+  #tab-products .dates-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  #tab-products .dates-actions .dates-btn { width: 100%; }
+  #tab-products .dates-stat.expired { grid-column: auto; }
+}
+
 </style>
 
 <div id="tab-products" class="tab-content dates-page" style="display:none;">
@@ -4522,7 +4632,7 @@ body.dates-print-only #tab-products .dates-view-toolbar{display:none!important;}
           </div>
         </div>
         <div class="dates-actions dates-no-print">
-          
+          <button id="datesRefreshBtn" class="dates-btn blue" type="button" onclick="UI.refreshDatesData()" title="تحديث وحفظ أسماء الأصناف وأسعار التكلفة والبيع من شيت الأسعار في Firebase لجميع المستخدمين"><span class="ui-icon-slot" data-icon="refresh" aria-hidden="true"></span> تحديث البيانات</button>
           <button class="dates-btn green" type="button" onclick="ProductService.exportExcel()"><span class="ui-icon-slot" data-icon="file" aria-hidden="true"></span> تصدير Excel</button>
           <button class="dates-btn" type="button" onclick="UI.printProducts()"><span class="ui-icon-slot" data-icon="printer" aria-hidden="true"></span> طباعة</button>
         </div>
@@ -23140,6 +23250,182 @@ renderTransfers(){
           this._productsPage=1;
           this.renderProducts();
         },
+        async refreshDatesData(){
+          if(!(hasPermission('products')||hasPermission('all'))){
+            UI.toast('ليس لديك صلاحية تحديث بيانات صفحة التواريخ','error',6000);
+            return;
+          }
+          if(this._datesRefreshInProgress){
+            UI.toast('تحديث بيانات التواريخ جارٍ بالفعل','warning',3500);
+            return;
+          }
+          this._datesRefreshInProgress=true;
+          const btn=document.getElementById('datesRefreshBtn');
+          const oldHtml=btn?.innerHTML;
+          try{
+            if(btn){btn.disabled=true;btn.setAttribute('aria-busy','true');btn.innerHTML='<span class="ui-icon-slot" data-icon="refresh" aria-hidden="true"></span> جارٍ تحديث وحفظ البيانات...';}
+            let priceData=null, priceError=null;
+            try{
+              if(typeof PriceSheetService==='undefined') throw new Error('خدمة شيت الأسعار غير متاحة');
+              PriceSheetService.startWatch();
+              priceData=await PriceSheetService.load(true);
+              if(!priceData) priceError='لم يتم العثور على نسخة شيت أسعار محفوظة';
+              else if(((priceData.baz?.size||0)+(priceData.cai?.size||0))===0) priceError='نسخة شيت الأسعار موجودة لكنها لا تحتوي على أصناف';
+            }catch(err){
+              priceError=String(err?.message||err||'تعذر تحميل شيت الأسعار');
+              console.warn('[Dates] forced price-sheet refresh failed:',err);
+            }
+
+            let syncResult=null, productsError=null, productsErrorObject=null, productsOk=false;
+            if(!priceError && priceData){
+              try{
+                syncResult=await this._persistDatesProductsFromPriceSheet(priceData);
+                productsOk=true;
+              }catch(err){
+                productsErrorObject=err;
+                productsError=String(err?.message||err||'تعذر حفظ تحديثات الأسماء والأسعار في قاعدة البيانات');
+                console.error('[Dates] persist refresh failed:',err);
+                // Reload the actual DB state after a partial batch failure; never leave unsaved values shown as if persisted.
+                try{await this.refreshProducts({silent:true});}catch(reloadErr){console.warn('[Dates] reload after partial sync failed:',reloadErr);}
+              }
+            }else{
+              // If the price sheet is unavailable, still refresh date batches without changing their saved values.
+              try{await this.refreshProducts({silent:true});productsOk=true;}
+              catch(err){productsError=String(err?.message||err||'تعذر تحميل دفعات التواريخ');}
+            }
+
+            if(productsOk && !priceError && syncResult){
+              const updated=Number(syncResult.updatedRecords)||0;
+              const matched=Number(syncResult.matchedRecords)||0;
+              const details=`${Number(syncResult.nameUpdates||0).toLocaleString('ar-EG')} اسم، ${Number(syncResult.costUpdates||0).toLocaleString('ar-EG')} تكلفة، ${Number(syncResult.priceUpdates||0).toLocaleString('ar-EG')} سعر بيع`;
+              if(!matched && Number(syncResult.totalRecords)>0){
+                UI.toast(`تم تحميل ${Number(syncResult.totalRecords).toLocaleString('ar-EG')} سجل، لكن لم يتم العثور على باركودات مطابقة لشيت الأسعار بحسب الفرع. لم تتغير البيانات المحفوظة؛ راجع صيغة الباركود وتصنيف الفرع في شيت الأسعار.`,'warning',9500);
+              }else{
+                const msg=updated
+                  ? `تم تحديث وحفظ البيانات في قاعدة البيانات لجميع المستخدمين — ${updated.toLocaleString('ar-EG')} سجل (${details}). لم تتغير الكميات أو الفروع أو تواريخ الانتهاء.`
+                  : `البيانات المحفوظة محدثة بالفعل — تمت مطابقة ${matched.toLocaleString('ar-EG')} سجل مع شيت الأسعار، ولم تكن هناك تغييرات مطلوبة.`;
+                UI.toast(msg,'success',8500);
+                try{SystemLog.add('SyncDatesPriceSheet','-','حفظ تحديث أسماء وأسعار دفعات التواريخ',{updatedRecords:updated,matchedRecords:matched,nameUpdates:syncResult.nameUpdates||0,costUpdates:syncResult.costUpdates||0,priceUpdates:syncResult.priceUpdates||0,priceSheetVersionId:priceData.versionId||null});}catch(logErr){console.warn('[Dates] refresh audit log failed:',logErr);}
+              }
+            }else if(productsOk && priceError){
+              UI.toast(`تم تحديث سجلات التواريخ فقط، لكن لم يتم تغيير الأسماء أو الأسعار المحفوظة لأن شيت الأسعار لم يُحمّل (${priceError}).`,'warning',8500);
+            }else if(productsError){
+              const partial=Number(productsErrorObject?.partialUpdatedRecords||0);
+              UI.toast(`تعذر إكمال تحديث قاعدة البيانات: ${productsError}${partial?` — تم حفظ تحديث ${partial.toLocaleString('ar-EG')} سجل قبل الخطأ؛ أعد الضغط لإكمال الباقي`:''}`,'error',9500);
+            }else{
+              UI.toast('تعذر تحديث بيانات التواريخ. راجع الاتصال وصلاحيات Firebase ثم أعد المحاولة.','error',8000);
+            }
+            return {productsUpdated:productsOk,pricesUpdated:!priceError,updatedRecords:syncResult?.updatedRecords||0,matchedRecords:syncResult?.matchedRecords||0,priceCount:(priceData?.baz?.size||0)+(priceData?.cai?.size||0)};
+          }finally{
+            this._datesRefreshInProgress=false;
+            if(btn){btn.disabled=false;btn.removeAttribute('aria-busy');if(oldHtml)btn.innerHTML=oldHtml;try{window.IconService?.render?.(btn.parentElement);}catch(_) {}}
+          }
+        },
+        async _persistDatesProductsFromPriceSheet(priceData){
+          if(typeof db==='undefined' || !db?.ref) throw new Error('Firebase غير متصل');
+          if(!priceData || !(priceData.baz instanceof Map) || !(priceData.cai instanceof Map)) throw new Error('بيانات شيت الأسعار غير صالحة');
+          const snap=await db.ref('products').once('value');
+          const rows=ArchiveService._collectProductRecords(snap);
+          const timestamp=Date.now();
+          const priceUpdatedAt=new Date(timestamp).toLocaleString('ar-EG');
+          const username=String(State.currentUser?.username||State.currentUser?.name||'-');
+          const toNumber=value=>{
+            if(value===null||value===undefined||value==='') return null;
+            const raw=ArchiveService._normalizeDigits(String(value)).replace(/[\s,٬]/g,'').replace(/٫/g,'.');
+            if(!raw) return null;
+            const n=Number(raw);
+            return Number.isFinite(n)?n:null;
+          };
+          const barcodeVariants=value=>{
+            const raw=String(value??'').trim();
+            const normalized=ArchiveService._normalizeProductBarcode(raw);
+            const clean=(typeof normalizeBarcode==='function')?normalizeBarcode(raw):raw;
+            const trimmedStars=raw.replace(/^\*+|\*+$/g,'');
+            return [...new Set([raw,clean,trimmedStars,normalized,raw.replace(/\./g,'_'),raw.replace(/[.#$\[\]]/g,'_'),normalized.replace(/\./g,'_'),normalized.replace(/[.#$\[\]]/g,'_')].filter(Boolean))];
+          };
+          const validName=value=>{
+            const name=String(value??'').trim();
+            return name && !['غير معلوم','-','—','null','undefined','***','****'].includes(name.toLowerCase())?name:'';
+          };
+          const pending=[];
+          let matchedRecords=0, nameUpdates=0, costUpdates=0, priceUpdates=0, skippedNoBarcode=0, skippedNoBranchPrice=0;
+          for(const rec of rows){
+            const product=rec.raw||{};
+            const rawBarcode=ArchiveService._productRecordBarcode(product);
+            const barcode=ArchiveService._normalizeProductBarcode(rawBarcode);
+            if(!barcode){skippedNoBarcode++;continue;}
+            const branchRaw=ArchiveService._productRecordBranch(product);
+            const branch=ArchiveService._normalizeProductBranch(branchRaw);
+            // Use the correct regional sheet only: Cairo branches read cai, Port Said branches and Bab 40 read baz.
+            // Never copy a price from the other region if this branch has no matching barcode.
+            const branchText=String(branchRaw||branch||'');
+            const isCairo=/الميرغني|المقطم|القاهرة|مصر\s*الجديدة|مصرالجديدة|cairo/i.test(branchText);
+            const isPortSaid=/بازار|الصباح|بورسعيد|باب\s*0?40|مخزن/i.test(branchText);
+            if(!isCairo && !isPortSaid){skippedNoBranchPrice++;continue;}
+            const priceMap=isCairo?priceData.cai:priceData.baz;
+            let found=null;
+            for(const variant of barcodeVariants(rawBarcode)){
+              found=priceMap.get(variant);
+              if(found) break;
+            }
+            if(!found){skippedNoBranchPrice++;continue;}
+            matchedRecords++;
+            const fields={};
+            const sheetName=validName(found.name);
+            if(sheetName && String(product.name??'').trim()!==sheetName){fields.name=sheetName;nameUpdates++;}
+            const sheetCost=toNumber(found.costPrice);
+            if(sheetCost!==null && sheetCost>0 && toNumber(product.cost)!==sheetCost){fields.cost=sheetCost;costUpdates++;}
+            const sheetPrice=toNumber(found.sellPrice);
+            if(sheetPrice!==null && sheetPrice>0 && toNumber(product.price)!==sheetPrice){fields.price=sheetPrice;priceUpdates++;}
+            if(Object.keys(fields).length){
+              fields.priceUpdatedAt=priceUpdatedAt;
+              fields.priceUpdatedBy=username;
+              pending.push({rec,fields});
+            }
+          }
+          // Commit small multi-location batches so a large products table stays within request limits.
+          // The update touches only name/cost/price plus audit metadata; quantities, branch, expiry and source are preserved.
+          const CHUNK_RECORDS=200;
+          let committedRecords=0;
+          const assertPriceSheetVersionStillCurrent=async()=>{
+            if(!priceData.versionId) return;
+            const pointer=await db.ref('priceSheet/currentVersion').once('value');
+            const currentVersion=pointer.val()||null;
+            if(currentVersion && String(currentVersion)!==String(priceData.versionId)){
+              throw new Error('تم نشر نسخة أحدث من شيت الأسعار أثناء التحديث. لم نكمل بالنسخة القديمة؛ اضغط تحديث البيانات مرة أخرى.');
+            }
+          };
+          try{
+            await assertPriceSheetVersionStillCurrent();
+            for(let i=0;i<pending.length;i+=CHUNK_RECORDS){
+              await assertPriceSheetVersionStillCurrent();
+              const chunk=pending.slice(i,i+CHUNK_RECORDS);
+              const updates={};
+              chunk.forEach(({rec,fields})=>{
+                const base=`products/${rec.key}`;
+                Object.entries(fields).forEach(([field,value])=>{updates[`${base}/${field}`]=value;});
+              });
+              await db.ref().update(updates);
+              chunk.forEach(({rec,fields})=>Object.assign(rec.raw,fields));
+              committedRecords+=chunk.length;
+            }
+          }catch(err){
+            err.partialUpdatedRecords=committedRecords;
+            // Reload live records so the UI never represents failed/uncommitted writes as saved data.
+            try{
+              const fresh=await db.ref('products').once('value');
+              const freshRows=ArchiveService._collectProductRecords(fresh);
+              State.products=freshRows.map(rec=>({...ArchiveService._clone(rec.raw),id:rec.key,_firebaseKey:rec.key}));
+              this._productsPage=1;
+              this.renderProducts();
+            }catch(reloadErr){console.warn('[Dates] reload after partial update failed:',reloadErr);}
+            throw err;
+          }
+          State.products=rows.map(rec=>({...ArchiveService._clone(rec.raw),id:rec.key,_firebaseKey:rec.key}));
+          this._productsPage=1;
+          this.renderProducts();
+          return {totalRecords:rows.length,matchedRecords,updatedRecords:committedRecords,nameUpdates,costUpdates,priceUpdates,skippedNoBarcode,skippedNoBranchPrice,versionId:priceData.versionId||null};
+        },
         refreshProducts(options={}){
           const silent=!!(options&&typeof options==='object'&&options.silent);
           return db.ref('products').once('value').then(snap=>{
@@ -23164,6 +23450,8 @@ renderTransfers(){
         },
         renderProducts(){
           const rawProducts = Array.isArray(State.products) ? State.products.slice() : [];
+          // عرض يعتمد على القيم المحفوظة في products فقط. زر التحديث هو العملية الوحيدة التي تنقل إصدار شيت الأسعار إلى سجلات قاعدة البيانات، حتى لا يرى كل جهاز إصدارًا مؤقتًا مختلفًا.
+          const displayProductName = product => String(product?.name||product?.productName||product?.itemName||product?.barcode||product?.itemNumber||'-');
           const quantityNumber = value => {
             const raw=ArchiveService._normalizeDigits(String(value ?? '')).replace(/,/g,'').trim();
             const n=Number(raw); return Number.isFinite(n)?n:0;
@@ -23196,7 +23484,7 @@ renderTransfers(){
             const ids=[];
             items.forEach(item=>{
               try { resolveProductSources(item||{}).values.forEach(source=>sourceSet.add(source)); } catch(_) {}
-              const nm=String(item?.name||getProductName(item?.barcode||item?.itemNumber||'')||'').trim(); if(nm) names.add(nm);
+              const nm=String(displayProductName(item)||'').trim(); if(nm) names.add(nm);
               const person=String(item?.user||item?.lastAddedBy||'').trim(); if(person) people.add(person);
               const id=String(item?.id||item?._id||'').trim(); if(id) ids.push(id);
             });
@@ -23343,11 +23631,7 @@ renderTransfers(){
             const title=`تم دمج ${n} سجلات${when?' بتاريخ '+when:''}${by?' بواسطة '+by:''}`;
             return ` <span class="dates-status" title="${esc(title)}" style="display:inline-flex;margin-top:4px;color:#34d399;background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25)">✓ مدمج من ${n.toLocaleString('ar-EG')} سجلات</span>`;
           };
-          const priceInfo=p=>{
-            let cost=p?.cost,price=p?.price;
-            try{const baz=window.S?.getBaz?.();const found=baz?.get(String(p?.barcode||''));if(found?.costPrice)cost=found.costPrice;if(found?.sellPrice)price=found.sellPrice;}catch(_){}
-            return {cost,price};
-          };
+          const priceInfo=p=>({cost:p?.cost,price:p?.price});
           const actionButtons=p=>{
             if(Number(p?._displayDuplicateCount)>1){
               const count=Number(p._displayDuplicateCount)||0;
@@ -23365,7 +23649,7 @@ renderTransfers(){
             return buttons.length?`<div class="dates-row-actions actions-${buttons.length}">${buttons.join('')}</div>`:'';
           };
           const tableRows=pageItems.map((x,i)=>{
-            const p=x.p,m=x.meta,pr=priceInfo(p),name=p?.name||getProductName(p?.barcode)||'-';
+            const p=x.p,m=x.meta,pr=priceInfo(p),name=displayProductName(p);
             const qtyColor=m.quantity===0?'#fb7185':m.quantity<=10?'#fbbf24':'#34d399';
             const cost=pr.cost!==null&&pr.cost!==undefined&&pr.cost!==''?`${Number(pr.cost).toLocaleString('ar-EG')} ج`:'—';
             const price=pr.price!==null&&pr.price!==undefined&&pr.price!==''?`${Number(pr.price).toLocaleString('ar-EG')} ج`:'—';
