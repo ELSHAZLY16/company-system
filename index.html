@@ -14652,13 +14652,9 @@ function getBatchSourceInfo(product, sourceMap) {
       }
     },
     async add() {
-        // صفحة التواريخ مسموح لها بالإضافة اليدوية فقط للمستخدم الذي يملك فتح الصفحة وصلاحية التعديل.
+        // الإضافة اليدوية لدفعات التواريخ تتبع صلاحية صفحة التواريخ فقط؛ لا تشترط صلاحية التعديل العامة.
         if (!(hasPermission('products') || hasPermission('all'))) {
-          UI.toast('ليس لديك صلاحية الوصول إلى صفحة التواريخ', 'error');
-          return;
-        }
-        if (!(hasPermission('edit') || hasPermission('all'))) {
-          UI.toast('إضافة دفعة يدوية تتطلب صلاحية التعديل', 'error');
+          UI.toast('إضافة دفعة يدوية تتطلب صلاحية صفحة التواريخ', 'error');
           return;
         }
         const barcodeInput=document.getElementById('productBarcode');
@@ -16076,10 +16072,10 @@ document.querySelectorAll("table").forEach(t => {
   _canEdit ? t.classList.remove("no-edit-perm") : t.classList.add("no-edit-perm")
 })
 
-// نموذج إضافة دفعة تواريخ يدويًا متاح فقط لصلاحية التواريخ + التعديل.
+// نموذج إضافة دفعة تواريخ يدويًا متاح لمن يملك صلاحية صفحة التواريخ؛ لا يحتاج صلاحية التعديل العامة.
 const _datesAddPanel = document.getElementById("datesAddPanel");
 if (_datesAddPanel) {
-  const _canAddDateBatch = (perms.includes("products") || perms.includes("all")) && (perms.includes("edit") || perms.includes("all"));
+  const _canAddDateBatch = perms.includes("products") || perms.includes("all");
   _datesAddPanel.style.display = _canAddDateBatch ? "" : "none";
 }
 
