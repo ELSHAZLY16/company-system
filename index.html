@@ -4522,7 +4522,7 @@ body.dates-print-only #tab-products .dates-view-toolbar{display:none!important;}
           </div>
         </div>
         <div class="dates-actions dates-no-print">
-          <span class="dates-readonly-pill" role="status" style="display:inline-flex;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid rgba(148,163,184,.28);background:rgba(148,163,184,.08);color:var(--text-muted,#94a3b8);font-size:11px;font-weight:700">الإضافة والاستيراد وتحديث الأسعار من صفحة التواريخ متوقفة</span>
+          
           <button class="dates-btn green" type="button" onclick="ProductService.exportExcel()"><span class="ui-icon-slot" data-icon="file" aria-hidden="true"></span> تصدير Excel</button>
           <button class="dates-btn" type="button" onclick="UI.printProducts()"><span class="ui-icon-slot" data-icon="printer" aria-hidden="true"></span> طباعة</button>
         </div>
@@ -4535,6 +4535,24 @@ body.dates-print-only #tab-products .dates-view-toolbar{display:none!important;}
         <div class="dates-stat expired"><div class="dates-stat-icon"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span></div><div class="dates-stat-copy"><div class="dates-stat-label">منتهي الصلاحية</div><div class="dates-stat-value" id="productsExpired">0</div><div class="dates-stat-note">يتطلب المراجعة</div></div></div>
       </div>
     </section>
+
+    <section class="dates-panel dates-add-panel" id="datesAddPanel" style="display:none;">
+      <div class="dates-section-title"><div><span class="ui-icon-slot" data-icon="plus-circle" aria-hidden="true"></span> إضافة دفعة / صنف جديد<div class="dates-section-subtitle">إذا تكرر نفس الباركود مع نفس تاريخ الانتهاء والفرع، تُضاف الكمية إلى السجل الموجود. اختلاف تاريخ الانتهاء ينشئ دفعة مستقلة. هذه الإضافة تسجل دفعة تواريخ فقط ولا تغيّر رصيد مخزن باب 40.</div></div></div>
+      <div class="dates-add-grid">
+        <div class="dates-field wide">
+          <label for="productBarcode">باركود الصنف</label>
+          <div class="dates-barcode-input"><input id="productBarcode" placeholder="امسح أو اكتب الباركود" autocomplete="off" oninput="onProductBarcodeInput(this.value)"><button class="dates-btn primary" type="button" onclick="ProductService.scanBarcode()" aria-label="مسح الباركود"><span class="ui-icon-slot" data-icon="camera" aria-hidden="true"></span></button></div>
+        </div>
+        <div class="dates-field wide"><label for="productName">اسم الصنف</label><input id="productName" placeholder="اسم المنتج" autocomplete="off"></div>
+        <div class="dates-field"><label for="productBranch">الفرع</label><select id="productBranch"><option value="">اختر الفرع</option><option value="البازار">البازار</option><option value="الصباح">الصباح</option><option value="باب40">باب 40</option><option value="الثلاجة">الثلاجة</option></select></div>
+        <div class="dates-field"><label for="productQuantity">الكمية</label><input id="productQuantity" type="number" min="0" step="any" placeholder="الكمية" inputmode="decimal"></div>
+        <div class="dates-field price-col"><label for="productCost">سعر التكلفة</label><input type="text" inputmode="decimal" id="productCost" placeholder="0.00" oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"></div>
+        <div class="dates-field price-col"><label for="productPrice">سعر البيع</label><input type="text" inputmode="decimal" id="productPrice" placeholder="0.00" oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"></div>
+        <div class="dates-field"><label for="productExpire">تاريخ الانتهاء</label><input id="productExpire" type="date"></div>
+      </div>
+      <div class="dates-add-footer dates-no-print"><button class="dates-btn green" type="button" onclick="ProductService.add()"><span class="ui-icon-slot" data-icon="plus" aria-hidden="true"></span> تسجيل الدفعة</button></div>
+    </section>
+
 
     <section class="dates-panel">
       <div class="dates-section-title"><div><span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span> البحث والتصفية<div class="dates-section-subtitle">ابحث بالباركود أو الاسم، ثم صفِّ حسب الفرع أو المصدر أو حالة الصلاحية. توحيد السجلات الفعلية يتم من صفحة الأرشيف.</div></div></div>
@@ -14633,89 +14651,104 @@ function getBatchSourceInfo(product, sourceMap) {
         if(progressInfo && progressInfo.textContent==='جارٍ فحص دفعات التواريخ المتكررة دون تعديل البيانات…') progressInfo.textContent=previousProgressText;
       }
     },
-    add() {
-        UI.toast('إضافة دفعات التواريخ من هذه الصفحة متوقفة. استخدم مسار الإدارة المعتمد.','warning',7000); return;
-        let barcode = document.getElementById("productBarcode").value.trim();
-        let name = document.getElementById("productName").value.trim();
-        let qty = Number(document.getElementById("productQuantity").value);
-        let cost = Number(document.getElementById("productCost").value);
-        let price = Number(document.getElementById("productPrice").value);
-        let expire = document.getElementById("productExpire").value;
-        let branch = document.getElementById("productBranch").value;
-
-        if (!barcode) { UI.toast("اكتب الباركود", "error"); return; }
-        if (!branch) { UI.toast("اختر الفرع أولاً", "error"); document.getElementById("productBranch").focus(); return; }
-        if (!qty) qty = 1;
-
-        barcode = ArchiveService._normalizeProductBarcode(barcode);
-        branch = ArchiveService._normalizeProductBranch(branch);
-        expire = ArchiveService._normalizeProductExpiry(expire);
-        let existing = ArchiveService._findMatchingProductBatch(State.products, barcode, branch, expire);
-        if (existing) {
-            let newQty = (Number(existing.quantity) || 0) + qty;
-            const now = new Date();
-            const sourcePayload = productSourcePayload(existing, 'يدوي');
-            db.ref("products/" + existing.id).update({
-              barcode,
-              branch,
-              expire,
-              quantity: newQty,
-              lastAddedAt: now.toLocaleString('ar-EG'),
-              lastAddedBy: State.currentUser?.username || '-',
-              lastAddedTimestamp: firebase.database.ServerValue.TIMESTAMP,
-              ...sourcePayload
-            }).then(() => {
-              SystemLog.add("ProductIncrease", barcode, existing.name || name || barcode, { branch, quantity: qty, productName: existing.name || name || barcode });
-              UI.toast("✅ تم زيادة الكمية — " + (existing.name||barcode) + " (" + newQty + ")", "success");
-            }).catch(err => UI.toast("❌ فشل زيادة الكمية: " + (err.message||err), "error"));
-        } else {
-            if (!name) { UI.toast("اكتب اسم الصنف", "error"); return; }
-            const now = new Date();
-            let data = {
-                barcode: barcode,
-                name: name,
-                quantity: qty,
-                branch: branch,
-                cost: cost,
-                price: price,
-                expire: expire,
-                user: State.currentUser?.username || '-',
-                source: 'يدوي',
-                sources: ['يدوي'],
-                addedAt: now.toLocaleString('ar-EG'),
-                addedDate: now.toISOString().slice(0,10),
-                addedTime: now.toTimeString().slice(0,5),
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            };
-            // push() عشان كل batch (باركود + تاريخ انتهاء مختلف) يبقى سجل مستقل
-            db.ref("products").push(data).then(() => {
-              SystemLog.add("ProductAdd", barcode, name, { branch, quantity: qty, productName: name });
-              UI.toast("✅ تم إضافة صنف جديد — " + name, "success");
-            }).catch(err => UI.toast("❌ فشل إضافة الصنف: " + (err.message||err), "error"));
+    async add() {
+        // صفحة التواريخ مسموح لها بالإضافة اليدوية فقط للمستخدم الذي يملك فتح الصفحة وصلاحية التعديل.
+        if (!(hasPermission('products') || hasPermission('all'))) {
+          UI.toast('ليس لديك صلاحية الوصول إلى صفحة التواريخ', 'error');
+          return;
         }
-        
-        // مسح الحقول بعد الإضافة
-let fields = [
-"productBarcode",
-"productName",
-"productQuantity",
-"productCost",
-"productPrice",
-"productExpire",
-"productBranch"
-];
-
-fields.forEach(id=>{
-let el = document.getElementById(id);
-if(el){
-el.value = "";
-}
-});
-
-// رجوع المؤشر للباركود
-document.getElementById("productBarcode").focus();
+        if (!(hasPermission('edit') || hasPermission('all'))) {
+          UI.toast('إضافة دفعة يدوية تتطلب صلاحية التعديل', 'error');
+          return;
+        }
+        const barcodeInput=document.getElementById('productBarcode');
+        const nameInput=document.getElementById('productName');
+        const qtyInput=document.getElementById('productQuantity');
+        const branchInput=document.getElementById('productBranch');
+        const expireInput=document.getElementById('productExpire');
+        const costInput=document.getElementById('productCost');
+        const priceInput=document.getElementById('productPrice');
+        if(!barcodeInput||!nameInput||!qtyInput||!branchInput||!expireInput){
+          UI.toast('نموذج إضافة الدفعة غير مكتمل؛ حدّث الصفحة وحاول مرة أخرى', 'error');
+          return;
+        }
+        let barcode=ArchiveService._normalizeProductBarcode(barcodeInput.value);
+        const name=String(nameInput.value||'').trim();
+        const branch=ArchiveService._normalizeProductBranch(branchInput.value);
+        const expire=ArchiveService._normalizeProductExpiry(expireInput.value);
+        const qtyRaw=ArchiveService._normalizeDigits(String(qtyInput.value||'')).replace(/,/g,'').trim();
+        const qty=Number(qtyRaw);
+        const costRaw=ArchiveService._normalizeDigits(String(costInput?.value||'')).replace(/,/g,'').trim();
+        const priceRaw=ArchiveService._normalizeDigits(String(priceInput?.value||'')).replace(/,/g,'').trim();
+        const cost=costRaw===''?0:Number(costRaw);
+        const price=priceRaw===''?0:Number(priceRaw);
+        if(!barcode){ UI.toast('اكتب باركود الصنف أو امسحه', 'error'); barcodeInput.focus(); return; }
+        if(!branch){ UI.toast('اختر الفرع أولًا', 'error'); branchInput.focus(); return; }
+        if(!Number.isFinite(qty)||qty<=0){ UI.toast('أدخل كمية أكبر من صفر', 'error'); qtyInput.focus(); return; }
+        if(!Number.isFinite(cost)||cost<0||!Number.isFinite(price)||price<0){ UI.toast('راجع سعر التكلفة وسعر البيع', 'error'); return; }
+        if(this._manualAddBusy){ UI.toast('هناك عملية إضافة جارية؛ انتظر انتهائها', 'warning'); return; }
+        this._manualAddBusy=true;
+        const saveButton=document.querySelector('#datesAddPanel .dates-add-footer button');
+        const oldButtonText=saveButton?.innerHTML||'';
+        if(saveButton){saveButton.disabled=true;saveButton.textContent='جارٍ تسجيل الدفعة…';}
+        try {
+          const records=(Array.isArray(State.products)?State.products:[]).filter(p=>ArchiveService._productBatchKey(
+            ArchiveService._productRecordBarcode(p),
+            ArchiveService._productRecordBranch(p),
+            ArchiveService._productRecordExpiry(p)
+          )===ArchiveService._productBatchKey(barcode,branch,expire));
+          const existing=records[0]||null;
+          if(!existing && !name){ UI.toast('اكتب اسم الصنف عند إنشاء دفعة جديدة', 'error'); nameInput.focus(); return; }
+          if(existing && records.length>1){
+            UI.toast('توجد عدة سجلات متطابقة لهذه الدفعة. نفّذ معاينة ودمج التكرارات من صفحة الأرشيف أولًا، ثم أضف الكمية.', 'warning', 8000);
+            return;
+          }
+          const now=new Date();
+          let savedName=name;
+          if(existing){
+            const existingId=String(existing.id||existing._id||'').trim();
+            if(!existingId){throw new Error('معرّف سجل الدفعة غير متاح؛ لم يتم تعديل البيانات.');}
+            const newQty=(Number(existing.quantity)||0)+qty;
+            savedName=String(existing.name||name||barcode);
+            const sourcePayload=productSourcePayload(existing,'يدوي');
+            const updates={
+              barcode, branch, expire, quantity:newQty,
+              lastAddedAt:now.toLocaleString('ar-EG'),
+              lastAddedBy:State.currentUser?.username||'-',
+              lastAddedTimestamp:firebase.database.ServerValue.TIMESTAMP,
+              ...sourcePayload
+            };
+            await db.ref('products/'+existingId).update(updates);
+            try{SystemLog.add('ProductIncrease',barcode,savedName,{branch,quantity:qty,productName:savedName,source:'يدوي',expiry:expire});}catch(logErr){console.warn('[Dates] product increase log failed',logErr);}
+            UI.toast('تمت زيادة كمية الدفعة اليدوية — '+savedName+' (الإجمالي '+newQty+')','success',6000);
+          } else {
+            const data={
+              barcode, name, quantity:qty, branch, expire,
+              user:State.currentUser?.username||'-',
+              source:'يدوي', sources:['يدوي'],
+              addedAt:now.toLocaleString('ar-EG'),
+              addedDate:new Date(TimeUtils.now()).toISOString().slice(0,10),
+              addedTime:now.toTimeString().slice(0,5),
+              timestamp:firebase.database.ServerValue.TIMESTAMP
+            };
+            // لا نكتب أسعارًا افتراضية صفرية للمستخدم الذي لا يملك صلاحية رؤية الأسعار.
+            if(hasPermission('viewPrices')||hasPermission('all')){data.cost=cost;data.price=price;}
+            await db.ref('products').push(data);
+            try{SystemLog.add('ProductAdd',barcode,name,{branch,quantity:qty,productName:name,source:'يدوي',expiry:expire});}catch(logErr){console.warn('[Dates] product add log failed',logErr);}
+            UI.toast('تمت إضافة دفعة تواريخ جديدة — '+name,'success',6000);
+          }
+          // امسح الحقول بعد نجاح Firebase فقط؛ عند الفشل تبقى المدخلات لاستكمال المحاولة.
+          ['productBarcode','productName','productQuantity','productCost','productPrice','productExpire','productBranch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+          try{UI.renderProducts();}catch(renderErr){console.warn('[Dates] render after manual add failed',renderErr);}
+          barcodeInput.focus();
+        } catch(err) {
+          console.error('[Dates] manual add failed',err);
+          UI.toast('فشل تسجيل الدفعة ولم يتم تأكيد الحفظ: '+(err?.message||String(err)), 'error', 8000);
+        } finally {
+          this._manualAddBusy=false;
+          if(saveButton){saveButton.disabled=false;saveButton.innerHTML=oldButtonText;}
+        }
     },
-
     importFromTransfers() {
       UI.toast('استيراد التحويلات من صفحة التواريخ متوقف؛ استخدم المسار المعتمد للتحويلات.','warning',7000); return;
       const transfers = State.transfers || [];
@@ -16042,6 +16075,13 @@ const _canEdit = perms.includes("edit") || perms.includes("delete") || perms.inc
 document.querySelectorAll("table").forEach(t => {
   _canEdit ? t.classList.remove("no-edit-perm") : t.classList.add("no-edit-perm")
 })
+
+// نموذج إضافة دفعة تواريخ يدويًا متاح فقط لصلاحية التواريخ + التعديل.
+const _datesAddPanel = document.getElementById("datesAddPanel");
+if (_datesAddPanel) {
+  const _canAddDateBatch = (perms.includes("products") || perms.includes("all")) && (perms.includes("edit") || perms.includes("all"));
+  _datesAddPanel.style.display = _canAddDateBatch ? "" : "none";
+}
 
 // إخفاء أعمدة/خانات أسعار التكلفة والبيع (في الجدول وفورم إضافة الصنف) بناءً على صلاحية رؤية الأسعار
 const _canViewPrices = perms.includes("viewPrices") || perms.includes("all")
