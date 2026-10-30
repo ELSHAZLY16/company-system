@@ -4632,7 +4632,7 @@ body.dates-print-only #tab-products .dates-view-toolbar{display:none!important;}
           </div>
         </div>
         <div class="dates-actions dates-no-print">
-          <button id="datesRefreshBtn" class="dates-btn blue" type="button" onclick="UI.refreshDatesData()" title="تحديث وحفظ أسماء الأصناف وأسعار التكلفة والبيع من شيت الأسعار في Firebase لجميع المستخدمين"><span class="ui-icon-slot" data-icon="refresh" aria-hidden="true"></span> تحديث البيانات</button>
+          <button id="datesRefreshBtn" class="dates-btn blue" type="button" onclick="UI.refreshDatesData()" title="تحديث دفعات التواريخ وشيت الأسعار من Firebase دون تعديل البيانات المحفوظة"><span class="ui-icon-slot" data-icon="refresh" aria-hidden="true"></span> تحديث البيانات</button>
           <button class="dates-btn green" type="button" onclick="ProductService.exportExcel()"><span class="ui-icon-slot" data-icon="file" aria-hidden="true"></span> تصدير Excel</button>
           <button class="dates-btn" type="button" onclick="UI.printProducts()"><span class="ui-icon-slot" data-icon="printer" aria-hidden="true"></span> طباعة</button>
         </div>
@@ -5144,12 +5144,8 @@ const fmtDT = v => {
       d = new Date(v);
     } else return '—';
     if(isNaN(d.getTime())) return '—';
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const yy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
-    return `${dd}/${mm}/${yy} — ${hh}:${mi}`;
+    const ts=d.getTime();
+    return `${EgyptClock.formatDate(ts,'en-GB')} — ${EgyptClock.time24(ts)}`;
   } catch(e){ return '—'; }
 };
 
@@ -8601,34 +8597,29 @@ document.getElementById("transferBoxes").oninput = calcTransferTotal
 document.getElementById("transferPieces").oninput = calcTransferTotal
 
 function getRemainingDays(expireDate){
-  // حساب الأيام المتبقية كتاريخ تقويمي، وليس كفرق ساعات من اللحظة الحالية.
-  // مثال: اليوم 19/09 والانتهاء 20/09 = يوم واحد حتى لو كان الوقت الآن مساءً.
-  if(!expireDate) return null
-
-  const toDateOnly = (value) => {
+  // احسب المدة كتاريخ تقويمي بتوقيت مصر، بعيدًا عن المنطقة الزمنية المخزنة في الهاتف.
+  if(expireDate===null || expireDate===undefined || expireDate==='') return null;
+  const toKey=value=>{
     if(value instanceof Date){
-      return new Date(value.getFullYear(), value.getMonth(), value.getDate())
+      if(!Number.isFinite(value.getTime())) return '';
+      // تاريخ Date هنا قديمًا كان يُنشأ من حقل تاريخ فقط؛ نحتفظ بأجزائه التقويمية.
+      const pad=n=>String(n).padStart(2,'0');
+      return `${value.getFullYear()}-${pad(value.getMonth()+1)}-${pad(value.getDate())}`;
     }
-
-    const raw = String(value).trim()
-    const m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
-    if(m){
-      const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]))
-      return isNaN(d.getTime()) ? null : d
-    }
-
-    const parsed = new Date(value)
-    if(isNaN(parsed.getTime())) return null
-    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate())
-  }
-
-  const nowValue = (typeof TimeUtils !== 'undefined' && typeof TimeUtils.now === 'function') ? TimeUtils.now() : new Date()
-  const today = toDateOnly(nowValue)
-  const exp   = toDateOnly(expireDate)
-
-  if(!today || !exp) return null
-
-  return Math.round((exp.getTime() - today.getTime()) / 86400000)
+    const raw=String(value).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+    let m=raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if(m) return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')}`;
+    m=raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+    if(m) return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+    const parsed=new Date(value);
+    return Number.isFinite(parsed.getTime())?EgyptClock.dateKey(parsed.getTime()):'';
+  };
+  const todayKey=EgyptClock.dateKey(typeof TimeUtils!=='undefined'&&TimeUtils.now?TimeUtils.now():Date.now());
+  const expiryKey=toKey(expireDate);
+  const split=key=>{const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])):NaN;};
+  const today=split(todayKey), expiry=split(expiryKey);
+  if(!Number.isFinite(today)||!Number.isFinite(expiry)) return null;
+  return Math.round((expiry-today)/86400000);
 }
 
     // منع الزوم
@@ -9532,7 +9523,7 @@ const ArchiveService = {
     if(tbody) tbody.innerHTML=this._filtered.slice(0,5).map(item=>{
       const ts=this.getTimestamp(item);
       const d=ts?new Date(ts).toLocaleDateString('ar-EG'):item.date||item.expire||'-';
-      const t=ts?new Date(ts).toLocaleTimeString('ar-EG'):'-';
+      const t=ts?EgyptClock.formatTime(ts):'-';
       return `<tr><td style="font-size:10px;color:#64748b">${this._escapeHtml((item._id||'').slice(-6))}</td><td>${this._escapeHtml(item.title||item.name||item.username||item.company||item.plate||'-')}</td><td>${this._escapeHtml(item.action||item.type||item.code||item.body||'-')}</td><td>${this._escapeHtml(d)}</td><td style="font-size:10px">${this._escapeHtml(t)}</td></tr>`;
     }).join('');
     if(sec) sec.style.display='block';
@@ -9916,7 +9907,7 @@ const SalaryService = {
 
     empAtt.forEach(a => {
       const ts  = Number(a.timestamp) || 0;
-      const day = new Date(ts).toISOString().slice(0,10);
+      const day = EgyptClock.dateKey(ts);
       if(!dayMap[day]) dayMap[day] = [];
 
       if(a.action === 'CheckIn') {
@@ -10041,7 +10032,7 @@ const SalaryService = {
     const breaksByDayDates = {};
     breakRecords.forEach(b => {
       const ts  = b.deviceBreakTime || b.timestamp || 0;
-      const day = new Date(ts).toISOString().slice(0,10);
+      const day = EgyptClock.dateKey(ts);
       // ⚠️ b.duration مخزّنة بالميلي ثانية — لازم تتحول لدقائق (durationMins مش موجودة فعليًا في البيانات)
       const durMins = (Number(b.duration) || 0) / 60000;
       breaksByDay[day] = (breaksByDay[day] || 0) + durMins;
@@ -10814,7 +10805,7 @@ const AdvanceService = {
           </div>
           <div>
             <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:5px">تاريخ السلفة</label>
-            <input id="advDate" type="date" value="${isEdit?(existing.date||new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10)}"
+            <input id="advDate" type="date" value="${isEdit?(existing.date||EgyptClock.dateKey(TimeUtils.now())):EgyptClock.dateKey(TimeUtils.now())}"
               style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
           </div>
           <div>
@@ -10852,7 +10843,7 @@ const AdvanceService = {
       code:      String(empCode).trim(),
       name:      String(empName).trim(),
       amount, note,
-      date:      dateVal || new Date().toISOString().slice(0,10),
+      date:      dateVal || EgyptClock.dateKey(TimeUtils.now()),
       timestamp: ts,
       addedBy:   State.currentUser?.username || '-'
     };
@@ -11021,11 +11012,11 @@ function setLeavesFilter(btn,range){
 
 function _inRange(ts, range){
   if(range === "all") return true;
-  const now = new Date(TimeUtils.now());
-  const d = new Date(ts || 0);
-  if(range === "day")   return d.toDateString() === now.toDateString();
-  if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
-  if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+  const nowTs=TimeUtils.now(), nowKey=EgyptClock.dateKey(nowTs), key=EgyptClock.dateKey(Number(ts)||0);
+  if(!key||!nowKey)return false;
+  if(range === "day") return key===nowKey;
+  if(range === "week") return key>=EgyptClock.rangeStartKey(nowTs,'week');
+  if(range === "month") return key>=EgyptClock.rangeStartKey(nowTs,'month');
   return true;
 }
 
@@ -11109,7 +11100,7 @@ function undoPenaltyExemption(logId){
       manager: entry.penaltyManager || "تلقائي",
       reason: entry.reason || "-",
       date: entry.penaltyDate || entry.dateKey || "",
-      time: entry.penaltyTime || new Date(originalTimestamp).toLocaleTimeString("ar-EG"),
+      time: entry.penaltyTime || EgyptClock.formatTime(originalTimestamp),
       timestamp: originalTimestamp,
       createdBy: entry.penaltyCreatedBy || "النظام (تلقائي)",
       auto: true,
@@ -11702,21 +11693,20 @@ function calcTimeDiff(inVal, outVal) {
 
 // حساب timestamp الخروج مع مراعاة الوردية الليلية
 function calcOutTimestamp(date, inVal, outVal) {
-  const [oh,om] = outVal.split(":").map(Number);
-  const [ih,im] = inVal.split(":").map(Number);
-  const d = new Date(date);
-  d.setHours(oh, om, 0, 0);
-  // لو الخروج قبل الدخول = اليوم التالي
-  if((oh*60+om) <= (ih*60+im)) d.setDate(d.getDate() + 1);
-  return d;
+  const [oh,om] = String(outVal||'').split(":").map(Number);
+  const [ih,im] = String(inVal||'').split(":").map(Number);
+  const dateKey=String(date||'').slice(0,10);
+  let ts=EgyptClock.localToTimestamp(dateKey,`${String(oh).padStart(2,'0')}:${String(om).padStart(2,'0')}`);
+  const inTs=EgyptClock.localToTimestamp(dateKey,`${String(ih).padStart(2,'0')}:${String(im).padStart(2,'0')}`);
+  if(Number.isFinite(ts)&&Number.isFinite(inTs)&&ts<=inTs){ts=EgyptClock.localToTimestamp(EgyptClock.addDays(dateKey,1),`${String(oh).padStart(2,'0')}:${String(om).padStart(2,'0')}`);}
+  return Number.isFinite(ts)?new Date(ts):null;
 }
 
 function parseTimeToHHMM(t) {
   if(!t && t !== 0) return "";
   // timestamp رقمي
   if(typeof t === "number") {
-    const d = new Date(t);
-    return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+    return EgyptClock.time24(t);
   }
   t = String(t).trim();
   // تحويل أرقام عربية
@@ -11737,7 +11727,7 @@ function parseDateToYMD(dateStr) {
   if(!dateStr) return "";
   // لو timestamp
   if(typeof dateStr === "number") {
-    return new Date(dateStr).toISOString().slice(0,10);
+    return EgyptClock.dateKey(dateStr);
   }
   // لو صيغة ar-EG مثل "١٠/١٢/٢٠٢٤"
   const s = String(dateStr).replace(/[٠١٢٣٤٥٦٧٨٩]/g, d => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
@@ -11972,7 +11962,7 @@ const DeviceInfo = {
         leavesRange: "all",
         autoExemptions: {},
         penaltyExemptLog: [],
-        appBuild: "2026-10-25.51-journey-permissions-archive",
+        appBuild: "2026-10-30.56-egypt-timezone-complete",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -12148,7 +12138,136 @@ const DeviceInfo = {
     function selectPenaltyEmp(code, name) { const el=document.getElementById("penaltyCode"); el.value = code; autoMaskIdField(el); document.getElementById("penaltySuggestions").style.display = "none"; }
     function selectEmployee(code) { const el=document.getElementById("attCode"); el.value = code; autoMaskIdField(el); document.getElementById("empSuggestions").style.display = "none"; attUpdateEmpPreview(code); }
 
-    // ========================= خدمة الوقت والتنسيق =========================
+    // ========================= توقيت مصر الرسمي (Africa/Cairo) =========================
+    // لا نعتمد على المنطقة الزمنية المحلية للجهاز في الحضور أو التأخير أو الرواتب.
+    // منذ 2023: الصيفي يبدأ آخر جمعة أبريل عند 00:00 (GMT+3)،
+    // والشتوي يبدأ بعد نهاية آخر خميس أكتوبر (GMT+2). التوقيت هنا حتمي حتى لو كانت
+    // قاعدة المناطق الزمنية في جهاز Android قديمة أو لم تُحدّث إعدادات الجهاز.
+    const EgyptClock = (() => {
+      const MIN = 60000;
+      const pad = n => String(n).padStart(2,'0');
+      function lastWeekday(year, monthIndex, weekday){
+        const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+        const lastDow = new Date(Date.UTC(year, monthIndex, lastDay)).getUTCDay();
+        return lastDay - ((lastDow - weekday + 7) % 7);
+      }
+      function transitions(year){
+        const startDay = lastWeekday(year, 3, 5); // آخر جمعة في أبريل
+        const endDay = lastWeekday(year, 9, 4);   // آخر خميس في أكتوبر
+        // منتصف الليل المحلي قبل تقديم الساعة: GMT+2
+        const startUtc = Date.UTC(year, 3, startDay, 0, 0, 0, 0) - 120 * MIN;
+        // منتصف الليل المحلي بعد نهاية الخميس: الساعة القديمة GMT+3
+        const endUtc = Date.UTC(year, 9, endDay + 1, 0, 0, 0, 0) - 180 * MIN;
+        return {startUtc, endUtc};
+      }
+      function historicalOffset(ts){
+        try {
+          const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone:'Africa/Cairo', timeZoneName:'shortOffset', hour:'2-digit'
+          }).formatToParts(new Date(ts));
+          const label = parts.find(p=>p.type==='timeZoneName')?.value || '';
+          const m = label.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/i);
+          if(m) return (m[1]==='-'?-1:1) * (Number(m[2])*60 + Number(m[3]||0));
+        } catch(_) {}
+        return 120;
+      }
+      function offsetMinutes(ts){
+        const n = Number(ts);
+        if(!Number.isFinite(n)) return 120;
+        const year = new Date(n).getUTCFullYear();
+        if(year >= 2023){
+          const tr = transitions(year);
+          return n >= tr.startUtc && n < tr.endUtc ? 180 : 120;
+        }
+        return historicalOffset(n);
+      }
+      function parts(ts){
+        const n = Number(ts);
+        if(!Number.isFinite(n)) return null;
+        const shifted = new Date(n + offsetMinutes(n) * MIN);
+        if(!Number.isFinite(shifted.getTime())) return null;
+        return {
+          year:shifted.getUTCFullYear(), month:shifted.getUTCMonth()+1, day:shifted.getUTCDate(),
+          hour:shifted.getUTCHours(), minute:shifted.getUTCMinutes(), second:shifted.getUTCSeconds(),
+          offsetMinutes:offsetMinutes(n)
+        };
+      }
+      function dateKey(ts){
+        const p=parts(ts); return p ? `${p.year}-${pad(p.month)}-${pad(p.day)}` : '';
+      }
+      function shiftedUtcDate(ts){
+        const p=parts(ts); return p ? new Date(Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute,p.second)) : null;
+      }
+      function formatDate(ts, locale='ar-EG'){
+        const d=shiftedUtcDate(ts); if(!d) return '-';
+        return new Intl.DateTimeFormat(locale,{timeZone:'UTC',day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+      }
+      function formatTime(ts, locale='ar-EG', options={}){
+        const d=shiftedUtcDate(ts); if(!d) return '-';
+        return new Intl.DateTimeFormat(locale,{timeZone:'UTC',hour:'2-digit',minute:'2-digit',...options}).format(d);
+      }
+      function formatDateTime(ts, locale='ar-EG'){
+        const d=shiftedUtcDate(ts); if(!d) return '-';
+        return new Intl.DateTimeFormat(locale,{timeZone:'UTC',dateStyle:'short',timeStyle:'medium'}).format(d);
+      }
+      function formatDateKey(key, locale='ar-EG'){
+        const m=String(key||'').match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if(!m) return String(key||'-');
+        const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]),12));
+        return new Intl.DateTimeFormat(locale,{timeZone:'UTC',day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+      }
+      function time24(ts){
+        const p=parts(ts); return p ? `${pad(p.hour)}:${pad(p.minute)}` : '';
+      }
+      function minutesOfDay(ts){
+        const p=parts(ts); return p ? p.hour*60+p.minute : 0;
+      }
+      function addDays(key, delta){
+        const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if(!m) return '';
+        const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])+Number(delta||0),12));
+        return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
+      }
+      function addMonths(key, delta){
+        const m=String(key||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if(!m) return '';
+        const y=Number(m[1]), mo=Number(m[2])-1, day=Number(m[3]);
+        const first=new Date(Date.UTC(y,mo+Number(delta||0),1,12));
+        const lastDay=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0,12)).getUTCDate();
+        return `${first.getUTCFullYear()}-${pad(first.getUTCMonth()+1)}-${pad(Math.min(day,lastDay))}`;
+      }
+      function dayStart(key){
+        let ts=localToTimestamp(key,'00:00');
+        // On the spring DST transition, Egypt skips 00:00–00:59; 01:00 is the first valid instant.
+        if(!Number.isFinite(ts)) ts=localToTimestamp(key,'01:00');
+        return Number.isFinite(ts)?ts:null;
+      }
+      function localToTimestamp(dateKeyValue, timeValue, prefer='standard'){
+        const dm=String(dateKeyValue||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        const tm=String(timeValue||'').match(/^(\d{1,2}):(\d{2})$/);
+        if(!dm||!tm) return null;
+        const y=Number(dm[1]), mo=Number(dm[2]), day=Number(dm[3]), h=Number(tm[1]), mi=Number(tm[2]);
+        if(h>23||mi>59) return null;
+        const wallUtc=Date.UTC(y,mo-1,day,h,mi,0,0);
+        const matches=[120,180].map(off=>wallUtc-off*MIN).filter(ts=>{
+          const p=parts(ts); return p&&p.year===y&&p.month===mo&&p.day===day&&p.hour===h&&p.minute===mi;
+        }).sort((a,b)=>a-b);
+        if(matches.length===1) return matches[0];
+        if(matches.length>1) return prefer==='daylight'?matches[0]:matches[matches.length-1]; // الساعة المكررة عند انتهاء الصيفي: اختر الظهور الشتوي الثاني افتراضيًا
+        return null; // ساعة غير موجودة وقت تقديم الساعة؛ لا ننشئ وقتًا ملتبسًا
+      }
+      function deviceOffset(ts=Date.now()){ return -new Date(ts).getTimezoneOffset(); }
+      function rangeStartKey(nowTs, range){
+        const today=dateKey(nowTs);
+        if(range==='day') return today;
+        if(range==='week') return addDays(today,-7);
+        if(range==='month') return addMonths(today,-1);
+        return '';
+      }
+      return {offsetMinutes,parts,dateKey,formatDate,formatTime,formatDateTime,formatDateKey,time24,minutesOfDay,addDays,addMonths,dayStart,rangeStartKey,localToTimestamp,deviceOffset};
+    })();
+    
+        // ========================= خدمة الوقت والتنسيق =========================
     const TimeUtils = {
 
 format(ms) {
@@ -12203,15 +12322,15 @@ return firebase.database.ServerValue.TIMESTAMP
 
     const SystemLog = {
         add(action, code, name, meta = {}) {
-            const now  = new Date(TimeUtils.now());
+            const eventTs = TimeUtils.now();
             const info = State._deviceInfo || {};
             // Create the log key first so retries/dispatch can be tied to a stable event id.
             const logRef = db.ref("systemLogs").push();
             const defaultEventId = "system-log:" + logRef.key;
             const data = {
                 code, name, action,
-                date:        now.toLocaleDateString("ar-EG"),
-                timeDisplay: now.toLocaleTimeString("ar-EG"),
+                date:        EgyptClock.formatDate(TimeUtils.now()),
+                timeDisplay: EgyptClock.formatTime(TimeUtils.now()),
                 timestamp:   firebase.database.ServerValue.TIMESTAMP,
                 eventId:     meta.eventId || defaultEventId,
                 user:        State.currentUser?.username || "system",
@@ -12642,22 +12761,18 @@ return firebase.database.ServerValue.TIMESTAMP
         return '•';
       },
       _localDate(ts) {
-        const d = new Date(ts || 0);
-        if (!ts || !Number.isFinite(d.getTime())) return '';
-        const pad = n => String(n).padStart(2,'0');
-        return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+        return ts ? EgyptClock.dateKey(this._localTimestamp(ts)) : '';
       },
       _eventDate(ts) {
-        const d = new Date(ts || 0);
-        if (!ts || !Number.isFinite(d.getTime())) return '-';
-        return d.toLocaleString('ar-EG', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        const value=this._localTimestamp(ts);
+        return value ? EgyptClock.formatDateTime(value) : '-';
       },
       renderSessions() {
         const root = document.getElementById('ujSessionsList');
         if (!root) return;
         const filtered = this.sessions.filter(s => this._matchesUser(s, document.getElementById('ujUserFilter')?.value || ''));
         if (!filtered.length) { root.innerHTML = '<div class="uj-empty-state">لا توجد جلسات مسجلة ضمن الاختيار الحالي. تظهر الجلسات الجديدة بعد فتح النظام وتسجيل الدخول.</div>'; return; }
-        const now = Date.now();
+        const now = TimeUtils.now();
         root.innerHTML = filtered.slice(0,80).map(s => {
           const seen = this._localTimestamp(s.lastSeenAt || s.startedAt || s.startedClientAt);
           const age = seen ? Math.max(0, now - seen) : Infinity;
@@ -12867,7 +12982,7 @@ return firebase.database.ServerValue.TIMESTAMP
           'مدة الصفحة (ثانية)': e.durationMs ? Math.round(Number(e.durationMs)/1000) : '', 'جلسة': e.sessionId || '-', 'مصدر': e.legacy ? 'سجل النظام السابق' : 'خط سير'
         }));
         const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'خط سير المستخدمين');
-        XLSX.writeFile(wb, 'allosh_user_journey_' + new Date().toISOString().slice(0,10) + '.xlsx');
+        XLSX.writeFile(wb, 'allosh_user_journey_' + EgyptClock.dateKey(TimeUtils.now()) + '.xlsx');
         SystemLog.add('ExportExcel', State.currentUser?.username || '-', 'تصدير خط سير المستخدمين', { moduleKey:'user-journey', notify:false });
       },
       bindUI() {
@@ -12986,7 +13101,7 @@ const SystemLogService = {
                 State.systemLogs = fresh.sort((a,b) => Number(b.timestamp||0) - Number(a.timestamp||0));
                 window._systemLogsPage = 1;
                 const updated = document.getElementById("systemLogsLastUpdated");
-                if (updated) updated.textContent = new Date(TimeUtils.now()).toLocaleTimeString("ar-EG", {hour:"2-digit",minute:"2-digit"});
+                if (updated) updated.textContent = EgyptClock.formatTime(TimeUtils.now(),"ar-EG",{hour:"2-digit",minute:"2-digit"});
                 UI.renderSystemLogs();
                 UI.toast("تم تحديث سجل النظام", "success");
             } catch (err) {
@@ -13204,14 +13319,15 @@ const AttendanceService = {
             return
         }
 
-        let now = new Date(TimeUtils.now())
+        const nowTs = TimeUtils.now();
+        let now = new Date(nowTs);
 
         let data = {
             code: emp.code,
             name: emp.name,
             action: action,
-            date: now.toLocaleDateString("ar-EG"),
-            timeDisplay: now.toLocaleTimeString("ar-EG"),
+            date: EgyptClock.formatDate(nowTs),
+            timeDisplay: EgyptClock.formatTime(nowTs),
             timestamp: firebase.database.ServerValue.TIMESTAMP,
             user: State.currentUser.username,
             regMethod: regMethod
@@ -13226,7 +13342,7 @@ const AttendanceService = {
             db.ref("missingScheduleAlerts/" + emp.code).set({
                 code: emp.code, name: emp.name,
                 missingCheckIn: !emp.checkIn, missingCheckOut: !emp.checkOut,
-                lastSeen: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
+                lastSeen: EgyptClock.formatDateTime(TimeUtils.now()),
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             });
         }
@@ -13264,7 +13380,7 @@ const AttendanceService = {
 
                     let duration = TimeUtils.now() - openBreak.breakTimestamp
 
-                    const autoClosedBreak = {...openBreak, returnTime:new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"), returnTimestamp:TimeUtils.now(), duration:duration, status:"closed", deviceReturnTime:TimeUtils.now()};
+                    const autoClosedBreak = {...openBreak, returnTime:EgyptClock.formatTime(TimeUtils.now()), returnTimestamp:TimeUtils.now(), duration:duration, status:"closed", deviceReturnTime:TimeUtils.now()};
                     db.ref("breaks/" + openBreak.id).update({
                         returnTime: autoClosedBreak.returnTime,
                         returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
@@ -13273,7 +13389,7 @@ const AttendanceService = {
                         status:"closed"
                     }).then(()=>{
                         AutoDeductionService.recalcBreakOverage(code,{oldRow:openBreak,newRow:autoClosedBreak}).catch(e=>console.error('[BreakPenalty] checkout reconcile',e));
-                        AutoDeductionService.checkPrayerOverage(code,new Date(autoClosedBreak.deviceBreakTime||autoClosedBreak.breakTimestamp).toLocaleDateString('ar-EG'),openBreak.id,autoClosedBreak);
+                        AutoDeductionService.checkPrayerOverage(code,EgyptClock.formatDate(autoClosedBreak.deviceBreakTime||autoClosedBreak.breakTimestamp),openBreak.id,autoClosedBreak);
                     })
 
                 }
@@ -13316,7 +13432,8 @@ const p=document.getElementById("attEmpPreview"); if(p) p.style.display="none";
 // خروج سريع من جدول داخل العمل
 function attQuickCheckout(code, name) {
   showConfirm(`تسجيل خروج: ${name}؟`, ()=>{
-    const now = new Date(TimeUtils.now());
+    const nowTs = TimeUtils.now();
+    const now = new Date(nowTs);
     const emp = getEmpData(code) || {};
     if(emp.employmentStatus === "resigned" || emp.employmentStatus === "stopped"){
       const label = emp.employmentStatus === "resigned" ? "مستقيل" : "موقوف عن العمل";
@@ -13326,8 +13443,8 @@ function attQuickCheckout(code, name) {
     saveOrQueue("attendance", {
       code, name,
       action: "CheckOut",
-      date: now.toLocaleDateString("ar-EG"),
-      timeDisplay: now.toLocaleTimeString("ar-EG"),
+      date: EgyptClock.formatDate(nowTs),
+      timeDisplay: EgyptClock.formatTime(nowTs),
       timestamp: firebase.database.ServerValue.TIMESTAMP,
       user: State.currentUser?.username || "-",
       regMethod: "quick"
@@ -13352,7 +13469,7 @@ function breakQuickReturn(id, code, name) {
     const end = TimeUtils.now();
     const duration = Math.max(0, end - start);
     db.ref("breaks/" + id).update({
-      returnTime: new Date(end).toLocaleTimeString("ar-EG"),
+      returnTime: EgyptClock.formatTime(end),
       returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
       deviceReturnTime: end,
       duration: duration,
@@ -13362,7 +13479,7 @@ function breakQuickReturn(id, code, name) {
       SystemLog.add("Return", code, name);
       UI.renderBreaks();
       setTimeout(()=>{
-        const d = openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+        const d = openBreakObj.date || EgyptClock.formatDate(TimeUtils.now());
         const returnedBreak = {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'};
         AutoDeductionService.recalcBreakOverage(code,{oldRow:openBreakObj,newRow:returnedBreak}).catch(e=>console.error('[BreakPenalty] reconcile',e));
         AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, returnedBreak);
@@ -13417,8 +13534,7 @@ function attUpdateEmpPreview(code) {
                 String(a.code||'').includes(search);
               if(!matchSearch) return false;
 
-              let date = new Date(a.timestamp);
-              const d = date.toISOString().slice(0,10);
+              const d = EgyptClock.dateKey(a.timestamp);
 
               if(dateFrom || dateTo) {
                 if(dateFrom && dateTo) return d >= dateFrom && d <= dateTo;
@@ -13428,9 +13544,10 @@ function attUpdateEmpPreview(code) {
 
               if(search && State.reportRange === "day") return true;
 
-              if(State.reportRange === "day")   return date.toDateString() === now.toDateString();
-              if(State.reportRange === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return date>=w; }
-              if(State.reportRange === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return date>=m; }
+              const todayKey = EgyptClock.dateKey(TimeUtils.now());
+              if(State.reportRange === "day") return d === todayKey;
+              if(State.reportRange === "week") return d >= EgyptClock.addDays(todayKey,-7);
+              if(State.reportRange === "month") { const p=EgyptClock.parts(TimeUtils.now()); const monthStart=`${p.year}-${String(p.month).padStart(2,'0')}-01`; return d >= monthStart; }
               return true; // all
             });
 
@@ -13479,9 +13596,8 @@ function attUpdateEmpPreview(code) {
             let rows = this._getFilteredRows();
 
             // stat cards
-            const now = new Date(TimeUtils.now());
-            const todayStr = now.toDateString();
-            const todayAtt = State.attendance.filter(a=>!['fingerprint-bazar','fingerprint-sabah','fingerprint'].includes(a.source) && new Date(a.timestamp||0).toDateString()===todayStr);
+            const todayStr = EgyptClock.dateKey(TimeUtils.now());
+            const todayAtt = State.attendance.filter(a=>!['fingerprint-bazar','fingerprint-sabah','fingerprint'].includes(a.source) && EgyptClock.dateKey(a.timestamp||0)===todayStr);
             const todayIn  = todayAtt.filter(a=>a.action==="CheckIn").length;
             const todayOut = todayAtt.filter(a=>a.action==="CheckOut").length;
             // داخل الآن
@@ -13494,9 +13610,8 @@ function attUpdateEmpPreview(code) {
               const exp = getEmpData(a.code)?.checkIn;
               if(!exp) return;
               const [eh,em]=exp.split(':').map(Number);
-              const match=(a.timeDisplay||'').match(/(\d{1,2}):(\d{2})/);
-              if(!match) return;
-              if((parseInt(match[1])*60+parseInt(match[2]))-(eh*60+em)>5) lateCount++;
+              const actualMin=EgyptClock.minutesOfDay(a.timestamp);
+              if(actualMin-(eh*60+em)>5) lateCount++;
             });
             // إجمالي الساعات
             let totalMs=0;
@@ -13669,7 +13784,7 @@ code,
 name: emp.name,
 type,
 
-breakTime: now.toLocaleTimeString("ar-EG"),
+breakTime: EgyptClock.formatTime(now.getTime()),
 
 breakTimestamp: firebase.database.ServerValue.TIMESTAMP,
 
@@ -13680,7 +13795,7 @@ returnTimestamp: null,
 
 deviceReturnTime: null,
 
-date: now.toLocaleDateString("ar-EG"),
+date: EgyptClock.formatDate(now.getTime()),
 
 duration: 0,
 
@@ -13728,7 +13843,7 @@ let duration = Math.max(0, end - start)
 
 db.ref("breaks/" + openBreakObj.id).update({
 
-returnTime: new Date(end).toLocaleTimeString("ar-EG"),
+returnTime: EgyptClock.formatTime(end),
 
 returnTimestamp: firebase.database.ServerValue.TIMESTAMP,
 
@@ -13745,7 +13860,7 @@ status:"closed"
 UI.renderBreaks()
 
 setTimeout(()=>{
-const d = openBreakObj.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+const d = openBreakObj.date || EgyptClock.formatDate(TimeUtils.now());
 const returnedBreak = {...openBreakObj, returnTimestamp:end, deviceReturnTime:end, duration:duration, status:'closed'};
 AutoDeductionService.recalcBreakOverage(code,{oldRow:openBreakObj,newRow:returnedBreak}).catch(e=>console.error('[BreakPenalty] reconcile',e));
 AutoDeductionService.checkPrayerOverage(code, d, openBreakObj.id, returnedBreak);
@@ -13922,7 +14037,7 @@ reason:reason,
 timeIn: now.toLocaleTimeString("ar-EG"),
 timeOut:null,
 
-date: now.toLocaleDateString("ar-EG"),
+date: EgyptClock.formatDate(now.getTime()),
 timestamp: firebase.database.ServerValue.TIMESTAMP,
 
 user: State.currentUser.username
@@ -13988,7 +14103,7 @@ exportExcel() {
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "الشركات");
-  XLSX.writeFile(wb, "companies_"+new Date().toISOString().slice(0,10)+".xlsx");
+  XLSX.writeFile(wb, "companies_"+EgyptClock.dateKey(TimeUtils.now())+".xlsx");
   SystemLog.add("ExportExcel", State.currentUser?.username||"-", "تصدير سجل الشركات");
   UI.toast("✅ تم التصدير","success");
 },
@@ -14083,7 +14198,7 @@ UI.renderCompanies()
                 manager: "تلقائي",
                 reason: reasonText,
                 date: dateStr,
-                time: new Date(TimeUtils.now()).toLocaleTimeString("ar-EG"),
+                time: EgyptClock.formatTime(TimeUtils.now()),
                 timestamp: firebase.database.ServerValue.TIMESTAMP,
                 createdBy: "النظام (تلقائي)",
                 auto: true,
@@ -14135,7 +14250,7 @@ UI.renderCompanies()
                     penaltyCreatedBy: p.createdBy || "النظام (تلقائي)",
                     exemptReason: exemptReason || "-",
                     exemptedBy: State.currentUser?.username || "-",
-                    exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
+                    exemptedAt: EgyptClock.formatDateTime(TimeUtils.now()),
                     timestamp: firebase.database.ServerValue.TIMESTAMP,
                     autoType: type, dateKey: dateStr
                 });
@@ -14193,7 +14308,7 @@ UI.renderCompanies()
                     hours: Number(hours.toFixed(2)),
                     reason: reasonText,
                     recalculated: true,
-                    recalculatedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG")
+                    recalculatedAt: EgyptClock.formatDateTime(TimeUtils.now())
                 }).then(()=>{
                     UI.toast(`🔄 تم تحديث جزاء التأخير تلقائيًا (${reasonText})`, "warning");
                     SystemLog.add("PenaltyAutoRecalc", code, reasonText);
@@ -14242,14 +14357,14 @@ UI.renderCompanies()
                 await db.ref('penalties/' + existing.id).update({
                     name: emp.name, hours: Number(hours.toFixed(2)), reason: reasonText, manager: 'تلقائي',
                     auto: true, autoType: 'prayer', sourceBreakId: String(breakId), recalculated: true,
-                    recalculatedAt: new Date(TimeUtils.now()).toLocaleString('ar-EG')
+                    recalculatedAt: EgyptClock.formatDateTime(TimeUtils.now())
                 });
                 return;
             }
 
             const penalty = {
                 code: String(code), name: emp.name, hours: Number(hours.toFixed(2)), manager: 'تلقائي',
-                reason: reasonText, date: dateStr, time: new Date(TimeUtils.now()).toLocaleTimeString('ar-EG'),
+                reason: reasonText, date: dateStr, time: EgyptClock.formatTime(TimeUtils.now()),
                 timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: 'النظام (تلقائي)', auto: true,
                 autoType: 'prayer', sourceBreakId: String(breakId)
             };
@@ -14315,10 +14430,10 @@ UI.renderCompanies()
                 ...x,
                 key:`${String(code)}|${x.start}`,
                 index:i,
-                startDate:new Date(x.start).toLocaleDateString('ar-EG'),
-                endDate:x.end?new Date(x.end).toLocaleDateString('ar-EG'):'-',
-                startText:new Date(x.start).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}),
-                endText:x.end?new Date(x.end).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-'
+                startDate:EgyptClock.formatDate(x.start),
+                endDate:x.end?EgyptClock.formatDate(x.end):'-',
+                startText:EgyptClock.formatTime(x.start,'ar-EG',{hour:'2-digit',minute:'2-digit'}),
+                endText:x.end?EgyptClock.formatTime(x.end,'ar-EG',{hour:'2-digit',minute:'2-digit'}):'-'
             }));
         },
 
@@ -14383,11 +14498,11 @@ UI.renderCompanies()
             const reasonText=`تجاوز استئذان ${totalMinutes} دقيقة خلال الوردية الفعلية ${shift.startText} → ${shift.endText}`;
             const base={
                 code:String(code),name:emp.name,hours:Number(hours.toFixed(2)),manager:'تلقائي',reason:reasonText,
-                date:shiftDate,time:new Date(TimeUtils.now()).toLocaleTimeString('ar-EG'),
+                date:shiftDate,time:EgyptClock.formatTime(TimeUtils.now()),
                 timestamp:firebase.database.ServerValue.TIMESTAMP,createdBy:'النظام (تلقائي)',auto:true,autoType:'break',
                 sourceShiftKey:shift.key,shiftStartTimestamp:shift.start,shiftEndTimestamp:shift.end,
                 shiftStartDate:shift.startDate,shiftEndDate:shift.endDate,shiftStartTime:shift.startText,shiftEndTime:shift.endText,
-                totalBreakMinutes:totalMinutes,recalculatedAt:new Date(TimeUtils.now()).toLocaleString('ar-EG')
+                totalBreakMinutes:totalMinutes,recalculatedAt:EgyptClock.formatDateTime(TimeUtils.now())
             };
 
             const primary=existing[0]||null;
@@ -14428,7 +14543,7 @@ UI.renderCompanies()
                 const refRow=newRow||oldRow||rows[0];
                 if(refRow){
                     const d=String(refRow.date||'');
-                    const pseudo={start:this._breakStartTs(refRow)||Date.now(),end:null,key:`${c}|fallback|${d}`,index:-1,startDate:d||new Date().toLocaleDateString('ar-EG'),endDate:'-',startText:'-',endText:'-'};
+                    const pseudo={start:this._breakStartTs(refRow)||TimeUtils.now(),end:null,key:`${c}|fallback|${d}`,index:-1,startDate:d||EgyptClock.formatDate(TimeUtils.now()),endDate:'-',startText:'-',endText:'-'};
                     affected.set(pseudo.key,pseudo);
                 }
             }
@@ -14482,7 +14597,7 @@ UI.renderCompanies()
             let emp = getEmpData(code) || State.employees.find(e => String(e.code) === code);
             if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
             let now = new Date(TimeUtils.now());
-            let penalty = { code, name: emp.name, hours, manager, reason, date: now.toLocaleDateString("ar-EG"), time: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
+            let penalty = { code, name: emp.name, hours, manager, reason, date: EgyptClock.formatDate(now.getTime()), time: EgyptClock.formatTime(now.getTime()), timestamp: firebase.database.ServerValue.TIMESTAMP, createdBy: State.currentUser.username };
             const penaltyRef = db.ref("penalties").push();
             penaltyRef.set(penalty).then(() => {
               UI.renderPenalties();
@@ -14547,7 +14662,7 @@ UI.renderCompanies()
           XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mainRows.length ? mainRows : [{"لا توجد بيانات":""}]), "الجزاءات");
           XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows.length ? summaryRows : [{"لا توجد بيانات":""}]), "ملخص حسب الموظف");
           XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exemptRows.length ? exemptRows : [{"لا توجد بيانات":""}]), "سجل الإعفاءات");
-          XLSX.writeFile(wb, "penalties_report_" + new Date().toISOString().slice(0,10) + ".xlsx");
+          XLSX.writeFile(wb, "penalties_report_" + EgyptClock.dateKey(TimeUtils.now()) + ".xlsx");
           SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير تقرير الجزاءات الكامل");
         }
     };
@@ -14562,7 +14677,7 @@ UI.renderCompanies()
             let emp = getEmpData(code) || State.employees.find(e => String(e.code) === code);
             if (!emp) { UI.toast("الموظف غير موجود", "error"); return; }
             let now = new Date(TimeUtils.now());
-            let leave = { code, name: emp.name, leaveDate: date, requestDate: now.toLocaleDateString("ar-EG"), requestTime: now.toLocaleTimeString("ar-EG"), timestamp: firebase.database.ServerValue.TIMESTAMP, requestedBy: State.currentUser.username, manager, notes, status: "قيد المراجعة" };
+            let leave = { code, name: emp.name, leaveDate: date, requestDate: EgyptClock.formatDate(now.getTime()), requestTime: EgyptClock.formatTime(now.getTime()), timestamp: firebase.database.ServerValue.TIMESTAMP, requestedBy: State.currentUser.username, manager, notes, status: "قيد المراجعة" };
             let ref = db.ref("leaves").push(); leave.id = ref.key; ref.set(leave).then(() => {
               UI.toast("تم تقديم طلب الإجازة", "success");
               UI.clearInputs("#tab-leaves");
@@ -14606,7 +14721,7 @@ cancelAbsencePenaltyIfExists(leave){
     reason: match.reason, penaltyDate: match.date,
     exemptReason: "تمت الموافقة على طلب إجازة لنفس اليوم",
     exemptedBy: State.currentUser?.username || "-",
-    exemptedAt: new Date(TimeUtils.now()).toLocaleString("ar-EG"),
+    exemptedAt: EgyptClock.formatDateTime(TimeUtils.now()),
     timestamp: firebase.database.ServerValue.TIMESTAMP,
     autoType: "absence", dateKey: match.date
   })
@@ -14809,7 +14924,8 @@ function getBatchSourceInfo(product, sourceMap) {
             UI.toast('توجد عدة سجلات متطابقة لهذه الدفعة. نفّذ معاينة ودمج التكرارات من صفحة الأرشيف أولًا، ثم أضف الكمية.', 'warning', 8000);
             return;
           }
-          const now=new Date();
+          const nowTs=TimeUtils.now();
+          const now=new Date(nowTs);
           let savedName=name;
           if(existing){
             const existingId=String(existing.id||existing._id||'').trim();
@@ -14819,7 +14935,7 @@ function getBatchSourceInfo(product, sourceMap) {
             const sourcePayload=productSourcePayload(existing,'يدوي');
             const updates={
               barcode, branch, expire, quantity:newQty,
-              lastAddedAt:now.toLocaleString('ar-EG'),
+              lastAddedAt:EgyptClock.formatDateTime(nowTs),
               lastAddedBy:State.currentUser?.username||'-',
               lastAddedTimestamp:firebase.database.ServerValue.TIMESTAMP,
               ...sourcePayload
@@ -14832,9 +14948,9 @@ function getBatchSourceInfo(product, sourceMap) {
               barcode, name, quantity:qty, branch, expire,
               user:State.currentUser?.username||'-',
               source:'يدوي', sources:['يدوي'],
-              addedAt:now.toLocaleString('ar-EG'),
-              addedDate:new Date(TimeUtils.now()).toISOString().slice(0,10),
-              addedTime:now.toTimeString().slice(0,5),
+              addedAt:EgyptClock.formatDateTime(nowTs),
+              addedDate:EgyptClock.dateKey(nowTs),
+              addedTime:EgyptClock.time24(nowTs),
               timestamp:firebase.database.ServerValue.TIMESTAMP
             };
             // لا نكتب أسعارًا افتراضية صفرية للمستخدم الذي لا يملك صلاحية رؤية الأسعار.
@@ -15532,7 +15648,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
                 const ws = XLSX.utils.json_to_sheet(rows);
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "سجل الدخول");
-                XLSX.writeFile(wb, "login_logs_"+new Date().toISOString().slice(0,10)+".xlsx");
+                XLSX.writeFile(wb, "login_logs_"+EgyptClock.dateKey(TimeUtils.now())+".xlsx");
                 UI.toast("✅ تم التصدير","success");
             });
         }
@@ -16517,7 +16633,7 @@ function saveEditBreak() {
   }
 
   db.ref("breaks/"+_editBreakId).update(updates).then(async()=>{
-    const d = updates.date || _editBreakData?.date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+    const d = updates.date || _editBreakData?.date || EgyptClock.formatDate(TimeUtils.now());
     const c = _editBreakData?.code || "-";
     const updatedBreak = {..._editBreakData, ...updates, id:_editBreakId, code:c, duration:updates.duration ?? _editBreakData?.duration ?? 0};
     await AutoDeductionService.recalcBreakOverage(c,{oldRow:_editBreakData,newRow:updatedBreak});
@@ -16771,7 +16887,7 @@ updates.duration = newDuration
 
 db.ref("breaks/"+editId).update(updates).then(async()=>{
 
-const d = updates.date || editData?.date || date || new Date(TimeUtils.now()).toLocaleDateString("ar-EG");
+const d = updates.date || editData?.date || date || EgyptClock.formatDate(TimeUtils.now());
 const c = editData?.code || "-";
 const updatedBreak = {...editData, ...updates, id:editId, code:c, duration:updates.duration ?? editData?.duration ?? 0};
 await AutoDeductionService.recalcBreakOverage(c,{oldRow:editData,newRow:updatedBreak});
@@ -17008,7 +17124,7 @@ const InventoryService = {
     this.populateLocations();
     this.applyPriceVisibility();
     const dateEl=document.getElementById('inventoryPurchaseDate');
-    if(dateEl&&!dateEl.value) dateEl.value=new Date(TimeUtils.now()).toISOString().slice(0,10);
+    if(dateEl&&!dateEl.value) dateEl.value=EgyptClock.dateKey(TimeUtils.now());
     this.setView('balances');
     this.renderDraft();this.renderStats();this.renderBalances();this.renderMovements();this.renderMigrationNotice();
   },
@@ -17193,7 +17309,7 @@ const InventoryService = {
     if(!this.canView())return UI.toast('ليس لديك صلاحية المخازن','error');
     if(typeof XLSX==='undefined')return UI.toast('مكتبة Excel غير متاحة','error');
     const rows=this._getWarehouseRows().map(g=>({المخزن:'مخزن باب 40',الباركود:g.barcode,اسم_الصنف:g.name,الرصيد:this._round(g.quantity),حالة_الرصيد:g.quantity<0?'عجز سالب':g.quantity>0?'رصيد موجب':'نفد الرصيد',متوسط_التكلفة:g.costQty>0?this._round(g.costTotal/g.costQty):'',سعر_البيع:g.sellPrice??'',اقرب_صلاحية:g.lots.filter(l=>this._num(l.quantity)>0).map(l=>this._normalizeExpiry(l.expiryDate)).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort()[0]||''}));
-    const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'مخزون باب 40');XLSX.writeFile(wb,`مخزون_باب_40_${new Date().toISOString().slice(0,10)}.xlsx`);UI.toast('تم تصدير رصيد مخزن باب 40 إلى Excel','success');
+    const ws=XLSX.utils.json_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'مخزون باب 40');XLSX.writeFile(wb,`مخزون_باب_40_${EgyptClock.dateKey(TimeUtils.now())}.xlsx`);UI.toast('تم تصدير رصيد مخزن باب 40 إلى Excel','success');
   },
   printInventory() {
     document.body.classList.add('inventory-print-only');
@@ -17445,7 +17561,7 @@ const InventoryService = {
           movementIds.push({id:moveId,type:'transferOut',barcode:a.barcode,name:a.name,location:'باب40',qtyDelta:-a.quantity});
         } else if(a.mode==='receipt') {
           const batchId=`receive_${this._safeKey(transferId)}_${index}`;
-          updates[`inventoryBalances/${a.toLocationKey}/${a.barcodeKey}/${batchId}`]={batchId,barcode:a.barcode,name:a.name,location:'باب40',quantity:this._round(a.quantity),unitCost:a.unitCost??null,sellPrice:a.sellPrice??null,expiryDate:a.expiryDate,sourceType:'transferReceipt',transferId,receivedDate:new Date(TimeUtils.now()).toISOString().slice(0,10),createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:State.currentUser?.username||'-',note:'وارد إلى مخزن باب 40 من تحويل'};
+          updates[`inventoryBalances/${a.toLocationKey}/${a.barcodeKey}/${batchId}`]={batchId,barcode:a.barcode,name:a.name,location:'باب40',quantity:this._round(a.quantity),unitCost:a.unitCost??null,sellPrice:a.sellPrice??null,expiryDate:a.expiryDate,sourceType:'transferReceipt',transferId,receivedDate:EgyptClock.dateKey(TimeUtils.now()),createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:State.currentUser?.username||'-',note:'وارد إلى مخزن باب 40 من تحويل'};
           destinationBatches.push({locationKey:a.toLocationKey,barcodeKey:a.barcodeKey,batchId,quantity:this._round(a.quantity)});
           const moveId=`stock_${this._safeKey(transferId)}_${index}_in`;
           updates[`inventoryMovements/${moveId}`]={type:'transferIn',barcode:a.barcode,name:a.name,from:a.fromLocation,to:'باب40',location:'باب40',qtyDelta:this._round(a.quantity),expiryDate:a.expiryDate,unitCost:a.unitCost??null,transferId,referenceId:transferId,createdAt:firebase.database.ServerValue.TIMESTAMP,createdBy:State.currentUser?.username||'-',note:'إضافة إلى مخزن باب 40 فقط'};
@@ -17875,7 +17991,7 @@ const rows = allItems.map(({t,item,itemIndex}) => {
 
   const calculatedTotal = (typeof getTransferItemQuantity === 'function') ? getTransferItemQuantity(i) : Number(i.total) || 0;
   const total = (i.total !== undefined && i.total !== null && i.total !== "") ? i.total : calculatedTotal;
-  const transferDate = t.dateISO || t.date || (t.timestamp ? new Date(Number(t.timestamp)).toLocaleDateString('ar-EG') : '-');
+  const transferDate = t.timestamp ? (t.dateISO || EgyptClock.dateKey(Number(t.timestamp))) : (t.dateISO || t.date || '-');
 
   return {
     "معرف التحويل": t.id || "",
@@ -17965,11 +18081,12 @@ async save(){
       if(!inventoryTransferPlan?.tracksInventory) throw new Error('لم يتم إنشاء خطة مخزون لمخزن باب 40. حدّث صفحة المخازن وحاول مرة أخرى.');
     }
 
-    const transferNow = new Date(TimeUtils.now());
-    const transferDate = transferNow.toLocaleDateString('ar-EG');
-    const transferTime = transferNow.toTimeString().slice(0,5);
-    const transferTimeDisplay = transferNow.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'});
-    const transferDateISO = `${transferNow.getFullYear()}-${String(transferNow.getMonth()+1).padStart(2,'0')}-${String(transferNow.getDate()).padStart(2,'0')}`;
+    const transferNowTs = TimeUtils.now();
+    const transferNow = new Date(transferNowTs);
+    const transferDate = EgyptClock.formatDate(transferNowTs);
+    const transferTime = EgyptClock.time24(transferNowTs);
+    const transferTimeDisplay = EgyptClock.formatTime(transferNowTs,'ar-EG',{hour:'2-digit',minute:'2-digit'});
+    const transferDateISO = EgyptClock.dateKey(transferNowTs);
     const transferAddedAt = transferDate + ' ' + transferTime;
     const data = {from,to,items:transferItems,date:transferDate,dateISO:transferDateISO,time:transferTime,timeDisplay:transferTimeDisplay,timestamp:firebase.database.ServerValue.TIMESTAMP,user:transferUser};
     const transferBranch = to;
@@ -18010,7 +18127,7 @@ async save(){
         Object.entries(payload).forEach(([k,v])=>{rootUpdates[`products/${existing.id}/${k}`]=v;});
       } else {
         const productId=db.ref('products').push().key;
-        rootUpdates[`products/${productId}`]={barcode:g.barcode,name:g.name||g.barcode,quantity:g.qty,branch:transferBranch,cost,price,expire:g.expire,user:transferUser,source:'تحويل',sources:['تحويل'],transferId,transferItemIndex:g.items[0],addedAt:transferAddedAt,addedDate:new Date(TimeUtils.now()).toISOString().slice(0,10),addedTime:transferTime,timestamp:firebase.database.ServerValue.TIMESTAMP};
+        rootUpdates[`products/${productId}`]={barcode:g.barcode,name:g.name||g.barcode,quantity:g.qty,branch:transferBranch,cost,price,expire:g.expire,user:transferUser,source:'تحويل',sources:['تحويل'],transferId,transferItemIndex:g.items[0],addedAt:transferAddedAt,addedDate:EgyptClock.dateKey(TimeUtils.now()),addedTime:transferTime,timestamp:firebase.database.ServerValue.TIMESTAMP};
       }
     }
 
@@ -18168,14 +18285,13 @@ function saveTransferEdit(){
     return;
   }
 
-  const transferDateObj = new Date(dateInput + 'T12:00:00');
-  if(Number.isNaN(transferDateObj.getTime())) {
-    UI.toast('تاريخ التحويل غير صحيح', 'error');
+  const newTransferTimestamp = EgyptClock.localToTimestamp(dateInput,'12:00');
+  if(!Number.isFinite(newTransferTimestamp)) {
+    UI.toast('تاريخ التحويل غير صحيح وفق توقيت مصر', 'error');
     return;
   }
 
-  const newTransferTimestamp = transferDateObj.getTime();
-  const newTransferDateText = transferDateObj.toLocaleDateString('ar-EG');
+  const newTransferDateText = EgyptClock.formatDate(newTransferTimestamp);
   const editNow = new Date(TimeUtils.now());
 
   const tid = editingTransferId;
@@ -18327,7 +18443,7 @@ function viewTransfer(id){
     let t = State.transfers.find(x=>x.id===id);
     if(!t) return;
 
-    let time = new Date(t.timestamp).toLocaleTimeString("ar-EG");
+    let time = EgyptClock.formatTime(t.timestamp);
 
     // صفوف الأصناف
     let rows = t.items.map(i=>{
@@ -18511,9 +18627,7 @@ let editingTransferId = null
 function getTransferEditDateValue(t){
   const ts = Number(t?.timestamp);
   if(Number.isFinite(ts) && ts > 0){
-    const d = new Date(ts);
-    const pad = n => String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    return EgyptClock.dateKey(ts);
   }
 
   let raw = String(t?.date || '').trim();
@@ -18787,8 +18901,7 @@ function calcLateMinutes(actualTimestamp, expectedTimeStr) {
   if(!expectedTimeStr || !actualTimestamp) return 0;
   const [expH, expM] = expectedTimeStr.split(':').map(Number);
   if(isNaN(expH)) return 0;
-  const d = new Date(actualTimestamp);
-  const actualMinOfDay = d.getHours()*60 + d.getMinutes();
+  const actualMinOfDay = EgyptClock.minutesOfDay(actualTimestamp);
   const expectedMinOfDay = expH*60 + (expM||0);
   let diff = actualMinOfDay - expectedMinOfDay;
   // تصحيح عبور منتصف الليل يتطبّق بس لو الميعاد الرسمي نفسه قريب من منتصف الليل
@@ -18954,7 +19067,7 @@ const EmpDataService = {
     if(countEl) countEl.textContent = inactive.length;
 
     body.innerHTML = inactive.map(({ emp, lastTs }) => {
-      const lastSeenText = lastTs > 0 ? new Date(lastTs).toLocaleDateString('ar-EG') : 'لا يوجد حضور خالص';
+      const lastSeenText = lastTs > 0 ? EgyptClock.formatDate(lastTs) : 'لا يوجد حضور خالص';
       return `<tr>
         <td style="font-weight:700">${emp.name}</td>
         <td style="color:#818cf8">${emp.code}</td>
@@ -18978,7 +19091,7 @@ const EmpDataService = {
     showConfirm(`تأكيد "${labelMap[type]}" للموظف ${name}؟`, () => {
       db.ref('empData/' + code).update({
         employmentStatus: type,
-        employmentStatusAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+        employmentStatusAt: EgyptClock.formatDateTime(TimeUtils.now()),
         employmentStatusBy: State.currentUser?.username || '-'
       }).then(() => {
         UI.toast(`✅ تم تحديث حالة ${name} إلى "${labelMap[type]}"`, 'success');
@@ -19304,7 +19417,7 @@ const EmpDataService = {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'EmpData');
-    XLSX.writeFile(wb, 'employee_data_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    XLSX.writeFile(wb, 'employee_data_' + EgyptClock.dateKey(TimeUtils.now()) + '.xlsx');
     SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير بيانات الموظفين');
   },
 
@@ -19319,7 +19432,7 @@ const EmpDataService = {
     showConfirm(`تأكيد "${labelMap[type]}" للموظف ${name}؟`, () => {
       db.ref('empData/' + code).update({
         employmentStatus: type,
-        employmentStatusAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+        employmentStatusAt: EgyptClock.formatDateTime(TimeUtils.now()),
         employmentStatusBy: State.currentUser?.username || '-'
       }).then(() => {
         UI.toast(`✅ تم تحديث حالة ${name} إلى "${labelMap[type]}"`, 'success');
@@ -19407,7 +19520,7 @@ const EmpDataService = {
 
       db.ref('empData/' + code).update({
         barcodeId: newId,
-        barcodeIdGeneratedAt: new Date(TimeUtils.now()).toLocaleString('ar-EG'),
+        barcodeIdGeneratedAt: EgyptClock.formatDateTime(TimeUtils.now()),
         barcodeIdGeneratedBy: State.currentUser?.username || '-'
       }).then(() => {
         const bcInput = document.getElementById('newEmpBarcodeId');
@@ -19697,13 +19810,12 @@ const AbsenceService = {
     let effectiveDate = this._normalizeDate(employeeRecord.employmentStatusEffectiveDate || employeeRecord.resignationEffectiveDate || employeeRecord.employmentStatusDate || '');
     if(!effectiveDate) effectiveDate = this._normalizeDate(employeeRecord.employmentStatusAt || '');
     if(!effectiveDate && Number(employeeRecord.employmentStatusChangedAt) > 0) {
-      const d = new Date(Number(employeeRecord.employmentStatusChangedAt));
-      if(Number.isFinite(d.getTime())) effectiveDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const changedAt=Number(employeeRecord.employmentStatusChangedAt);
+      if(Number.isFinite(changedAt)) effectiveDate = EgyptClock.dateKey(changedAt);
     }
     // للبيانات القديمة التي تسجل الحالة دون تاريخ: لا نمد الحالة إلى الماضي تلقائيًا.
     if(!effectiveDate) {
-      const d = new Date(typeof TimeUtils!=='undefined' && TimeUtils.now ? TimeUtils.now() : Date.now());
-      effectiveDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      effectiveDate = EgyptClock.dateKey(typeof TimeUtils!=='undefined' && TimeUtils.now ? TimeUtils.now() : Date.now());
     }
     return targetNorm < effectiveDate;
   },
@@ -19716,7 +19828,7 @@ const AbsenceService = {
 
     const targetNorm = this._normalizeDate(rawDate);
     // نفس صيغة التاريخ المستخدمة في سجلات الحضور (ar-EG)
-    const targetLocale = new Date(rawDate + 'T00:00:00').toLocaleDateString('ar-EG');
+    const targetLocale = EgyptClock.formatDateKey(targetNorm);
     this._lastDateLocale = targetLocale;
 
     const box = document.getElementById('absenceCheckResultBox');
@@ -19747,7 +19859,7 @@ const AbsenceService = {
 
     activeEmployees.forEach(emp => {
       const hasAttendance = State.attendance.some(a =>
-        String(a.code) === String(emp.code) && a.date === targetLocale
+        String(a.code) === String(emp.code) && (Number(a.timestamp||a.ts||0)>0 ? EgyptClock.dateKey(Number(a.timestamp||a.ts))===targetNorm : this._normalizeDate(a.workDate||a.dateISO||a.date)===targetNorm)
       );
       if(hasAttendance) return; // حضر بشكل ما، مش غياب
 
@@ -19989,7 +20101,7 @@ const IncentiveService = {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Incentives');
-    XLSX.writeFile(wb, 'incentives_' + new Date().toISOString().slice(0,10) + '.xlsx');
+    XLSX.writeFile(wb, 'incentives_' + EgyptClock.dateKey(TimeUtils.now()) + '.xlsx');
     SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير حوافز');
   },
 
@@ -20039,7 +20151,7 @@ function printTransfer(id) {
 }
 
 function printAttendance(dateStr) {
-  const date = dateStr || new Date().toISOString().slice(0,10);
+  const date = dateStr || EgyptClock.dateKey(TimeUtils.now());
   const records = State.attendance.filter(a => a.date === date);
   if(!records.length) { UI.toast('لا توجد سجلات في هذا اليوم','warning'); return; }
   const rows = records.map(r => {
@@ -20723,11 +20835,11 @@ const BazarHRSuite = {
   _num(v){const n=Number(this._latin(v).replace(/,/g,''));return Number.isFinite(n)?n:0;},
   _money(v){const s=this._latin(v).replace(/[,٬]/g,'').replace(/[^0-9.\-]/g,'');const n=Number(s);return Number.isFinite(n)?n:0;},
   _now(){try{return typeof TimeUtils!=='undefined'&&typeof TimeUtils.now==='function'?TimeUtils.now():Date.now();}catch(_){return Date.now();}},
-  _today(){const d=new Date(this._now());return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;},
-  _normDate(v){const s=this._latin(v).trim();if(!s)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;const d=new Date(s);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:s;},
-  _dateText(v){const s=this._normDate(v);if(!s)return '-';const d=new Date(s+'T00:00:00');return Number.isFinite(d.getTime())?d.toLocaleDateString('ar-EG'):s;},
-  _dayKey(ts){const d=new Date(Number(ts)||0);return Number.isFinite(d.getTime())?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';},
-  _timeText(ts){if(!ts)return '-';const d=new Date(Number(ts));return Number.isFinite(d.getTime())?d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
+  _today(){return EgyptClock.dateKey(this._now());},
+  _normDate(v){const s=this._latin(v).trim();if(!s)return '';if(/^\d{4}-\d{2}-\d{2}$/.test(s))return s;const m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/);if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;const d=new Date(s);return Number.isFinite(d.getTime())?EgyptClock.dateKey(d.getTime()):s;},
+  _dateText(v){const s=this._normDate(v);return s?EgyptClock.formatDateKey(s):'-';},
+  _dayKey(ts){return EgyptClock.dateKey(Number(ts)||0);},
+  _timeText(ts){return ts?EgyptClock.formatTime(Number(ts),'ar-EG',{hour:'2-digit',minute:'2-digit'}):'-';},
   _parseTime(v){const s=this._latin(v).trim();const m=s.match(/^(\d{1,2})(?::(\d{1,2}))?$/);if(!m)return null;const h=Number(m[1]),mi=Number(m[2]||0);return h>=0&&h<24&&mi>=0&&mi<60?h*60+mi:null;},
   // Schedule helper needed by BazarHRSuite attendance rows and automatic penalties.
   // It is defined here (on BazarHRSuite), not only on FingerprintBazarService.
@@ -20736,9 +20848,10 @@ const BazarHRSuite = {
     const outMin=this._parseTime(emp?.checkOut ?? emp?.workEnd ?? emp?.expectedOut);
     if(inMin==null || outMin==null || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey||''))) return null;
     const [y,m,d]=String(dateKey).split('-').map(Number);
-    const inTs=new Date(y,m-1,d,Math.floor(inMin/60),inMin%60,0,0).getTime();
-    let outTs=new Date(y,m-1,d,Math.floor(outMin/60),outMin%60,0,0).getTime();
-    if(outMin<=inMin) outTs+=86400000;
+    const inTs=EgyptClock.localToTimestamp(dateKey,`${String(Math.floor(inMin/60)).padStart(2,'0')}:${String(inMin%60).padStart(2,'0')}`);
+    const outDate=outMin<=inMin?EgyptClock.addDays(dateKey,1):dateKey;
+    const outTs=EgyptClock.localToTimestamp(outDate,`${String(Math.floor(outMin/60)).padStart(2,'0')}:${String(outMin%60).padStart(2,'0')}`);
+    if(!Number.isFinite(inTs)||!Number.isFinite(outTs)) return null;
     return {inTs,outTs,inMin,outMin,officialMin:Math.max(0,Math.round((outTs-inTs)/60000))};
   },
   _calcWorkHours(checkIn,checkOut){const a=this._parseTime(checkIn),b=this._parseTime(checkOut);if(a==null||b==null)return 0;let mins=b-a;if(mins<=0)mins+=1440;return Number((mins/60).toFixed(2));},
@@ -20751,7 +20864,7 @@ const BazarHRSuite = {
     const m=raw.match(/(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})/);
     if(m)return `${m[3]}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
     const updated=Number(record?.updatedAt||0);
-    if(Number.isFinite(updated)&&updated>100000000000){const d=new Date(updated);if(Number.isFinite(d.getTime()))return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+    if(Number.isFinite(updated)&&updated>100000000000){const key=EgyptClock.dateKey(updated);if(key)return key;}
     return this._today();
   },
   _inactiveOnDate(record,dateKey){
@@ -20875,7 +20988,7 @@ const BazarHRSuite = {
       const checkIn=String(r.checkIn??r.workStart??'').trim(),checkOut=String(r.checkOut??r.workEnd??'').trim();const derivedHours=this._calcWorkHours(checkIn,checkOut);return {...r,id,firebaseKey:id,code,name:String(r.name??r.employeeName??'').trim(),job:String(r.job??r.position??r.title??'').trim(),branch:String(r.branch??'البازار').trim()||'البازار',salary:this._money(r.salary??r.baseSalary),hireDate:this._normDate(r.hireDate??r.hire_date??''),nationalId:String(r.nationalId??r.nationalID??'').trim(),phone:String(r.phone??r.mobile??'').trim(),checkIn,checkOut,workHours:derivedHours,employmentStatus:this._status(r.employmentStatus??r.status)};
     }
     if(kind==='attendance'){
-      const ts=this._num(r.timestamp??r.ts??r.dateTime??r.datetime??0);const actionRaw=this._latin(r.action??r.type??'').trim().toLowerCase();let action=actionRaw;if(['checkin','check-in','in','entry','دخول','حضور','1'].includes(actionRaw))action='CheckIn';else if(['checkout','check-out','out','exit','خروج','انصراف','0'].includes(actionRaw))action='CheckOut';const code=String(r.code??r.user_id??r.employeeCode??'').trim()||String(key||'').split('_')[0];if(!code||!action)return null;const workDate=this._normDate(r.workDate??r.dateISO??r.date??(ts?this._dayKey(ts):''));return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),job:String(r.job??'').trim(),branch:String(r.branch??'البازار').trim()||'البازار',action,timestamp:ts,date:workDate,workDate,timeDisplay:String(r.timeDisplay??r.time??'').trim(),source:String(r.source??'fingerprint').trim()||'fingerprint',note:String(r.note??'').trim(),addedBy:String(r.addedBy??r.user??r.by??'-').trim()||'-'};
+      const ts=this._num(r.timestamp??r.ts??r.dateTime??r.datetime??0);const actionRaw=this._latin(r.action??r.type??'').trim().toLowerCase();let action=actionRaw;if(['checkin','check-in','in','entry','دخول','حضور','1'].includes(actionRaw))action='CheckIn';else if(['checkout','check-out','out','exit','خروج','انصراف','0'].includes(actionRaw))action='CheckOut';const code=String(r.code??r.user_id??r.employeeCode??'').trim()||String(key||'').split('_')[0];if(!code||!action)return null;const workDate=ts?this._dayKey(ts):this._normDate(r.workDate??r.dateISO??r.date??'');return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),job:String(r.job??'').trim(),branch:String(r.branch??'البازار').trim()||'البازار',action,timestamp:ts,date:workDate,workDate,timeDisplay:ts?EgyptClock.formatTime(ts):String(r.timeDisplay??r.time??'').trim(),source:String(r.source??'fingerprint').trim()||'fingerprint',note:String(r.note??'').trim(),addedBy:String(r.addedBy??r.user??r.by??'-').trim()||'-'};
     }
     if(kind==='advances'){
       const code=String(r.code??r.employeeCode??'').trim();if(!code)return null;return {...r,id,code,name:String(r.name??r.employeeName??'').trim(),amount:this._money(r.amount??r.value??r.val??r.salaryAdvance),date:this._normDate(r.date??r.dateKey??''),note:String(r.note??r.notes??r.reason??'').trim(),addedBy:String(r.addedBy??r.by??r.user??r.createdBy??'-').trim()||'-',timestamp:this._num(r.timestamp??r.ts??0),updatedAt:this._num(r.updatedAt??0)};
@@ -20942,15 +21055,13 @@ const BazarHRSuite = {
       const actual=dayKey(ts);
       const cin=this._parseTime(emp?.checkIn||emp?.workStart||emp?.expectedIn);
       if(!actual||cin==null)return actual;
-      const d=new Date(Number(ts));
-      const minute=d.getHours()*60+d.getMinutes();
+      const minute=EgyptClock.minutesOfDay(ts);
       // A punch earlier than 3 hours before the next official shift start
       // belongs to the previous shift; this keeps late departures together,
       // including overnight departures well after the official end time.
       const priorBoundary=cin-180;
       if(priorBoundary>0 && minute<priorBoundary){
-        const prior=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);
-        return `${prior.getFullYear()}-${String(prior.getMonth()+1).padStart(2,'0')}-${String(prior.getDate()).padStart(2,'0')}`;
+        return EgyptClock.addDays(actual,-1);
       }
       return actual;
     };
@@ -21202,7 +21313,7 @@ const BazarHRSuite = {
           updates[`bazarPenalties/${current.id}/exemptionId`]=`leave_${current.id}`;
           updates[`bazarPenalties/${current.id}/exemptReason`]='إجازة موافق عليها لنفس اليوم';
           updates[`bazarPenalties/${current.id}/exemptedBy`]=State.currentUser?.username||'النظام';
-          updates[`bazarPenalties/${current.id}/exemptedAt`]=new Date(this._now()).toLocaleString('ar-EG');
+          updates[`bazarPenalties/${current.id}/exemptedAt`]=EgyptClock.formatDateTime(this._now());
           updates[`bazarPenalties/${current.id}/updatedAt`]=Date.now();
         }
         continue;
@@ -21305,10 +21416,8 @@ const BazarHRSuite = {
     const byCode=new Map(), seen=new Set(), shiftCandidates=new Set();
     const shiftDaysAround=(key)=>{
       if(!/^\d{4}-\d{2}-\d{2}$/.test(key||''))return [];
-      const d=new Date(key+'T12:00:00');if(!Number.isFinite(d.getTime()))return [];
-      const keys=[];
-      for(const delta of [-1,0,1]){const x=new Date(d);x.setDate(x.getDate()+delta);keys.push(`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`);}
-      return keys;
+      const m=String(key).match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return [];
+      return [-1,0,1].map(delta=>EgyptClock.addDays(key,delta));
     };
     raw.forEach(a=>{
       const code=String(a.code||'').trim(),ts=Number(a.timestamp||0);
@@ -21338,9 +21447,7 @@ const BazarHRSuite = {
           // shift starts, which also prevents tomorrow's arrival becoming
           // today's checkout. Window boundaries are half-open to avoid overlap.
           const winStart=schedule.inTs-bufferMs;
-          const nextDate=new Date(dk+'T12:00:00');
-          nextDate.setDate(nextDate.getDate()+1);
-          const nextKey=`${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}-${String(nextDate.getDate()).padStart(2,'0')}`;
+          const nextKey=EgyptClock.addDays(dk,1);
           const nextSchedule=this._schedule(emp,nextKey);
           const winEnd=nextSchedule ? nextSchedule.inTs-bufferMs : schedule.inTs+86400000-bufferMs;
           candidates=all.filter(a=>a.timestamp>=winStart&&a.timestamp<winEnd).sort((a,b)=>a.timestamp-b.timestamp);
@@ -21402,7 +21509,7 @@ const BazarHRSuite = {
       updates[`bazarPenalties/${p.id}/exemptionId`]=`leave_${p.id}`;
       updates[`bazarPenalties/${p.id}/exemptReason`]=`إجازة موافق عليها لنفس اليوم`;
       updates[`bazarPenalties/${p.id}/exemptedBy`]=State.currentUser?.username||'النظام';
-      updates[`bazarPenalties/${p.id}/exemptedAt`]=new Date(this._now()).toLocaleString('ar-EG');
+      updates[`bazarPenalties/${p.id}/exemptedAt`]=EgyptClock.formatDateTime(this._now());
       updates[`bazarPenalties/${p.id}/updatedAt`]=Date.now();
     });
     await db.ref().update(updates);
@@ -21420,7 +21527,7 @@ const BazarHRSuite = {
     const duplicate=this._data.leaves.find(l=>String(l.code)===String(emp.code)&&this._normDate(l.date)===date&&String(l.id)!==String(id||''));
     if(duplicate)return this._toast(`⚠️ يوجد طلب إجازة لهذا الموظف في ${this._dateText(date)} بالفعل`,'warning');
     const now=new Date(this._now());
-    const rec={code:emp.code,name:emp.name,job:emp.job||'',date,type,requestDate:this._today(),requestDateText:now.toLocaleDateString('ar-EG'),requestTime:now.toLocaleTimeString('ar-EG'),requestedBy:State.currentUser?.username||'-',manager,approvedBy:id?(this._data.leaves.find(x=>String(x.id)===String(id))?.approvedBy||''):'',status:id?(this._data.leaves.find(x=>String(x.id)===String(id))?.status||'قيد المراجعة'):'قيد المراجعة',notes,timestamp:id?(this._data.leaves.find(x=>String(x.id)===String(id))?.timestamp||Date.now()):Date.now(),updatedAt:Date.now()};
+    const rec={code:emp.code,name:emp.name,job:emp.job||'',date,type,requestDate:this._today(),requestDateText:EgyptClock.formatDate(this._now()),requestTime:EgyptClock.formatTime(this._now()),requestedBy:State.currentUser?.username||'-',manager,approvedBy:id?(this._data.leaves.find(x=>String(x.id)===String(id))?.approvedBy||''):'',status:id?(this._data.leaves.find(x=>String(x.id)===String(id))?.status||'قيد المراجعة'):'قيد المراجعة',notes,timestamp:id?(this._data.leaves.find(x=>String(x.id)===String(id))?.timestamp||Date.now()):Date.now(),updatedAt:Date.now()};
     try{
       const ref=id?db.ref('bazarLeaves/'+id):db.ref('bazarLeaves').push();
       await (id?ref.update(rec):ref.set({...rec,id:ref.key}));
@@ -21569,7 +21676,7 @@ const BazarHRSuite = {
     if(!p||!reason)return this._toast('اكتب سبب الإعفاء أولًا','error');
     const now=this._now();
     const exId=`ex_${this._safeFirebaseKey(p.id)}`;
-    const rec={id:exId,penaltyId:p.id,code:p.code,name:p.name||this._employee(p.code)?.name||p.code,date:p.date,penaltyType:p.type||'جزاء',penaltyLevel:p.penaltyLevel||p.type||'جزاء',hours:Number(p.hours||0),amount:Number(p.value??p.amount??0),penaltyReason:p.reason||'-',exemptReason:reason,exemptedBy:State.currentUser?.username||'-',exemptedAt:new Date(now).toLocaleString('ar-EG'),timestamp:firebase.database.ServerValue.TIMESTAMP};
+    const rec={id:exId,penaltyId:p.id,code:p.code,name:p.name||this._employee(p.code)?.name||p.code,date:p.date,penaltyType:p.type||'جزاء',penaltyLevel:p.penaltyLevel||p.type||'جزاء',hours:Number(p.hours||0),amount:Number(p.value??p.amount??0),penaltyReason:p.reason||'-',exemptReason:reason,exemptedBy:State.currentUser?.username||'-',exemptedAt:EgyptClock.formatDateTime(now),timestamp:firebase.database.ServerValue.TIMESTAMP};
     try{
       await db.ref().update({[`bazarPenaltyExemptions/${exId}`]:rec,[`bazarPenalties/${p.id}/exempted`]:true,[`bazarPenalties/${p.id}/exemptionId`]:exId,[`bazarPenalties/${p.id}/exemptReason`]:reason,[`bazarPenalties/${p.id}/exemptedBy`]:rec.exemptedBy,[`bazarPenalties/${p.id}/exemptedAt`]:rec.exemptedAt,[`bazarPenalties/${p.id}/updatedAt`]:Date.now()});
       await this._auditBazar('BazarPenaltyExempt',p.code,`إعفاء من جزاء — ${p.name||p.code}`,{entityType:'إعفاء جزاء',entityId:exId,penaltyId:p.id,recordDate:this._normDate(p.date),reason,amount:Number(p.value??p.amount??0),hours:Number(p.hours||0)});
@@ -21596,7 +21703,7 @@ const BazarHRSuite = {
   openPenaltyForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.penalties.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل جزاء':'إضافة جزاء',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>الساعات</span><input class="bhr-input" id="bhr-hours" type="number" min="0" step="0.25" value="${this._esc(old.hours??'')}"></label><label class="bhr-field"><span>القيمة (اختياري)</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" value="${this._esc(old.value??old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field"><span>المدير</span><input class="bhr-input" id="bhr-manager" value="${this._esc(old.manager||'')}"></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'يدوي')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>السبب</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.reason||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePenalty(id));},
   async _savePenalty(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),hours=this._num(document.getElementById('bhr-hours')?.value),amount=this._money(document.getElementById('bhr-amount')?.value);if(!emp||(!hours&&!amount))return this._toast('اختر الموظف وأدخل الساعات أو القيمة','error');const rec={code:emp.code,name:emp.name,hours,amount,value:amount,date:this._normDate(document.getElementById('bhr-date')?.value||this._today()),manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarPenaltyEdit':'BazarPenaltyAdd',emp.code,`${id?'تعديل جزاء':'إضافة جزاء يدوي'} — ${emp.name}`,{entityType:'جزاء',entityId:id||ref.key,recordDate:rec.date,hours,amount,reason:rec.reason||'',penaltyType:rec.type||'يدوي'});this.closeModal();this._toast('✅ تم حفظ الجزاء','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openPermitForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.permits.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل إذن':'إضافة إذن',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'شخصي')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||old.dateKey||this._today())}"></label><label class="bhr-field"><span>وقت الخروج</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.breakTime||'')}"></label><label class="bhr-field"><span>وقت الرجوع</span><input class="bhr-input" id="bhr-back" type="time" value="${this._esc(old.returnTime||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePermit(id));},
-  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=new Date(date+'T'+out+':00').getTime();let backTs=back?new Date(date+'T'+back+':00').getTime():0;if(backTs&&backTs<=outTs)backTs+=86400000;const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);if(backTs||id)await this._recalcPrayerPermitPenalty({...rec,id:ref.key});await this._auditBazar(id?'BazarPermitEdit':'BazarPermitAdd',emp.code,`${id?'تعديل إذن':'إضافة إذن'} — ${emp.name}`,{entityType:'إذن',entityId:id||ref.key,recordDate:date,permitType:rec.type,breakTime:out,returnTime:back,durationMs,status:rec.status});this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  async _savePermit(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),date=this._normDate(document.getElementById('bhr-date')?.value||this._today()),out=document.getElementById('bhr-out')?.value||'',back=document.getElementById('bhr-back')?.value||'';if(!emp||!out)return this._toast('اختر الموظف ووقت الخروج','error');const outTs=EgyptClock.localToTimestamp(date,out);let backTs=back?EgyptClock.localToTimestamp(date,back):0;if(!Number.isFinite(outTs))return this._toast('وقت الخروج غير صالح وفق توقيت مصر','error');if(back&&(!Number.isFinite(backTs)||backTs<=outTs))backTs=EgyptClock.localToTimestamp(EgyptClock.addDays(date,1),back);if(back&&!Number.isFinite(backTs))return this._toast('وقت الرجوع غير صالح وفق توقيت مصر','error');const durationMs=backTs?Math.max(0,backTs-outTs):0;const rec={code:emp.code,name:emp.name,type:String(document.getElementById('bhr-type')?.value||'شخصي'),date,dateKey:date,breakTime:out,breakTimestamp:outTs,returnTime:back,returnTimestamp:backTs,durationMs,status:backTs?'closed':'open',user:State.currentUser?.username||'-',note:String(document.getElementById('bhr-note')?.value||''),updatedAt:Date.now()};try{const ref=id?db.ref('bazarBreaks/'+id):db.ref('bazarBreaks').push();if(id)await ref.update(rec);else await ref.set(rec);if(backTs||id)await this._recalcPrayerPermitPenalty({...rec,id:ref.key});await this._auditBazar(id?'BazarPermitEdit':'BazarPermitAdd',emp.code,`${id?'تعديل إذن':'إضافة إذن'} — ${emp.name}`,{entityType:'إذن',entityId:id||ref.key,recordDate:date,permitType:rec.type,breakTime:out,returnTime:back,durationMs,status:rec.status});this.closeModal();this._toast('✅ تم حفظ الإذن','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   async _saveAttendance(code,date,inTime,outTime,note){
     const emp=this._employee(code);
     if(!emp||!inTime)return this._toast('اختر الموظف وأدخل وقت الحضور','error');
@@ -21605,19 +21712,20 @@ const BazarHRSuite = {
     const schedule=this._schedule(emp,date);
     const currentRow=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));
     const originalIn=currentRow?.cin||null, originalOut=currentRow?.cout||null;
-    const [yy,mm,dd]=date.split('-').map(Number);
-    const tsFor=(dayOffset,time)=>{
-      const [hh,mi]=String(time||'').split(':').map(Number);
-      const dt=new Date(yy,mm-1,dd+(dayOffset||0),hh||0,mi||0,0,0);
-      return dt.getTime();
-    };
+    // Interpret date/time fields in Egypt wall time, independent of Android's cached timezone.
     // For a shift beginning just after midnight, 23:xx belongs to the prior evening.
-    let inOffset=0;
+    let inDate=date;
     const inMinutes=this._parseTime(inTime);
-    if(schedule&&schedule.inMin<=180&&inMinutes!=null&&inMinutes>=18*60)inOffset=-1;
-    const inTs=tsFor(inOffset,inTime);
-    let outTs=outTime?tsFor(0,outTime):0;
-    while(outTs&&outTs<=inTs)outTs+=86400000;
+    if(schedule&&schedule.inMin<=180&&inMinutes!=null&&inMinutes>=18*60)inDate=EgyptClock.addDays(date,-1);
+    const inTs=EgyptClock.localToTimestamp(inDate,inTime);
+    if(!Number.isFinite(inTs))return this._toast('وقت الحضور غير صالح وفق توقيت مصر','error');
+    let outDate=date;
+    let outTs=outTime?EgyptClock.localToTimestamp(outDate,outTime):0;
+    if(outTime && (!Number.isFinite(outTs)||outTs<=inTs)){
+      outDate=EgyptClock.addDays(date,1);
+      outTs=EgyptClock.localToTimestamp(outDate,outTime);
+    }
+    if(outTime&&!Number.isFinite(outTs))return this._toast('وقت الانصراف غير صالح وفق توقيت مصر','error');
     const minuteOf=ts=>Math.floor(Number(ts||0)/60000);
     const inChanged=!originalIn||minuteOf(originalIn.timestamp)!==minuteOf(inTs);
     const outChanged=!!outTime&&(!originalOut||minuteOf(originalOut.timestamp)!==minuteOf(outTs));
@@ -21628,13 +21736,14 @@ const BazarHRSuite = {
     if(schedule){
       const bufferMs=3*60*60*1000;
       windowStart=schedule.inTs-bufferMs;
-      const nd=new Date(yy,mm-1,dd+1);
-      const nextKey=`${nd.getFullYear()}-${String(nd.getMonth()+1).padStart(2,'0')}-${String(nd.getDate()).padStart(2,'0')}`;
+      const nextKey=EgyptClock.addDays(date,1);
       const nextSchedule=this._schedule(emp,nextKey);
-      windowEnd=nextSchedule?nextSchedule.inTs-bufferMs:schedule.inTs+86400000-bufferMs;
+      const nextDayStart=EgyptClock.dayStart(nextKey);
+      windowEnd=nextSchedule?nextSchedule.inTs-bufferMs:(Number.isFinite(nextDayStart)?nextDayStart:schedule.inTs+86400000)-bufferMs;
     }else{
-      windowStart=new Date(yy,mm-1,dd,0,0,0,0).getTime();
-      windowEnd=new Date(yy,mm-1,dd+1,0,0,0,0).getTime();
+      windowStart=EgyptClock.dayStart(date);
+      windowEnd=EgyptClock.dayStart(EgyptClock.addDays(date,1));
+      if(!Number.isFinite(windowStart)||!Number.isFinite(windowEnd))return this._toast('تعذر تحديد حدود اليوم وفق توقيت مصر','error');
     }
     const updates={};
     this._data.attendance.filter(a=>{
@@ -21649,7 +21758,7 @@ const BazarHRSuite = {
       if(editedNote)raw.note=note;
       updates[`fingerprintBazar/${event.id}`]=raw;
     };
-    const makeManual=(action,ts,suffix)=>({code:emp.code,name:emp.name,job:emp.job||'',action,source:'manual',manualEdited:true,branch:emp.branch||'البازار',workDate:date,dateISO:this._dayKey(ts),timeDisplay:this._timeText(ts),timestamp:ts,note,addedBy:State.currentUser?.username||'-',editedBy:State.currentUser?.username||'-',editedAt:new Date().toLocaleString('ar-EG')});
+    const makeManual=(action,ts,suffix)=>({code:emp.code,name:emp.name,job:emp.job||'',action,source:'manual',manualEdited:true,branch:emp.branch||'البازار',workDate:date,dateISO:this._dayKey(ts),timeDisplay:this._timeText(ts),timestamp:ts,note,addedBy:State.currentUser?.username||'-',editedBy:State.currentUser?.username||'-',editedAt:EgyptClock.formatDateTime(TimeUtils.now())});
     const base=`manual_${Date.now()}_${this._safeFirebaseKey(code)}`;
     if(!inChanged&&originalIn)restoreOriginal(originalIn,true);
     else updates[`fingerprintBazar/${base}_in`]=makeManual('CheckIn',inTs,'in');
@@ -21663,7 +21772,7 @@ const BazarHRSuite = {
     this.closeModal();
     this._toast('✅ تم حفظ الحضور والانصراف مع الحفاظ على مصدر كل بصمة','success');
   },
-  openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?new Date(row.cin.timestamp).toTimeString().slice(0,5):'',cout=row?.cout?new Date(row.cout.timestamp).toTimeString().slice(0,5):'',note=row?.notes||'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(note)}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
+  openAttendanceForm(code='',date=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const row=this._attendanceDailyRows(date,date).find(r=>String(r.code)===String(code));const emp=this._employee(code)||this._employees()[0];if(!emp)return this._toast('أضف الموظف أولًا','warning');const cin=row?.cin?EgyptClock.time24(row.cin.timestamp):'',cout=row?.cout?EgyptClock.time24(row.cout.timestamp):'',note=row?.notes||'';this._openModal(code?'تعديل حضور وانصراف':'إضافة حضور وانصراف',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(emp.code)}</select></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(date||this._today())}"></label><label class="bhr-field"><span>الحضور</span><input class="bhr-input" id="bhr-in" type="time" required value="${this._esc(cin)}"></label><label class="bhr-field"><span>الانصراف</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(cout)}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(note)}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value));},
 
   async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();const actionMap={employees:'BazarEmployeeDelete',advances:'BazarAdvanceDelete',incentives:'BazarIncentiveDelete',penalties:'BazarPenaltyDelete',leaves:'BazarLeaveDelete',permits:'BazarPermitDelete'};await this._auditBazar(actionMap[kind]||'BazarRecordDelete',code||id,`حذف ${label} — ${name||code||id}`,{entityType:label,entityId:id,path,recordDate:this._normDate(row?.date||row?.dateKey||''),reason:row?.reason||row?.note||'',recordDetails:row?{name:row.name||'',code:row.code||'',job:row.job||'',date:row.date||row.dateKey||'',amount:row.amount??row.value??null,hours:row.hours??null,type:row.type||'',reason:row.reason||row.note||'',status:row.status||''}:null});this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
   async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();const durationMs=Math.max(0,now-Number(row.breakTimestamp||0));await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed',updatedAt:Date.now()});await this._recalcPrayerPermitPenalty({...row,returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed'});await this._auditBazar('BazarPermitReturned',row.code,`تسجيل رجوع إذن — ${row.name||row.code}`,{entityType:'إذن',entityId:id,recordDate:this._normDate(row.date||row.dateKey),breakTime:row.breakTime,returnTime:this._timeText(now),durationMs,status:'closed'});},
@@ -21696,10 +21805,7 @@ const BazarHRSuite = {
       const timeFrac=(v)=>{const m=parseTimeMin(v);return m==null?'':m/1440;};
       const timestampToExcelTime=(ts,fallback)=>{
         const n=Number(ts);
-        if(Number.isFinite(n)&&n>0){
-          const d=new Date(n);
-          if(Number.isFinite(d.getTime())) return (d.getHours()*60+d.getMinutes())/1440;
-        }
+        if(Number.isFinite(n)&&n>0) return EgyptClock.minutesOfDay(n)/1440;
         return timeFrac(fallback);
       };
       const officialTimeFrac=(emp,field)=>{
@@ -21827,7 +21933,25 @@ const BazarHRSuite = {
   init(){if(this._initialized){this.applyPermissionVisibility();if(this._active&&this._canFingerprintTab(this._active)&&!this._isEditingActivePane())this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));root.addEventListener('focusout',e=>{if(!this._pendingActiveRender)return;this._flushPendingUiRefresh();});this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.applyPermissionVisibility();const first=root.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');this.openPane(first?.dataset?.bhrTab||'employees');this._toast('✅ بصمة البازار — تحديث ذكي دون إعادة رسم متكرر','success');}
 };
 window.BazarHRSuite=BazarHRSuite;
-console.info('[Allosh Bazar HR] V52 — user-journey data integrated into archive collection selector');
+
+
+function checkEgyptDeviceClock(){
+  try{
+    const ts=TimeUtils.now();
+    const deviceOffset=EgyptClock.deviceOffset(ts);
+    const egyptOffset=EgyptClock.offsetMinutes(ts);
+    const timezoneMismatch=deviceOffset!==egyptOffset;
+    const serverClockSkew=Math.abs(Number(State.serverOffset)||0)>90000;
+    if(timezoneMismatch||serverClockSkew){
+      console.warn('[EgyptClock] Device clock configuration differs from Egypt/server time:',{deviceOffset,egyptOffset,serverOffset:Number(State.serverOffset)||0,zone:Intl.DateTimeFormat().resolvedOptions().timeZone||'unknown'});
+      const show=()=>{if(typeof UI!=='undefined'&&UI.toast)UI.toast(timezoneMismatch?'تنبيه: المنطقة الزمنية للهاتف مختلفة عن توقيت مصر. النظام يسجل الحضور بتوقيت مصر الرسمي، ويُفضّل تفعيل المنطقة الزمنية التلقائية.':'تنبيه: ساعة الهاتف تختلف عن ساعة Firebase. يعتمد النظام على وقت السيرفر عند التسجيل؛ يُرجى تفعيل الوقت التلقائي بالجهاز.','warning',10000);};
+      if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(show,1800),{once:true});else setTimeout(show,1800);
+    }
+  }catch(e){console.warn('[EgyptClock] diagnostic failed',e);}
+}
+
+setTimeout(checkEgyptDeviceClock,2500);
+console.info('[Allosh Bazar HR] V56 — Egypt/Africa-Cairo clock for attendance, penalties, schedules, reports and forms');
 
 // FINGERPRINT BAZAR SERVICE - بصمة البازار
 // ════════════════════════════════════════════════════════════
@@ -21844,11 +21968,7 @@ const FingerprintBazarService = {
   _esc(v){
     return String(v ?? '').replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
   },
-  _localKey(ts){
-    const d = new Date(Number(ts)||0);
-    if(!Number.isFinite(d.getTime())) return '';
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  },
+  _localKey(ts){ return EgyptClock.dateKey(Number(ts)||0); },
   _parseDate(v){
     const d = new Date(v);
     return Number.isFinite(d.getTime()) ? d : null;
@@ -21861,18 +21981,16 @@ const FingerprintBazarService = {
       const h=Number(m[1]), min=Number(m[2]||0);
       if(h>=0 && h<=23 && min>=0 && min<=59) return h*60+min;
     }
+    const n=Number(v);
+    if(Number.isFinite(n)&&n>100000000000) return EgyptClock.minutesOfDay(n);
     const d = new Date(v);
-    if(Number.isFinite(d.getTime())) return d.getHours()*60+d.getMinutes();
+    if(Number.isFinite(d.getTime())) return EgyptClock.minutesOfDay(d.getTime());
     return null;
   },
-  _timeText(ts){
-    const d=new Date(Number(ts)||0);
-    return Number.isFinite(d.getTime()) ? d.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '-';
-  },
+  _timeText(ts){ return Number(ts)>0 ? EgyptClock.formatTime(Number(ts),'ar-EG',{hour:'2-digit',minute:'2-digit'}) : '-'; },
   _dateText(key){
     if(!key) return '-';
-    const [y,m,d]=key.split('-').map(Number);
-    return Number.isFinite(y) ? new Date(y,m-1,d).toLocaleDateString('ar-EG') : key;
+    return EgyptClock.formatDateKey(key);
   },
   _fmtMin(mins, blank='-'){
     if(mins == null || !Number.isFinite(mins)) return blank;
@@ -21948,11 +22066,8 @@ const FingerprintBazarService = {
       const emp=empMap.get(String(code));
       const start=this._parseTime(emp?.checkIn||emp?.workStart);
       if(start==null)return actual;
-      const d=new Date(ts), minute=d.getHours()*60+d.getMinutes();
-      if(start>180 && minute<start-180){
-        const prior=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);
-        return `${prior.getFullYear()}-${String(prior.getMonth()+1).padStart(2,'0')}-${String(prior.getDate()).padStart(2,'0')}`;
-      }
+      const minute=EgyptClock.minutesOfDay(ts);
+      if(start>180 && minute<start-180) return EgyptClock.addDays(actual,-1);
       return actual;
     };
     const rows=this._data().map(a=>({...a,code:String(a.code||'').trim(),timestamp:Number(a.timestamp||0)}))
@@ -21981,9 +22096,10 @@ const FingerprintBazarService = {
     const inMin=this._parseTime(emp?.checkIn); const outMin=this._parseTime(emp?.checkOut);
     if(inMin==null || outMin==null) return null;
     const [y,m,d]=dateKey.split('-').map(Number);
-    const inTs=new Date(y,m-1,d,inMin/60|0,inMin%60,0,0).getTime();
-    let outDayTs=new Date(y,m-1,d,outMin/60|0,outMin%60,0,0).getTime();
-    if(outMin<=inMin) outDayTs+=24*60*60*1000;
+    const inTs=EgyptClock.localToTimestamp(dateKey,`${String(inMin/60|0).padStart(2,'0')}:${String(inMin%60).padStart(2,'0')}`);
+    const outDate=outMin<=inMin?EgyptClock.addDays(dateKey,1):dateKey;
+    const outDayTs=EgyptClock.localToTimestamp(outDate,`${String(outMin/60|0).padStart(2,'0')}:${String(outMin%60).padStart(2,'0')}`);
+    if(!Number.isFinite(inTs)||!Number.isFinite(outDayTs)) return null;
     const officialMin=outMin<=inMin ? (24*60-inMin)+outMin : outMin-inMin;
     return {inTs,outTs:outDayTs,inMin,outMin,officialMin};
   },
@@ -22000,11 +22116,11 @@ const FingerprintBazarService = {
       (pairByDay[key] ||= []).push(p);
     });
     const rows=[];
-    const from=new Date(fromKey+'T00:00:00'); const to=new Date(toKey+'T00:00:00');
-    const daySpan=Math.floor((to-from)/86400000)+1;
+    const from=new Date(`${fromKey}T12:00:00Z`), to=new Date(`${toKey}T12:00:00Z`);
+    const daySpan=Math.floor((Date.UTC(to.getUTCFullYear(),to.getUTCMonth(),to.getUTCDate())-Date.UTC(from.getUTCFullYear(),from.getUTCMonth(),from.getUTCDate()))/86400000)+1;
     const dayKeys=[];
     if(daySpan<=62){
-      for(let dt=new Date(from); dt<=to; dt.setDate(dt.getDate()+1)) dayKeys.push(`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`);
+      for(let n=0;n<daySpan;n++) dayKeys.push(EgyptClock.addDays(fromKey,n));
     }else{
       const used=new Set();
       pairs.forEach(p=>{ const dk=this._localKey(p.checkIn?.timestamp); if(dk && dk>=fromKey && dk<=toKey) used.add(dk); });
@@ -22021,8 +22137,8 @@ const FingerprintBazarService = {
           if(cin){ if(!actualIn || cin.timestamp<actualIn.timestamp) actualIn=cin; usedPairs.push(p); }
           if(cout){ if(!actualOut || cout.timestamp>actualOut.timestamp) actualOut=cout; latestOut=cout;
             const ms=Math.max(0,cout.timestamp-(cin?.timestamp||cout.timestamp)); actualMs+=ms;
-          } else if(cin && document.getElementById('fpBazarLiveOpen')?.checked && dk===this._localKey(Date.now())) {
-            actualMs += Math.max(0,Date.now()-cin.timestamp);
+          } else if(cin && document.getElementById('fpBazarLiveOpen')?.checked && dk===this._localKey(TimeUtils.now())) {
+            actualMs += Math.max(0,TimeUtils.now()-cin.timestamp);
           }
         });
         const hasIn=!!actualIn, hasOut=!!actualOut;
@@ -22057,7 +22173,7 @@ const FingerprintBazarService = {
   },
 
   _filteredRows(){
-    const from=document.getElementById('fpBazarDateFrom')?.value || this._localKey(Date.now());
+    const from=document.getElementById('fpBazarDateFrom')?.value || this._localKey(TimeUtils.now());
     const to=document.getElementById('fpBazarDateTo')?.value || from;
     const search=(document.getElementById('fpBazarSearch')?.value||'').trim().toLowerCase();
     const empCode=document.getElementById('fpBazarFilterEmp')?.value||'';
@@ -22084,7 +22200,7 @@ const FingerprintBazarService = {
     if(rsum){
       const g=(k)=>sum(k); const absentDays=absent; const workDays=present; const official=sum('officialMin'); const actual=sum('actualMin');
       rsum.innerHTML=`<div style="padding:11px 12px;border-radius:10px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);font-size:12px;color:#cbd5e1;display:flex;gap:12px;flex-wrap:wrap;align-items:center">
-        <span>📅 ${this._dateText(from)}${from!==to?' → '+this._dateText(to):''}</span>${(new Date(to+'T00:00:00')-new Date(from+'T00:00:00'))/86400000+1>62?'<span style="color:#fbbf24">⚠️ فترة كبيرة: الغياب الكامل يُحسب بدقة حتى 62 يومًا، وبعدها يُعرض الملخص على أيام الحركات الموجودة فقط.</span>':''}
+        <span>📅 ${this._dateText(from)}${from!==to?' → '+this._dateText(to):''}</span>${(Date.UTC(Number(to.slice(0,4)),Number(to.slice(5,7))-1,Number(to.slice(8,10)))-Date.UTC(Number(from.slice(0,4)),Number(from.slice(5,7))-1,Number(from.slice(8,10))))/86400000+1>62?'<span style="color:#fbbf24">⚠️ فترة كبيرة: الغياب الكامل يُحسب بدقة حتى 62 يومًا، وبعدها يُعرض الملخص على أيام الحركات الموجودة فقط.</span>':''}
         <span>✅ حضور: <b style="color:#34d399">${workDays}</b></span>
         <span>❌ غياب: <b style="color:#f87171">${absentDays}</b></span>
         <span>⏱ رسمي: <b style="color:#94a3b8">${this._fmtMin(official,'0:00')}</b></span>
@@ -22168,8 +22284,8 @@ const FingerprintBazarService = {
     body.innerHTML='';
     rows.forEach(a=>{
       const emp= this._employees().find(e=>String(e.code)===String(a.code)) || {name:a.name||a.code,job:a.job||'',checkIn:a.expectedIn||''};
-      const late=Math.max(0,this._parseTime(emp.checkIn)==null?0:Math.round((Number(a.timestamp)-new Date(new Date(a.timestamp).getFullYear(),new Date(a.timestamp).getMonth(),new Date(a.timestamp).getDate(),Math.floor(this._parseTime(emp.checkIn)/60),this._parseTime(emp.checkIn)%60).getTime())/60000));
-      const dur=Math.max(0,Date.now()-Number(a.timestamp));
+      const late=Math.max(0,calcLateMinutes(Number(a.timestamp),emp.checkIn||emp.workStart||''));
+      const dur=Math.max(0,TimeUtils.now()-Number(a.timestamp));
       const tr=document.createElement('tr'); tr.innerHTML=`<td style="font-weight:700">${this._esc(emp.name)}</td><td style="color:#818cf8">${this._esc(a.code)}</td><td>${this._esc(emp.job||'-')}</td><td style="color:#34d399">${this._timeText(a.timestamp)}</td><td style="color:#818cf8;font-weight:700">${this._fmtMin(Math.round(dur/60000),'0:00')}</td><td style="color:${late>0?'#f59e0b':'#34d399'}">${late>0?this._fmtMin(late):'-'}</td><td></td>`;
       if(hasPermission('attendance')||hasPermission('edit')||hasPermission('all')){ const b=document.createElement('button'); b.textContent='👋 خروج'; b.style.cssText='background:rgba(239,68,68,.2);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:5px 9px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:11px'; b.onclick=()=>this.registerCheckout(a.code,emp.name); tr.lastElementChild.appendChild(b); }
       body.appendChild(tr);
@@ -22185,21 +22301,20 @@ const FingerprintBazarService = {
 
   setPreset(btn,preset){
     document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active')); if(btn) btn.classList.add('active');
-    const now=new Date(); let f,t;
-    const key=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    if(preset==='yesterday'){ const d=new Date();d.setDate(d.getDate()-1);f=t=key(d); }
-    else if(preset==='month'){ const d1=new Date(now.getFullYear(),now.getMonth(),1), d2=new Date(now.getFullYear(),now.getMonth()+1,0);f=key(d1);t=key(d2); }
+    const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs); let f,t;
+    if(preset==='yesterday'){ f=t=EgyptClock.addDays(todayKey,-1); }
+    else if(preset==='month'){ f=todayKey.slice(0,7)+'-01'; const [yy,mm]=todayKey.split('-').map(Number);t=`${yy}-${String(mm).padStart(2,'0')}-${String(new Date(Date.UTC(yy,mm,0)).getUTCDate()).padStart(2,'0')}`; }
     else if(preset==='all'){
-      const raw=this._data().filter(a=>a.timestamp).map(a=>new Date(Number(a.timestamp)));
-      if(raw.length){ raw.sort((a,b)=>a-b); f=key(raw[0]); t=key(raw[raw.length-1]); }
-      else { f=t=key(now); }
+      const stamps=this._data().filter(a=>Number(a.timestamp)>0).map(a=>Number(a.timestamp));
+      if(stamps.length){stamps.sort((a,b)=>a-b);f=EgyptClock.dateKey(stamps[0]);t=EgyptClock.dateKey(stamps[stamps.length-1]);}
+      else {f=t=todayKey;}
     }
-    else { f=t=key(now); }
+    else { f=t=todayKey; }
     const a=document.getElementById('fpBazarDateFrom'),b=document.getElementById('fpBazarDateTo'); if(a)a.value=f;if(b)b.value=t; this.render();
   },
 
   clearFilters(){
-    const key=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const k=key(new Date());
+    const k=EgyptClock.dateKey(TimeUtils.now());
     ['fpBazarDateFrom','fpBazarDateTo','fpBazarSearch'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     const emp=document.getElementById('fpBazarFilterEmp');if(emp)emp.value=''; const st=document.getElementById('fpBazarFilterStatus');if(st)st.value='';
     document.querySelectorAll('#tab-fingerprint-bazar .filter-btn').forEach(b=>b.classList.remove('active')); document.querySelector('#tab-fingerprint-bazar .filter-btn')?.classList.add('active');
@@ -22217,7 +22332,7 @@ const FingerprintBazarService = {
   refresh(){this.render();UI.toast('✅ تم التحديث','success');},
 
   openAddModal(){
-    this._populateSelects(); const d=document.getElementById('fpBazarAddDate'), t=document.getElementById('fpBazarAddTime'); if(d&&!d.value)d.value=this._localKey(Date.now()); if(t&&!t.value){const n=new Date();t.value=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;} document.getElementById('fpBazarAddModal').style.display='flex';
+    this._populateSelects(); const d=document.getElementById('fpBazarAddDate'), t=document.getElementById('fpBazarAddTime'); if(d&&!d.value)d.value=this._localKey(TimeUtils.now()); if(t&&!t.value)t.value=EgyptClock.time24(TimeUtils.now()); document.getElementById('fpBazarAddModal').style.display='flex';
   },
 
   saveManual(){
@@ -22225,15 +22340,15 @@ const FingerprintBazarService = {
     if(!code||!action||!date||!time){UI.toast('يرجى ملء جميع الحقول','error');return;}
     const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;}
     if(this._isInactive(emp)){UI.toast('لا يمكن تسجيل حركة لموظف مستقيل أو موقوف','error');return;}
-    const [h,m]=time.split(':').map(Number); const dt=new Date(date); dt.setHours(h,m,0,0);
-    this._db().push({code:String(code),name:emp.name||code,job:emp.job||'',action,date:dt.toLocaleDateString('ar-EG'),timeDisplay:dt.toLocaleTimeString('ar-EG'),timestamp:dt.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',note,expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0})
-      .then(()=>{UI.toast('✅ تم تسجيل الحركة','success');SystemLog.add('FpBazarManualAdd',String(code),'إضافة حركة حضور/انصراف',{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,actionType:action,recordDate:date,time,source:'manual',note,recordTimestamp:dt.getTime()});document.getElementById('fpBazarAddModal').style.display='none';document.getElementById('fpBazarAddNote').value='';})
+    const ts=EgyptClock.localToTimestamp(date,time); if(!Number.isFinite(ts)){UI.toast('الوقت المختار غير صالح وفق توقيت مصر (قد تكون ساعة غير موجودة وقت تغيير التوقيت)','error');return;}
+    this._db().push({code:String(code),name:emp.name||code,job:emp.job||'',action,date:EgyptClock.formatDate(ts),timeDisplay:EgyptClock.formatTime(ts),timestamp:ts,source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',note,expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0})
+      .then(()=>{UI.toast('✅ تم تسجيل الحركة','success');SystemLog.add('FpBazarManualAdd',String(code),'إضافة حركة حضور/انصراف',{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,actionType:action,recordDate:date,time,source:'manual',note,recordTimestamp:ts});document.getElementById('fpBazarAddModal').style.display='none';document.getElementById('fpBazarAddNote').value='';})
       .catch(e=>UI.toast('❌ '+e.message,'error'));
   },
 
   registerCheckout(code,name){
     const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;} if(this._isInactive(emp)){UI.toast('لا يمكن تسجيل خروج لموظف مستقيل أو موقوف','error');return;}
-    showConfirm(`تسجيل خروج: ${name||emp.name||code}؟`,()=>{ const now=new Date(); this._db().push({code:String(code),name:name||emp.name||code,job:emp.job||'',action:'CheckOut',date:now.toLocaleDateString('ar-EG'),timeDisplay:now.toLocaleTimeString('ar-EG'),timestamp:now.getTime(),source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0}).then(()=>{SystemLog.add('FpBazarManualCheckout',String(code),`تسجيل انصراف يدوي — ${name||emp.name||code}`,{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,recordDate:this._localKey(now.getTime()),time:now.toLocaleTimeString('ar-EG'),source:'manual',recordTimestamp:now.getTime()});UI.toast('✅ تم تسجيل الخروج','success');}).catch(e=>UI.toast('❌ '+e.message,'error')); });
+    showConfirm(`تسجيل خروج: ${name||emp.name||code}؟`,()=>{ const now=TimeUtils.now(); this._db().push({code:String(code),name:name||emp.name||code,job:emp.job||'',action:'CheckOut',date:EgyptClock.formatDate(now),timeDisplay:EgyptClock.formatTime(now),timestamp:now,source:'manual',branch:'البازار',addedBy:State.currentUser?.username||'-',expectedIn:emp.checkIn||emp.workStart||'',expectedOut:emp.checkOut||emp.workEnd||'',workHoursPerDay:Number(emp.workHours||emp.workHoursPerDay||0)||0}).then(()=>{SystemLog.add('FpBazarManualCheckout',String(code),`تسجيل انصراف يدوي — ${name||emp.name||code}`,{branch:'البازار',module:'بصمة البازار',moduleKey:'fingerprint-bazar',manual:true,notify:false,recordDate:this._localKey(now.getTime()),time:EgyptClock.formatTime(now),source:'manual',recordTimestamp:now.getTime()});UI.toast('✅ تم تسجيل الخروج','success');}).catch(e=>UI.toast('❌ '+e.message,'error')); });
   },
 
   openEditModal(r){
@@ -22242,8 +22357,8 @@ const FingerprintBazarService = {
     document.getElementById('fpBazarEditKeyIn').value=first.id||''; document.getElementById('fpBazarEditKeyOut').value=last?.id||''; document.getElementById('fpBazarEditCode').value=r.code||'';
     document.getElementById('fpBazarEditEmpInfo').textContent=`${r.name||'-'} | كود: ${r.code||'-'} | ${r.job||'-'}`;
     document.getElementById('fpBazarEditDate').value=r.date || this._localKey(first.timestamp);
-    document.getElementById('fpBazarEditIn').value=first?`${String(new Date(first.timestamp).getHours()).padStart(2,'0')}:${String(new Date(first.timestamp).getMinutes()).padStart(2,'0')}`:'';
-    document.getElementById('fpBazarEditOut').value=last?`${String(new Date(last.timestamp).getHours()).padStart(2,'0')}:${String(new Date(last.timestamp).getMinutes()).padStart(2,'0')}`:'';
+    document.getElementById('fpBazarEditIn').value=first?EgyptClock.time24(first.timestamp):'';
+    document.getElementById('fpBazarEditOut').value=last?EgyptClock.time24(last.timestamp):'';
     this._editOriginal={inTs:Number(first.timestamp||0),outTs:Number(last?.timestamp||0),name:r.name||first.name||r.code,code:String(r.code||''),date:r.date||this._localKey(first.timestamp)};
     document.getElementById('fpBazarEditNote').value=''; this.previewEdit(); document.getElementById('fpBazarEditModal').style.display='flex';
   },
@@ -22258,17 +22373,19 @@ const FingerprintBazarService = {
     if(!hasPermission('edit')&&!hasPermission('all')){UI.toast('ليس لديك صلاحية التعديل','error');return;}
     const keyIn=document.getElementById('fpBazarEditKeyIn').value,keyOut=document.getElementById('fpBazarEditKeyOut').value,code=document.getElementById('fpBazarEditCode').value,date=document.getElementById('fpBazarEditDate').value,iv=document.getElementById('fpBazarEditIn').value,ov=document.getElementById('fpBazarEditOut').value,note=document.getElementById('fpBazarEditNote').value||'';
     if(!keyIn||!date||!iv){UI.toast('يرجى تحديد التاريخ والحضور','error');return;}
-    const original=this._editOriginal||{},[ih,im]=iv.split(':').map(Number),inDt=new Date(date);inDt.setHours(ih,im,0,0);
-    const nowText=new Date().toLocaleString('ar-EG'),user=State.currentUser?.username||'-';
-    const inChanged=!original.inTs||inDt.getTime()!==Number(original.inTs);
-    const inPayload={date:inDt.toLocaleDateString('ar-EG'),timeDisplay:inDt.toLocaleTimeString('ar-EG'),timestamp:inDt.getTime(),note};
+    const original=this._editOriginal||{},[ih,im]=iv.split(':').map(Number);
+    const inTs=EgyptClock.localToTimestamp(date,iv);
+    if(!Number.isFinite(inTs)){UI.toast('وقت الدخول غير صالح وفق توقيت مصر','error');return;}
+    const nowText=EgyptClock.formatDateTime(TimeUtils.now()),user=State.currentUser?.username||'-';
+    const inChanged=!original.inTs||inTs!==Number(original.inTs);
+    const inPayload={date:EgyptClock.formatDate(inTs),timeDisplay:EgyptClock.formatTime(inTs),timestamp:inTs,note};
     if(inChanged)Object.assign(inPayload,{source:'manual',manualEdited:true,editedBy:user,editedAt:nowText});
     const ops=[this._db().child(keyIn).update(inPayload)];
-    let outChanged=false,outDt=null;
+    let outChanged=false;
     if(ov){
-      const [oh,om]=ov.split(':').map(Number);outDt=new Date(date);outDt.setHours(oh,om,0,0);if((oh*60+om)<=(ih*60+im))outDt.setDate(outDt.getDate()+1);
-      outChanged=!original.outTs||outDt.getTime()!==Number(original.outTs);
-      const payload={date:outDt.toLocaleDateString('ar-EG'),timeDisplay:outDt.toLocaleTimeString('ar-EG'),timestamp:outDt.getTime(),note};
+      const [oh,om]=ov.split(':').map(Number);const outDate=(oh*60+om)<=(ih*60+im)?EgyptClock.addDays(date,1):date;const outTs=EgyptClock.localToTimestamp(outDate,ov);if(!Number.isFinite(outTs)){UI.toast('وقت الانصراف غير صالح وفق توقيت مصر','error');return;}
+      outChanged=!original.outTs||outTs!==Number(original.outTs);
+      const payload={date:EgyptClock.formatDate(outTs),timeDisplay:EgyptClock.formatTime(outTs),timestamp:outTs,note};
       if(outChanged)Object.assign(payload,{source:'manual',manualEdited:true,editedBy:user,editedAt:nowText});
       if(keyOut)ops.push(this._db().child(keyOut).update(payload));
       else{const emp=getEmpData(code)||{};ops.push(this._db().push({...payload,code:String(code),name:emp.name||code,job:emp.job||'',action:'CheckOut',source:'manual',manualEdited:true,editedBy:user,editedAt:nowText,branch:'البازار',addedBy:user}));outChanged=true;}
@@ -22315,7 +22432,7 @@ const FingerprintBazarService = {
   init(){
     if(!this._initialized){
       this._initialized=true; this._populateSelects();
-      const key=(d)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; const k=key(new Date());
+      const k=EgyptClock.dateKey(TimeUtils.now());
       if(!document.getElementById('fpBazarDateFrom').value) document.getElementById('fpBazarDateFrom').value=k;
       if(!document.getElementById('fpBazarDateTo').value) document.getElementById('fpBazarDateTo').value=k;
       const grace=document.getElementById('fpBazarGraceLabel'); if(grace) grace.textContent=this._graceMin+' دقيقة';
@@ -22363,20 +22480,19 @@ const FingerprintSabahService = {
     const dateFrom=document.getElementById('fpSabahDateFrom')?.value||'';
     const dateTo=document.getElementById('fpSabahDateTo')?.value||'';
     const filterAct=document.getElementById('fpSabahFilterAction')?.value||'';
-    const now=new Date();
+    const todayKey=EgyptClock.dateKey(TimeUtils.now());
     return State.attendance.filter(a=>{
       if(!this._isSabah(a)) return false;
       if(filterAct&&a.action!==filterAct) return false;
       if(search&&!(a.name||'').toLowerCase().includes(search)&&!String(a.code||'').includes(search)) return false;
-      const d=new Date(a.timestamp||0);
-      const ds=d.toISOString().slice(0,10);
+      const ds=EgyptClock.dateKey(a.timestamp||0);
       if(dateFrom||dateTo){
         if(dateFrom&&ds<dateFrom) return false;
         if(dateTo&&ds>dateTo) return false;
       } else {
-        if(range==='day'&&d.toDateString()!==now.toDateString()) return false;
-        if(range==='week'){const w=new Date();w.setDate(now.getDate()-7);if(d<w) return false;}
-        if(range==='month'){const m=new Date();m.setMonth(now.getMonth()-1);if(d<m) return false;}
+        if(range==='day'&&ds!==todayKey) return false;
+        if(range==='week'&&ds<EgyptClock.addDays(todayKey,-7)) return false;
+        if(range==='month'&&ds<`${todayKey.slice(0,7)}-01`) return false;
       }
       return true;
     });
@@ -22385,9 +22501,8 @@ const FingerprintSabahService = {
   render() {
     this._populateSelects();
     const filtered=this.getFiltered();
-    const now=new Date();
-    const todayStr=now.toDateString();
-    const todayRecs=State.attendance.filter(a=>this._isSabah(a)&&new Date(a.timestamp||0).toDateString()===todayStr);
+    const todayStr=EgyptClock.dateKey(TimeUtils.now());
+    const todayRecs=State.attendance.filter(a=>this._isSabah(a)&&EgyptClock.dateKey(a.timestamp||0)===todayStr);
     const todayIn=todayRecs.filter(a=>a.action==='CheckIn').length;
     const todayOut=todayRecs.filter(a=>a.action==='CheckOut').length;
     const lateToday=todayRecs.filter(a=>a.action==='CheckIn'&&this._lateMin(a)>0).length;
@@ -22416,14 +22531,14 @@ const FingerprintSabahService = {
     if(insideBody){
       insideBody.innerHTML=insideNow.length
         ?insideNow.sort((a,b)=>b.timestamp-a.timestamp).map(a=>{
-          const dur=TimeUtils.format(Date.now()-(a.timestamp||Date.now()));
+          const nowTs=TimeUtils.now(); const dur=TimeUtils.format(nowTs-(a.timestamp||nowTs));
           const late=this._lateMin(a);
           const empD=getEmpData(a.code);
           return `<tr>
             <td style="font-weight:700">${a.name}</td>
             <td style="color:#818cf8">${a.code}</td>
             <td style="font-size:12px">${getEmpJob(a.code) || empD?.job || a.job || '-'}</td>
-            <td style="color:#34d399">${a.timeDisplay}</td>
+            <td style="color:#34d399">${a.timestamp?EgyptClock.formatTime(a.timestamp):a.timeDisplay}</td>
             <td style="color:${late>0?'#f59e0b':'#34d399'};font-weight:700">${late>0?late+'د':'-'}</td>
             <td style="color:#818cf8;font-weight:700">${dur}</td>
             <td><button onclick="FingerprintSabahService.registerCheckout('${a.code}')"
@@ -22460,7 +22575,7 @@ const FingerprintSabahService = {
           <td style="color:#818cf8">${r.checkIn?.code||'-'}</td>
           <td style="font-size:12px">${getEmpJob(r.checkIn?.code) || empD?.job || r.checkIn?.job || '-'}</td>
           <td><span class="badge ${r.checkOut?'badge-success':'badge-warning'}">${r.checkOut?'✅ مكتمل':'🟡 جارٍ'}</span></td>
-          <td style="font-size:12px">${r.checkIn?.date||'-'}</td>
+          <td style="font-size:12px">${r.checkIn?.timestamp?EgyptClock.formatDate(r.checkIn.timestamp):r.checkIn?.date||'-'}</td>
           <td style="color:#34d399;font-weight:700">${r.checkIn?.timeDisplay||'-'}</td>
           <td style="color:#f87171">${r.checkOut?.timeDisplay||'-'}</td>
           <td style="color:#94a3b8">${reqHours}س</td>
@@ -22492,8 +22607,8 @@ const FingerprintSabahService = {
 
   openAddModal() {
     this._populateSelects();
-    const d=document.getElementById('fpSabahAddDate'); if(d&&!d.value) d.value=new Date().toISOString().slice(0,10);
-    const t=document.getElementById('fpSabahAddTime'); if(t&&!t.value){const n=new Date();t.value=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');}
+    const d=document.getElementById('fpSabahAddDate'); if(d&&!d.value) d.value=EgyptClock.dateKey(TimeUtils.now());
+    const t=document.getElementById('fpSabahAddTime'); if(t&&!t.value)t.value=EgyptClock.time24(TimeUtils.now());
     document.getElementById('fpSabahAddModal').style.display='flex';
   },
   saveManual() {
@@ -22504,13 +22619,12 @@ const FingerprintSabahService = {
     const note=document.getElementById('fpSabahAddNote')?.value||'';
     if(!code||!action||!date||!time){UI.toast('يرجى ملء جميع الحقول','error');return;}
     const emp=getEmpData(code); if(!emp){UI.toast('الموظف غير موجود','error');return;}
-    const [h,m]=time.split(':').map(Number);
-    const dt=new Date(date); dt.setHours(h,m,0,0);
+    const ts=EgyptClock.localToTimestamp(date,time); if(!Number.isFinite(ts)){UI.toast('الوقت المختار غير صالح وفق توقيت مصر (قد تكون ساعة غير موجودة وقت تغيير التوقيت)','error');return;}
     db.ref('attendance').push({
       code:emp.code,name:emp.name,action,
-      date:dt.toLocaleDateString('ar-EG'),
-      timeDisplay:dt.toLocaleTimeString('ar-EG'),
-      timestamp:dt.getTime(),
+      date:EgyptClock.formatDate(ts),
+      timeDisplay:EgyptClock.formatTime(ts),
+      timestamp:ts,
       source:'manual',branch:'الصباح',
       user:State.currentUser?.username||'-',note
     }).then(()=>{
@@ -22530,12 +22644,12 @@ const FingerprintSabahService = {
       return;
     }
     showConfirm(`تسجيل خروج: ${emp.name}؟`,()=>{
-      const now=new Date();
+      const now=TimeUtils.now();
       db.ref('attendance').push({
         code:emp.code,name:emp.name,action:'CheckOut',
-        date:now.toLocaleDateString('ar-EG'),
-        timeDisplay:now.toLocaleTimeString('ar-EG'),
-        timestamp:now.getTime(),source:'manual',branch:'الصباح',
+        date:EgyptClock.formatDate(now),
+        timeDisplay:EgyptClock.formatTime(now),
+        timestamp:now,source:'manual',branch:'الصباح',
         user:State.currentUser?.username||'-'
       }).then(()=>{UI.toast('✅ تم تسجيل الخروج','success');this.render();})
        .catch(e=>UI.toast('❌ '+e.message,'error'));
@@ -22548,9 +22662,9 @@ const FingerprintSabahService = {
     document.getElementById('fpSabahEditKeyOut').value=data.checkOut?.id||'';
     const info=document.getElementById('fpSabahEditEmpInfo');
     if(info) info.innerHTML=`<strong style="color:var(--text-main)">${data.checkIn?.name||'-'}</strong> &nbsp;|&nbsp; كود: ${data.checkIn?.code||'-'} &nbsp;|&nbsp; ${getEmpJob(data.checkIn?.code)}`;
-    document.getElementById('fpSabahEditDate').value=data.checkIn?.date||new Date().toISOString().slice(0,10);
-    document.getElementById('fpSabahEditIn').value=parseTimeToHHMM(data.checkIn?.timeDisplay)||'';
-    document.getElementById('fpSabahEditOut').value=parseTimeToHHMM(data.checkOut?.timeDisplay)||'';
+    document.getElementById('fpSabahEditDate').value=data.checkIn?.timestamp?EgyptClock.dateKey(data.checkIn.timestamp):(data.checkIn?.date||EgyptClock.dateKey(TimeUtils.now()));
+    document.getElementById('fpSabahEditIn').value=data.checkIn?.timestamp?EgyptClock.time24(data.checkIn.timestamp):(parseTimeToHHMM(data.checkIn?.timeDisplay)||'');
+    document.getElementById('fpSabahEditOut').value=data.checkOut?.timestamp?EgyptClock.time24(data.checkOut.timestamp):(parseTimeToHHMM(data.checkOut?.timeDisplay)||'');
     document.getElementById('fpSabahEditNote').value='';
     document.getElementById('fpSabahEditPreview').style.display='none';
     document.getElementById('fpSabahEditWarn').style.display='none';
@@ -22569,23 +22683,23 @@ const FingerprintSabahService = {
     const warn=document.getElementById('fpSabahEditWarn');
     if(warn&&warn.style.display!=='none'){UI.toast('يرجى تصحيح الأوقات أولاً','error');return;}
     const editedBy=State.currentUser?.username||'-';
-    const editedAt=new Date().toLocaleString('ar-EG');
+    const editedAt=EgyptClock.formatDateTime(TimeUtils.now());
     const [ih,im]=timeIn.split(':').map(Number);
-    const newIn=new Date(date); newIn.setHours(ih,im,0,0);
+    const newInTs=EgyptClock.localToTimestamp(date,timeIn); if(!Number.isFinite(newInTs)){UI.toast('وقت الدخول غير صالح وفق توقيت مصر','error');return;}
     const prevIn=State.attendance.find(a=>a.id===keyIn);
     const prevOut=keyOut?State.attendance.find(a=>a.id===keyOut):null;
     const updates=[db.ref('attendance/'+keyIn).update({
-      date,timeDisplay:newIn.toLocaleTimeString('ar-EG'),
-      timestamp:newIn.getTime(),editedBy,editedAt,note
+      date:EgyptClock.formatDate(newInTs),timeDisplay:EgyptClock.formatTime(newInTs),
+      timestamp:newInTs,editedBy,editedAt,note
     })];
     if(keyOut&&timeOut){
       const [oh,om]=timeOut.split(':').map(Number);
-      const newOut=new Date(date); newOut.setHours(oh,om,0,0);
-      if((oh*60+om)<=(ih*60+im)) newOut.setDate(newOut.getDate()+1);
+      const outDate=(oh*60+om)<=(ih*60+im)?EgyptClock.addDays(date,1):date;
+      const newOutTs=EgyptClock.localToTimestamp(outDate,timeOut); if(!Number.isFinite(newOutTs)){UI.toast('وقت الانصراف غير صالح وفق توقيت مصر','error');return;}
       updates.push(db.ref('attendance/'+keyOut).update({
-        date:newOut.toLocaleDateString('ar-EG'),
-        timeDisplay:newOut.toLocaleTimeString('ar-EG'),
-        timestamp:newOut.getTime(),editedBy,editedAt,note
+        date:EgyptClock.formatDate(newOutTs),
+        timeDisplay:EgyptClock.formatTime(newOutTs),
+        timestamp:newOutTs,editedBy,editedAt,note
       }));
     }
     Promise.all(updates).then(()=>{
@@ -22630,7 +22744,7 @@ const FingerprintSabahService = {
     const emp=getEmpData(code);
     const records=State.attendance.filter(a=>
       this._isSabah(a)&&String(a.code)===String(code)&&
-      new Date(a.timestamp||0).toISOString().slice(0,10)===date
+      EgyptClock.dateKey(Number(a.timestamp)||0)===date
     );
     const prev=document.getElementById('fpSabahDelPreview');
     if(prev){prev.style.display='block';prev.textContent=`سيتم حذف ${records.length} سجل لـ ${emp?.name||code} بتاريخ ${date}`;}
@@ -22678,12 +22792,12 @@ const FingerprintSabahService = {
     if(!filtered.length){UI.toast('لا توجد بيانات','warning');return;}
     const rows=filtered.map(a=>({
       'الموظف':a.name,'الكود':a.code,'الوظيفة':getEmpJob(a.code)||a.job||'-',
-      'النوع':a.action==='CheckIn'?'حضور':'انصراف','التاريخ':a.date,'الوقت':a.timeDisplay,
+      'النوع':a.action==='CheckIn'?'حضور':'انصراف','التاريخ':a.timestamp?EgyptClock.formatDate(a.timestamp):a.date,'الوقت':a.timestamp?EgyptClock.formatTime(a.timestamp):a.timeDisplay,
       'المصدر':a.source==='fingerprint-sabah'?'بصمة':'يدوي','ملاحظة':a.note||''
     }));
     const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb,ws,'بصمة الصباح');
-    XLSX.writeFile(wb,'fingerprint_sabah_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.writeFile(wb,'fingerprint_sabah_'+EgyptClock.dateKey(TimeUtils.now())+'.xlsx');
     SystemLog.add('ExportExcel',State.currentUser?.username||'-','تصدير بصمة الصباح');
     UI.toast('📊 تم التصدير','success');
   },
@@ -22732,20 +22846,19 @@ const TransferAnalytics = {
     const toF      = document.getElementById('analyticsToFilter')?.value || '';
     const userF    = document.getElementById('analyticsUserFilter')?.value || '';
     const search   = document.getElementById('analyticsSearchInput')?.value?.toLowerCase() || '';
-    const now      = new Date();
+    const nowTs=TimeUtils.now(), todayKey=EgyptClock.dateKey(nowTs);
 
     return State.transfers.filter(t => {
-      const tDate = new Date(t.timestamp || 0);
+      const tTs=Number(t.timestamp||0), tKey=EgyptClock.dateKey(tTs);
 
-      // فلتر الوقت
+      // Date filters are interpreted in Egypt local time, not the handset timezone.
       if(dateFrom && dateTo) {
-        const from = new Date(dateFrom); const to = new Date(dateTo);
-        to.setHours(23,59,59);
-        if(tDate < from || tDate > to) return false;
+        const from=EgyptClock.dayStart(dateFrom), next=EgyptClock.dayStart(EgyptClock.addDays(dateTo,1));
+        if(!Number.isFinite(from)||!Number.isFinite(next)||tTs<from||tTs>=next)return false;
       } else {
-        if(range === 'day')   { if(tDate.toDateString() !== now.toDateString()) return false; }
-        if(range === 'week')  { const w = new Date(); w.setDate(now.getDate()-7); if(tDate < w) return false; }
-        if(range === 'month') { const m = new Date(); m.setMonth(now.getMonth()-1); if(tDate < m) return false; }
+        if(range === 'day' && tKey!==todayKey) return false;
+        if(range === 'week' && tKey<EgyptClock.rangeStartKey(nowTs,'week')) return false;
+        if(range === 'month' && tKey<EgyptClock.rangeStartKey(nowTs,'month')) return false;
       }
 
       if(fromF && (t.from || '') !== fromF) return false;
@@ -22997,7 +23110,7 @@ const TransferAnalytics = {
     // الجدول
     document.getElementById('analyticsBarcodeBody').innerHTML = movements.map(m => {
       const qty = m.kilo ? (m.cartons?m.cartons+'ك×'+m.kilo+'كجم':m.kilo+'كجم') : (m.total||'-');
-      const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : '-';
+      const time = m.timestamp ? EgyptClock.formatTime(m.timestamp) : '-';
       return `<tr>
         <td><span style="background:rgba(239,68,68,0.15);color:#f87171;padding:3px 8px;border-radius:6px;font-size:12px">${m.from}</span></td>
         <td><span style="background:rgba(16,185,129,0.15);color:#34d399;padding:3px 8px;border-radius:6px;font-size:12px">${m.to}</span></td>
@@ -23038,7 +23151,7 @@ const TransferAnalytics = {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'TransferAnalytics');
-    XLSX.writeFile(wb, 'transfer_analytics_'+new Date().toISOString().slice(0,10)+'.xlsx');
+    XLSX.writeFile(wb, 'transfer_analytics_'+EgyptClock.dateKey(TimeUtils.now())+'.xlsx');
     SystemLog.add('ExportExcel', State.currentUser?.username||'-', 'تصدير تحليل التحويلات');
     UI.toast('✅ تم التصدير','success');
   },
@@ -23056,28 +23169,16 @@ let selectedDate = document.getElementById("transferDate")?.value
 let branchFilter = document.getElementById("transferBranchFilter")?.value || ""
 let dirFilter = document.getElementById("transferDirFilter")?.value || ""
 
-let now = new Date()
+const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs)
 
 return State.transfers.filter(t=>{
-let date = new Date(t.timestamp)
+const ts=Number(t.timestamp||0),dateKey=EgyptClock.dateKey(ts)
 
-// فلتر التاريخ
-if(selectedDate){
-if(date.toISOString().slice(0,10) !== selectedDate) return false
-}
-
-if(State.transferRange === "day"){
-if(date.toDateString() !== now.toDateString()) return false
-}
-
-if(State.transferRange === "week"){
-let weekAgo = new Date(); weekAgo.setDate(now.getDate()-7)
-if(date < weekAgo) return false
-}
-
-if(State.transferRange === "month"){
-if(date.getMonth() !== now.getMonth() || date.getFullYear() !== now.getFullYear()) return false
-}
+// فلتر التاريخ حسب توقيت مصر
+if(selectedDate && dateKey!==selectedDate) return false
+if(State.transferRange === "day" && dateKey!==todayKey) return false
+if(State.transferRange === "week" && dateKey<EgyptClock.rangeStartKey(nowTs,'week')) return false
+if(State.transferRange === "month" && dateKey<EgyptClock.rangeStartKey(nowTs,'month')) return false
 
 // فلتر البحث
 let matchSearch = !search ||
@@ -23134,9 +23235,9 @@ renderTransfers(){
   body.innerHTML = pageRecords.map(t => {
     const id = String(t.id || '');
     const timestamp = Number(t.timestamp || t.createdAt || t.createdTimestamp || 0);
-    const dateText = t.dateISO || t.date || (timestamp > 0 ? new Date(timestamp).toLocaleDateString('ar-EG') : '-');
+    const dateText = t.dateISO || t.date || (timestamp > 0 ? EgyptClock.formatDate(timestamp) : '-');
     const savedTime = t.timeDisplay || t.time || t.transferTime || t.addedTime || t.createdTime;
-    const timeText = savedTime || (timestamp > 0 ? new Date(timestamp).toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}) : 'غير مسجل');
+    const timeText = savedTime || (timestamp > 0 ? EgyptClock.formatTime(timestamp) : 'غير مسجل');
     const count = asTransferItemArray(t.items).length || Number(t.itemCount || t.itemsCount || 0);
     const from = esc(t.from || '-');
     const to = esc(t.to || '-');
@@ -23450,8 +23551,34 @@ renderTransfers(){
         },
         renderProducts(){
           const rawProducts = Array.isArray(State.products) ? State.products.slice() : [];
-          // عرض يعتمد على القيم المحفوظة في products فقط. زر التحديث هو العملية الوحيدة التي تنقل إصدار شيت الأسعار إلى سجلات قاعدة البيانات، حتى لا يرى كل جهاز إصدارًا مؤقتًا مختلفًا.
-          const displayProductName = product => String(product?.name||product?.productName||product?.itemName||product?.barcode||product?.itemNumber||'-');
+          // Price/name lookup uses the latest in-memory price-sheet version loaded by refreshDatesData().
+          // This is display-only: values are not written back into products or inventory.
+          const priceSheetProductFor = product => {
+            try{
+              const barcodeRaw=product?.barcode ?? product?.itemNumber ?? product?.code ?? '';
+              const barcode=ArchiveService._normalizeProductBarcode(barcodeRaw);
+              if(!barcode) return null;
+              const variants=[...new Set([String(barcodeRaw).trim(),String(barcode).trim(),String(barcode).replace(/\./g,'_'),String(barcode).replace(/[.#$\[\]]/g,'_')].filter(Boolean))];
+              const baz=window.S?.getBaz?.();
+              const cai=window.S?.getCai?.();
+              const branch=ArchiveService._normalizeProductBranch(product?.branch ?? product?.location ?? '');
+              const isCairo=/الميرغني|المقطم|القاهرة|مصرالجديدة|مصر الجديدة|cairo/i.test(branch);
+              const primary=isCairo?cai:baz;
+              const secondary=isCairo?baz:cai;
+              const findIn=map=>{
+                if(!map?.get) return null;
+                for(const key of variants){const found=map.get(key);if(found) return found;}
+                return null;
+              };
+              return findIn(primary)||findIn(secondary)||null;
+            }catch(_){return null;}
+          };
+          const displayProductName = product => {
+            const sheet=priceSheetProductFor(product);
+            const sheetName=String(sheet?.name||'').trim();
+            if(sheetName && sheetName!=='غير معلوم') return sheetName;
+            return String(product?.name||getProductName(product?.barcode||product?.itemNumber||'')||'-');
+          };
           const quantityNumber = value => {
             const raw=ArchiveService._normalizeDigits(String(value ?? '')).replace(/,/g,'').trim();
             const n=Number(raw); return Number.isFinite(n)?n:0;
@@ -23631,7 +23758,15 @@ renderTransfers(){
             const title=`تم دمج ${n} سجلات${when?' بتاريخ '+when:''}${by?' بواسطة '+by:''}`;
             return ` <span class="dates-status" title="${esc(title)}" style="display:inline-flex;margin-top:4px;color:#34d399;background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.25)">✓ مدمج من ${n.toLocaleString('ar-EG')} سجلات</span>`;
           };
-          const priceInfo=p=>({cost:p?.cost,price:p?.price});
+          const priceInfo=p=>{
+            let cost=p?.cost,price=p?.price;
+            const found=priceSheetProductFor(p);
+            if(found){
+              if(found.costPrice!==null&&found.costPrice!==undefined&&found.costPrice!=='') cost=found.costPrice;
+              if(found.sellPrice!==null&&found.sellPrice!==undefined&&found.sellPrice!=='') price=found.sellPrice;
+            }
+            return {cost,price};
+          };
           const actionButtons=p=>{
             if(Number(p?._displayDuplicateCount)>1){
               const count=Number(p._displayDuplicateCount)||0;
@@ -23740,7 +23875,7 @@ renderTransfers(){
 <td style="font-weight:700">${a.name}</td>
 <td style="color:#818cf8">${a.code}</td>
 <td style="font-size:12px">${getEmpJob(a.code)}</td>
-<td style="color:#34d399">${a.timeDisplay}</td>
+<td style="color:#34d399">${a.timestamp?EgyptClock.formatTime(a.timestamp):a.timeDisplay}</td>
 <td style="font-size:11px;color:#94a3b8">${methodLabel}</td>
 <td>${lateStr}</td>
 <td style="color:${durColor};font-weight:700">${TimeUtils.format(duration)}</td>
@@ -23779,21 +23914,15 @@ renderTransfers(){
                     const ts = timestampOf(log);
                     const d = new Date(ts);
                     if (!ts || Number.isNaN(d.getTime())) return false;
-                    if (fromValue) {
-                        const from = new Date(fromValue + "T00:00:00");
-                        if (d < from) return false;
-                    }
-                    if (toValue) {
-                        const to = new Date(toValue + "T23:59:59.999");
-                        if (d > to) return false;
-                    }
+                    if (fromValue) { const from=EgyptClock.dayStart(fromValue); if(!Number.isFinite(from)||ts<from)return false; }
+                    if (toValue) { const next=EgyptClock.dayStart(EgyptClock.addDays(toValue,1)); if(!Number.isFinite(next)||ts>=next)return false; }
                     return true;
                 }
                 if (range === "all") return true;
-                const d = new Date(timestampOf(log));
-                if (range === "day") return d.toDateString() === now.toDateString();
-                if (range === "week") { const w = new Date(TimeUtils.now()); w.setDate(now.getDate() - 7); return d >= w; }
-                if (range === "month") { const m = new Date(TimeUtils.now()); m.setMonth(now.getMonth() - 1); return d >= m; }
+                const ts=timestampOf(log), key=EgyptClock.dateKey(ts), todayKey=EgyptClock.dateKey(TimeUtils.now());
+                if (range === "day") return key===todayKey;
+                if (range === "week") return key>=EgyptClock.rangeStartKey(TimeUtils.now(),'week');
+                if (range === "month") return key>=EgyptClock.rangeStartKey(TimeUtils.now(),'month');
                 return true;
             };
             const searchFields = log => [log.action, (typeof SystemLogService !== "undefined" ? SystemLogService.translate(log.action) : ""), log.name, log.code, log.user, log.userId, log.date, log.timeDisplay, log.branch, log.section, log.module, log.description, log.details, log.reason, log.device, log.os, log.browser, log.location, log.city, log.ip, log.eventId].map(v=>String(v ?? "").toLowerCase()).join(" ");
@@ -23836,7 +23965,7 @@ renderTransfers(){
             putText("systemLogStatSecurity", securityEvents.toLocaleString("en-US"));
             putText("systemLogStatErrors", errorEvents.toLocaleString("en-US"));
             const updatedEl = document.getElementById("systemLogsLastUpdated");
-            if (updatedEl && !updatedEl.textContent.trim()) updatedEl.textContent = new Date(TimeUtils.now()).toLocaleTimeString("ar-EG", {hour:"2-digit",minute:"2-digit"});
+            if (updatedEl && !updatedEl.textContent.trim()) updatedEl.textContent = EgyptClock.formatTime(TimeUtils.now(),"ar-EG",{hour:"2-digit",minute:"2-digit"});
             const indicator = document.getElementById("logsSearchIndicator");
             if(indicator){
                 const activeFilters = !!(q || fromValue || toValue || currentAction || currentUser || currentSection);
@@ -23935,31 +24064,14 @@ document.getElementById("breakHistorySearch")?.value?.toLowerCase() || ""
 let selectedDate =
 document.getElementById("breakDate")?.value
 
-let now = new Date(TimeUtils.now())
+const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs)
 
 return State.breaks.filter(b=>{
-
-let date = new Date(b.breakTimestamp || b.deviceBreakTime || Date.now())
-
-if(selectedDate){
-if(date.toISOString().slice(0,10) !== selectedDate) return false
-}
-
-if(State.breakRange === "day"){
-if(date.toDateString() !== now.toDateString()) return false
-}
-
-if(State.breakRange === "week"){
-let weekAgo = new Date(TimeUtils.now())
-weekAgo.setDate(now.getDate()-7)
-if(date < weekAgo) return false
-}
-
-if(State.breakRange === "month"){
-let monthAgo = new Date(TimeUtils.now())
-monthAgo.setMonth(now.getMonth()-1)
-if(date < monthAgo) return false
-}
+const ts=Number(b.breakTimestamp||b.deviceBreakTime||0),dateKey=EgyptClock.dateKey(ts)
+if(selectedDate && dateKey!==selectedDate) return false
+if(State.breakRange === "day" && dateKey!==todayKey) return false
+if(State.breakRange === "week" && dateKey<EgyptClock.rangeStartKey(nowTs,'week')) return false
+if(State.breakRange === "month" && dateKey<EgyptClock.rangeStartKey(nowTs,'month')) return false
 
 if(search){
 
@@ -23984,8 +24096,8 @@ if(!body) return
 
 /* كروت العداد أعلى الصفحة */
 {
-  const todayStr = new Date(TimeUtils.now()).toDateString()
-  const todayBreaks = State.breaks.filter(b => new Date(b.breakTimestamp || b.deviceBreakTime || 0).toDateString() === todayStr)
+  const todayKey=EgyptClock.dateKey(TimeUtils.now())
+  const todayBreaks = State.breaks.filter(b => EgyptClock.dateKey(Number(b.breakTimestamp||b.deviceBreakTime||0))===todayKey)
   const openNow = State.breaks.filter(b => !b.returnTimestamp).length
   const returnedToday = todayBreaks.filter(b => b.returnTimestamp).length
   const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
@@ -24152,14 +24264,14 @@ renderSummary() {
 
   const q = (document.getElementById("summarySearch")?.value||"").toLowerCase().trim();
   const range = State.summaryRange || "month";
-  const now = new Date(TimeUtils.now());
+  const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs);
 
   const scoped = State.breaks.filter(b => {
     if(range === "all") return true;
-    const d = new Date(b.breakTimestamp || b.deviceBreakTime || 0);
-    if(range === "day")   return d.toDateString() === now.toDateString();
-    if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
-    if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+    const key=EgyptClock.dateKey(Number(b.breakTimestamp||b.deviceBreakTime||0));
+    if(range === "day") return key===todayKey;
+    if(range === "week") return key>=EgyptClock.rangeStartKey(nowTs,'week');
+    if(range === "month") return key>=EgyptClock.rangeStartKey(nowTs,'month');
     return true;
   });
 
@@ -24260,14 +24372,14 @@ renderSummary() {
 
 showEmployeeDetails(code){
   const range = State.summaryRange || "month";
-  const now = new Date(TimeUtils.now());
+  const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs);
   const recs = State.breaks.filter(b => {
     if(String(b.code) !== String(code)) return false;
     if(range === "all") return true;
-    const d = new Date(b.breakTimestamp || b.deviceBreakTime || 0);
-    if(range === "day")   return d.toDateString() === now.toDateString();
-    if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
-    if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+    const key=EgyptClock.dateKey(Number(b.breakTimestamp||b.deviceBreakTime||0));
+    if(range === "day") return key===todayKey;
+    if(range === "week") return key>=EgyptClock.rangeStartKey(nowTs,'week');
+    if(range === "month") return key>=EgyptClock.rangeStartKey(nowTs,'month');
     return true;
   }).sort((a,b) => (b.deviceBreakTime||0) - (a.deviceBreakTime||0));
 
@@ -24297,13 +24409,13 @@ showEmployeeDetails(code){
 exportSummaryExcel() {
   if(!checkExcelPermission()) return;
   const range = State.summaryRange || "month";
-  const now = new Date(TimeUtils.now());
+  const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs);
   const scoped = State.breaks.filter(b => {
     if(range === "all") return true;
-    const d = new Date(b.breakTimestamp || b.deviceBreakTime || 0);
-    if(range === "day")   return d.toDateString() === now.toDateString();
-    if(range === "week")  { let w=new Date(TimeUtils.now()); w.setDate(now.getDate()-7); return d>=w; }
-    if(range === "month") { let m=new Date(TimeUtils.now()); m.setMonth(now.getMonth()-1); return d>=m; }
+    const key=EgyptClock.dateKey(Number(b.breakTimestamp||b.deviceBreakTime||0));
+    if(range === "day") return key===todayKey;
+    if(range === "week") return key>=EgyptClock.rangeStartKey(nowTs,'week');
+    if(range === "month") return key>=EgyptClock.rangeStartKey(nowTs,'month');
     return true;
   });
   const empMap = {};
@@ -24333,7 +24445,7 @@ exportSummaryExcel() {
   const ws=XLSX.utils.json_to_sheet(rows);
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,"ملخص الاستئذانات");
-  XLSX.writeFile(wb,"break_summary_"+new Date().toISOString().slice(0,10)+".xlsx");
+  XLSX.writeFile(wb,"break_summary_"+EgyptClock.dateKey(TimeUtils.now())+".xlsx");
   SystemLog.add("ExportExcel",State.currentUser?.username||"-","تصدير ملخص الاستئذانات");
 },
 
@@ -24348,7 +24460,7 @@ getFilteredVehicles() {
               if(statusF === "inside"  && v.timeOut)  return false;
               if(statusF === "outside" && !v.timeOut) return false;
               if(selDate) {
-                const d = new Date(v.timeIn).toISOString().slice(0,10);
+                const d = EgyptClock.dateKey(Number(v.timeIn)||0);
                 if(d !== selDate) return false;
               }
               return true;
@@ -24361,10 +24473,10 @@ renderVehicles() {
             let results = this.getFilteredVehicles();
             if (results.length === 0) { body.innerHTML = `<tr><td colspan="12" style="padding:20px;font-weight:bold;color:#f87171">لا توجد عربيات بهذا البحث</td></tr>`; return; }
             let html = ""; results.forEach(v => {
-                const inDate  = new Date(v.timeIn).toLocaleDateString("ar-EG");
-                const inTime  = new Date(v.timeIn).toLocaleTimeString("ar-EG");
-                const outDate = v.timeOut ? new Date(v.timeOut).toLocaleDateString("ar-EG") : "";
-                const outTime = v.timeOut ? new Date(v.timeOut).toLocaleTimeString("ar-EG") : "";
+                const inDate  = EgyptClock.formatDate(v.timeIn);
+                const inTime  = EgyptClock.formatTime(v.timeIn);
+                const outDate = v.timeOut ? EgyptClock.formatDate(v.timeOut) : "";
+                const outTime = v.timeOut ? EgyptClock.formatTime(v.timeOut) : "";
                 const duration = v.timeOut
                   ? TimeUtils.format(v.timeOut - v.timeIn)
                   : TimeUtils.format(TimeUtils.now() - v.timeIn);
@@ -24408,9 +24520,9 @@ this.renderVehiclesInsideNow();
           if(countEl) countEl.innerText = inside.length;
 
           /* كروت العداد أعلى الصفحة */
-          const todayStr = new Date(TimeUtils.now()).toDateString()
-          const todayIn = State.vehicles.filter(v => new Date(v.timeIn||0).toDateString() === todayStr).length
-          const todayOut = State.vehicles.filter(v => v.timeOut && new Date(v.timeOut||0).toDateString() === todayStr).length
+          const todayKey=EgyptClock.dateKey(TimeUtils.now())
+          const todayIn = State.vehicles.filter(v => EgyptClock.dateKey(Number(v.timeIn||0))===todayKey).length
+          const todayOut = State.vehicles.filter(v => v.timeOut && EgyptClock.dateKey(Number(v.timeOut||0))===todayKey).length
           const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
           setEl('vehStatInside', inside.length)
           setEl('vehStatTodayIn', todayIn)
@@ -24420,7 +24532,7 @@ this.renderVehiclesInsideNow();
             <td style="font-weight:700;letter-spacing:1px">${v.plate}</td>
             <td>${v.company || "-"}</td>
             <td>${v.type || "-"}</td>
-            <td style="font-size:12px;color:#34d399">${new Date(v.timeIn).toLocaleTimeString("ar-EG")}</td>
+            <td style="font-size:12px;color:#34d399">${EgyptClock.formatTime(v.timeIn)}</td>
             <td><button onclick="VehicleService.exit('${v.id}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px"><span class="ui-icon-slot" data-icon="logout" aria-hidden="true"></span> خروج</button></td>
           </tr>`).join('')
           : '<tr><td colspan="5" style="text-align:center;padding:16px;color:#64748b">لا توجد عربيات داخل الآن</td></tr>';
@@ -24655,8 +24767,8 @@ if(!body) return
 
 /* كروت العداد أعلى الصفحة */
 {
-  const todayStr = new Date(TimeUtils.now()).toDateString()
-  const todayVisits = State.companies.filter(c => new Date(c.timestamp||0).toDateString() === todayStr).length
+  const todayKey=EgyptClock.dateKey(TimeUtils.now())
+  const todayVisits = State.companies.filter(c => EgyptClock.dateKey(Number(c.timestamp||0))===todayKey).length
   const insideNow = State.companies.filter(c => !c.timeOut).length
   const setEl=(id,v)=>{const el=document.getElementById(id);if(el) el.textContent=v;}
   setEl('compStatInside', insideNow)
@@ -24670,36 +24782,17 @@ let search = document
 let selectedDate =
 document.getElementById("companyDate")?.value
 
-let now = new Date()
+const nowTs=TimeUtils.now(),todayKey=EgyptClock.dateKey(nowTs)
 
 let filtered = State.companies.filter(c=>{
 
-let date = new Date(c.timestamp)
+const ts=Number(c.timestamp||0),dateKey=EgyptClock.dateKey(ts)
 
-if(selectedDate){
+if(selectedDate){ if(dateKey !== selectedDate) return false }else{
 
-let dStr = date.toISOString().slice(0,10)
+if(State.companyRange === "day" && dateKey!==todayKey) return false
+if(State.companyRange === "week" && dateKey<EgyptClock.rangeStartKey(nowTs,'week')) return false
 
-if(dStr !== selectedDate) return false
-
-}else{
-
-if(State.companyRange === "day"){
-
-if(date.toDateString() !== now.toDateString())
-return false
-
-}
-
-if(State.companyRange === "week"){
-
-let weekAgo = new Date(TimeUtils.now())
-
-weekAgo.setDate(now.getDate()-7)
-
-if(date < weekAgo) return false
-
-}
 
 if(State.companyRange === "month"){
 
@@ -24924,7 +25017,7 @@ function exportAdminUsersExcel() {
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "المستخدمون");
-  XLSX.writeFile(wb, `allosh_users_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb, `allosh_users_${EgyptClock.dateKey(TimeUtils.now())}.xlsx`);
 }
 
 // ========================= دالة تصدير الموظفين داخل العمل =========================
@@ -25065,7 +25158,7 @@ if(tab === "inventory"){
 }
 if(tab === "incentives"){
   const incDate = document.getElementById('incDate');
-  if(incDate && !incDate.value) incDate.value = new Date().toISOString().slice(0,10);
+  if(incDate && !incDate.value) incDate.value = EgyptClock.dateKey(TimeUtils.now());
   IncentiveService.render();
 }
 if(tab === "fingerprint-bazar"){
@@ -26274,12 +26367,8 @@ const fmtDT = v => {
       d = new Date(v);
     } else return '—';
     if(isNaN(d.getTime())) return '—';
-    const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const yy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2,'0');
-    const mi = String(d.getMinutes()).padStart(2,'0');
-    return `${dd}/${mm}/${yy} — ${hh}:${mi}`;
+    const ts=d.getTime();
+    return `${EgyptClock.formatDate(ts,'en-GB')} — ${EgyptClock.time24(ts)}`;
   } catch(e){ return '—'; }
 };
 
