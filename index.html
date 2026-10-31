@@ -2300,6 +2300,17 @@ h4 > .ui-icon-slot {
 }
 #togglePassword .ui-icon { width:17px; height:17px; }
 .password-toggle-icon { display:inline-flex; align-items:center; justify-content:center; }
+/* Password visibility controls for user creation and user editing */
+.password-visibility-toggle{flex:0 0 36px;width:36px;height:36px;min-height:36px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid rgba(129,140,248,.30);border-radius:9px;background:rgba(99,102,241,.12);color:#a5b4fc;cursor:pointer;touch-action:manipulation;transition:background .18s ease,border-color .18s ease,color .18s ease}
+.password-visibility-toggle:hover{background:rgba(99,102,241,.22);border-color:rgba(129,140,248,.6);color:#c7d2fe}
+.password-visibility-toggle:focus-visible{outline:2px solid #818cf8;outline-offset:2px}
+.password-visibility-toggle .ui-icon{width:18px;height:18px;display:block;stroke:currentColor;fill:none;stroke-width:1.8}
+#tab-users .admin-input-wrap input{flex:1 1 auto}
+#editUserModal .edit-password-wrap{position:relative;width:100%;min-width:0}
+#editUserModal .edit-password-wrap input{padding-left:48px!important}
+#editUserModal .edit-password-wrap .password-visibility-toggle{position:absolute;left:7px;top:50%;transform:translateY(-50%);z-index:2}
+body.light-mode .password-visibility-toggle{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
+
 @media (max-width:768px){
   .stat-icon .ui-icon-slot { width:38px; height:38px; }
 }
@@ -7694,11 +7705,11 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
           </div>
           <div class="admin-field">
             <label for="newPassword">كلمة المرور</label>
-            <div class="admin-input-wrap"><span>♙</span><input type="password" id="newPassword" minlength="8" maxlength="128" autocomplete="new-password" placeholder="8 أحرف على الأقل"></div>
+            <div class="admin-input-wrap"><span>♙</span><input type="password" id="newPassword" minlength="8" maxlength="128" autocomplete="new-password" placeholder="8 أحرف على الأقل"><button type="button" class="password-visibility-toggle" data-password-toggle-for="newPassword" onclick="togglePasswordVisibility('newPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" title="إظهار كلمة المرور"><span class="ui-icon-slot password-visibility-icon" data-icon="eye" aria-hidden="true"></span></button></div>
           </div>
           <div class="admin-field admin-full-field">
             <label for="newPasswordConfirm">تأكيد كلمة المرور</label>
-            <div class="admin-input-wrap"><span>🔒</span><input type="password" id="newPasswordConfirm" minlength="8" maxlength="128" autocomplete="new-password" placeholder="أعد كتابة كلمة المرور"></div>
+            <div class="admin-input-wrap"><span>🔒</span><input type="password" id="newPasswordConfirm" minlength="8" maxlength="128" autocomplete="new-password" placeholder="أعد كتابة كلمة المرور"><button type="button" class="password-visibility-toggle" data-password-toggle-for="newPasswordConfirm" onclick="togglePasswordVisibility('newPasswordConfirm', this)" aria-label="إظهار تأكيد كلمة المرور" aria-pressed="false" title="إظهار كلمة المرور"><span class="ui-icon-slot password-visibility-icon" data-icon="eye" aria-hidden="true"></span></button></div>
           </div>
         </div>
         <div class="admin-form-note"><span>ⓘ</span><span>حدد الصلاحيات من اللوحة المقابلة. لا تمنح «كل الصلاحيات» إلا للحسابات الموثوقة.</span></div>
@@ -15387,13 +15398,19 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
                 </div>
                 <div>
                   <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:5px">كلمة المرور الجديدة <span style="color:#64748b">(اتركها فارغة للإبقاء على القديمة)</span></label>
-                  <input id="editPassword" type="password" placeholder="••••••••"
-                    style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
+                  <div class="edit-password-wrap">
+                    <input id="editPassword" type="password" autocomplete="new-password" placeholder="••••••••"
+                      style="width:100%;padding:10px 48px 10px 46px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
+                    <button type="button" class="password-visibility-toggle" data-password-toggle-for="editPassword" onclick="togglePasswordVisibility('editPassword', this)" aria-label="إظهار كلمة المرور الجديدة" aria-pressed="false" title="إظهار كلمة المرور"><span class="ui-icon-slot password-visibility-icon" data-icon="eye" aria-hidden="true"></span></button>
+                  </div>
                 </div>
                 <div>
                   <label style="font-size:12px;color:#94a3b8;display:block;margin-bottom:5px">تأكيد كلمة المرور</label>
-                  <input id="editPasswordConfirm" type="password" placeholder="••••••••"
-                    style="width:100%;padding:10px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
+                  <div class="edit-password-wrap">
+                    <input id="editPasswordConfirm" type="password" autocomplete="new-password" placeholder="••••••••"
+                      style="width:100%;padding:10px 48px 10px 46px;border-radius:8px;border:1px solid rgba(99,102,241,0.4);background:rgba(0,0,0,0.3);color:#fff;font-family:inherit;box-sizing:border-box">
+                    <button type="button" class="password-visibility-toggle" data-password-toggle-for="editPasswordConfirm" onclick="togglePasswordVisibility('editPasswordConfirm', this)" aria-label="إظهار تأكيد كلمة المرور" aria-pressed="false" title="إظهار كلمة المرور"><span class="ui-icon-slot password-visibility-icon" data-icon="eye" aria-hidden="true"></span></button>
+                  </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:4px">
                   <button onclick="UserService.saveEditUser()"
@@ -15408,6 +15425,7 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
               </div>
             </div>`;
           document.body.appendChild(modal);
+          if (window.hydrateUiIcons) window.hydrateUiIcons(modal);
           setTimeout(() => document.getElementById('editUsername')?.focus(), 100);
         },
 
@@ -15517,6 +15535,8 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
             document.getElementById("newUsername").value = "";
             document.getElementById("newPassword").value = "";
             if (document.getElementById("newPasswordConfirm")) document.getElementById("newPasswordConfirm").value = "";
+            setPasswordVisibilityState("newPassword", false);
+            setPasswordVisibilityState("newPasswordConfirm", false);
             document.querySelectorAll("#permissionsGrid .perm-checkbox").forEach(cb => {
               cb.checked = false;
               cb.closest(".permission-card")?.classList.remove("active");
@@ -25019,8 +25039,40 @@ el.value = ""
             return ToastManager.show(msg, type, duration);
         }
     };
+    function setPasswordVisibilityState(inputId, visible = false) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      input.type = visible ? "text" : "password";
+      const button = document.querySelector(`[data-password-toggle-for="${inputId}"]`);
+      if (button) {
+        const icon = button.querySelector(".password-visibility-icon") || button;
+        setUiIcon(icon, visible ? "eyeSlash" : "eye");
+        const label = visible ? "إخفاء كلمة المرور" : "إظهار كلمة المرور";
+        button.setAttribute("aria-label", label);
+        button.setAttribute("title", label);
+        button.setAttribute("aria-pressed", visible ? "true" : "false");
+      }
+    }
+
+    function togglePasswordVisibility(inputId, button) {
+      const input = document.getElementById(inputId);
+      if (!input || !button) return;
+      const willShow = input.type === "password";
+      input.type = willShow ? "text" : "password";
+      const icon = button.querySelector(".password-visibility-icon") || button;
+      setUiIcon(icon, willShow ? "eyeSlash" : "eye");
+      const label = willShow ? "إخفاء كلمة المرور" : "إظهار كلمة المرور";
+      button.setAttribute("aria-label", label);
+      button.setAttribute("title", label);
+      button.setAttribute("aria-pressed", willShow ? "true" : "false");
+      try { input.focus({ preventScroll: true }); } catch (_) { input.focus(); }
+    }
+    window.togglePasswordVisibility = togglePasswordVisibility;
+
     function resetAdminNewUserForm() {
   ["newUsername", "newPassword", "newPasswordConfirm"].forEach(id => { const el=document.getElementById(id); if(el) el.value=""; });
+  setPasswordVisibilityState("newPassword", false);
+  setPasswordVisibilityState("newPasswordConfirm", false);
   document.querySelectorAll("#permissionsGrid .perm-checkbox").forEach(cb => { cb.checked=false; cb.closest(".permission-card")?.classList.remove("active"); });
   const all=document.getElementById("selectAllPerms"); if(all) all.checked=false;
   const count=document.getElementById("adminSelectedPermissionsCount"); if(count) count.textContent="0 محددة";
