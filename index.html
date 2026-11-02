@@ -22697,16 +22697,78 @@ const BazarHRSuite = {
         if(ws['!ref'])ws['!ref']=clampRange(ws['!ref']);
         if(ws['!autofilter']?.ref)ws['!autofilter'].ref=clampRange(ws['!autofilter'].ref);
       };
-      const alignWorkbookCells=(workbook)=>{
+      // Apply a consistent, readable export layout to every sheet while preserving
+      // the supplied workbook's original fonts, fills, borders, merged cells and formulas.
+      const formatWorkbookSheets=(workbook)=>{
+        const configs={
+          'بيانات الموظفين':{widths:[6,13,28,20,20,15,24,20,15,12,12,12],title:[1],headers:[2,3],body:4,filter:{start:2,cols:'L'},dates:{},times:{J:'hh:mm',K:'hh:mm',L:'[hh]:mm'},money:['I']},
+          'حضور وانصراف':{widths:[6,14,13,28,12,12,13,12,12,14,12,12,10,12,12,18,25],title:[1],headers:[3,4],body:5,filter:{start:3,cols:'Q'},dates:{B:'dd/mm/yyyy'},times:{E:'hh:mm',F:'hh:mm',G:'[hh]:mm',H:'hh:mm',I:'hh:mm',J:'[hh]:mm',K:'[hh]:mm',L:'[hh]:mm',N:'[hh]:mm',O:'[hh]:mm'}},
+          'سلف الموظفين':{widths:[6,14,13,28,16,20,34],title:[1],headers:[3],body:4,filter:{start:3,cols:'G'},dates:{B:'dd/mm/yyyy'},money:['E']},
+          'مكأفات الموظفين':{widths:[6,14,13,28,16,20,15,34],title:[1],headers:[3],body:4,filter:{start:3,cols:'H'},dates:{B:'dd/mm/yyyy'},money:['E']},
+          'جزءات الموظفين':{widths:[6,14,13,28,16,13,16,34],title:[1],headers:[3],body:4,filter:{start:3,cols:'H'},dates:{B:'dd/mm/yyyy'},money:['E','G']},
+          'تصريح اذن':{widths:[6,14,13,28,16,13,13,16],title:[1],headers:[3],body:4,filter:{start:3,cols:'H'},dates:{B:'dd/mm/yyyy'},times:{F:'hh:mm',G:'hh:mm',H:'[hh]:mm'}},
+          'الإجازات':{widths:[6,14,13,28,20,20,16,18,18],title:[1],headers:[3],body:4,filter:{start:3,cols:'I'},dates:{B:'dd/mm/yyyy'},money:['I']},
+          'بيان المرتبات':{widths:[6,14,28,20,15,14,14,16,12,16,14,16,12,14,16,16,14,16,16,16,17],title:[1],headers:[5,6],body:7,filter:{start:5,cols:'U'},times:{K:'[hh]:mm',O:'[hh]:mm',Q:'[hh]:mm',R:'[hh]:mm'},money:['E','F','H','J','L','N','S','T','U'],hours:{P:'0.00 "ساعة"'},decimals:['G','I','M']},
+          'شيك قبض الموظف':{widths:[15,15,14,15,15,15,15,15,15,15,15,15,15,15,16,16,15,14,18],slips:true,money:['A','B','D','F','H','J','N','O','P','Q','S'],times:{K:'[hh]:mm'},hours:{L:'0.00 "ساعة"'},decimals:['G','M'],integers:['C','I','R']}
+        };
+        const lastCol=(letters)=>{let n=0;for(const ch of String(letters||''))n=n*26+ch.charCodeAt(0)-64;return n;};
+        const colName=(n)=>{let x='';while(n>0){const r=(n-1)%26;x=String.fromCharCode(65+r)+x;n=Math.floor((n-1)/26);}return x;};
+        const fmt=(ws,addr,value)=>{if(ws[addr])ws[addr].z=value;};
         (workbook.SheetNames||[]).forEach(sheetName=>{
-          const ws=workbook.Sheets[sheetName];if(!ws)return;
+          const ws=workbook.Sheets[sheetName],cfg=configs[sheetName];if(!ws||!cfg)return;
+          const ref=ws['!ref']?XLSX.utils.decode_range(ws['!ref']):{s:{r:0,c:0},e:{r:0,c:cfg.widths.length-1}};
+          const lastRow=ref.e.r+1;
           Object.keys(ws).forEach(addr=>{
             if(addr[0]==='!')return;
             const cell=ws[addr];if(!cell||typeof cell!=='object')return;
             const prior=cell.s&&typeof cell.s==='object'?cell.s:{};
             const priorAlign=prior.alignment&&typeof prior.alignment==='object'?prior.alignment:{};
-            cell.s={...prior,alignment:{...priorAlign,horizontal:'center',vertical:'center',wrapText:true}};
+            const priorFont=prior.font&&typeof prior.font==='object'?prior.font:{};
+            const addrRow=(XLSX.utils.decode_cell(addr).r||0)+1;
+            const isTitle=(cfg.title||[]).includes(addrRow);
+            const isHeader=(cfg.headers||[]).includes(addrRow)||(cfg.slips&&((addrRow-4)%6===0||(addrRow-5)%6===0));
+            const normalizedFont={...priorFont,name:'Arial',sz:isTitle?14:11,bold:isTitle||isHeader?true:!!priorFont.bold};
+            if(isTitle||isHeader)normalizedFont.color={rgb:'FFFFFFFF'};
+            const normalizedFill=isTitle?{patternType:'solid',fgColor:{rgb:'FF17365D'}}:isHeader?{patternType:'solid',fgColor:{rgb:'FF1F4E78'}}:prior.fill;
+            cell.s={...prior,font:normalizedFont,fill:normalizedFill,alignment:{...priorAlign,horizontal:'center',vertical:'center',wrapText:true}};
           });
+          // Find the last populated data row from column A, not the template's
+          // oversized preformatted range, so filters and row sizing stay compact.
+          let lastDataRow=(cfg.body||2)-1;
+          for(let r=(cfg.body||2);r<=lastRow;r++){
+            const a=ws[`A${r}`];
+            if(a&&(a.v!==undefined&&a.v!==null&&a.v!==''||a.f))lastDataRow=r;
+          }
+          // Predictable column widths; retain other template column properties.
+          const oldCols=Array.isArray(ws['!cols'])?ws['!cols']:[];
+          ws['!cols']=cfg.widths.map((wch,i)=>{const c={...((oldCols[i]&&typeof oldCols[i]==='object')?oldCols[i]:{}),wch};delete c.wpx;return c;});
+          // Consistent font sizing and row rhythm. Existing font colors, fills,
+          // bold/italic settings, borders and merged cells remain intact.
+          const rows=Array.isArray(ws['!rows'])?ws['!rows']:[];
+          for(let r=0;r<=lastDataRow;r++){
+            const old=rows[r]&&typeof rows[r]==='object'?rows[r]:{};
+            const excelRow=r+1;
+            const target=(cfg.title||[]).includes(excelRow)?30:(cfg.headers||[]).includes(excelRow)?32:22;
+            rows[r]={...old,hpt:Math.max(Number(old.hpt)||0,target)};
+          }
+          if(cfg.slips){
+            for(let base=2;base+5<=lastDataRow;base+=6){
+              [base+2,base+3].forEach(r=>{const old=rows[r-1]||{};rows[r-1]={...old,hpt:Math.max(Number(old.hpt)||0,32)};});
+              [base+1,base+4,base+5].forEach(r=>{const old=rows[r-1]||{};rows[r-1]={...old,hpt:Math.max(Number(old.hpt)||0,22)};});
+            }
+          }
+          ws['!rows']=rows;
+          // Standard formats across all sheets: dates, clock times, durations and money.
+          Object.entries(cfg.dates||{}).forEach(([c,z])=>{for(let r=(cfg.body||2);r<=lastRow;r++)fmt(ws,`${c}${r}`,z);});
+          Object.entries(cfg.times||{}).forEach(([c,z])=>{for(let r=(cfg.body||2);r<=lastRow;r++)fmt(ws,`${c}${r}`,z);});
+          (cfg.money||[]).forEach(c=>{for(let r=(cfg.body||2);r<=lastRow;r++)fmt(ws,`${c}${r}`,'#,##0.00;[Red](#,##0.00);-');});
+          Object.entries(cfg.hours||{}).forEach(([c,z])=>{for(let r=(cfg.body||2);r<=lastRow;r++)fmt(ws,`${c}${r}`,z);});
+          (cfg.decimals||[]).forEach(c=>{for(let r=(cfg.body||2);r<=lastRow;r++)fmt(ws,`${c}${r}`,'0.00');});
+          (cfg.integers||[]).forEach(c=>{for(let r=(cfg.body||2);r<=lastRow;r++)fmt(ws,`${c}${r}`,'0');});
+          if(cfg.filter){
+            const endRow=Math.max(cfg.filter.start+1,lastDataRow);
+            ws['!autofilter']={ref:`A${cfg.filter.start}:${cfg.filter.cols}${endRow}`};
+          }
         });
       };
       const minToExcelTime=(m)=>{const n=Number(m);return Number.isFinite(n)?Math.max(0,n)/1440:'';};
@@ -22848,7 +22910,7 @@ const BazarHRSuite = {
       const sheetMeta=new Map((wb.Workbook.Sheets||[]).map(meta=>[meta.name,meta]));
       wb.SheetNames=orderedNames.slice();
       if(Array.isArray(wb.Workbook.Sheets))wb.Workbook.Sheets=orderedNames.map(name=>sheetMeta.get(name)||{name,Hidden:0});
-      alignWorkbookCells(wb);
+      formatWorkbookSheets(wb);
       if(wb.Workbook.Views&&wb.Workbook.Views[0])wb.Workbook.Views[0].activeTab=Math.max(0,orderedNames.indexOf({employees:'بيانات الموظفين',attendance:'حضور وانصراف',advances:'سلف الموظفين',incentives:'مكأفات الموظفين',penalties:'جزءات الموظفين',permits:'تصريح اذن',leaves:'الإجازات',payroll:'بيان المرتبات',payslip:'شيك قبض الموظف'}[this._active]||'بيانات الموظفين'));
       XLSX.writeFile(wb,`مرتبات شهر ${String(em).padStart(2,'0')} ${ey||new Date().getFullYear()} - بصمة البازار.xlsx`,{bookType:'xlsx',cellStyles:true});
       this._toast(`✅ تم تصدير ملف البازار كاملًا بنفس قالب Excel المرجعي — ${monthLabel}`,'success');
