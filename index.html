@@ -21702,6 +21702,24 @@ const BazarHRSuite = {
   },
   _combinedIncentiveRecords(month='',employeeCode=''){return this._combineCompensationRecords('incentives',month,employeeCode);},
   _combinedPenaltyRecords(month='',employeeCode=''){return this._combineCompensationRecords('penalties',month,employeeCode);},
+  // Payroll deductions intentionally use ONLY the Bazar attendance penalties collection.
+  // The legacy core `penalties` collection is not part of the payroll penalty total.
+  _bazarPayrollPenaltyRecords(month='',employeeCode=''){
+    const rows=Array.isArray(this._data.penalties)?this._data.penalties:[];
+    const wanted=employeeCode?this._codeKey(employeeCode):'';
+    const seen=new Set();
+    return rows.filter(r=>{
+      if(!r||!r.code||r.exempted)return false;
+      const code=this._codeKey(r.code),date=this._transactionDateKey(r);
+      if(wanted&&code!==wanted)return false;
+      if(month&&(!date||!date.startsWith(String(month))))return false;
+      const id=String(r.id||r.firebaseKey||'').trim();
+      if(id&&seen.has(id))return false;
+      if(id)seen.add(id);
+      return true;
+    }).map(r=>({...r,code:String(r.code).trim(),date:this._transactionDateKey(r),amount:this._money(r.amount??r.value??r.val??0),sourcePath:'bazarPenalties'}))
+      .sort((a,b)=>this._transactionDateKey(a).localeCompare(this._transactionDateKey(b))||String(a.code).localeCompare(String(b.code),undefined,{numeric:true})||String(a.id||'').localeCompare(String(b.id||'')));
+  },
   _incentiveAmount(record,employee){
     const amount=this._money(record?.amount??record?.value??record?.val??0);
     const unit=this._latin(record?.unit??record?.amountUnit??'جنيه').trim().toLowerCase();
@@ -22061,7 +22079,7 @@ const BazarHRSuite = {
     daily.forEach(r=>{if(!r||!r.code)return;(by[String(r.code)]??=[]).push(r);});
     const advances=this._combinedAdvanceRecords(month);
     const bonuses=this._combinedIncentiveRecords(month);
-    const penalties=this._combinedPenaltyRecords(month).filter(x=>!x.exempted);
+    const penalties=this._bazarPayrollPenaltyRecords(month);
     const approvedLeaves=(Array.isArray(this._data.leaves)?this._data.leaves:[])
       .filter(l=>l&&l.status==='موافق'&&this._leaveDateKey(l).startsWith(month));
     const round2=v=>Math.round((Number(v)||0)*100)/100;
@@ -22142,7 +22160,7 @@ const BazarHRSuite = {
   renderPayroll(){
     const p=document.getElementById('bh-pane-payroll');if(!p)return;
     const old=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);
-    if(!this._ready.coreAdvances||!this._ready.coreIncentives||!this._ready.corePenalties){
+    if(!this._ready.coreAdvances||!this._ready.coreIncentives){
       p.innerHTML='<div class="bhr-card glass-card bhr-empty">⏳ جارٍ تحميل السلف والمكافآت والجزاءات من النظام الأساسي لحساب المرتبات...</div>';
       Promise.all([this._loadCoreAdvancesOnce(),this._loadCoreCompensationOnce()]).then(()=>{if(this._active==='payroll')this.renderPayroll();}).catch(e=>{if(this._active==='payroll')p.innerHTML=`<div class="bhr-card glass-card bhr-empty">تعذر تحميل بيانات السلف أو المكافآت أو الجزاءات من النظام الأساسي: ${this._esc(e?.message||e)} — تحقق من صلاحيات القراءة والاتصال ثم اضغط تحديث.</div>`;});
       return;
@@ -22150,7 +22168,7 @@ const BazarHRSuite = {
     if(navigator.onLine!==false&&(!this._coreAdvancesLoadedAt||Date.now()-this._coreAdvancesLoadedAt>=this._coreAdvancesTtlMs)&&!this._coreAdvancesPromise)this._loadCoreAdvancesOnce().catch(()=>{});
     if(navigator.onLine!==false&&(!this._coreCompensationLoadedAt||Date.now()-this._coreCompensationLoadedAt>=this._coreAdvancesTtlMs)&&!this._coreCompensationPromise)this._loadCoreCompensationOnce().catch(()=>{});
     const rows=this._payrollRows(old);
-    const advCount=this._combinedAdvanceRecords(old).length,incCount=this._combinedIncentiveRecords(old).length,penCount=this._combinedPenaltyRecords(old).filter(x=>!x.exempted).length;
+    const advCount=this._combinedAdvanceRecords(old).length,incCount=this._combinedIncentiveRecords(old).length,penCount=this._bazarPayrollPenaltyRecords(old).length;
     const money=v=>this._money(v).toLocaleString('ar-EG',{minimumFractionDigits:2,maximumFractionDigits:2})+' ج';
     const duration=h=>this._fmtMin(Math.round(Math.max(0,Number(h)||0)*60));
     const body=rows.map((r,i)=>`<tr>
@@ -22179,7 +22197,7 @@ const BazarHRSuite = {
     p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">بيان المرتبات</h3><span class="bhr-count">الموظفون <b>${rows.length}</b></span></div><div class="bhr-toolbar-right"><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(old)}"></label></div></div><div class="bhr-note" style="margin-top:8px">حركات الشهر المجمعة: سلف ${advCount} · مكافآت ${incCount} · جزاءات مستحقة ${penCount}. معادلة الصافي: أجر الساعة × ساعات العمل المحتسبة + المكافآت − السلف − الجزاءات − خصم الإجازة غير المدفوعة. الإجازة المعتمدة تُحتسب بساعات الشيفت الرسمي؛ وكل 15 يوم حضور فعلي = يومين استحقاق بدل إجازة.</div></div><div class="bhr-card glass-card">${this._table('payroll',body,false)}</div>`;
     this._bindPaneFilters(p,()=>this.renderPayroll());
   },
-  renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const empCode=p.querySelector('[data-filter="employee"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);if(!this._ready.coreAdvances||!this._ready.coreIncentives||!this._ready.corePenalties){p.innerHTML='<div class="bhr-card glass-card bhr-empty">⏳ جارٍ تحميل السلف والمكافآت والجزاءات...</div>';Promise.all([this._loadCoreAdvancesOnce(),this._loadCoreCompensationOnce()]).then(()=>{if(this._active==='payslip')this.renderPayslip();}).catch(e=>{if(this._active==='payslip')p.innerHTML=`<div class="bhr-card glass-card bhr-empty">تعذر تحميل بنود المرتب: ${this._esc(e?.message||e)}</div>`;});return;}if(navigator.onLine!==false&&(!this._coreAdvancesLoadedAt||Date.now()-this._coreAdvancesLoadedAt>=this._coreAdvancesTtlMs)&&!this._coreAdvancesPromise)this._loadCoreAdvancesOnce().catch(()=>{});if(navigator.onLine!==false&&(!this._coreCompensationLoadedAt||Date.now()-this._coreCompensationLoadedAt>=this._coreAdvancesTtlMs)&&!this._coreCompensationPromise)this._loadCoreCompensationOnce().catch(()=>{});const opts=this._employees().map(e=>`<option value="${this._esc(e.code)}" ${empCode===e.code?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" data-filter="employee"><option value="">اختر الموظف</option>${opts}</select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" type="month" data-filter="month" value="${this._esc(month)}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="show-payslip">🧾 عرض الشيك</button></div></div><div id="bhr-slip-result" style="margin-top:14px"></div></div>`;if(empCode)this._showPayslip(empCode,month);},
+  renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const empCode=p.querySelector('[data-filter="employee"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);if(!this._ready.coreAdvances||!this._ready.coreIncentives){p.innerHTML='<div class="bhr-card glass-card bhr-empty">⏳ جارٍ تحميل السلف والمكافآت...</div>';Promise.all([this._loadCoreAdvancesOnce(),this._loadCoreCompensationOnce()]).then(()=>{if(this._active==='payslip')this.renderPayslip();}).catch(e=>{if(this._active==='payslip')p.innerHTML=`<div class="bhr-card glass-card bhr-empty">تعذر تحميل بنود المرتب: ${this._esc(e?.message||e)}</div>`;});return;}if(navigator.onLine!==false&&(!this._coreAdvancesLoadedAt||Date.now()-this._coreAdvancesLoadedAt>=this._coreAdvancesTtlMs)&&!this._coreAdvancesPromise)this._loadCoreAdvancesOnce().catch(()=>{});if(navigator.onLine!==false&&(!this._coreCompensationLoadedAt||Date.now()-this._coreCompensationLoadedAt>=this._coreAdvancesTtlMs)&&!this._coreCompensationPromise)this._loadCoreCompensationOnce().catch(()=>{});const opts=this._employees().map(e=>`<option value="${this._esc(e.code)}" ${empCode===e.code?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" data-filter="employee"><option value="">اختر الموظف</option>${opts}</select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" type="month" data-filter="month" value="${this._esc(month)}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="show-payslip">🧾 عرض الشيك</button></div></div><div id="bhr-slip-result" style="margin-top:14px"></div></div>`;if(empCode)this._showPayslip(empCode,month);},
   _showPayslip(code,month){const emp=this._employee(code);if(!emp){this._toast('اختر الموظف','warning');return;}const row=this._payrollRows(month).find(r=>r.e.code===code);if(!row){this._toast('لا توجد بيانات لهذا الموظف','warning');return;}const box=document.getElementById('bhr-slip-result');if(!box)return;box.innerHTML=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;font-size:21px;font-weight:900">علوش البازار</div><div style="text-align:center;margin-top:4px">شيك قبض الموظف — ${this._esc(month)}</div><hr><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><div><b>الموظف:</b> ${this._esc(emp.name)}</div><div><b>الكود:</b> ${this._esc(emp.code)}</div><div><b>الوظيفة:</b> ${this._esc(emp.job||'-')}</div><div><b>أجر الساعة:</b> ${row.hourlyRate.toFixed(2)} ج</div><div><b>ساعات العمل الفعلي:</b> ${row.actualHours.toFixed(2)} ساعة</div><div><b>أجر الساعات:</b> ${row.workedHoursPay.toFixed(2)} ج</div><div><b>المكافآت وبدل الإجازة المصروف:</b> + ${row.bonuses.toFixed(2)} ج</div><div><b>السلف:</b> − ${row.advances.toFixed(2)} ج</div><div><b>الجزاءات:</b> − ${row.penalties.toFixed(2)} ج</div><div><b>خصم الإجازة غير المدفوعة:</b> − ${row.unpaidLeaveDeduction.toFixed(2)} ج</div><div><b>استحقاق بدل الإجازة:</b> ${row.leaveEntitledDays} يوم</div><div><b>إجازات مستخدمة:</b> ${row.leaveDaysUsed} يوم</div><div><b>بدل سبق صرفه:</b> ${row.leaveAllowanceDaysPaid} يوم</div><div><b>المتبقي لبدل الإجازة:</b> ${row.leaveAllowanceDaysRemaining} يوم</div><div style="grid-column:1/-1;border-top:1px solid #ddd;padding-top:8px"><b>صافي المرتب:</b> ${row.net.toFixed(2)} ج</div></div><div style="margin-top:18px;display:flex;justify-content:center"><button class="bhr-btn" data-bhr-action="print-slip">🖨️ طباعة</button></div></div>`;},
 
   _bindPaneFilters(pane,draw){
@@ -22706,7 +22724,7 @@ const BazarHRSuite = {
       wsAtt['!autofilter']={ref:`A3:Q${Math.max(4,4+attRows.length)}`};
 
       const txMonth=(key)=>this._data[key].slice().sort((a,b)=>this._transactionDateKey(a).localeCompare(this._transactionDateKey(b))||String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
-      const advs=this._combinedAdvanceRecords(exportMonth),incs=this._combinedIncentiveRecords(exportMonth),pens=this._combinedPenaltyRecords(exportMonth).filter(r=>!r.exempted),perms=txMonth('permits');
+      const advs=this._combinedAdvanceRecords(exportMonth),incs=this._combinedIncentiveRecords(exportMonth),pens=this._bazarPayrollPenaltyRecords(exportMonth),perms=txMonth('permits');
       setCell(wsAdv,'A1',titleMonth.advances,'s');
       advs.forEach((r,i)=>{const rr=4+i;setCell(wsAdv,`A${rr}`,i+1,'n');setDate(wsAdv,`B${rr}`,r.date||this._advanceDateKey(r));setCell(wsAdv,`C${rr}`,r.code,'s');setCell(wsAdv,`D${rr}`,r.name||this._employee(r.code)?.name||'','s');setCell(wsAdv,`E${rr}`,Number(r.amount||0),'n');setCell(wsAdv,`F${rr}`,r.docNo||r.documentNo||(r.sourcePath==='advances'?'النظام الأساسي':'بصمة البازار'),'s');setCell(wsAdv,`G${rr}`,r.note||'','s');});
       setCell(wsInc,'A1',titleMonth.incentives,'s');
