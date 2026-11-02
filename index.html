@@ -7328,18 +7328,15 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
             <div class="glass-card" style="padding:25px;margin-top:16px;border:1px solid rgba(239,68,68,0.3)" data-perm="empdata">
               <h3 style="margin-bottom:6px"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> فحص الغياب بدون إذن</h3>
               <p style="font-size:12px;color:#94a3b8;margin-bottom:16px">
-                يفحص كل الموظفين اللي معندهمش أي حركة حضور في اليوم المحدد. لو الموظف عنده طلب إجازة
-                <b>موافق عليه</b> لنفس اليوم في الجدول فوق، يتجاهل (غياب مبرر). غير كده، يظهرلك تقرير
-                وتقدر تختار تسجّل جزاء <b>يومين</b> باسم "غياب بدون إذن" في صفحة الجزاءات بضغطة منفصلة.
+                المراجعة هنا لعرض حالة الغياب فقط. تسجيل جزاء <b>غياب بدون إذن</b> أصبح تلقائيًا من كمبيوتر الإدارة بعد انتهاء الوردية الرسمية، إذا لم توجد أي حركة حضور أو إجازة معتمدة. قيمة الجزاء = ساعات الوردية × 2، وتُسجل في عمود الساعات بصفحة الجزاءات الأصلية.
               </p>
               <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
                 <input type="date" id="absenceCheckDate" style="padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
                 <button onclick="AbsenceService.checkDate()" style="background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.4);color:#818cf8;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700">
                   <span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span> فحص الغياب لليوم ده
                 </button>
-                <button id="absenceApplyBtn" onclick="AbsenceService.applyPenalties()" disabled style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:8px;padding:9px 16px;cursor:pointer;font-family:inherit;font-weight:700;opacity:0.5">
-                  <span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> إعطاء الجزاء للغير مبررين
-                </button>
+                <span style="font-size:12px;color:#34d399;border:1px solid rgba(16,185,129,.25);background:rgba(16,185,129,.08);padding:8px 11px;border-radius:8px">⚙️ التسجيل التلقائي يعمل من كمبيوتر الإدارة</span>
+                <button id="absenceApplyBtn" type="button" disabled hidden style="display:none">التسجيل تلقائي</button>
               </div>
               <div id="absenceCheckResultBox"></div>
             </div>
@@ -12026,8 +12023,9 @@ const DeviceInfo = {
         penaltiesRange: "all",
         leavesRange: "all",
         autoExemptions: {},
+        _absenceAutoReady: { attendance:false, leaves:false, penalties:false, empData:false, exemptions:false },
         penaltyExemptLog: [],
-        appBuild: "2026-11-02.68-bazar-hr-independent-data",
+        appBuild: "2026-11-02.69-auto-absence-desktop",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -14276,7 +14274,11 @@ UI.renderCompanies()
 
         // منع تكرار إنشاء نفس الجزاء التلقائي أكتر من مرة لنفس اليوم/النوع
         hasAutoPenaltyToday(code, dateStr, type) {
-            return State.penalties.some(p => p.code === String(code) && p.date === dateStr && p.autoType === type);
+            const target = (typeof AbsenceService !== 'undefined' && AbsenceService._normalizeDate)
+              ? AbsenceService._normalizeDate(dateStr) : String(dateStr || '');
+            return (State.penalties || []).some(p => String(p.code) === String(code) && p.autoType === type &&
+              (String(p.date || '') === String(dateStr || '') ||
+               (target && typeof AbsenceService !== 'undefined' && AbsenceService._normalizeDate(p.date) === target)));
         },
 
         createAutoPenalty(code, name, hours, reasonText, autoType, dateStr) {
@@ -14296,7 +14298,7 @@ UI.renderCompanies()
                 autoType: autoType
             };
             const penaltyRef = db.ref("penalties").push();
-            penaltyRef.set(penalty).then(() => {
+            return penaltyRef.set(penalty).then(() => {
                 UI.toast(`⚠️ تم تسجيل جزاء تلقائي: ${reasonText} — ${name}`, "warning");
                 const eventId = "auto-penalty-created:" + penaltyRef.key;
                 SystemLog.add("AutoPenalty", code, `${reasonText} (${name})`, {
@@ -14308,7 +14310,8 @@ UI.renderCompanies()
                     notificationDeduplicationKey: eventId,
                     eventId
                 });
-            }).catch(err => console.error('[AutoPenalty] failed to save penalty', err));
+                return penaltyRef.key;
+            }).catch(err => { console.error('[AutoPenalty] failed to save penalty', err); throw err; });
         },
 
         // إعفاء (إلغاء الخصم) — بيحذف الجزاء التلقائي الحالي (لو موجود) ويمنع إعادة إنشائه لنفس اليوم
@@ -19878,8 +19881,14 @@ function selectIncEmp(code, name) {
 // ========================= خدمة فحص الغياب بدون إذن =========================
 const AbsenceService = {
   DAYS_PENALTY: 2, // عدد أيام الجزاء عند الغياب بدون إذن
-  _lastResults: null, // نتيجة آخر فحص (مش متسجلة كجزاءات لسه)
+  _lastResults: null, // نتيجة آخر فحص للعرض فقط
   _lastDateLocale: null,
+  _monitorTimer: null,
+  _monitorBusy: false,
+  _monitorInFlight: new Set(),
+  _monitorLastRunAt: 0,
+  _MONITOR_INTERVAL_MS: 60000,
+  _MAX_CATCHUP_MS: 18 * 60 * 60 * 1000,
 
   // تطبيع التواريخ (ISO أو D/M/YYYY أو الأرقام العربية) إلى YYYY-MM-DD.
   _normalizeDate(str) {
@@ -19918,6 +19927,196 @@ const AbsenceService = {
       effectiveDate = EgyptClock.dateKey(typeof TimeUtils!=='undefined' && TimeUtils.now ? TimeUtils.now() : Date.now());
     }
     return targetNorm < effectiveDate;
+  },
+
+  // لا يعمل مراقب الغياب إلا على كمبيوتر الإدارة، ولا ينفذ أي فحص من الهواتف/الأجهزة اللوحية.
+  _isManagementDesktop() {
+    const ua = String(navigator.userAgent || '');
+    const mobileUA = /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(ua);
+    const clientHintsMobile = !!(navigator.userAgentData && navigator.userAgentData.mobile);
+    const ipadDesktopMode = navigator.platform === 'MacIntel' && Number(navigator.maxTouchPoints || 0) > 1;
+    return !mobileUA && !clientHintsMobile && !ipadDesktopMode;
+  },
+
+  _canRunAutoMonitor() {
+    return !!(db && State.currentUser && this._isManagementDesktop() &&
+      (hasPermission('empdata') || hasPermission('all')));
+  },
+
+  // قراءة وردية الموظف الأصلية وبناء وقت نهاية الوردية بتوقيت مصر.
+  _getShiftWindow(employeeRecord, shiftDate) {
+    const emp = employeeRecord || {};
+    const normTime = value => String(value || '').trim()
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+    const parseTime = value => {
+      const m = normTime(value).match(/^(\d{1,2}):(\d{2})$/);
+      if (!m) return null;
+      const h = Number(m[1]), minute = Number(m[2]);
+      return h <= 23 && minute <= 59 ? { h, minute, text:`${String(h).padStart(2,'0')}:${String(minute).padStart(2,'0')}`, total:h*60+minute } : null;
+    };
+    const start = parseTime(emp.checkIn || emp.officialCheckIn || emp.workStart || emp.shiftStart || emp.shiftStartTime || emp.startTime || '');
+    if (!start) return null; // لا نسجل جزاء لموظف لا يوجد له موعد بداية وردية واضح.
+
+    let end = parseTime(emp.checkOut || emp.officialCheckOut || emp.workEnd || emp.shiftEnd || emp.shiftEndTime || emp.endTime || '');
+    if (!end) {
+      const hours = Number(getEmpDailyHours(emp)) || 0;
+      if (hours <= 0 || hours > 24) return null;
+      const endTotal = start.total + Math.round(hours * 60);
+      end = { h:Math.floor((endTotal % 1440) / 60), minute:endTotal % 60,
+        text:`${String(Math.floor((endTotal % 1440) / 60)).padStart(2,'0')}:${String(endTotal % 60).padStart(2,'0')}`,
+        total:endTotal % 1440 };
+    }
+
+    const crossesMidnight = end.total <= start.total;
+    const endDate = crossesMidnight ? EgyptClock.addDays(shiftDate, 1) : shiftDate;
+    const startTs = EgyptClock.localToTimestamp(shiftDate, start.text);
+    const endTs = EgyptClock.localToTimestamp(endDate, end.text);
+    if (!Number.isFinite(startTs) || !Number.isFinite(endTs) || endTs <= startTs) return null;
+    return { startTs, endTs, crossesMidnight, startTime:start.text, endTime:end.text,
+      dailyHours:Number(getEmpDailyHours(emp)) || ((endTs-startTs)/3600000) };
+  },
+
+  _hasAttendanceForShift(code, shiftDate, shiftWindow) {
+    return (State.attendance || []).some(a => {
+      if (String(a.code) !== String(code)) return false;
+      const ts = Number(a.timestamp || a.ts || 0);
+      if (ts > 0) {
+        const attendanceDate = EgyptClock.dateKey(ts);
+        if (attendanceDate === shiftDate) return true;
+        // بصمة الانصراف بعد منتصف الليل تُنسب أيضًا للوردية التي بدأت في اليوم السابق.
+        if (shiftWindow?.crossesMidnight && ts >= shiftWindow.startTs - 4*3600000 && ts <= shiftWindow.endTs + 2*3600000) return true;
+        return false;
+      }
+      return this._normalizeDate(a.workDate || a.dateISO || a.date) === shiftDate;
+    });
+  },
+
+  _hasApprovedLeave(code, shiftDate) {
+    return (State.leaves || []).some(l => String(l.code) === String(code) &&
+      String(l.status || '').trim() === 'موافق' && this._normalizeDate(l.leaveDate) === shiftDate);
+  },
+
+  _hasAbsencePenalty(code, shiftDate) {
+    return (State.penalties || []).some(p => String(p.code) === String(code) &&
+      p.autoType === 'absence' && this._normalizeDate(p.date) === shiftDate);
+  },
+
+  _absenceRunKey(code, shiftDate) {
+    const safeCode = String(code).trim().replace(/[.#$\[\]\/]/g, '_');
+    return `${safeCode}_${shiftDate}`;
+  },
+
+  // قفل ذري في Firebase يمنع تكرار الجزاء عند فتح أكثر من نافذة كمبيوتر أو إعادة المحاولة.
+  async _createAutomaticAbsencePenalty(emp, shiftDate, dailyHours) {
+    const code = String(emp.code);
+    const targetLocale = EgyptClock.formatDateKey(shiftDate);
+    const runKey = this._absenceRunKey(code, shiftDate);
+    const inFlightKey = `${code}|${shiftDate}`;
+    if (this._monitorInFlight.has(inFlightKey)) return false;
+    if (this._hasAbsencePenalty(code, shiftDate)) return false;
+    if (this._hasApprovedLeave(code, shiftDate)) return false;
+    if (AutoDeductionService.isExempt(code, targetLocale, 'absence')) return false;
+
+    this._monitorInFlight.add(inFlightKey);
+    const runRef = db.ref('autoAbsencePenaltyRuns/' + runKey);
+    try {
+      const now = Number(TimeUtils.now()) || Date.now();
+      const tx = await runRef.transaction(current => {
+        if (current && (current.status === 'created' || current.status === 'skipped')) return;
+        if (current && current.status === 'processing' && now - Number(current.startedAtClient || now) < 10*60*1000) return;
+        return { status:'processing', code, date:shiftDate, startedAtClient:now,
+          startedBy:State.currentUser?.username || 'النظام' };
+      });
+      if (!tx.committed) return false;
+
+      // إعادة التحقق بعد حجز المفتاح مباشرة قبل الكتابة.
+      if (this._hasAbsencePenalty(code, shiftDate) || this._hasApprovedLeave(code, shiftDate) ||
+          AutoDeductionService.isExempt(code, targetLocale, 'absence')) {
+        await runRef.update({ status:'skipped', reason:'attendance_leave_or_existing_penalty', finishedAtClient:Number(TimeUtils.now())||Date.now() });
+        return false;
+      }
+
+      const hours = Number(dailyHours) * this.DAYS_PENALTY;
+      if (!Number.isFinite(hours) || hours <= 0) {
+        await runRef.update({ status:'failed', reason:'invalid_shift_hours' });
+        return false;
+      }
+      const penaltyId = await AutoDeductionService.createAutoPenalty(
+        code, emp.name, hours, `غياب بدون إذن (${targetLocale})`, 'absence', targetLocale
+      );
+      if (!penaltyId) {
+        // يسمح بإعادة التقييم لاحقًا لو فشل الإنشاء لسبب مؤقت أو كان هناك استثناء.
+        await runRef.update({ status:'failed', reason:'penalty_not_created', finishedAtClient:Number(TimeUtils.now())||Date.now() });
+        return false;
+      }
+      await runRef.update({ status:'created', penaltyId, hours:Number(hours.toFixed(2)), finishedAtClient:Number(TimeUtils.now())||Date.now() });
+      return true;
+    } catch (err) {
+      try { await runRef.update({ status:'failed', error:String(err?.message || err).slice(0,240), finishedAtClient:Number(TimeUtils.now())||Date.now() }); } catch (_) {}
+      console.error('[AbsenceAutoMonitor] penalty creation failed:', err);
+      return false;
+    } finally {
+      this._monitorInFlight.delete(inFlightKey);
+    }
+  },
+
+  async runAutoMonitor() {
+    if (!this._canRunAutoMonitor() || this._monitorBusy) return;
+    const ready = State._absenceAutoReady || {};
+    if (!ready.attendance || !ready.leaves || !ready.penalties || !ready.empData || !ready.exemptions) return;
+    if (!Array.isArray(State.employees) || !State.employees.length) return;
+
+    this._monitorBusy = true;
+    this._monitorLastRunAt = Number(TimeUtils.now()) || Date.now();
+    try {
+      const now = Number(TimeUtils.now()) || Date.now();
+      const today = EgyptClock.dateKey(now);
+      // اليوم الحالي + اليوم السابق لتغطية الورديات التي انتهت بعد منتصف الليل أو عند إعادة فتح الكمبيوتر صباحًا.
+      const candidateDates = [today, EgyptClock.addDays(today, -1)];
+      for (const shiftDate of candidateDates) {
+        if (!shiftDate) continue;
+        for (const listedEmp of State.employees) {
+          const emp = getEmpData(listedEmp.code) || listedEmp;
+          if (!emp || !emp.name || !this._eligibleOnDate(emp, shiftDate)) continue;
+          const shift = this._getShiftWindow(emp, shiftDate);
+          if (!shift || now < shift.endTs || (now - shift.endTs) > this._MAX_CATCHUP_MS) continue;
+          if (this._hasAttendanceForShift(emp.code, shiftDate, shift)) continue;
+          if (this._hasApprovedLeave(emp.code, shiftDate)) continue;
+          if (this._hasAbsencePenalty(emp.code, shiftDate)) continue;
+          await this._createAutomaticAbsencePenalty(emp, shiftDate, shift.dailyHours);
+        }
+      }
+    } catch (err) {
+      console.error('[AbsenceAutoMonitor] monitor failed:', err);
+    } finally {
+      this._monitorBusy = false;
+    }
+  },
+
+  startAutoMonitor() {
+    if (this._monitorTimer) return;
+    // الفحص المحلي مرة كل دقيقة؛ لا توجد استعلامات مراقبة من الهواتف أو من أجهزة غير مصرح لها.
+    this._monitorTimer = setInterval(() => this.runAutoMonitor(), this._MONITOR_INTERVAL_MS);
+    this._monitorWakeHandler = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine !== false) this.runAutoMonitor();
+    };
+    document.addEventListener('visibilitychange', this._monitorWakeHandler);
+    window.addEventListener('focus', this._monitorWakeHandler);
+    window.addEventListener('online', this._monitorWakeHandler);
+    setTimeout(() => this.runAutoMonitor(), 7000);
+  },
+
+  stopAutoMonitor() {
+    if (this._monitorTimer) clearInterval(this._monitorTimer);
+    this._monitorTimer = null;
+    if (this._monitorWakeHandler) {
+      document.removeEventListener('visibilitychange', this._monitorWakeHandler);
+      window.removeEventListener('focus', this._monitorWakeHandler);
+      window.removeEventListener('online', this._monitorWakeHandler);
+    }
+    this._monitorWakeHandler = null;
+    this._monitorBusy = false;
   },
 
   // مرحلة 1: فحص فقط (Dry-run) — مبيسجّلش أي جزاء، بس بيوضح مين مستحق
@@ -19995,15 +20194,14 @@ const AbsenceService = {
         <td>${getEmpJob(emp.code, emp.name)}</td>
         <td><span style="color:#f87171">⏳ مستحق جزاء يومين (${hours.toFixed(1)} ساعة)${alreadyGiven ? ' — اتسجّل بالفعل' : ' — لسه ما اتسجّلش'}</span></td>
         <td>${alreadyGiven
-            ? '<span style="color:#34d399;font-size:12px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> اتسجّل</span>'
-            : `<button onclick="AbsenceService.applyPenaltyForOne('${emp.code}')" style="background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.3);color:#f87171;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700"><span class="ui-icon-slot" data-icon="warning" aria-hidden="true"></span> إعطاء الجزاء</button>`
+            ? '<span style="color:#34d399;font-size:12px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> اتسجّل تلقائيًا</span>'
+            : '<span style="color:#94a3b8;font-size:12px">يسجله كمبيوتر الإدارة تلقائيًا بعد نهاية الوردية</span>'
         }</td></tr>`;
     }).join('');
 
     if(box) box.innerHTML = `
       <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;color:#fbbf24">
-        📊 لقينا ${absentees.length} غايب في ${targetLocale} — ${excusedCount} مبرر بإجازة، ${unexcusedCount} مستحقين جزاء (لسه ماسجلناهوش).
-        دوس "⚠️ إعطاء الجزاء" جنب أي شخص لتسجيله لوحده، أو "إعطاء الجزاء للغير مبررين" فوق لتسجيلهم كلهم مرة واحدة.
+        📊 لقينا ${absentees.length} موظفًا بدون حركة حضور في ${targetLocale} — ${excusedCount} مبرر بإجازة، و${unexcusedCount} غير مبررين. هذا التقرير للمراجعة فقط؛ الجزاء يُسجّل تلقائيًا من كمبيوتر الإدارة بعد انتهاء الوردية.
       </div>
       <div class="table-container"><table>
         <thead><tr><th>الموظف</th><th>الكود</th><th>الوظيفة</th><th>النتيجة</th><th>إجراء</th></tr></thead>
@@ -20013,51 +20211,13 @@ const AbsenceService = {
     if(applyBtn && unexcusedCount > 0){ applyBtn.disabled = false; applyBtn.style.opacity = '1'; }
   },
 
-  // مرحلة 2: تسجيل الجزاءات فعليًا لآخر فحص (خطوة منفصلة، مش تلقائية)
+  // التسجيل أصبح تلقائيًا من كمبيوتر الإدارة؛ لا تسمح هذه الشاشة بإنشاء جزاء يدوي.
   applyPenalties() {
-    if(!hasPermission('empdata') && !hasPermission('all')){ UI.toast('❌ الميزة دي تتطلب صلاحية بيانات الموظفين', 'error'); return; }
-    if(!this._lastResults || !this._lastResults.length){
-      UI.toast('اعمل فحص الأول قبل ما تسجّل الجزاءات', 'error'); return;
-    }
-    const unexcused = this._lastResults.filter(a => !a.excused);
-    if(!unexcused.length){ UI.toast('مفيش حد مستحق جزاء في آخر فحص', 'warning'); return; }
-
-    showConfirm(`تأكيد تسجيل جزاء غياب ليومين لـ ${unexcused.length} موظف؟`, () => {
-      let count = 0;
-      unexcused.forEach(({ emp }) => {
-        const dailyHours = getEmpDailyHours(getEmpData(emp.code));
-        const hours = dailyHours * this.DAYS_PENALTY;
-        AutoDeductionService.createAutoPenalty(emp.code, emp.name, hours, `غياب بدون إذن (${this._lastDateLocale})`, 'absence', this._lastDateLocale);
-        count++;
-      });
-      UI.toast(`✅ تم تسجيل جزاء غياب لـ ${count} موظف`, 'success');
-      const applyBtn = document.getElementById('absenceApplyBtn');
-      if(applyBtn){ applyBtn.disabled = true; applyBtn.style.opacity = '0.5'; }
-      this._lastResults = null;
-      // إعادة الفحص لعرض الحالة المحدّثة
-      this.checkDate();
-    });
+    UI.toast('تسجيل جزاء الغياب يتم تلقائيًا من كمبيوتر الإدارة بعد انتهاء الوردية، وهذه الشاشة للمراجعة فقط.', 'info');
   },
 
-  // تسجيل جزاء الغياب لموظف واحد بس (بدل الكل)
-  applyPenaltyForOne(code) {
-    if(!hasPermission('empdata') && !hasPermission('all')){ UI.toast('❌ الميزة دي تتطلب صلاحية بيانات الموظفين', 'error'); return; }
-    if(!this._lastResults){ UI.toast('اعمل فحص الأول', 'error'); return; }
-    const entry = this._lastResults.find(a => String(a.emp.code) === String(code) && !a.excused);
-    if(!entry){ UI.toast('الموظف ده مش موجود في نتيجة آخر فحص', 'error'); return; }
-
-    showConfirm(`تأكيد تسجيل جزاء غياب يومين لـ ${entry.emp.name}؟`, () => {
-      const dailyHours = getEmpDailyHours(getEmpData(entry.emp.code));
-      const hours = dailyHours * this.DAYS_PENALTY;
-      AutoDeductionService.createAutoPenalty(entry.emp.code, entry.emp.name, hours, `غياب بدون إذن (${this._lastDateLocale})`, 'absence', this._lastDateLocale);
-      UI.toast(`✅ تم تسجيل جزاء غياب لـ ${entry.emp.name}`, 'success');
-      // تحديث الصف ده بس من غير ما نعيد الفحص كله
-      const row = document.getElementById('absenceRow_' + code);
-      if(row){
-        const actionCell = row.lastElementChild;
-        if(actionCell) actionCell.innerHTML = '<span style="color:#34d399;font-size:12px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> اتسجّل</span>';
-      }
-    });
+  applyPenaltyForOne() {
+    UI.toast('تسجيل جزاء الغياب يتم تلقائيًا من كمبيوتر الإدارة، ولا يحتاج إلى إجراء يدوي.', 'info');
   }
 };
 
@@ -25874,6 +26034,8 @@ setInterval(() => {
         const confirmBtn = document.getElementById("confirmYes"); 
         if (confirmBtn) confirmBtn.onclick = function() { if (confirmAction) confirmAction(); closeConfirm(); };
         FirebaseSync.init()
+        // مراقبة الغياب التلقائية تعمل على كمبيوتر الإدارة فقط، بعد تسجيل الدخول واكتمال مزامنة البيانات.
+        try { AbsenceService.startAutoMonitor(); } catch (absenceMonitorStartError) { console.error('[AbsenceAutoMonitor] start failed:', absenceMonitorStartError); }
         // استرجاع مسودة التحويل إن وجدت
         TransferService.loadDraft()
         // تحميل شيت الأسعار من Firebase عند بدء التطبيق
@@ -26118,6 +26280,8 @@ UI.renderTransfers()
                 const map = {};
                 snap.forEach(c => { map[c.key] = c.val(); });
                 State.autoExemptions = map;
+                State._absenceAutoReady = State._absenceAutoReady || {};
+                State._absenceAutoReady.exemptions = true;
             });
             setTimeout(()=>BreakService.fixBreakDurations(),2000)
             collections.forEach(col => {
@@ -26125,6 +26289,7 @@ UI.renderTransfers()
                     const data = [];
                     snap.forEach(c => { data.push({ id: c.key, ...c.val() }); });
                     State[col.stateKey] = data;
+                    if (State._absenceAutoReady && ['attendance','leaves','penalties'].includes(col.stateKey)) State._absenceAutoReady[col.stateKey] = true;
                     col.render();
                 });
             });
@@ -26132,8 +26297,12 @@ UI.renderTransfers()
             // empData يُعامَل كـ object (مش array)
             db.ref("empData").on("value", snap => {
                 const val = snap.val();
+                State._absenceAutoReady = State._absenceAutoReady || {};
+                State._absenceAutoReady.empData = true;
                 if(!val || typeof val !== 'object' || Array.isArray(val)) {
-                                        return;
+                    State.empData = {};
+                    State.employees = [];
+                    return;
                 }
                 State.empData = val;
                 const keys = Object.keys(val);
