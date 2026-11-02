@@ -2739,6 +2739,9 @@ body.light-mode .user-menu-head { border-bottom-color:#e2e8f0; }
 #tab-fingerprint-bazar .bhr-title{font-size:clamp(17px,3vw,24px);font-weight:900;line-height:1.25}
 #tab-fingerprint-bazar .bhr-subtitle{margin-top:5px;color:#94a3b8;font-size:11px}
 #tab-fingerprint-bazar .bhr-header-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#tab-fingerprint-bazar .bhr-export-month{display:flex;align-items:center;gap:7px;padding:6px 9px;border:1px solid rgba(148,163,184,.28);border-radius:9px;background:rgba(15,23,42,.28);color:#cbd5e1;font-size:12px;font-weight:800;white-space:nowrap}
+#tab-fingerprint-bazar .bhr-export-month input{min-width:142px;max-width:165px;border:1px solid rgba(148,163,184,.32);border-radius:7px;background:rgba(255,255,255,.07);color:#f8fafc;padding:6px 8px;font:inherit;color-scheme:dark}
+#tab-fingerprint-bazar .bhr-export-month input:focus{outline:2px solid rgba(99,102,241,.55);outline-offset:1px}
 #tab-fingerprint-bazar .bhr-btn{border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#e2e8f0;padding:9px 12px;border-radius:9px;cursor:pointer;font:inherit;font-weight:800;white-space:nowrap}
 #tab-fingerprint-bazar .bhr-btn:hover{filter:brightness(1.08)}
 #tab-fingerprint-bazar .bhr-btn:disabled{opacity:.55;cursor:not-allowed}
@@ -2793,6 +2796,8 @@ body.light-mode .user-menu-head { border-bottom-color:#e2e8f0; }
   #tab-fingerprint-bazar .bhr-header{align-items:flex-start;flex-direction:column}
   #tab-fingerprint-bazar .bhr-header-actions{width:100%}
   #tab-fingerprint-bazar .bhr-header-actions .bhr-btn{flex:1 1 130px}
+  #tab-fingerprint-bazar .bhr-export-month{flex:1 1 100%;justify-content:space-between}
+  #tab-fingerprint-bazar .bhr-export-month input{flex:1;max-width:none}
   #tab-fingerprint-bazar .bhr-table{min-width:1100px}
   #tab-fingerprint-bazar .bhr-table th,#tab-fingerprint-bazar .bhr-table td{font-size:11px;padding:8px 7px}
 }
@@ -6559,6 +6564,10 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
     <div class="bhr-header-actions">
       <button class="bhr-btn bhr-primary" data-bhr-action="sync">🖐️ مزامنة البصمة</button>
       <button class="bhr-btn" data-bhr-action="refresh">🔄 تحديث البيانات</button>
+      <label class="bhr-export-month" title="اختر الشهر الذي تريد تصدير بياناته من جميع أقسام بصمة البازار">
+        <span>شهر التصدير</span>
+        <input id="bhr-export-month" type="month" value="" aria-label="شهر تصدير بيانات بصمة البازار">
+      </label>
       <button class="bhr-btn bhr-warn" data-bhr-action="export">📊 تصدير التاب</button>
     </div>
   </div>
@@ -21232,7 +21241,7 @@ const BazarHRSuite = {
   _canExcel(){return hasPermission('excel')||hasPermission('all');},
   _fingerprintChildPerms(){return (Array.isArray(State.securePermissions)?State.securePermissions:[]).filter(p=>String(p).startsWith('fingerprint-bazar:'));},
   _canFingerprintTab(tab){if(hasPermission('all'))return true;if(!hasPermission('fingerprint'))return false;const explicit=this._fingerprintChildPerms();if(explicit.length===0)return true;return explicit.includes('fingerprint-bazar:'+tab);},
-  applyPermissionVisibility(){const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;const buttons=Array.from(root.querySelectorAll('#bazarHrTabs .bhr-tab'));let firstAllowed=null;buttons.forEach(btn=>{const allowed=this._canFingerprintTab(btn.dataset.bhrTab);btn.style.display=allowed?'':'none';if(allowed&&!firstAllowed)firstAllowed=btn.dataset.bhrTab;});const actions={sync:this._canFingerprintTab('attendance'),refresh:!!firstAllowed,export:this._canExcel()};Object.entries(actions).forEach(([k,ok])=>{const b=root.querySelector(`[data-bhr-action="${k}"]`);if(b)b.style.display=ok?'':'none';});if(!this._canFingerprintTab(this._active)){if(firstAllowed)this.openPane(firstAllowed);else{this._active='';root.querySelectorAll('.bhr-pane').forEach(p=>p.hidden=true);}}},
+  applyPermissionVisibility(){const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;const buttons=Array.from(root.querySelectorAll('#bazarHrTabs .bhr-tab'));let firstAllowed=null;buttons.forEach(btn=>{const allowed=this._canFingerprintTab(btn.dataset.bhrTab);btn.style.display=allowed?'':'none';if(allowed&&!firstAllowed)firstAllowed=btn.dataset.bhrTab;});const actions={sync:this._canFingerprintTab('attendance'),refresh:!!firstAllowed,export:this._canExcel()};Object.entries(actions).forEach(([k,ok])=>{const b=root.querySelector(`[data-bhr-action="${k}"]`);if(b)b.style.display=ok?'':'none';});const exportMonthPicker=root.querySelector('.bhr-export-month');if(exportMonthPicker)exportMonthPicker.style.display=this._canExcel()?'':'none';if(!this._canFingerprintTab(this._active)){if(firstAllowed)this.openPane(firstAllowed);else{this._active='';root.querySelectorAll('.bhr-pane').forEach(p=>p.hidden=true);}}},
   _canExempt(){return hasPermission('permit')||hasPermission('all');},
   _canLeaves(){return hasPermission('leaves')||hasPermission('leaveApprove')||hasPermission('all');},
   _canLeaveEdit(){return hasPermission('edit')||hasPermission('all');},
@@ -22702,8 +22711,12 @@ const BazarHRSuite = {
       };
       const minToExcelTime=(m)=>{const n=Number(m);return Number.isFinite(n)?Math.max(0,n)/1440:'';};
       const minsText=(m)=>this._fmtMin(Number(m||0),'');
-      const exportMonth=(document.querySelector('#bh-pane-payroll [data-filter="month"]')?.value||document.querySelector('#bh-pane-penalties [data-filter="month"]')?.value||this._today().slice(0,7));
-      const [ey,em]=String(exportMonth).split('-').map(Number);
+      const exportMonth=String(document.getElementById('bhr-export-month')?.value||this._today().slice(0,7)).trim();
+      const monthMatch=exportMonth.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+      if(!monthMatch)return this._toast('اختر شهرًا صحيحًا قبل التصدير','warning');
+      const ey=Number(monthMatch[1]),em=Number(monthMatch[2]);
+      const from=`${ey}-${String(em).padStart(2,'0')}-01`;
+      const to=`${ey}-${String(em).padStart(2,'0')}-${String(new Date(Date.UTC(ey,em,0)).getUTCDate()).padStart(2,'0')}`;
       const monthNames=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
       const monthLabel=(monthNames[(em||1)-1]||String(em||1))+' '+(ey||new Date().getFullYear());
       const titleMonth={
@@ -22732,8 +22745,6 @@ const BazarHRSuite = {
       // Attendance — exact template order A:O.
       setCell(wsAtt,'A1',titleMonth.attendance,'s');
       setCell(wsAtt,'P3','الحالة','s');setCell(wsAtt,'Q3','المصدر / نوع اليوم','s');
-      const from=(document.querySelector('#bh-pane-attendance [data-filter="from"]')?.value||'');
-      const to=(document.querySelector('#bh-pane-attendance [data-filter="to"]')?.value||'');
       const attRows=this._attendanceDailyRows(from,to).slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
       attRows.forEach((r,i)=>{
         const rr=5+i;
@@ -22774,7 +22785,7 @@ const BazarHRSuite = {
       }
       wsAtt['!autofilter']={ref:`A3:Q${Math.max(4,4+attRows.length)}`};
 
-      const txMonth=(key)=>this._data[key].slice().sort((a,b)=>this._transactionDateKey(a).localeCompare(this._transactionDateKey(b))||String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
+      const txMonth=(key)=>this._data[key].filter(r=>this._transactionDateKey(r).startsWith(exportMonth)).slice().sort((a,b)=>this._transactionDateKey(a).localeCompare(this._transactionDateKey(b))||String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
       const advs=this._combinedAdvanceRecords(exportMonth),incs=this._combinedIncentiveRecords(exportMonth),pens=this._bazarPayrollPenaltyRecords(exportMonth),perms=txMonth('permits');
       setCell(wsAdv,'A1',titleMonth.advances,'s');
       advs.forEach((r,i)=>{const rr=4+i;setCell(wsAdv,`A${rr}`,i+1,'n');setDate(wsAdv,`B${rr}`,r.date||this._advanceDateKey(r));setCell(wsAdv,`C${rr}`,r.code,'s');setCell(wsAdv,`D${rr}`,r.name||this._employee(r.code)?.name||'','s');setCell(wsAdv,`E${rr}`,Number(r.amount||0),'n');setCell(wsAdv,`F${rr}`,r.docNo||r.documentNo||(r.sourcePath==='advances'?'النظام الأساسي':'بصمة البازار'),'s');setCell(wsAdv,`G${rr}`,r.note||'','s');});
@@ -22786,7 +22797,7 @@ const BazarHRSuite = {
       perms.forEach((r,i)=>{const rr=4+i;const durH=Number(r.durationMs||0)/3600000;setCell(wsPer,`A${rr}`,i+1,'n');setDate(wsPer,`B${rr}`,r.date);setCell(wsPer,`C${rr}`,r.code,'s');setCell(wsPer,`D${rr}`,r.name||this._employee(r.code)?.name||'','s');setCell(wsPer,`E${rr}`,r.id||r.permitNo||'','s');setCell(wsPer,`F${rr}`,timeFrac(r.breakTime),'n');setCell(wsPer,`G${rr}`,timeFrac(r.returnTime),'n');setCell(wsPer,`H${rr}`,durH/24,'n');});
       // Leave register — paid and unpaid approved/pending/rejected requests are transparent in Excel.
       setCell(wsLeave,'A1',`بيان إجازات الموظفين بالشركة ${monthLabel}`,'s');
-      const leavesMonth=(this._data.leaves||[]).filter(r=>String(r.date||'').startsWith(exportMonth)).slice().sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
+      const leavesMonth=(this._data.leaves||[]).filter(r=>this._leaveDateKey(r).startsWith(exportMonth)).slice().sort((a,b)=>this._leaveDateKey(a).localeCompare(this._leaveDateKey(b))||String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
       for(let rr=4;rr<=1000;rr++)for(let cc=1;cc<=9;cc++)clearCell(wsLeave,`${col(cc)}${rr}`);
       leavesMonth.forEach((r,i)=>{const rr=4+i,emp=this._employee(r.code),paid=this._leavePayStatus(r)==='مدفوعة',approved=r.status==='موافق',deduction=approved&&!paid?this._money(emp?.salary)/30:0;setCell(wsLeave,`A${rr}`,i+1,'n');setDate(wsLeave,`B${rr}`,r.date);setCell(wsLeave,`C${rr}`,r.code,'s');setCell(wsLeave,`D${rr}`,r.name||emp?.name||'','s');setCell(wsLeave,`E${rr}`,r.job||emp?.job||'','s');setCell(wsLeave,`F${rr}`,r.type||'','s');setCell(wsLeave,`G${rr}`,this._leavePayStatus(r),'s');setCell(wsLeave,`H${rr}`,r.status||'قيد المراجعة','s');setCell(wsLeave,`I${rr}`,deduction,'n');});
       wsLeave['!autofilter']={ref:`A3:I${Math.max(3,3+leavesMonth.length)}`};
@@ -22846,7 +22857,7 @@ const BazarHRSuite = {
   _rowIdDecode(v){try{return decodeURIComponent(String(v));}catch(_){return String(v);}},
   _handleClick(e){const t=e.target.closest('[data-bhr-tab]');if(t)return this.openPane(t.dataset.bhrTab);const top=e.target.closest('[data-bhr-action]');if(top){const a=top.dataset.bhrAction;if(a==='sync')return this.syncFromDevice();if(a==='refresh')return this.refreshAll();if(a==='export')return this.exportCurrent();if(a==='add-employee')return this.openEmployeeForm();if(a==='add-advance')return this.openAdvanceForm();if(a==='add-incentive')return this.openIncentiveForm();if(a==='add-penalty')return this.openPenaltyForm();if(a==='add-leave')return this.openLeaveForm();if(a==='save-leave')return this._saveBazarLeave(this._rowIdDecode(top.dataset.id||''));if(a==='check-bazar-absence')return this._checkBazarAbsence();if(a==='add-permit')return this.openPermitForm();if(a==='add-attendance')return this.openAttendanceForm();if(a==='show-payslip')return this._showPayslip(document.querySelector('#bh-pane-payslip [data-filter="employee"]')?.value||'',document.querySelector('#bh-pane-payslip [data-filter="month"]')?.value||this._today().slice(0,7));if(a==='print-slip')return window.print();if(a==='close-modal')return this.closeModal();}
     const row=e.target.closest('[data-bhr-row]');if(!row)return;const a=row.dataset.bhrRow,id=this._rowIdDecode(row.dataset.id);if(a==='edit'){if(this._active==='employees')return this.openEmployeeForm(id);if(this._active==='advances')return this.openAdvanceForm(id);if(this._active==='incentives')return this.openIncentiveForm(id);if(this._active==='penalties')return this.openPenaltyForm(id);if(this._active==='permits')return this.openPermitForm(id);if(this._active==='attendance'){const [code,date]=id.split('|');return this.openAttendanceForm(code,date);}}if(a==='delete'){if(this._active==='employees'){const r=this._employee(id);const key=r?.firebaseKey||r?.id||id;return this._delete('bazarEmpData',key,'الموظف');}if(this._active==='advances')return this._delete('bazarAdvances',id,'السلفة');if(this._active==='incentives')return this._delete('bazarIncentives',id,'المكافأة');if(this._active==='penalties')return this._delete('bazarPenalties',id,'الجزاء');if(this._active==='permits')return this._delete('bazarBreaks',id,'الإذن');if(this._active==='attendance'){const [code,date]=id.split('|');return this._deleteAttendanceDay(code,date);}}if(a==='leave-edit')return this.openLeaveForm(id);if(a==='leave-delete')return this._delete('bazarLeaves',id,'الإجازة');if(a==='leave-approve')return this.approveLeave(id,true);if(a==='leave-reject')return this.approveLeave(id,false);if(a==='bazar-absence'){const [code,date]=id.split('|');return this._applyBazarAbsencePenalty(code,date);}if(a==='exempt-penalty')return this.openPenaltyExemptForm(id);if(a==='restore-penalty')return this._restorePenaltyExemption(id);if(a==='return-permit')return this._returnPermit(id);},
-  init(){if(this._initialized){this.applyPermissionVisibility();if(this._active&&this._canFingerprintTab(this._active)&&!this._isEditingActivePane())this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;root.addEventListener('click',e=>this._handleClick(e));root.addEventListener('focusout',e=>{if(!this._pendingActiveRender)return;this._flushPendingUiRefresh();});this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.applyPermissionVisibility();const first=root.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');this.openPane(first?.dataset?.bhrTab||'employees');this._toast('✅ بصمة البازار — تحديث ذكي دون إعادة رسم متكرر','success');}
+  init(){if(this._initialized){this.applyPermissionVisibility();if(this._active&&this._canFingerprintTab(this._active)&&!this._isEditingActivePane())this.renderActive();return;}this._initialized=true;const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;const exportMonthInput=root.querySelector('#bhr-export-month');if(exportMonthInput&&!exportMonthInput.value)exportMonthInput.value=this._today().slice(0,7);root.addEventListener('click',e=>this._handleClick(e));root.addEventListener('focusout',e=>{if(!this._pendingActiveRender)return;this._flushPendingUiRefresh();});this._startListeners();this._startConnection();if(navigator.onLine===false)this._loadOffline();this.applyPermissionVisibility();const first=root.querySelector('#bazarHrTabs .bhr-tab:not([style*="display: none"])');this.openPane(first?.dataset?.bhrTab||'employees');this._toast('✅ بصمة البازار — تحديث ذكي دون إعادة رسم متكرر','success');}
 };
 window.BazarHRSuite=BazarHRSuite;
 
