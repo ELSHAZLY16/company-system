@@ -4034,7 +4034,7 @@ body.light-mode .uj-session-sub,body.light-mode .uj-event-meta,body.light-mode .
 
 <input id="transferName" placeholder="اسم الصنف" readonly>
 
-<input id="transferExpire" type="date" placeholder="تاريخ الانتهاء">
+<input id="transferExpire" type="date" placeholder="تاريخ الانتهاء" aria-label="تاريخ انتهاء الصلاحية — اليوم أو تاريخ مستقبلي فقط" title="لا يمكن اختيار تاريخ انتهاء سابق لليوم">
 
 </div>
 
@@ -12034,7 +12034,7 @@ const DeviceInfo = {
         autoExemptions: {},
         _absenceAutoReady: { attendance:false, leaves:false, penalties:false, empData:false, exemptions:false },
         penaltyExemptLog: [],
-        appBuild: "2026-11-02.69-auto-absence-desktop",
+        appBuild: "2026-11-03.73-transfer-expiry-guard",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -17905,6 +17905,34 @@ const TransferService = {
 _saving: false,
 _saveGuardKey: "allosh_transfer_save_guard",
 
+// تاريخ الصلاحية في التحويل الجديد يجب ألا يسبق اليوم الحالي بتوقيت مصر.
+_todayExpiryKey() {
+    return EgyptClock.dateKey(TimeUtils.now());
+},
+
+_isValidExpiryDate(value, todayKey = this._todayExpiryKey()) {
+    const raw = String(value ?? "").trim();
+    const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match || !/^\d{4}-\d{2}-\d{2}$/.test(String(todayKey || ""))) return false;
+    const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month || parsed.getUTCDate() !== day) return false;
+    // YYYY-MM-DD sortable lexical string; equality (today) is allowed.
+    return raw >= todayKey;
+},
+
+_refreshExpiryMin() {
+    const input = document.getElementById("transferExpire");
+    const todayKey = this._todayExpiryKey();
+    if (input && todayKey) {
+        input.min = todayKey;
+        input.setAttribute("min", todayKey);
+        // لو ظلت الصفحة مفتوحة وعبرنا منتصف الليل، امسح اختيار الأمس.
+        if (input.value && !this._isValidExpiryDate(input.value, todayKey)) input.value = "";
+    }
+    return todayKey;
+},
+
 // ── حفظ المسودة تلقائياً في localStorage ──────────
 saveDraft() {
     try {
@@ -17971,6 +17999,7 @@ let pieces = Number(document.getElementById("transferPieces").value)
 
 let kilo = parseFloat(document.getElementById("transferKilo")?.value) || 0
 
+const expiryTodayKey = this._refreshExpiryMin();
 let expire = document.getElementById("transferExpire").value
 
 if(!barcode){
@@ -17986,6 +18015,13 @@ return
 if(!expire){
 UI.toast("حدد تاريخ الانتهاء","error")
 return
+}
+
+if(!this._isValidExpiryDate(expire, expiryTodayKey)){
+UI.toast("لا يمكن اختيار تاريخ انتهاء سابق لليوم. اختر تاريخ اليوم أو تاريخًا مستقبليًا.","error",8000);
+const expiryInput = document.getElementById("transferExpire");
+if(expiryInput){ expiryInput.value=""; expiryInput.focus(); }
+return;
 }
 
 let total = document.getElementById("transferTotal").value
@@ -18154,8 +18190,17 @@ async save(){
   if(from === to) return UI.toast('لا يمكن التحويل لنفس الفرع','error');
   if(!Array.isArray(State.transferItems) || State.transferItems.length === 0) return UI.toast('أضف أصناف للتحويل','error');
 
-  // Snapshot ثابت للمدخلات لحماية عملية الحفظ من تغيّر الواجهة أثناء انتظار Firebase.
+  // حماية نهائية على مستوى الحفظ: لا تسمح بتمرير تاريخ صلاحية سابق لليوم، حتى من مسودة قديمة.
+  const expiryTodayKey = this._refreshExpiryMin();
   const transferItems = JSON.parse(JSON.stringify(State.transferItems));
+  const invalidExpiryItem = transferItems.find(item => !this._isValidExpiryDate(item?.expire, expiryTodayKey));
+  if(invalidExpiryItem){
+    const invalidName = String(invalidExpiryItem.name || invalidExpiryItem.barcode || 'الصنف').trim();
+    UI.toast(`لا يمكن حفظ التحويل: تاريخ انتهاء الصلاحية للصنف «${invalidName}» سابق لليوم أو غير صحيح. احذف الصنف من المسودة وأعد إضافته بتاريخ اليوم أو تاريخ مستقبلي.`, 'error', 10000);
+    return;
+  }
+
+  // Snapshot ثابت للمدخلات لحماية عملية الحفظ من تغيّر الواجهة أثناء انتظار Firebase.
   const transferUser = State.currentUser?.username || '-';
   const saveFingerprint = JSON.stringify({from,to,user:transferUser,items:transferItems});
   const nowMs = Date.now();
@@ -19201,9 +19246,12 @@ const EmpDataService = {
   quickSetEmploymentStatus(code, name, type) {
     const labelMap = { resigned: 'استقالة', stopped: 'وقف عن العمل' };
     showConfirm(`تأكيد "${labelMap[type]}" للموظف ${name}؟`, () => {
+      const statusChangedAt = Number(TimeUtils.now()) || Date.now();
       db.ref('empData/' + code).update({
         employmentStatus: type,
-        employmentStatusAt: EgyptClock.formatDateTime(TimeUtils.now()),
+        employmentStatusAt: EgyptClock.formatDateTime(statusChangedAt),
+        employmentStatusEffectiveDate: EgyptClock.dateKey(statusChangedAt),
+        employmentStatusChangedAt: statusChangedAt,
         employmentStatusBy: State.currentUser?.username || '-'
       }).then(() => {
         UI.toast(`✅ تم تحديث حالة ${name} إلى "${labelMap[type]}"`, 'success');
@@ -19542,9 +19590,12 @@ const EmpDataService = {
 
     const labelMap = { resigned: 'استقالة', stopped: 'وقف عن العمل', active: 'إعادة تفعيل' };
     showConfirm(`تأكيد "${labelMap[type]}" للموظف ${name}؟`, () => {
+      const statusChangedAt = Number(TimeUtils.now()) || Date.now();
       db.ref('empData/' + code).update({
         employmentStatus: type,
-        employmentStatusAt: EgyptClock.formatDateTime(TimeUtils.now()),
+        employmentStatusAt: EgyptClock.formatDateTime(statusChangedAt),
+        employmentStatusEffectiveDate: EgyptClock.dateKey(statusChangedAt),
+        employmentStatusChangedAt: statusChangedAt,
         employmentStatusBy: State.currentUser?.username || '-'
       }).then(() => {
         UI.toast(`✅ تم تحديث حالة ${name} إلى "${labelMap[type]}"`, 'success');
@@ -19901,41 +19952,195 @@ const AbsenceService = {
 
   // تطبيع التواريخ (ISO أو D/M/YYYY أو الأرقام العربية) إلى YYYY-MM-DD.
   _normalizeDate(str) {
-    if(!str) return '';
-    str = String(str).trim().replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[\u200e\u200f\u202f]/g, ' ');
-    let m = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-    if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-    m = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
-    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-    // يدعم تاريخًا بصيغة محلية يتبعه وقت (مثل employmentStatusAt).
+    if (str === null || str === undefined || str === '') return '';
+    if (typeof str === 'number' || (typeof str === 'string' && /^\d{10,13}$/.test(str.trim()))) {
+      let ts = Number(str);
+      if (!Number.isFinite(ts) || ts <= 0) return '';
+      if (ts < 100000000000) ts *= 1000;
+      try { return EgyptClock.dateKey(ts) || ''; } catch (_) { return ''; }
+    }
+    str = String(str).trim()
+      .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+      .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+      .replace(/[\u200e\u200f\u061c\u202f]/g, '');
+    let m = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:$|[T\s])/);
+    if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+    m = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
     m = str.match(/(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
-    if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
     return '';
   },
 
-  // هل كان الموظف مستحقًا للفحص في هذا التاريخ؟ يعتمد على تاريخ التعيين وتاريخ سريان الحالة.
+  _normalizeEmploymentStatus(value) {
+    const raw = String(value || '').trim().toLowerCase().replace(/[ـ]/g, '').replace(/\s+/g, ' ');
+    if (['resigned', 'مستقيل', 'مستقيلة', 'استقالة', 'استقال', 'منتهي الخدمة'].includes(raw) || raw.includes('مستقيل') || raw.includes('استقال')) return 'resigned';
+    if (['stopped', 'suspended', 'on_hold', 'موقوف', 'موقوف عن العمل', 'واقفة عن العمل', 'واقف عن العمل', 'وقف عن العمل', 'متوقف', 'متوقفة', 'إيقاف', 'ايقاف'].includes(raw) || raw.includes('موقوف') || raw.includes('واقفة عن العمل') || raw.includes('وقف عن العمل') || raw.includes('متوقف')) return 'stopped';
+    return 'active';
+  },
+
+  _employmentStatusInfo(employeeRecord) {
+    const rawStatus = employeeRecord?.employmentStatus || employeeRecord?.status || 'active';
+    const status = this._normalizeEmploymentStatus(rawStatus);
+    if (status === 'active') return { status, inactive: false, effectiveDate: '' };
+
+    let effectiveDate = this._normalizeDate(
+      employeeRecord.employmentStatusEffectiveDate ||
+      employeeRecord.resignationEffectiveDate ||
+      employeeRecord.employmentStatusDate || ''
+    );
+    if (!effectiveDate) effectiveDate = this._normalizeDate(employeeRecord.employmentStatusAt || '');
+    if (!effectiveDate) effectiveDate = this._normalizeDate(employeeRecord.employmentStatusChangedAt || employeeRecord.statusChangedAt || '');
+    return { status, inactive: true, effectiveDate };
+  },
+
+  // هل كان الموظف مستحقًا للفحص في هذا التاريخ؟
+  // الحالة غير النشطة تمنع إنشاء جزاء جديد؛ وإذا توفر تاريخ سريان نحترم ما قبله.
   _eligibleOnDate(employeeRecord, targetNorm) {
-    if(!employeeRecord || !/^\d{4}-\d{2}-\d{2}$/.test(String(targetNorm||''))) return false;
+    if (!employeeRecord || !/^\d{4}-\d{2}-\d{2}$/.test(String(targetNorm || ''))) return false;
 
-    // الموظف لا يُحسب غائبًا قبل تاريخ أول يوم عمل.
     const hireDate = this._normalizeDate(employeeRecord.hireDate || employeeRecord.hire_date || employeeRecord.employmentDate || employeeRecord.startDate || '');
-    if(hireDate && /^\d{4}-\d{2}-\d{2}$/.test(hireDate) && targetNorm < hireDate) return false;
+    if (hireDate && targetNorm < hireDate) return false;
 
-    const rawStatus = String(employeeRecord.employmentStatus || employeeRecord.status || 'نشط').trim().toLowerCase();
-    const inactive = ['resigned','stopped','مستقيل','مستقيلة','موقوف','موقوف عن العمل','متوقف'].includes(rawStatus);
-    if(!inactive) return true;
+    const statusInfo = this._employmentStatusInfo(employeeRecord);
+    if (statusInfo.inactive) {
+      // لا ننشئ جزاءً لموظف حالته الحالية غير نشطة إذا كان تاريخ السريان غير معروف.
+      // لا نستخدم تاريخ اليوم كتخمين؛ والتنظيف التاريخي يحتاج تاريخ سريان موثقًا.
+      if (!statusInfo.effectiveDate) return false;
+      return targetNorm < statusInfo.effectiveDate;
+    }
+    return true;
+  },
 
-    let effectiveDate = this._normalizeDate(employeeRecord.employmentStatusEffectiveDate || employeeRecord.resignationEffectiveDate || employeeRecord.employmentStatusDate || '');
-    if(!effectiveDate) effectiveDate = this._normalizeDate(employeeRecord.employmentStatusAt || '');
-    if(!effectiveDate && Number(employeeRecord.employmentStatusChangedAt) > 0) {
-      const changedAt=Number(employeeRecord.employmentStatusChangedAt);
-      if(Number.isFinite(changedAt)) effectiveDate = EgyptClock.dateKey(changedAt);
+  // إلغاء جزاءات الغياب التلقائية غير المستحقة بعد استقالة الموظف أو إيقافه.
+  // لا يلمس الجزاءات اليدوية أو جزاءات التأخير/الاستئذان، ولا يحذف تاريخًا مجهول السريان بالتخمين.
+  async reconcileInactiveAbsencePenalties(targetNorm, options = {}) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(targetNorm || ''))) {
+      return { removed: [], pendingReview: [], failed: [] };
     }
-    // للبيانات القديمة التي تسجل الحالة دون تاريخ: لا نمد الحالة إلى الماضي تلقائيًا.
-    if(!effectiveDate) {
-      effectiveDate = EgyptClock.dateKey(typeof TimeUtils!=='undefined' && TimeUtils.now ? TimeUtils.now() : Date.now());
+    let employeesData = options.employeesData;
+    let penalties = options.penalties;
+    if (!employeesData) {
+      const snap = await db.ref('empData').once('value');
+      employeesData = snap.val() || {};
     }
-    return targetNorm < effectiveDate;
+    if (!penalties) {
+      const snap = await db.ref('penalties').once('value');
+      const raw = snap.val() || {};
+      penalties = Object.entries(raw).map(([id, value]) => ({ id, ...(value || {}) }));
+    }
+
+    const findEmployee = code => {
+      const c = String(code || '').trim();
+      const n = String(Number(c));
+      if (employeesData[c]) return employeesData[c];
+      if (n !== c && employeesData[n]) return employeesData[n];
+      return Object.values(employeesData).find(e => e && (String(e.code || '').trim() === c || String(Number(e.code || '')) === n)) || null;
+    };
+
+    const removed = [], pendingReview = [], failed = [];
+    const targetLocale = EgyptClock.formatDateKey(targetNorm);
+    for (const penalty of (Array.isArray(penalties) ? penalties : [])) {
+      if (!penalty || !penalty.id || penalty.autoType !== 'absence' || penalty.auto !== true) continue;
+      if (this._normalizeDate(penalty.date) !== targetNorm) continue;
+      const emp = findEmployee(penalty.code);
+      if (!emp) continue;
+      const statusInfo = this._employmentStatusInfo(emp);
+      if (!statusInfo.inactive) continue;
+      if (!statusInfo.effectiveDate) {
+        pendingReview.push({ code: String(penalty.code || ''), name: String(penalty.name || emp.name || ''), penaltyId: penalty.id });
+        continue;
+      }
+      if (targetNorm < statusInfo.effectiveDate) continue; // المخالفة سبقت سريان الاستقالة/الإيقاف.
+
+      const now = Number(TimeUtils.now()) || Date.now();
+      const runKey = this._absenceRunKey(penalty.code, targetNorm);
+      const runRef = db.ref('autoAbsencePenaltyRuns/' + runKey);
+      const priorRunSnap = await runRef.once('value');
+      const previousRun = priorRunSnap.val() || {};
+      const claim = await runRef.transaction(current => {
+        if (current && current.status === 'skipped' && current.reason === 'employee_inactive_on_absence_date' && String(current.penaltyId || '') === String(penalty.id)) return;
+        if (current && current.status === 'cleanup_processing' && now - Number(current.cleanupStartedAt || now) < 10 * 60 * 1000) return;
+        return {
+          ...(current || {}),
+          status: 'cleanup_processing',
+          cleanupStartedAt: now,
+          cleanupStartedBy: State.currentUser?.username || 'النظام'
+        };
+      });
+      if (!claim.committed) continue; // جهاز آخر بدأ/أنهى التنظيف بالفعل.
+      const statusLabel = statusInfo.status === 'resigned' ? 'مستقيل' : 'واقفة عن العمل';
+      const audit = {
+        code: String(penalty.code || ''),
+        name: String(penalty.name || emp.name || ''),
+        penaltyId: String(penalty.id),
+        penaltyDate: String(penalty.date || targetLocale),
+        normalizedDate: targetNorm,
+        hours: Number(penalty.hours || 0),
+        reason: String(penalty.reason || ''),
+        employmentStatus: statusInfo.status,
+        employmentStatusLabel: statusLabel,
+        employmentStatusEffectiveDate: statusInfo.effectiveDate,
+        action: 'automatic_absence_penalty_removed',
+        source: options.source || 'AbsenceService.checkDate',
+        removedBy: State.currentUser?.username || 'النظام',
+        removedAtClient: now,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+      const nextRun = {
+        ...previousRun,
+        status: 'skipped',
+        code: String(penalty.code || ''),
+        date: targetNorm,
+        penaltyId: String(penalty.id),
+        reason: 'employee_inactive_on_absence_date',
+        reasonText: `تم إلغاء جزاء الغياب لأن حالة الموظف ${statusLabel} اعتبارًا من ${statusInfo.effectiveDate}`,
+        employmentStatus: statusInfo.status,
+        employmentStatusEffectiveDate: statusInfo.effectiveDate,
+        cleanupAtClient: now,
+        finishedAtClient: now
+      };
+      const updates = {};
+      updates['penalties/' + penalty.id] = null;
+      updates['autoAbsencePenaltyRuns/' + runKey] = nextRun;
+      try {
+        await db.ref().update(updates);
+        removed.push({ ...audit, id: penalty.id });
+        try {
+          SystemLog.add('AutoAbsencePenaltyCleanup', penalty.code, audit.name, {
+            notify: false,
+            penaltyId: penalty.id,
+            penaltyDate: targetNorm,
+            hours: audit.hours,
+            employmentStatus: statusInfo.status,
+            employmentStatusEffectiveDate: statusInfo.effectiveDate,
+            reason: audit.reasonText
+          }).catch(err => console.warn('[AbsenceCleanup] system log skipped:', err));
+        } catch (logErr) { console.warn('[AbsenceCleanup] system log skipped:', logErr); }
+      } catch (err) {
+        try {
+          await runRef.update({
+            ...previousRun,
+            status: previousRun.status || 'created',
+            cleanupError: String(err?.message || err).slice(0, 240),
+            cleanupFailedAtClient: Number(TimeUtils.now()) || Date.now()
+          });
+        } catch (releaseErr) { console.warn('[AbsenceCleanup] could not release cleanup lock:', releaseErr); }
+        failed.push({ code: String(penalty.code || ''), name: audit.name, penaltyId: penalty.id, error: String(err?.message || err) });
+        console.error('[AbsenceCleanup] failed to remove penalty:', err);
+      }
+    }
+
+    if (removed.length && Array.isArray(State.penalties)) {
+      const removedIds = new Set(removed.map(x => String(x.penaltyId)));
+      State.penalties = State.penalties.filter(p => !removedIds.has(String(p.id)));
+      // حدّث كشف مرتب الموظف المفتوح حاليًا بعد إزالة الخصومات غير المستحقة.
+      const salaryModal = document.getElementById('salaryReportModal');
+      if (salaryModal && salaryModal.style.display !== 'none' && SalaryService._currentEmpCode) {
+        try { SalaryService.renderReport(); } catch (salaryRefreshError) { console.warn('[AbsenceCleanup] salary report refresh skipped:', salaryRefreshError); }
+      }
+    }
+    return { removed, pendingReview, failed };
   },
 
   // لا يعمل مراقب الغياب إلا على كمبيوتر الإدارة، ولا ينفذ أي فحص من الهواتف/الأجهزة اللوحية.
@@ -20085,6 +20290,15 @@ const AbsenceService = {
       const candidateDates = [today, EgyptClock.addDays(today, -1)];
       for (const shiftDate of candidateDates) {
         if (!shiftDate) continue;
+        try {
+          await this.reconcileInactiveAbsencePenalties(shiftDate, {
+            employeesData: State.empData || {},
+            penalties: State.penalties || [],
+            source: 'AbsenceService.runAutoMonitor'
+          });
+        } catch (cleanupErr) {
+          console.error('[AbsenceAutoMonitor] inactive penalty cleanup failed:', cleanupErr);
+        }
         for (const listedEmp of State.employees) {
           const emp = getEmpData(listedEmp.code) || listedEmp;
           if (!emp || !emp.name || !this._eligibleOnDate(emp, shiftDate)) continue;
@@ -20144,24 +20358,42 @@ const AbsenceService = {
     if(box) box.innerHTML = '<div style="color:#94a3b8;font-size:13px"><span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span> جارٍ الفحص...</div>';
     if(applyBtn){ applyBtn.disabled = true; applyBtn.style.opacity = '0.5'; }
 
-    // نجيب بيانات الموظفين طازة من Firebase مباشرة (مش من الكاش المحلي)
-    // عشان نضمن إن حالة "استقال/موقوف" محدّثة 100% حتى لو حصل أي تأخير في المزامنة
-    const empDataSnap = await db.ref('empData').once('value');
+    // نقرأ بيانات الموظفين والجزاءات والإجازات مباشرة من Firebase لتجنب الاعتماد على كاش قديم.
+    const [empDataSnap, penaltiesSnap, leavesSnap] = await Promise.all([
+      db.ref('empData').once('value'),
+      db.ref('penalties').once('value'),
+      db.ref('leaves').once('value')
+    ]);
     const freshEmpData = empDataSnap.val() || {};
+    const freshPenaltyMap = penaltiesSnap.val() || {};
+    const freshPenalties = Object.entries(freshPenaltyMap).map(([id, value]) => ({ id, ...(value || {}) }));
+    const freshLeaveMap = leavesSnap.val() || {};
+    State.leaves = Object.entries(freshLeaveMap).map(([id, value]) => ({ id, ...(value || {}) }));
+    State.penalties = freshPenalties;
 
-    // دالة بحث محلية بنفس منطق getEmpData لكن على البيانات الطازة
     const findFreshEmp = (code) => {
       const c = String(code).trim();
       const n = String(Number(c));
-      if(freshEmpData[c]) return freshEmpData[c];
-      if(n !== c && freshEmpData[n]) return freshEmpData[n];
-      return Object.values(freshEmpData).find(e => e && (String(e.code)===c || String(e.code)===n));
+      if (freshEmpData[c]) return freshEmpData[c];
+      if (n !== c && freshEmpData[n]) return freshEmpData[n];
+      return Object.values(freshEmpData).find(e => e && (String(e.code || '').trim() === c || String(Number(e.code || '')) === n));
     };
 
-    const activeEmployees = State.employees.filter(e => {
-      const fresh = findFreshEmp(e.code) || e;
-      // لا نفحص أي يوم يسبق تاريخ تعيين الموظف، كما نحترم تاريخ سريان الاستقالة/الإيقاف.
-      return this._eligibleOnDate(fresh, targetNorm);
+    // احذف تلقائيًا جزاءات الغياب التلقائية التي ثبت أنها بعد تاريخ سريان الاستقالة/الإيقاف.
+    const cleanupResult = await this.reconcileInactiveAbsencePenalties(targetNorm, {
+      employeesData: freshEmpData,
+      penalties: freshPenalties,
+      source: 'AbsenceService.checkDate'
+    });
+
+    const unknownInactiveCodes = new Set();
+    const activeEmployees = State.employees.map(listed => {
+      const fresh = findFreshEmp(listed.code);
+      return fresh ? { ...listed, ...fresh, code: String(fresh.code || listed.code) } : listed;
+    }).filter(emp => {
+      const statusInfo = this._employmentStatusInfo(emp);
+      if (statusInfo.inactive && !statusInfo.effectiveDate) unknownInactiveCodes.add(String(emp.code));
+      return this._eligibleOnDate(emp, targetNorm);
     });
     const absentees = [];
 
@@ -20182,8 +20414,19 @@ const AbsenceService = {
 
     this._lastResults = absentees;
 
+    const cleanupNotice = cleanupResult.removed.length
+      ? `<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:10px;margin-bottom:10px;color:#34d399;font-size:13px">✅ تم إلغاء ${cleanupResult.removed.length} جزاء غياب تلقائي غير مستحق لموظفين حالتهم مستقيل أو واقفة عن العمل، وتم تسجيل تفاصيل الإلغاء في سجل المراجعة.</div>`
+      : '';
+    const pendingCount = new Set([...cleanupResult.pendingReview.map(x => x.code), ...unknownInactiveCodes]).size;
+    const pendingNotice = pendingCount
+      ? `<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;margin-bottom:10px;color:#fbbf24;font-size:12px">⚠️ يوجد ${pendingCount} موظفًا غير نشط لا يتوفر له تاريخ سريان موثق. تم استبعاده من إنشاء جزاء جديد، لكن لم نحذف جزاءاته التاريخية تلقائيًا حتى لا نحذف مخالفة سبقت الاستقالة أو الإيقاف.</div>`
+      : '';
+    const failedNotice = cleanupResult.failed.length
+      ? `<div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:10px;color:#f87171;font-size:12px">تعذر إلغاء ${cleanupResult.failed.length} جزاء/جزاءات بسبب مشكلة اتصال. أعد الفحص بعد استقرار الاتصال.</div>`
+      : '';
+
     if(!absentees.length){
-      if(box) box.innerHTML = '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px;color:#34d399;font-size:13px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> كل الموظفين النشطين حضروا في اليوم ده — مفيش غياب.</div>';
+      if(box) box.innerHTML = cleanupNotice + pendingNotice + failedNotice + '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:8px;padding:12px;color:#34d399;font-size:13px"><span class="ui-icon-slot" data-icon="check" aria-hidden="true"></span> لا توجد حالات غياب مستحقة بين الموظفين المؤهلين في اليوم المحدد.</div>';
       return;
     }
 
@@ -20208,7 +20451,7 @@ const AbsenceService = {
         }</td></tr>`;
     }).join('');
 
-    if(box) box.innerHTML = `
+    if(box) box.innerHTML = cleanupNotice + pendingNotice + failedNotice + `
       <div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:13px;color:#fbbf24">
         📊 لقينا ${absentees.length} موظفًا بدون حركة حضور في ${targetLocale} — ${excusedCount} مبرر بإجازة، و${unexcusedCount} غير مبررين. هذا التقرير للمراجعة فقط؛ الجزاء يُسجّل تلقائيًا من كمبيوتر الإدارة بعد انتهاء الوردية.
       </div>
@@ -26109,6 +26352,26 @@ setInterval(() => {
         FirebaseSync.init()
         // مراقبة الغياب التلقائية تعمل على كمبيوتر الإدارة فقط، بعد تسجيل الدخول واكتمال مزامنة البيانات.
         try { AbsenceService.startAutoMonitor(); } catch (absenceMonitorStartError) { console.error('[AbsenceAutoMonitor] start failed:', absenceMonitorStartError); }
+        // تاريخ صلاحية التحويل: اليوم أو تاريخ مستقبلي فقط (حسب توقيت مصر).
+        try {
+          const transferExpiryInput = document.getElementById("transferExpire");
+          if (transferExpiryInput) {
+            TransferService._refreshExpiryMin();
+            transferExpiryInput.setAttribute("aria-label", "تاريخ انتهاء الصلاحية — اليوم أو تاريخ مستقبلي فقط");
+            transferExpiryInput.setAttribute("title", "لا يمكن اختيار تاريخ انتهاء سابق لليوم");
+            transferExpiryInput.addEventListener("focus", () => TransferService._refreshExpiryMin());
+            transferExpiryInput.addEventListener("change", function(){
+              const enteredValue = this.value;
+              const todayKey = TransferService._refreshExpiryMin();
+              if (enteredValue && !TransferService._isValidExpiryDate(enteredValue, todayKey)) {
+                this.value = "";
+                UI.toast("تاريخ انتهاء الصلاحية لا يمكن أن يكون قبل اليوم. اختر تاريخ اليوم أو تاريخًا مستقبليًا.", "error", 8000);
+              }
+            });
+          }
+        } catch (transferExpiryInitError) {
+          console.warn('[Transfers] expiry date guard initialization failed', transferExpiryInitError);
+        }
         // استرجاع مسودة التحويل إن وجدت
         TransferService.loadDraft()
         // تحميل شيت الأسعار من Firebase عند بدء التطبيق
