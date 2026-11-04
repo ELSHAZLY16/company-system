@@ -11182,7 +11182,8 @@ function undoPenaltyExemption(logId){
       autoType: entry.autoType || ""
     };
 
-    db.ref("penalties").push(penalty).then(() => {
+    const restoredPenaltyRef = db.ref("penalties").push();
+    restoredPenaltyRef.set(penalty).then(() => {
       if(entry.autoType && entry.dateKey){
         db.ref("autoDeductExemptions/" + `${entry.code}_${entry.dateKey}_${entry.autoType}`).remove();
       }
@@ -11192,7 +11193,13 @@ function undoPenaltyExemption(logId){
       }
       db.ref("penaltyExemptLog/" + logId).remove().then(() => {
         UI.toast(`✅ تم إرجاع الجزاء لـ ${entry.name} إلى ترتيبه الأصلي وإلغاء الإعفاء`, "success");
-        SystemLog.add("PenaltyExemptUndo", entry.code, entry.name + " — " + (entry.penaltyDate||"-"));
+        SystemLog.add("PenaltyExemptUndo", entry.code, entry.name || String(entry.code), {
+          employeeName: entry.name || String(entry.code), penaltyId: restoredPenaltyRef.key,
+          reason: entry.reason || "-", exemptionReason: entry.exemptReason || "",
+          hours: Number(entry.hours || 0), recordDate: entry.penaltyDate || entry.dateKey || "",
+          autoType: entry.autoType || "",
+          notificationDeduplicationKey: "penalty-exempt-restored:" + restoredPenaltyRef.key
+        });
       });
     }).catch(err => UI.toast("❌ فشل إرجاع الجزاء: " + (err.message||err), "error"));
   });
@@ -12382,7 +12389,10 @@ return firebase.database.ServerValue.TIMESTAMP
         CheckIn:["attendance"],
         Leave:["leaves","leaveApprove"], LeaveApproved:["leaves","leaveApprove"], LeaveRejected:["leaves","leaveApprove"],
         Penalty:["penalties"], AutoPenalty:["penalties"], EditPenalty:["penalties"], DeletePenalty:["penalties"],
+        PenaltyExempt:["penalties"], PenaltyExemptUndo:["penalties"],
         BazarPenaltyAdd:["penalties","fingerprint"], BazarAbsencePenalty:["penalties","fingerprint"],
+        BazarPenaltyEdit:["penalties","fingerprint"], BazarPenaltyDelete:["penalties","fingerprint"],
+        BazarPenaltyExempt:["penalties","fingerprint"], BazarPenaltyExemptionRestored:["penalties","fingerprint"],
         AddEmployee:["empdata"], EditEmployee:["empdata"], DeleteEmployee:["empdata"],
         AddUser:["users"], EditUser:["users"], DeleteUser:["users"],
         VehicleIn:["vehicles"], VehicleOut:["vehicles"],
@@ -12400,6 +12410,11 @@ return firebase.database.ServerValue.TIMESTAMP
         const who = this._s(data.user) || "مستخدم";
         const nm = this._s(meta.productName || meta.employeeName || data.name);
         let title = "", body = "";
+        const penaltyActions = new Set([
+          "Penalty", "AutoPenalty", "EditPenalty", "DeletePenalty", "PenaltyExempt", "PenaltyExemptUndo",
+          "BazarPenaltyAdd", "BazarAbsencePenalty", "BazarPenaltyEdit", "BazarPenaltyDelete",
+          "BazarPenaltyExempt", "BazarPenaltyExemptionRestored"
+        ]);
         if (action === "CheckIn") {
           // الحضور: إشعار للمتأخرين فقط
           const emp = (typeof getEmpData === "function" ? getEmpData(data.code) : null) || {};
@@ -12413,6 +12428,53 @@ return firebase.database.ServerValue.TIMESTAMP
           title = "تأخير في الحضور";
           body = `${nm || data.code} وصل ${data.timeDisplay} — متأخر ${late} دقيقة (ميعاده ${expected})`;
           if (data.branch && data.branch !== "-") body += ` • ${data.branch}`;
+        } else if (penaltyActions.has(action)) {
+          const employee = this._s(meta.employeeName || meta.name || data.employeeName || data.employee || "") || this._s(data.name) || this._s(data.code) || "موظف";
+          const actor = this._s(data.user || meta.recordedBy || meta.performedBy) || "مستخدم";
+          const reason = this._s(meta.penaltyReason || meta.reason || data.reason || "");
+          const exemptionReason = this._s(meta.exemptionReason || meta.exemptReason || "");
+          const date = this._s(meta.recordDate || meta.penaltyDate || meta.date || data.date || "");
+          const hours = meta.hours ?? meta.penaltyHours ?? data.hours ?? data.penaltyHours;
+          const amount = meta.amount ?? meta.value ?? data.amount ?? data.value;
+          const previousHours = meta.previousHours;
+          const previousAmount = meta.previousAmount;
+          const previousReason = this._s(meta.previousReason);
+          const fmt = value => {
+            const n = Number(value);
+            return Number.isFinite(n) ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : this._s(value);
+          };
+          const details = [`الموظف: ${employee}`];
+          if (reason) details.push(`سبب الجزاء: ${reason}`);
+          if (amount !== undefined && amount !== null && amount !== "") details.push(`قيمة الجزاء: ${fmt(amount)} جنيه`);
+          if (hours !== undefined && hours !== null && hours !== "") details.push(`مدة الخصم: ${fmt(hours)} ساعة`);
+          if (date) details.push(`تاريخ الجزاء: ${date}`);
+          const operationTime = [this._s(data.date), this._s(data.timeDisplay)].filter(Boolean).join(" ");
+          if (operationTime) details.push(`وقت العملية: ${operationTime}`);
+          const previous = [];
+          if (previousAmount !== undefined && previousAmount !== null && previousAmount !== "") previous.push(`القيمة السابقة: ${fmt(previousAmount)} جنيه`);
+          if (previousHours !== undefined && previousHours !== null && previousHours !== "") previous.push(`الساعات السابقة: ${fmt(previousHours)} ساعة`);
+          if (previousReason && previousReason !== reason) previous.push(`السبب السابق: ${previousReason}`);
+          const isCreate = ["Penalty", "AutoPenalty", "BazarPenaltyAdd", "BazarAbsencePenalty"].includes(action);
+          const isEdit = ["EditPenalty", "BazarPenaltyEdit"].includes(action);
+          const isDelete = ["DeletePenalty", "BazarPenaltyDelete"].includes(action);
+          const isExempt = ["PenaltyExempt", "BazarPenaltyExempt"].includes(action);
+          const isRestore = ["PenaltyExemptUndo", "BazarPenaltyExemptionRestored"].includes(action);
+          const automatic = action === "AutoPenalty" || action === "BazarAbsencePenalty" || meta.auto === true;
+          if (isCreate) title = `${automatic ? "⚠️ تم تسجيل جزاء تلقائي" : "⚠️ تم تسجيل جزاء جديد"} — ${employee}`;
+          else if (isEdit) title = `✏️ تم تعديل جزاء — ${employee}`;
+          else if (isDelete) title = `🗑️ تم حذف جزاء — ${employee}`;
+          else if (isExempt) title = `🛡️ تم إعفاء موظف من الجزاء — ${employee}`;
+          else if (isRestore) title = `↩️ تم إلغاء الإعفاء وإعادة الجزاء — ${employee}`;
+          if (isEdit && previous.length) details.push(...previous);
+          if (isExempt && exemptionReason) details.push(`سبب الإعفاء: ${exemptionReason}`);
+          if (isRestore && exemptionReason) details.push(`الإعفاء الملغي: ${exemptionReason}`);
+          if (isRestore) details.push("حالة الجزاء: أُعيد للتفعيل/الاحتساب");
+          details.push(`بواسطة: ${actor}`);
+          body = details.join(" • ");
+          data.notificationType = isCreate ? (automatic ? "penalty_auto_created" : "penalty_created") : isEdit ? "penalty_updated" : isDelete ? "penalty_deleted" : isExempt ? "penalty_exempted" : "penalty_restored";
+          data.notificationCategory = "penalties";
+          data.notificationAudience = "enabled-users";
+          data.notificationDeduplicationKey = meta.notificationDeduplicationKey || data.eventId;
         } else {
           if (this.EXTRA_NOTIFY.has(action) && meta.notify !== false) data.notify = true;
           if (!data.notify) return;
@@ -12446,7 +12508,7 @@ return firebase.database.ServerValue.TIMESTAMP
         }
         data.notifyPerm = perms[0];
         data.notifyPerms = perms.slice();
-        if (title && !data.notificationTitle) {
+        if (title && (penaltyActions.has(action) || !data.notificationTitle)) {
           data.notificationTitle = title;
           data.notificationBody = body;
           data.title = title;
@@ -12478,6 +12540,12 @@ return firebase.database.ServerValue.TIMESTAMP
       "BazarAbsencePenalty",
       "EditPenalty",
       "DeletePenalty",
+      "PenaltyExempt",
+      "PenaltyExemptUndo",
+      "BazarPenaltyEdit",
+      "BazarPenaltyDelete",
+      "BazarPenaltyExempt",
+      "BazarPenaltyExemptionRestored",
       "AddEmployee",
       "EditEmployee",
       "DeleteEmployee",
@@ -12516,27 +12584,8 @@ return firebase.database.ServerValue.TIMESTAMP
             data.eventId = meta.eventId || defaultEventId;
             data.notify = meta.notify === true || (meta.notify !== false && NOTIFY_ACTIONS.has(action));
 
-            // Native FCM sender/Cloudflare Worker reads these fields from systemLogs.
-            // The in-app notification feed is stored separately under /notifications.
-            // Keep penalty notification text generic so HR details are not exposed on lock screens.
-            if (data.notify && ["Penalty", "AutoPenalty", "BazarPenaltyAdd", "BazarAbsencePenalty"].includes(action)) {
-                const isBazar = action === "BazarPenaltyAdd" || action === "BazarAbsencePenalty";
-                const isAutomatic = action === "AutoPenalty" || action === "BazarAbsencePenalty" || meta.auto === true;
-                data.notificationType = isAutomatic ? "penalty_auto_created" : "penalty_created";
-                data.notificationCategory = "penalties";
-                data.notificationTitle = isAutomatic ? "⚠️ تم تسجيل جزاء تلقائي" : "⚠️ تم تسجيل جزاء جديد";
-                data.notificationBody = isBazar
-                    ? "تم تسجيل جزاء جديد في بصمة البازار. افتح التطبيق لمراجعة التفاصيل."
-                    : (isAutomatic
-                        ? "تم تسجيل جزاء تلقائي جديد في النظام. افتح التطبيق لمراجعة التفاصيل."
-                        : "تم تسجيل جزاء جديد في النظام. افتح التطبيق لمراجعة التفاصيل.");
-                // Common aliases support senders that expect generic title/body fields.
-                data.title = data.notificationTitle;
-                data.body = data.notificationBody;
-                data.notificationUrl = data.appUrl;
-                data.notificationAudience = "enabled-users";
-                data.notificationDeduplicationKey = meta.notificationDeduplicationKey || data.eventId;
-            }
+            // Detailed penalty notifications are composed centrally by NotifyRules.enrich
+            // so the in-app feed and Cloudflare FCM receive the same event description.
 
             // The audit event is always written first. The in-app notification feed
             // is written separately so restrictive /notifications rules cannot block
@@ -12546,8 +12595,14 @@ return firebase.database.ServerValue.TIMESTAMP
             const notificationTypes = {
                 Penalty: { type: "penalties", tab: "penalties", title: "⚠️ تم تسجيل جزاء جديد", body: "تم تسجيل جزاء جديد في النظام. افتح التطبيق لمراجعة التفاصيل." },
                 AutoPenalty: { type: "penalties", tab: "penalties", title: "⚠️ تم تسجيل جزاء تلقائي", body: "تم تسجيل جزاء تلقائي جديد في النظام. افتح التطبيق لمراجعة التفاصيل." },
-                BazarPenaltyAdd: { type: "penalties", tab: "fingerprint-bazar", title: "⚠️ تم تسجيل جزاء جديد", body: "تم تسجيل جزاء جديد في بصمة البازار. افتح التطبيق لمراجعة التفاصيل." },
-                BazarAbsencePenalty: { type: "penalties", tab: "fingerprint-bazar", title: "⚠️ تم تسجيل جزاء غياب", body: "تم تسجيل جزاء غياب في بصمة البازار. افتح التطبيق لمراجعة التفاصيل." },
+                BazarPenaltyAdd: { type: "penalties", tab: "fingerprint-bazar", title: "⚠️ تم تسجيل جزاء جديد", body: "تم تسجيل جزاء جديد في بصمة البازار." },
+                BazarAbsencePenalty: { type: "penalties", tab: "fingerprint-bazar", title: "⚠️ تم تسجيل جزاء غياب", body: "تم تسجيل جزاء غياب في بصمة البازار." },
+                BazarPenaltyEdit: { type: "penalties", tab: "fingerprint-bazar", title: "✏️ تم تعديل جزاء", body: "تم تعديل بيانات جزاء في بصمة البازار." },
+                BazarPenaltyDelete: { type: "penalties", tab: "fingerprint-bazar", title: "🗑️ تم حذف جزاء", body: "تم حذف جزاء من بصمة البازار." },
+                BazarPenaltyExempt: { type: "penalties", tab: "fingerprint-bazar", title: "🛡️ إعفاء من جزاء", body: "تم إعفاء موظف من جزاء في بصمة البازار." },
+                BazarPenaltyExemptionRestored: { type: "penalties", tab: "fingerprint-bazar", title: "↩️ إعادة جزاء", body: "تم إلغاء إعفاء وإعادة الجزاء في بصمة البازار." },
+                PenaltyExempt: { type: "penalties", tab: "penalties", title: "🛡️ إعفاء من جزاء", body: "تم إعفاء موظف من جزاء." },
+                PenaltyExemptUndo: { type: "penalties", tab: "penalties", title: "↩️ إعادة جزاء", body: "تم إلغاء الإعفاء وإعادة الجزاء." },
                 TransferSaved: { type: "transfers", tab: "transfers", title: "تحويل جديد", body: "تم تسجيل تحويل جديد في النظام." },
                 EditTransfer: { type: "transfers", tab: "transfers", title: "تعديل تحويل", body: "تم تعديل تحويل في النظام." },
                 DeleteTransfer: { type: "transfers", tab: "transfers", title: "حذف تحويل", body: "تم حذف تحويل من النظام." },
@@ -13225,6 +13280,10 @@ const SystemLogService = {
                 DeleteBreak:      "🗑️ حذف استئذان",
                 DeleteCompany:    "🗑️ حذف شركة",
                 DeletePenalty:    "🗑️ حذف جزاء",
+                EditPenalty:      "✏️ تعديل جزاء",
+                AutoPenalty:      "⚠️ تسجيل جزاء تلقائي",
+                PenaltyExempt:    "🛡️ إعفاء من جزاء",
+                PenaltyExemptUndo:"↩️ إلغاء إعفاء وإعادة جزاء",
                 DeleteBreak:      "🗑️ حذف استئذان",
                 BazarEmployeeAdd: "🖐️ بصمة البازار — إضافة موظف",
                 BazarEmployeeEdit: "🖐️ بصمة البازار — تعديل بيانات موظف",
@@ -14414,6 +14473,7 @@ UI.renderCompanies()
                     reason: reasonText,
                     employeeName: name,
                     penaltyId: penaltyRef.key,
+                    recordDate: dateStr,
                     autoType,
                     notificationDeduplicationKey: eventId,
                     eventId
@@ -14423,7 +14483,7 @@ UI.renderCompanies()
         },
 
         // إعفاء (إلغاء الخصم) — بيحذف الجزاء التلقائي الحالي (لو موجود) ويمنع إعادة إنشائه لنفس اليوم
-        exempt(code, dateStr, type, penaltyId, exemptReason) {
+        async exempt(code, dateStr, type, penaltyId, exemptReason) {
             if(!hasPermission("all") && !hasPermission("permit")){
                 UI.toast("❌ الإعفاء من الخصم يتطلب صلاحية إذن", "error");
                 return;
@@ -14431,41 +14491,48 @@ UI.renderCompanies()
             const key = `${code}_${dateStr}_${type}`;
             const p = State.penalties.find(x => x.id === penaltyId);
             const empJob = getEmpJob(code);
-
-            db.ref("autoDeductExemptions/" + key).set({
-                code: String(code), date: dateStr, type,
-                by: State.currentUser?.username || "-",
-                reason: exemptReason || "-",
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-
-            // احتفظ بترتيب الجزاء الأصلي وبياناته قبل نقله إلى سجل الإعفاءات.
-            // عند إرجاعه لاحقًا، نعيد استخدام timestamp الأصلي بدل وقت الإرجاع الحالي.
-            if(p){
-                db.ref("penaltyExemptLog").push({
-                    name: p.name, code: p.code, job: empJob, hours: p.hours,
-                    reason: p.reason, penaltyDate: p.date,
-                    penaltyId: p.id || penaltyId || "",
-                    penaltyTimestamp: Number(p.timestamp || p.ts || 0) || null,
-                    penaltyTime: p.time || "",
-                    penaltyManager: p.manager || "تلقائي",
-                    penaltyCreatedBy: p.createdBy || "النظام (تلقائي)",
-                    exemptReason: exemptReason || "-",
-                    exemptedBy: State.currentUser?.username || "-",
-                    exemptedAt: EgyptClock.formatDateTime(TimeUtils.now()),
-                    timestamp: firebase.database.ServerValue.TIMESTAMP,
-                    autoType: type, dateKey: dateStr
+            const actor = State.currentUser?.username || "-";
+            let exemptionLogId = "";
+            try {
+                await db.ref("autoDeductExemptions/" + key).set({
+                    code: String(code), date: dateStr, type,
+                    by: actor, reason: exemptReason || "-",
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
                 });
+                if(p){
+                    const exemptLogRef = db.ref("penaltyExemptLog").push();
+                    exemptionLogId = exemptLogRef.key;
+                    await exemptLogRef.set({
+                        name: p.name, code: p.code, job: empJob, hours: p.hours,
+                        reason: p.reason, penaltyDate: p.date,
+                        penaltyId: p.id || penaltyId || "",
+                        penaltyTimestamp: Number(p.timestamp || p.ts || 0) || null,
+                        penaltyTime: p.time || "", penaltyManager: p.manager || "تلقائي",
+                        penaltyCreatedBy: p.createdBy || "النظام (تلقائي)",
+                        exemptReason: exemptReason || "-", exemptedBy: actor,
+                        exemptedAt: EgyptClock.formatDateTime(TimeUtils.now()),
+                        timestamp: firebase.database.ServerValue.TIMESTAMP,
+                        autoType: type, dateKey: dateStr
+                    });
+                }
+                if(penaltyId) await db.ref("penalties/" + penaltyId).remove();
+                if(type === "late"){
+                    const rec = State.attendance.find(a => String(a.code) === String(code) && a.date === dateStr && a.action === "CheckIn");
+                    if(rec) await db.ref("attendance/" + rec.id).update({ latePermission: true });
+                }
+                UI.toast("✅ تم الإعفاء من الخصم", "success");
+                const employeeName = p?.name || getEmpName(code) || String(code);
+                SystemLog.add("PenaltyExempt", code, employeeName, {
+                    employeeName, penaltyId: penaltyId || "", exemptionLogId,
+                    reason: p?.reason || type, exemptionReason: exemptReason || "-",
+                    hours: p?.hours ?? null, amount: p?.amount ?? p?.value ?? null,
+                    recordDate: p?.date || dateStr, autoType: type,
+                    notificationDeduplicationKey: "penalty-exempt:" + (penaltyId || key)
+                });
+            } catch(err) {
+                console.error("[PenaltyExempt] failed", err);
+                UI.toast("❌ تعذر إتمام الإعفاء: " + (err?.message || err), "error");
             }
-            if(penaltyId) db.ref("penalties/" + penaltyId).remove();
-
-            // لو تأخير: نعلّم سجل الحضور نفسه بإذن عشان كشف الراتب يستثنيه برضو
-            if(type === "late"){
-                const rec = State.attendance.find(a => String(a.code) === String(code) && a.date === dateStr && a.action === "CheckIn");
-                if(rec) db.ref("attendance/" + rec.id).update({ latePermission: true });
-            }
-            UI.toast("✅ تم الإعفاء من الخصم", "success");
-            SystemLog.add("PenaltyExempt", code, type + " — " + dateStr);
         },
 
         // فحص تأخير الحضور وإنشاء جزاء تلقائي عند الحاجة
@@ -14722,7 +14789,7 @@ UI.renderCompanies()
             const eventId = 'auto-penalty-created:' + ref.key;
             SystemLog.add('AutoPenalty',code,`${reasonText} (${emp.name})`,{
               hours:base.hours, reason:reasonText, employeeName:emp.name, penaltyId:ref.key,
-              autoType:'break', notificationDeduplicationKey:eventId, eventId
+              recordDate:shiftDate, autoType:'break', notificationDeduplicationKey:eventId, eventId
             });
         },
 
@@ -14806,14 +14873,7 @@ UI.renderCompanies()
               UI.toast("تم تسجيل الجزاء", "warning");
               UI.clearInputs("#tab-penalties");
               const eventId = "penalty-created:" + penaltyRef.key;
-              SystemLog.add("Penalty", code, emp.name, {
-                hours,
-                reason,
-                employeeName: emp.name,
-                penaltyId: penaltyRef.key,
-                notificationDeduplicationKey: eventId,
-                eventId
-              });
+              SystemLog.add("Penalty", code, emp.name, { hours: Number(hours), reason, employeeName: emp.name, penaltyId: penaltyRef.key, recordDate: penalty.date, amount: penalty.amount ?? penalty.value ?? null, notificationDeduplicationKey: eventId, eventId });
             }).catch(err => UI.toast("❌ فشل تسجيل الجزاء: " + (err.message||err), "error"));
         },
         exportExcel() {
@@ -16626,9 +16686,17 @@ function saveEditPenalty() {
     let reason = document.getElementById("editPenaltyReason").value.trim();
     let manager = document.getElementById("editPenaltyManager").value.trim();
     if (!hours) { UI.toast("أدخل ساعات الخصم", "error"); return; }
+    const previous = (State.penalties || []).find(x => String(x.id) === String(id)) || {};
     db.ref("penalties/" + id).update({ hours: Number(hours), reason, manager }).then(() => {
         UI.toast("تم تعديل الجزاء بنجاح", "success");
-        SystemLog.add("EditPenalty", id, reason || "-");
+        SystemLog.add("EditPenalty", previous.code || id, previous.name || getEmpName(previous.code) || "موظف", {
+          employeeName: previous.name || getEmpName(previous.code) || String(previous.code || id),
+          penaltyId: id, previousHours: Number(previous.hours || 0), hours: Number(hours),
+          previousAmount: previous.amount ?? previous.value ?? null,
+          amount: previous.amount ?? previous.value ?? null,
+          previousReason: previous.reason || "", reason, recordDate: previous.date || "",
+          notificationDeduplicationKey: "penalty-edited:" + id + ":" + Date.now()
+        });
         UI.renderPenalties();
         closeEditPenalty();
     }).catch(() => UI.toast("خطأ في التعديل", "error"));
@@ -16642,10 +16710,16 @@ function deletePenaltyRecord(id, name) {
     if (!hasPermission("delete") && !hasPermission("all")) {
         UI.toast("ليس لديك صلاحية الحذف", "error"); return;
     }
-    showConfirm("هل تريد حذف جزاء: " + (name || "؟") + "؟", () => {
+    const previous = (State.penalties || []).find(x => String(x.id) === String(id)) || {};
+    showConfirm("هل تريد حذف جزاء: " + (name || previous.name || "؟") + "؟", () => {
         db.ref("penalties/" + id).remove().then(() => {
             UI.toast("تم حذف الجزاء", "warning");
-            SystemLog.add("DeletePenalty", id, name || "-");
+            SystemLog.add("DeletePenalty", previous.code || id, previous.name || name || "موظف", {
+              employeeName: previous.name || name || getEmpName(previous.code) || String(previous.code || id),
+              penaltyId: id, reason: previous.reason || "", hours: Number(previous.hours || 0),
+              amount: previous.amount ?? previous.value ?? null, recordDate: previous.date || "",
+              notificationDeduplicationKey: "penalty-deleted:" + id + ":" + Date.now()
+            });
             UI.renderPenalties();
         }).catch(() => UI.toast("خطأ في الحذف", "error"));
     });
@@ -21592,8 +21666,12 @@ const BazarHRSuite = {
   _auditBazar(action,code,name,details={}){
     try{
       if(typeof SystemLog==='undefined'||typeof SystemLog.add!=='function')return Promise.resolve(null);
-      const penaltyCreation = action === 'BazarPenaltyAdd' || action === 'BazarAbsencePenalty';
-      const entityId = String(details.entityId || '');
+       const penaltyNotification = new Set([
+         'BazarPenaltyAdd','BazarAbsencePenalty','BazarPenaltyEdit','BazarPenaltyDelete',
+         'BazarPenaltyExempt','BazarPenaltyExemptionRestored'
+       ]).has(action);
+       const penaltyCreation = action === 'BazarPenaltyAdd' || action === 'BazarAbsencePenalty';
+      const entityId = String(details.entityId || details.penaltyId || '');
       const stablePenaltyEvent = penaltyCreation && entityId
         ? `bazar-penalty-created:${entityId}`
         : undefined;
@@ -21602,7 +21680,7 @@ const BazarHRSuite = {
         module:'بصمة البازار',
         moduleKey:'fingerprint-bazar',
         manual:true,
-        notify:penaltyCreation,
+        notify:penaltyNotification,
         branch:'البازار',
         recordedBy:State.currentUser?.username||'system',
         ...(stablePenaltyEvent ? { eventId: stablePenaltyEvent, notificationDeduplicationKey: stablePenaltyEvent } : {})
@@ -22436,7 +22514,7 @@ const BazarHRSuite = {
         return this._toast(`⚠️ جزاء الغياب لـ ${emp.name} مسجل بالفعل`,'warning');
       }
       this._data.penalties=this._data.penalties.filter(p=>String(p.id)!==key).concat({...rec,id:key});
-      await this._auditBazar('BazarAbsencePenalty',emp.code,`تطبيق جزاء غياب يومين على ${emp.name}`,{entityType:'جزاء غياب',entityId:key,recordDate:day,penaltyHours:hours,amount,reason:rec.reason,penaltyLevel:'يومين'});
+      await this._auditBazar('BazarAbsencePenalty',emp.code,`تطبيق جزاء غياب يومين على ${emp.name}`,{entityType:'جزاء غياب',entityId:key,penaltyId:key,employeeName:emp.name,recordDate:day,hours,penaltyHours:hours,amount,reason:rec.reason,penaltyLevel:'يومين',auto:true});
       this._toast(`✅ تم تسجيل جزاء غياب يومين لـ ${emp.name}`,'success');
       await this._checkBazarAbsence();
     }catch(e){this._toast('❌ تعذر تسجيل جزاء الغياب: '+(e?.message||e),'error');}
@@ -22725,7 +22803,7 @@ const BazarHRSuite = {
     const rec={id:exId,penaltyId:p.id,code:p.code,name:p.name||this._employee(p.code)?.name||p.code,date:p.date,penaltyType:p.type||'جزاء',penaltyLevel:p.penaltyLevel||p.type||'جزاء',hours:Number(p.hours||0),amount:Number(p.value??p.amount??0),penaltyReason:p.reason||'-',exemptReason:reason,exemptedBy:State.currentUser?.username||'-',exemptedAt:EgyptClock.formatDateTime(now),timestamp:firebase.database.ServerValue.TIMESTAMP};
     try{
       await db.ref().update({[`bazarPenaltyExemptions/${exId}`]:rec,[`bazarPenalties/${p.id}/exempted`]:true,[`bazarPenalties/${p.id}/exemptionId`]:exId,[`bazarPenalties/${p.id}/exemptReason`]:reason,[`bazarPenalties/${p.id}/exemptedBy`]:rec.exemptedBy,[`bazarPenalties/${p.id}/exemptedAt`]:rec.exemptedAt,[`bazarPenalties/${p.id}/updatedAt`]:Date.now()});
-      await this._auditBazar('BazarPenaltyExempt',p.code,`إعفاء من جزاء — ${p.name||p.code}`,{entityType:'إعفاء جزاء',entityId:exId,penaltyId:p.id,recordDate:this._normDate(p.date),reason,amount:Number(p.value??p.amount??0),hours:Number(p.hours||0)});
+      await this._auditBazar('BazarPenaltyExempt',p.code,`إعفاء من جزاء — ${p.name||p.code}`,{entityType:'إعفاء جزاء',entityId:exId,penaltyId:p.id,employeeName:p.name||this._employee(p.code)?.name||p.code,recordDate:this._normDate(p.date),penaltyReason:p.reason||'-',exemptionReason:reason,reason:p.reason||'-',amount:Number(p.value??p.amount??0),hours:Number(p.hours||0),penaltyType:p.type||p.penaltyLevel||'جزاء'});
       this.closeModal();this._toast('✅ تم إعفاء الموظف من الجزاء ونقل السجل لجدول المعفيين','success');
     }catch(e){this._toast('❌ فشل حفظ الإعفاء: '+(e.message||e),'error');}
   },
@@ -22741,7 +22819,7 @@ const BazarHRSuite = {
         updates[`bazarPenaltyExemptions/${id}`]=null;
         await db.ref().update(updates);
         this._scheduleAutoPenaltySync();
-        await this._auditBazar('BazarPenaltyExemptionRestored',ex.code,`إلغاء إعفاء جزاء — ${ex.name||ex.code}`,{entityType:'إعفاء جزاء',entityId:id,penaltyId,recordDate:this._normDate(ex.date),reason:ex.exemptReason||''});
+        await this._auditBazar('BazarPenaltyExemptionRestored',ex.code,`إلغاء إعفاء جزاء — ${ex.name||ex.code}`,{entityType:'إعفاء جزاء',entityId:id,penaltyId,employeeName:ex.name||this._employee(ex.code)?.name||ex.code,recordDate:this._normDate(ex.date),penaltyReason:ex.penaltyReason||'-',exemptionReason:ex.exemptReason||'',reason:ex.penaltyReason||'-',amount:Number(ex.amount??0),hours:Number(ex.hours||0),penaltyType:ex.penaltyType||ex.penaltyLevel||'جزاء'});
         this._toast('✅ تم إلغاء الإعفاء وإعادة الجزاء للحساب','success');
       }catch(e){this._toast('❌ فشل إلغاء الإعفاء: '+(e.message||e),'error');}
     });
@@ -22776,8 +22854,9 @@ const BazarHRSuite = {
     const dailyHours=this._dailyHoursForPenalty(emp,date),hourlyRate=this._hourlyRate(emp,dailyHours);
     const amount=amountRaw!==''?this._money(amountRaw):Math.round(hours*hourlyRate*100)/100;
     const amountMode=amountRaw!==''?'manual':'calculated';
+    const previous=id?(this._data.penalties.find(r=>String(r.id)===String(id))||{}):{};
     const rec={code:emp.code,name:emp.name,job:emp.job||'',hours,amount,value:amount,dailyHours,hourlyRate,amountMode,date,manager:String(document.getElementById('bhr-manager')?.value||''),type:String(document.getElementById('bhr-type')?.value||'يدوي'),reason:String(document.getElementById('bhr-note')?.value||''),createdBy:State.currentUser?.username||'-',updatedAt:Date.now()};
-    try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarPenaltyEdit':'BazarPenaltyAdd',emp.code,`${id?'تعديل جزاء':'إضافة جزاء يدوي'} — ${emp.name}`,{entityType:'جزاء',entityId:id||ref.key,recordDate:rec.date,hours,amount,dailyHours,hourlyRate,amountMode,reason:rec.reason||'',penaltyType:rec.type||'يدوي'});this.closeModal();this._toast(`✅ تم حفظ الجزاء — قيمة الخصم ${amount.toFixed(2)} جنيه`,'success');}
+    try{const ref=id?db.ref('bazarPenalties/'+id):db.ref('bazarPenalties').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarPenaltyEdit':'BazarPenaltyAdd',emp.code,`${id?'تعديل جزاء':'إضافة جزاء يدوي'} — ${emp.name}`,{entityType:'جزاء',entityId:id||ref.key,penaltyId:id||ref.key,employeeName:emp.name,recordDate:rec.date,hours,amount,dailyHours,hourlyRate,amountMode,reason:rec.reason||'',penaltyType:rec.type||'يدوي',previousHours:id?Number(previous.hours||0):null,previousAmount:id?Number(previous.amount??previous.value??0):null,previousReason:id?(previous.reason||''):''});this.closeModal();this._toast(`✅ تم حفظ الجزاء — قيمة الخصم ${amount.toFixed(2)} جنيه`,'success');}
     catch(e){this._toast('❌ '+e.message,'error');}
   },
   openPermitForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.permits.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل إذن':'إضافة إذن',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>النوع</span><input class="bhr-input" id="bhr-type" value="${this._esc(old.type||'شخصي')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||old.dateKey||this._today())}"></label><label class="bhr-field"><span>وقت الخروج</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.breakTime||'')}"></label><label class="bhr-field"><span>وقت الرجوع</span><input class="bhr-input" id="bhr-back" type="time" value="${this._esc(old.returnTime||'')}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._savePermit(id));},
@@ -22978,7 +23057,7 @@ const BazarHRSuite = {
     this._attachForm('bhr-form',()=>this._saveAttendance(document.getElementById('bhr-emp').value,this._normDate(document.getElementById('bhr-date').value),document.getElementById('bhr-in').value,document.getElementById('bhr-out').value,document.getElementById('bhr-note').value,this._attendanceEditContext));
   },
 
-  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();const actionMap={employees:'BazarEmployeeDelete',advances:'BazarAdvanceDelete',incentives:'BazarIncentiveDelete',penalties:'BazarPenaltyDelete',leaves:'BazarLeaveDelete',permits:'BazarPermitDelete'};await this._auditBazar(actionMap[kind]||'BazarRecordDelete',code||id,`حذف ${label} — ${name||code||id}`,{entityType:label,entityId:id,path,recordDate:this._normDate(row?.date||row?.dateKey||''),reason:row?.reason||row?.note||'',recordDetails:row?{name:row.name||'',code:row.code||'',job:row.job||'',date:row.date||row.dateKey||'',amount:row.amount??row.value??null,hours:row.hours??null,type:row.type||'',reason:row.reason||row.note||'',status:row.status||''}:null});this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
+  async _delete(path,id,label){if(!this._canDelete())return this._toast('⛔ لا توجد صلاحية حذف','error');const map={bazarEmpData:'employees',bazarAdvances:'advances',bazarIncentives:'incentives',bazarPenalties:'penalties',bazarLeaves:'leaves',bazarBreaks:'permits'},kind=map[path],rows=kind?this._data[kind]:[],row=rows.find(r=>String(r.id)===String(id)||String(r.firebaseKey||'')===String(id)||String(r.code||'')===String(id)),name=String(row?.name||'').trim(),code=String(row?.code||'').trim(),subject=name?`${label} "${name}"${code?` (كود ${code})`:''}`:label;showConfirm(`هل تريد حذف ${subject}؟`,async()=>{try{if(kind==='permits')await this._removePrayerPenaltyForPermit(id);await db.ref(path+'/'+id).remove();const actionMap={employees:'BazarEmployeeDelete',advances:'BazarAdvanceDelete',incentives:'BazarIncentiveDelete',penalties:'BazarPenaltyDelete',leaves:'BazarLeaveDelete',permits:'BazarPermitDelete'};await this._auditBazar(actionMap[kind]||'BazarRecordDelete',code||id,`حذف ${label} — ${name||code||id}`,{entityType:label,entityId:id,penaltyId:id,path,employeeName:row?.name||name||'',recordDate:this._normDate(row?.date||row?.dateKey||''),reason:row?.reason||row?.note||'',penaltyReason:row?.reason||'',amount:row?.amount??row?.value??null,hours:row?.hours??null,penaltyType:row?.type||row?.penaltyLevel||'',recordDetails:row?{name:row.name||'',code:row.code||'',job:row.job||'',date:row.date||row.dateKey||'',amount:row.amount??row.value??null,hours:row.hours??null,type:row.type||'',reason:row.reason||row.note||'',status:row.status||''}:null});this._toast(`🗑️ تم حذف ${subject} بنجاح`,'warning');}catch(e){this._toast('❌ '+e.message,'error');}});},
   async _returnPermit(id){if(!this._canEdit())return;const row=this._data.permits.find(r=>String(r.id)===String(id));if(!row||row.returnTimestamp)return;const now=this._now();const durationMs=Math.max(0,now-Number(row.breakTimestamp||0));await db.ref('bazarBreaks/'+id).update({returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed',updatedAt:Date.now()});await this._recalcPrayerPermitPenalty({...row,returnTimestamp:now,returnTime:this._timeText(now),durationMs,status:'closed'});await this._auditBazar('BazarPermitReturned',row.code,`تسجيل رجوع إذن — ${row.name||row.code}`,{entityType:'إذن',entityId:id,recordDate:this._normDate(row.date||row.dateKey),breakTime:row.breakTime,returnTime:this._timeText(now),durationMs,status:'closed'});},
 
   async syncFromDevice(){
