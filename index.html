@@ -32504,6 +32504,8 @@ html:root body .ab-ntf-chips{ -webkit-mask-image:linear-gradient(to left, #000 c
 
 /* modal entrance plays once: after the grow animation the default entrance must not replay */
 html:root body div[id$="Modal"] > .ab-grown, html:root body .perm-modal > .ab-grown{ animation:none !important; opacity:1; }
+/* notification center: only the list scrolls; header, device row and filters never get squeezed */
+html:root body .ab-ntf-card > :not(.ab-ntf-body){ flex:0 0 auto; }
 
 
 </style>
@@ -34075,11 +34077,23 @@ var ABSFX=(function(){
     else if(act==='test'){ var ns2=NSvc(); if(ns2&&ns2.localTest) ns2.localTest(); }
   }
   function markRead(){ var top=items.reduce(function(m,n){ return Math.max(m,n.createdAt||0); },0); savePrefs({lastReadAt:Math.max(Date.now(),top)}, true); badge(); }
+  function headerBottom(){
+    var e=document.elementFromPoint(window.innerWidth/2, 2), hb=0;
+    for(; e && e!==document.body; e=e.parentElement){ var ps=getComputedStyle(e).position; if(ps==='fixed'||ps==='sticky'){ var rr=e.getBoundingClientRect(); if(rr.top<=2 && rr.height<window.innerHeight*0.3) hb=rr.bottom; break; } }
+    return hb;
+  }
   function place(){
     var b=bell(); if(!panel) return;
-    if(window.matchMedia('(max-width:700px)').matches || !b || !b.offsetParent){ panel.classList.add('sheet'); panel.style.left=''; panel.style.top=''; return; }
+    var card=q('.ab-ntf-card',panel), hb=headerBottom(), vh=window.innerHeight;
+    if(window.matchMedia('(max-width:700px)').matches || !b || !b.offsetParent){
+      panel.classList.add('sheet'); panel.style.left=''; panel.style.top='';
+      if(card) card.style.maxHeight=Math.max(240, vh-hb-10)+'px';   // never climbs over the top bar
+      return;
+    }
     panel.classList.remove('sheet'); var r=b.getBoundingClientRect(); var w=Math.min(400, window.innerWidth-24);
-    var left=Math.max(12, Math.min(r.left+r.width/2-w/2, window.innerWidth-w-12)); panel.style.left=left+'px'; panel.style.top=(r.bottom+8)+'px';
+    var left=Math.max(12, Math.min(r.left+r.width/2-w/2, window.innerWidth-w-12)), top=Math.max(r.bottom+8, hb+6);
+    panel.style.left=left+'px'; panel.style.top=top+'px';
+    if(card) card.style.maxHeight=Math.max(240, Math.min(620, vh-top-12))+'px';
   }
   function show(){ if(!allowed()) return; if(!panel) build(); view='list'; render(); place(); panel.hidden=false; open=true; requestAnimationFrame(function(){ panel.classList.add('in'); }); var b=bell(); if(b) b.setAttribute('aria-expanded','true'); var f=q('.ab-ntf-ib',panel); if(f) f.focus({preventScroll:true}); }
   function close(refocus){ if(!panel||!open) return; open=false; panel.classList.remove('in'); var b=bell(); if(b) b.setAttribute('aria-expanded','false'); setTimeout(function(){ if(!open) panel.hidden=true; },160); if(refocus&&b&&b.offsetParent) b.focus(); }
