@@ -7796,6 +7796,9 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="fingerprint-sabah" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span><span>بصمة الصباح</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><span><span class="ui-icon-slot" data-icon="coffee" aria-hidden="true"></span></span><span>الاستئذانات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="notifications" hidden><span><span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span></span><span>الإشعارات</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="employeeNotify" hidden><span><span class="ui-icon-slot" data-icon="users" aria-hidden="true"></span></span><span>تنبيهات الموظفين</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="broadcast" hidden><span><span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span></span><span>الرسائل الجماعية</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="whatsapp" hidden><span><span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span></span><span>واتساب</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><span><span class="ui-icon-slot" data-icon="gear" aria-hidden="true"></span></span><span>المستخدمين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="user-journey" hidden><span><span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span></span><span>خط سير المستخدمين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="system" hidden><span><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span><span>النظام</span></label>
@@ -8572,6 +8575,9 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
         <label><input type="checkbox" value="users"> المستخدمين</label>
         <label><input type="checkbox" value="user-journey"> <span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span> خط سير المستخدمين</label>
         <label><input type="checkbox" value="notifications"> الإشعارات</label>
+        <label><input type="checkbox" value="employeeNotify"> تنبيهات الموظفين</label>
+        <label><input type="checkbox" value="broadcast"> الرسائل الجماعية</label>
+        <label><input type="checkbox" value="whatsapp"> واتساب</label>
         <label><input type="checkbox" value="all"> <span class="ui-icon-slot" data-icon="shield" aria-hidden="true"></span> كل الصلاحيات</label>
         <div class="perm-actions" style="grid-column:span 3"><button onclick="UserService.closePerms()">إلغاء</button><button onclick="UserService.savePerms()">حفظ</button></div>
     </div>
@@ -14955,7 +14961,7 @@ status:"موافق",
 approvedBy:State.currentUser.username
 }).then(()=>{
 
-SystemLog.add("LeaveApproved",leave.code,leave.name)
+SystemLog.add("LeaveApproved",leave.code,leave.name,{ leaveId:id, leaveDate:leave.leaveDate||"", employeeCode:String(leave.code) })
 
 UI.toast("تمت الموافقة على الإجازة","success")
 
@@ -15008,7 +15014,7 @@ status:"مرفوض",
 approvedBy:State.currentUser.username
 }).then(()=>{
 
-SystemLog.add("LeaveRejected",leave.code,leave.name)
+SystemLog.add("LeaveRejected",leave.code,leave.name,{ leaveId:id, leaveDate:leave.leaveDate||"", employeeCode:String(leave.code) })
 
 UI.toast("تم رفض الإجازة","warning")
 
@@ -26294,7 +26300,7 @@ body.innerHTML = html
                 pricing: "التسعيرات", viewPrices: "رؤية الأسعار", inventory: "المخازن",
                 companies: "الشركات", incentives: "الحوافز", permit: "إذن (إعفاء من الخصم)",
                 leaveApprove: "طلبات الإجازة", empdata: "بيانات الموظفين", archive: "الأرشيف",
-                "user-journey": "خط سير المستخدمين", notifications: "الإشعارات",
+                "user-journey": "خط سير المستخدمين", notifications: "الإشعارات", employeeNotify: "تنبيهات الموظفين", broadcast: "الرسائل الجماعية", whatsapp: "واتساب",
                 all: "كل الصلاحيات"
             };
             const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
@@ -26443,7 +26449,7 @@ function exportAdminUsersExcel() {
   if (!hasPermission("users") && !hasPermission("all")) { UI.toast("ليس لديك صلاحية تصدير بيانات المستخدمين", "error"); return; }
   if (!window.XLSX) { UI.toast("مكتبة Excel غير جاهزة؛ أعد فتح الصفحة وحاول مرة أخرى", "error"); return; }
   const users = Array.isArray(State.users) ? State.users : [];
-  const permissionLabels = { notifications:"الإشعارات", attendance:"الحضور", vehicles:"العربيات", penalties:"الجزاءات", leaves:"الإجازات", employees:"الموظفين", users:"المستخدمين", "user-journey":"خط سير المستخدمين", breaks:"الاستئذانات", products:"التواريخ", system:"النظام", transfers:"التحويلات", "transfer-analytics":"تحليل التحويلات", fingerprint:"بصمة البازار", "fingerprint-sabah":"بصمة الصباح", excel:"تصدير Excel", edit:"التعديل", delete:"الحذف", prices:"الأسعار", pricing:"التسعيرات", viewPrices:"رؤية الأسعار", inventory:"المخازن", companies:"الشركات", incentives:"الحوافز", permit:"إذن (إعفاء من الخصم)", leaveApprove:"طلبات الإجازة", empdata:"بيانات الموظفين", archive:"الأرشيف", all:"كل الصلاحيات" };
+  const permissionLabels = { notifications:"الإشعارات", employeeNotify:"تنبيهات الموظفين", broadcast:"الرسائل الجماعية", whatsapp:"واتساب", attendance:"الحضور", vehicles:"العربيات", penalties:"الجزاءات", leaves:"الإجازات", employees:"الموظفين", users:"المستخدمين", "user-journey":"خط سير المستخدمين", breaks:"الاستئذانات", products:"التواريخ", system:"النظام", transfers:"التحويلات", "transfer-analytics":"تحليل التحويلات", fingerprint:"بصمة البازار", "fingerprint-sabah":"بصمة الصباح", excel:"تصدير Excel", edit:"التعديل", delete:"الحذف", prices:"الأسعار", pricing:"التسعيرات", viewPrices:"رؤية الأسعار", inventory:"المخازن", companies:"الشركات", incentives:"الحوافز", permit:"إذن (إعفاء من الخصم)", leaveApprove:"طلبات الإجازة", empdata:"بيانات الموظفين", archive:"الأرشيف", all:"كل الصلاحيات" };
   const rows = users.map(u => {
     const p = (typeof PresenceService !== "undefined" && PresenceService.getStatus) ? PresenceService.getStatus(u.id) : { online:false };
     return {
@@ -27028,6 +27034,10 @@ window.PricingModule = (function() {
       document.querySelectorAll('.pricing-barcode-input').forEach(inp => {
         inp.removeEventListener('input', barcodeHandler);
         inp.addEventListener('input', barcodeHandler);
+        inp.removeEventListener('keydown', barcodeCommitHandler);
+        inp.addEventListener('keydown', barcodeCommitHandler);
+        inp.removeEventListener('change', barcodeCommitHandler);
+        inp.addEventListener('change', barcodeCommitHandler);
       });
     }
     debouncedSave(); render();
@@ -27047,9 +27057,19 @@ window.PricingModule = (function() {
       singleEntries[idx] = { id:val, name, price, qty, manualPrice:price, manualOld:'', raw:product };
       render();
       focusNextBarcodeInput(idx);
-    } else {
-      toast('⚠️ كود غير موجود', 'warn');
+    } else if(e && e.isTrusted === false) {
+      toast('⚠️ كود غير موجود', 'warn'); // camera scan delivers the whole code at once
     }
+  }
+  function barcodeCommitHandler(e) {
+    if(e.type === 'keydown' && e.key !== 'Enter') return;
+    let idx = parseInt(this.dataset.idx);
+    let val = this.value.trim();
+    if(!val) return;
+    if(e.type === 'keydown') e.preventDefault();
+    if(singleEntries[idx] && String(singleEntries[idx].id||'') === val) { if(e.type === 'keydown') focusNextBarcodeInput(idx); return; }
+    let found = products.some(p => String(p['Item number']||p['item number']||'').trim() === val || String(p['Barcode']||p['barcode']||'').trim() === val);
+    if(!found) toast('⚠️ كود غير موجود', 'warn');
   }
   
   function updateItemQty(idx, val) { if(!singleEntries[idx]) singleEntries[idx] = {}; singleEntries[idx].qty = Math.max(1, parseFloat(val)||1); debouncedRender(); }
@@ -30625,13 +30645,13 @@ html:root body #loginPage .ab-mark:active{ transform:scale(.94); }
 html:root body .ab-login-hero h1{ font-size:clamp(30px,3.4vw,46px); line-height:1.38; font-weight:600; margin:0 0 14px; max-width:18ch; letter-spacing:-.02em; }
 html:root body .ab-login-hero p{ font-size:16px; line-height:1.8; opacity:.88; max-width:42ch; margin:0; }
 html:root body .ab-login-modules{ display:flex; flex-wrap:wrap; gap:8px; }
-html:root body .ab-login-modules span{ --p:0; font-size:13px; padding:6px 12px; border-radius:999px; cursor:default; user-select:none;
+html:root body .ab-login-modules button{ --p:0; font-size:13px; padding:6px 12px; border-radius:999px; cursor:default; user-select:none;
   background:rgba(255,255,255,calc(.14 + var(--p)*.22)); border:1px solid rgba(255,255,255,calc(.22 + var(--p)*.4));
   box-shadow:0 calc(var(--p)*10px) calc(var(--p)*22px) -10px rgba(0,0,0,.45);
   transform:translate(var(--px,0px),calc(var(--py,0px) - var(--p)*4px)) scale(calc(1 + var(--p)*.07));
   transition:transform .25s var(--ab-ease), background-color .2s ease, color .2s ease, box-shadow .25s ease; }
-html:root body .ab-login-modules span:hover{ background:#fff; color:var(--ab-red); border-color:#fff; }
-@media (prefers-reduced-motion:reduce){ html:root body .ab-login-modules span{ transform:none !important; } }
+html:root body .ab-login-modules button:hover{ background:#fff; color:var(--ab-red); border-color:#fff; }
+@media (prefers-reduced-motion:reduce){ html:root body .ab-login-modules button{ transform:none !important; } }
 html:root body.ab-restoring #welcomeOverlay{ display:flex !important; visibility:visible !important; }
 html:root body #loginPage > .glass-card{ flex:1 1 48%; position:relative; max-width:none !important; width:auto !important; margin:0 !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; background:var(--ab-surface) !important;
   display:flex; flex-direction:column; justify-content:center; padding:48px clamp(28px,7vw,120px) !important; animation:none !important; backdrop-filter:none !important; }
@@ -31798,6 +31818,692 @@ html:root body #tab-user-journey .uj-heading-icon, html:root body #tab-users .ad
 
 
 </style>
+<style id="ab-apple-v4">
+/* ==========================================================================
+   ALLOSH BAZAR — v4 "Apple" layer (UI only, loaded after v3).
+   Apple-style feel: grouped surfaces, hairlines, continuous radii, soft depth,
+   translucent chrome, critically-damped springs, instant press feedback,
+   and full respect for reduced motion / transparency / contrast.
+   ========================================================================== */
+
+/* ---------- A. Tokens ---------- */
+:root{
+  --ab-ink:#1D1D1F; --ab-ink-2:#3A3A3C; --ab-muted:#6E6E73; --ab-faint:#8E8E93;
+  --ab-line:#E5E5EA; --ab-line-2:#D1D1D6; --ab-hair:rgba(60,60,67,.16);
+  --ab-canvas:#F2F2F7; --ab-surface:#FFFFFF; --ab-subtle:#F6F6F9; --ab-hover:#EDEDF2; --ab-fill:rgba(118,118,128,.12);
+  --ab-green:#1F7A3A; --ab-green-50:#E9F7EE; --ab-green-200:#BFE6CB; --ab-green-solid:#28A745;
+  --ab-orange:#B25000; --ab-orange-50:#FFF3E5; --ab-orange-200:#FFD9AE; --ab-orange-solid:#F08A00;
+  --ab-r-sm:10px; --ab-r:12px; --ab-r-md:16px; --ab-r-lg:20px; --ab-r-xl:26px;
+  --ab-sh-1:0 1px 2px rgba(0,0,0,.04),0 0 0 .5px rgba(0,0,0,.05);
+  --ab-sh-2:0 1px 3px rgba(0,0,0,.05),0 8px 24px -6px rgba(0,0,0,.10);
+  --ab-sh-3:0 10px 24px -10px rgba(0,0,0,.16),0 30px 70px -18px rgba(0,0,0,.26);
+  --ab-mat:rgba(255,255,255,.72); --ab-mat-hi:rgba(255,255,255,.55);
+  /* springs (Apple: damping 1.0 = no overshoot; 0.72 only after a flick) */
+  --ab-spring:linear(0, 0.0388, 0.1274, 0.2367, 0.3494, 0.456, 0.5519, 0.6352, 0.7058, 0.7646, 0.813, 0.8522, 0.8838, 0.909, 0.9291, 0.9449, 0.9573, 0.967, 0.9745, 0.9804, 0.985, 0.9885, 0.9912, 0.9933, 1);
+  --ab-spring-bounce:linear(0, 0.0369, 0.1276, 0.2473, 0.3779, 0.5066, 0.6252, 0.729, 0.8159, 0.8857, 0.9394, 0.9789, 1.0063, 1.0239, 1.0338, 1.0379, 1.0381, 1.0355, 1.0314, 1.0265, 1.0215, 1.0167, 1.0124, 1.0087, 1.0057, 1.0033, 1.0015, 1.0003, 0.9994, 0.9989, 0.9986, 0.9985, 0.9986, 0.9987, 0.9989, 0.9991, 1);
+  --ab-ease:var(--ab-spring);
+  --ab-font:-apple-system,BlinkMacSystemFont,'SF Arabic','Readex Pro','IBM Plex Sans Arabic','Cairo',system-ui,sans-serif;
+  --ab-mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+html:root body.light-mode{ --bg-main:var(--ab-canvas); --row-hover:var(--ab-subtle); }
+html:root body:not(.light-mode){
+  --ab-ink:#F5F5F7; --ab-ink-2:#D1D1D6; --ab-muted:#98989D; --ab-faint:#6C6C70;
+  --ab-line:#2C2C2E; --ab-line-2:#3A3A3C; --ab-hair:rgba(84,84,88,.5);
+  --ab-canvas:#000000; --ab-surface:#1C1C1E; --ab-subtle:#242426; --ab-hover:#2C2C2E; --ab-fill:rgba(118,118,128,.24);
+  --ab-rail:#111113; --ab-rail-2:#1C1C1E; --ab-rail-line:#232325;
+  --ab-green:#30D158; --ab-green-50:rgba(48,209,88,.13); --ab-green-200:rgba(48,209,88,.3); --ab-green-solid:#2FB350;
+  --ab-orange:#FF9F0A; --ab-orange-50:rgba(255,159,10,.13); --ab-orange-200:rgba(255,159,10,.3);
+  --ab-sh-1:0 0 0 .5px rgba(255,255,255,.06);
+  --ab-sh-2:0 0 0 .5px rgba(255,255,255,.06),0 12px 30px -12px rgba(0,0,0,.8);
+  --ab-sh-3:0 0 0 .5px rgba(255,255,255,.08),0 30px 80px -20px rgba(0,0,0,.9);
+  --ab-mat:rgba(28,28,30,.72); --ab-mat-hi:rgba(44,44,46,.6);
+  --bg-main:var(--ab-canvas); --bg-card:var(--ab-surface); --bg-table:var(--ab-surface); --bg-input:var(--ab-subtle);
+}
+
+/* ---------- B. Type: hierarchy from weight + size + leading (no tracking on Arabic) ---------- */
+html:root body{ font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased; }
+html:root body .ab-page-title, html:root body .header-brand h2{ font-weight:700 !important; line-height:1.2 !important; }
+html:root body .tab-content .glass-card > h3:first-child, html:root body .tab-content .glass-card > div > h3:first-child{ font-size:17px !important; font-weight:650 !important; letter-spacing:0 !important; }
+html:root body td, html:root body .stat-value, html:root body .ab-num{ font-variant-numeric:tabular-nums; }
+
+/* ---------- C. Materials: chrome floats over content ---------- */
+html:root body .dashboard-header{
+  background:var(--ab-mat) !important;
+  backdrop-filter:saturate(1.8) blur(20px) !important; -webkit-backdrop-filter:saturate(1.8) blur(20px) !important;
+}
+html:root body.ab-scrolled .dashboard-header{ border-bottom-color:var(--ab-hair) !important; }
+html:root body .glass-card, html:root body .tab-content .stat-card{ border-color:transparent !important; box-shadow:var(--ab-sh-1) !important; }
+html:root body:not(.light-mode) .glass-card, html:root body:not(.light-mode) .tab-content .stat-card{ border-color:var(--ab-line) !important; box-shadow:none !important; }
+html:root body div[id$="Modal"][style*="fixed"], html:root body .modal-overlay, html:root body .perm-modal, html:root body #salaryReportModal{ backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+html:root body div[id$="Modal"] > .glass-card, html:root body .modal-box, html:root body .perm-box{ border:0 !important; box-shadow:var(--ab-sh-3) !important; }
+html:root body:not(.light-mode) div[id$="Modal"] > .glass-card, html:root body:not(.light-mode) .modal-box, html:root body:not(.light-mode) .perm-box{ border:1px solid var(--ab-line) !important; }
+html:root body #toastContainer .allosh-toast{
+  background:var(--ab-mat) !important; border:0 !important; box-shadow:var(--ab-sh-3) !important;
+  backdrop-filter:saturate(1.8) blur(24px) !important; -webkit-backdrop-filter:saturate(1.8) blur(24px) !important;
+}
+
+/* ---------- D. Motion: press on pointer-down, springs everywhere ---------- */
+html:root body :where(button:not(:disabled):not(#loginBtn):not(.ab-deck-btn), .tab-btn, .btn-primary:not(#loginBtn)){
+  transition-property:transform, background-color, border-color, color, box-shadow, opacity;
+  transition-duration:.42s, .18s, .18s, .18s, .25s, .2s; transition-timing-function:var(--ab-spring), ease, ease, ease, ease, ease;
+}
+html:root body :where(button:not(:disabled):not(#loginBtn):active, .tab-btn:active, .btn-primary:not(#loginBtn):active, .ab-deck-btn:active){
+  transform:scale(.965); transition-duration:.08s, .1s, .1s, .1s, .1s, .1s !important; transition-timing-function:ease-out !important;
+}
+html:root body .ab-page-in{ animation:abApplePage .42s var(--ab-spring) both !important; }
+@keyframes abApplePage{ from{ opacity:0; transform:translateY(8px) scale(.996); } to{ opacity:1; transform:none; } }
+html:root body div[id$="Modal"] > .ab-grow, html:root body div[id$="Modal"] > .glass-card.ab-grow{ animation:abAppleGrow .46s var(--ab-spring) both !important; }
+@keyframes abAppleGrow{ from{ opacity:0; transform:scale(.9); } 40%{ opacity:1; } to{ opacity:1; transform:none; } }
+html:root body div[id$="Modal"] > .glass-card, html:root body .modal-box, html:root body .perm-box{ animation-timing-function:var(--ab-spring) !important; animation-duration:.42s !important; }
+html:root body .ab-enter > *{ animation-duration:.55s !important; animation-timing-function:var(--ab-spring) !important; }
+html:root body #toastContainer .allosh-toast{ transition:opacity .2s ease, transform .5s var(--ab-spring-bounce) !important; }
+
+/* ---------- E. Presentations ---------- */
+/* E1. engine layout (shared) */
+html:root body .ab-deck{ display:flex; flex-direction:column; gap:18px; min-width:0; user-select:none; -webkit-user-select:none; }
+html:root body .ab-deck-stage{ display:grid; touch-action:pan-y; cursor:grab; outline:none; min-width:0; }
+html:root body .ab-deck.dragging .ab-deck-stage{ cursor:grabbing; }
+html:root body .ab-slide{ grid-area:1/1; display:flex; flex-direction:column; gap:26px; min-width:0; }
+html:root body .ab-slide-copy, html:root body .ab-slide-canvas{ will-change:transform, opacity; }
+html:root body .ab-slide-kicker{ display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:500; margin-bottom:8px; }
+html:root body .ab-slide-kicker::before{ content:""; width:16px; height:2px; border-radius:2px; background:currentColor; opacity:.7; }
+html:root body .ab-slide-title{ margin:0 0 8px; letter-spacing:0; }
+html:root body .ab-slide-copy p{ margin:0; }
+html:root body .ab-deck-bar{ display:flex; align-items:center; gap:12px; }
+html:root body .ab-deck-count{ font-size:13px; font-variant-numeric:tabular-nums; min-width:52px; }
+html:root body .ab-deck-count b{ font-weight:600; }
+html:root body .ab-deck-seg{ display:flex; flex:1; gap:5px; max-width:220px; }
+html:root body .ab-deck-seg i{ flex:1; height:3px; border-radius:3px; overflow:hidden; }
+html:root body .ab-deck-seg u{ display:block; height:100%; transform-origin:right; transform:scaleX(0); text-decoration:none; }
+html:root body .ab-deck-fill{ flex:1; }
+html:root body .ab-deck-ctl{ display:flex; gap:6px; margin-inline-start:auto; }
+html:root body .ab-deck-btn{ width:34px; height:34px; display:grid; place-items:center; border-radius:50%; border:0; cursor:pointer; transition:background-color .18s ease, transform .4s var(--ab-spring); }
+html:root body .ab-deck-btn svg{ width:17px; height:17px; }
+
+/* E2. sign-in deck: general welcome on a black / red split */
+html:root body #loginPage .ab-login-aside.ab-split-aside{ --sa:44; --sb:30; --mx:0px; background:#C8102E !important; gap:24px; padding:40px 52px 36px; }
+html:root body #loginPage .ab-login-aside.ab-split-aside::before{ display:none; }
+html:root body .ab-split-aside > *:not(.ab-split){ position:relative; z-index:1; }
+html:root body .ab-split{ position:absolute !important; inset:0; z-index:0 !important; pointer-events:none; overflow:hidden; }
+html:root body .ab-split-dark, html:root body .ab-split-mark, html:root body .ab-split-edge{ position:absolute; inset:0; }
+html:root body .ab-split-dark{ background:#0E0E10; clip-path:polygon(0 0, calc(var(--sa) * 1%) 0, calc(var(--sb) * 1%) 100%, 0 100%); }
+html:root body .ab-split-mark-red{ clip-path:polygon(0 0, calc(var(--sa) * 1%) 0, calc(var(--sb) * 1%) 100%, 0 100%); }
+html:root body .ab-split-mark-dark{ clip-path:polygon(calc(var(--sa) * 1%) 0, 100% 0, 100% 100%, calc(var(--sb) * 1%) 100%); }
+html:root body .ab-split-mark span{ position:absolute; left:4%; bottom:-.22em; font-family:'Alexandria','Readex Pro',sans-serif !important; font-weight:700; line-height:1; font-size:clamp(240px,64vh,640px); transform:translateX(var(--mx)); }
+html:root body .ab-split-mark-red span{ color:#C8102E; }
+html:root body .ab-split-mark-dark span{ color:#0E0E10; }
+html:root body .ab-split-edge{ background:rgba(255,255,255,.28); clip-path:polygon(calc(var(--sa) * 1% - 1px) 0, calc(var(--sa) * 1% + 1px) 0, calc(var(--sb) * 1% + 1px) 100%, calc(var(--sb) * 1% - 1px) 100%); }
+html:root body #loginPage .ab-login-brand .ab-mark{ background:#fff; color:#C8102E; }
+html:root body .ab-login-aside .ab-deck{ flex:1 1 auto; justify-content:center; color:#fff; }
+html:root body .ab-login-aside .ab-slide-copy{ max-width:30rem; text-shadow:0 1px 18px rgba(0,0,0,.18); }
+html:root body .ab-login-aside .ab-slide-kicker{ opacity:.85; }
+html:root body .ab-login-hero.ab-deck .ab-slide-title{ font-size:clamp(34px,3.6vw,54px); line-height:1.25; font-weight:700; max-width:13ch; margin-bottom:12px; }
+html:root body .ab-login-hero.ab-deck p{ font-size:17px; line-height:1.75; opacity:.9; max-width:34ch; }
+html:root body .ab-login-aside .ab-deck-count{ opacity:.8; }
+html:root body .ab-login-aside .ab-deck-seg i{ background:rgba(255,255,255,.28); } html:root body .ab-login-aside .ab-deck-seg i.done, html:root body .ab-login-aside .ab-deck-seg u{ background:#fff; }
+html:root body .ab-login-aside .ab-deck-btn{ color:#fff; background:rgba(255,255,255,.14); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+html:root body .ab-login-aside .ab-deck-btn:hover{ background:rgba(255,255,255,.26); }
+html:root body .ab-login-aside .ab-deck-btn:focus-visible{ outline:2px solid #fff !important; outline-offset:2px; }
+html:root body .ab-login-aside .ab-deck-bar{ margin-top:auto; }
+html:root body .ab-login-aside .ab-deck{ gap:0; }
+html:root body .ab-login-aside .ab-deck-stage{ margin-block:auto; }
+@media (max-width:900px){
+  html:root body #loginPage .ab-login-aside.ab-split-aside{ padding:18px 20px 30px; gap:12px; --sa:62 !important; --sb:38 !important; }
+  html:root body .ab-split-mark span{ font-size:200px; left:auto; right:-4%; bottom:-.3em; }
+  html:root body .ab-login-hero.ab-deck .ab-slide-title{ font-size:24px; max-width:none; margin-bottom:4px; }
+  html:root body .ab-login-hero.ab-deck p{ font-size:14px; line-height:1.6; }
+  html:root body .ab-login-aside .ab-slide-kicker{ display:none; }
+  html:root body .ab-login-aside .ab-deck{ gap:14px; }
+  html:root body .ab-login-aside .ab-deck-stage{ margin-block:0; }
+  html:root body .ab-login-aside .ab-deck-count, html:root body .ab-login-aside .ab-deck-btn[data-d="prev"], html:root body .ab-login-aside .ab-deck-btn[data-d="next"]{ display:none; }
+  html:root body .ab-login-aside .ab-deck-btn{ width:30px; height:30px; }
+}
+
+/* E3. inside: one deck per section */
+html:root body .ab-intro{ margin:0 0 16px; }
+html:root body .ab-intro-deck{ position:relative; overflow:hidden; background:var(--ab-surface); border-radius:22px; padding:22px 24px 16px; box-shadow:var(--ab-sh-1); color:var(--ab-ink); }
+html:root body:not(.light-mode) .ab-intro-deck{ border:1px solid var(--ab-line); }
+html:root body .ab-intro-deck::before{ content:""; position:absolute; inset:0 0 auto auto; width:46%; height:100%; background:radial-gradient(80% 90% at 100% 0%, var(--ab-red-50), transparent 70%); pointer-events:none; }
+html:root body .ab-intro .ab-slide{ flex-direction:row; align-items:center; gap:28px; }
+html:root body .ab-intro .ab-slide-copy{ flex:1 1 40%; min-width:0; }
+html:root body .ab-intro .ab-slide-kicker{ color:var(--ab-red); }
+html:root body .ab-intro .ab-slide-title{ font-size:22px; line-height:1.4; font-weight:700; color:var(--ab-ink); }
+html:root body .ab-intro .ab-slide-copy p{ font-size:14.5px; line-height:1.75; color:var(--ab-muted); max-width:44ch; }
+html:root body .ab-intro .ab-slide-canvas{ flex:1 1 54%; max-width:500px; aspect-ratio:16/8.5; border-radius:18px; padding:18px; overflow:hidden; position:relative; background:var(--ab-canvas); }
+html:root body .ab-intro .abv-li, html:root body .ab-intro .abv-stat, html:root body .ab-intro .abv-node, html:root body .ab-intro .abv-prc > div, html:root body .ab-intro .abv-scan, html:root body .ab-intro .abv-field .abv-input, html:root body .ab-intro .abv-row-li, html:root body .ab-intro .abv-lg, html:root body .ab-intro .abv-step{ background:var(--ab-surface); }
+html:root body .ab-intro .ab-deck{ gap:14px; }
+html:root body .ab-intro .ab-deck-count{ color:var(--ab-muted); }
+html:root body .ab-intro .ab-deck-seg{ display:none; }
+html:root body .ab-intro .ab-deck-seg i{ background:var(--ab-fill); } html:root body .ab-intro .ab-deck-seg i.done, html:root body .ab-intro .ab-deck-seg u{ background:var(--ab-red); }
+html:root body .ab-intro .ab-deck-btn{ background:var(--ab-fill); color:var(--ab-ink-2); }
+html:root body .ab-intro .ab-deck-btn:hover{ background:var(--ab-hover); color:var(--ab-ink); }
+html:root body .ab-intro-close{ margin-inline-start:6px; }
+html:root body .ab-intro-min{ display:flex; justify-content:flex-start; }
+html:root body .ab-intro-pill{ display:inline-flex; align-items:center; gap:7px; min-height:34px; padding:0 14px; border-radius:999px; border:0; background:var(--ab-fill); color:var(--ab-ink-2); font-size:13px; font-weight:500; cursor:pointer; }
+html:root body .ab-intro-pill svg{ width:15px; height:15px; color:var(--ab-red); }
+html:root body .ab-intro-pill:hover{ background:var(--ab-hover); color:var(--ab-ink); }
+html:root body #abHome .ab-intro{ margin-top:4px; }
+@media (max-width:760px){
+  html:root body .ab-intro-deck{ padding:16px 16px 12px; border-radius:20px; }
+  html:root body .ab-intro .ab-slide{ flex-direction:column; align-items:stretch; gap:14px; }
+  html:root body .ab-intro .ab-slide-canvas{ max-width:none; width:100%; aspect-ratio:auto; height:224px; padding:12px; }
+  html:root body .ab-intro .abv-li{ padding:7px 10px; } html:root body .ab-intro .abv{ gap:8px; }
+  html:root body .ab-intro .ab-slide-title{ font-size:18px; }
+  html:root body .ab-intro .ab-slide-copy p{ font-size:13.5px; }
+  html:root body .ab-intro .ab-deck-seg{ display:flex; }
+  html:root body .ab-intro .ab-deck-count{ display:none; }
+  html:root body .ab-intro .ab-deck-btn[data-d="prev"], html:root body .ab-intro .ab-deck-btn[data-d="next"]{ display:none; }
+}
+/* notifications slide inside the notification center */
+html:root body .ab-intro-ntf{ position:relative; margin:4px 4px 10px; padding:12px; border-radius:18px; background:var(--ab-subtle); }
+html:root body .ab-intro-ntf-canvas{ position:relative; height:150px; border-radius:14px; overflow:hidden; background:var(--ab-canvas); padding:6px 4px; }
+html:root body .ab-intro-ntf-canvas .abv{ gap:8px; }
+html:root body .ab-intro-ntf-canvas .abv-ntf{ padding:9px 11px; }
+html:root body .ab-intro-ntf-copy{ position:relative; padding:10px 4px 2px; padding-inline-end:40px; }
+html:root body .ab-intro-ntf-copy b{ display:block; font-size:14px; color:var(--ab-ink); }
+html:root body .ab-intro-ntf-copy p{ margin:3px 0 0; font-size:12.5px; line-height:1.6; color:var(--ab-muted); }
+html:root body .ab-intro-ntf .ab-intro-close{ position:absolute; top:10px; inset-inline-end:0; width:30px; height:30px; margin:0; background:var(--ab-fill); color:var(--ab-ink-2); z-index:2; }
+html:root body .ab-intro-ntf.play .abv-ntf{ animation:abvDrop .7s var(--ab-spring-bounce) both; animation-delay:calc(.15s + var(--i,0)*.3s); }
+
+/* E4. slide visuals */
+html:root body .abv{ height:100%; display:flex; flex-direction:column; gap:10px; justify-content:center; font-size:13px; color:var(--ab-ink); }
+html:root body .abv small{ display:block; font-size:11.5px; color:var(--ab-muted); font-weight:400; }
+html:root body .abv-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+html:root body .abv-stat{ background:var(--ab-subtle); border-radius:14px; padding:12px; }
+html:root body .abv-stat b{ display:block; font-size:24px; font-weight:700; line-height:1.3; font-variant-numeric:tabular-nums; }
+html:root body .abv-stat i{ font-style:normal; font-size:11px; color:var(--ab-muted); }
+html:root body .abv-stat i.up{ color:var(--ab-green); } html:root body .abv-stat i.warn{ color:var(--ab-orange); }
+html:root body .abv-chart{ flex:1; display:flex; align-items:flex-end; gap:8px; padding:4px 2px 0; min-height:60px; }
+html:root body .abv-chart span{ flex:1; height:var(--h); border-radius:6px 6px 3px 3px; background:var(--ab-line-2); transform-origin:bottom; }
+html:root body .abv-chart span:nth-child(6){ background:var(--ab-red); }
+html:root body .abv-li{ display:flex; align-items:center; gap:12px; background:var(--ab-subtle); border-radius:14px; padding:9px 12px; }
+html:root body .abv-av{ width:32px; height:32px; border-radius:50%; display:grid; place-items:center; background:var(--ab-red-50); color:var(--ab-red); font-weight:600; flex:0 0 auto; }
+html:root body .abv-nm{ flex:1; min-width:0; font-weight:600; font-size:13.5px; }
+html:root body .abv-tm{ font-variant-numeric:tabular-nums; color:var(--ab-ink-2); direction:ltr; }
+html:root body .abv em{ font-style:normal; font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+html:root body .abv em.ok{ background:var(--ab-green-50); color:var(--ab-green); }
+html:root body .abv em.late{ background:var(--ab-danger-50); color:var(--ab-danger); }
+html:root body .abv em.warn{ background:var(--ab-orange-50); color:var(--ab-orange); }
+html:root body .abv-blocked{ box-shadow:inset 0 0 0 1.5px var(--ab-danger); }
+html:root body .abv-blocked .abv-nm{ color:var(--ab-ink-2); text-decoration:line-through; text-decoration-color:var(--ab-danger); }
+html:root body .abv-bar{ flex:0 0 38%; height:8px; border-radius:8px; background:var(--ab-hover); overflow:hidden; }
+html:root body .abv-bar i{ display:block; height:100%; width:var(--w); border-radius:8px; transform-origin:right; }
+html:root body .abv-bar.late i{ background:var(--ab-danger); } html:root body .abv-bar.warn i{ background:var(--ab-orange-solid); } html:root body .abv-bar.ok i{ background:var(--ab-green-solid); }
+html:root body .abv-tr{ display:grid; grid-template-columns:auto 1fr auto; grid-auto-rows:auto; align-content:center; align-items:center; gap:18px 12px; }
+html:root body .abv-node{ background:var(--ab-subtle); border-radius:16px; padding:12px 16px; text-align:center; }
+html:root body .abv-node b{ font-size:16px; font-weight:650; }
+html:root body .abv-path{ position:relative; height:2px; background:repeating-linear-gradient(90deg,var(--ab-line-2) 0 8px,transparent 8px 14px); }
+html:root body .abv-pkg{ position:absolute; top:50%; right:0; width:38px; height:38px; margin-top:-19px; border-radius:12px; display:grid; place-items:center; background:var(--ab-red); color:#fff; box-shadow:0 8px 18px -8px rgba(200,16,46,.7); }
+html:root body .abv-pkg svg{ width:20px; height:20px; }
+html:root body .abv-trmeta{ grid-column:1/-1; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+html:root body .abv-trmeta span{ font-size:12px; padding:4px 10px; border-radius:999px; background:var(--ab-surface); color:var(--ab-ink-2); }
+html:root body .abv-trmeta span.ok{ background:var(--ab-green-50); color:var(--ab-green); font-weight:600; }
+html:root body .abv-scan{ display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:14px; background:var(--ab-subtle); color:var(--ab-ink-2); font-family:var(--ab-mono) !important; font-size:14px; }
+html:root body .abv-scan svg{ width:22px; height:22px; color:var(--ab-red); flex:0 0 auto; }
+html:root body .abv-prc{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+html:root body .abv-prc > div{ background:var(--ab-subtle); border-radius:14px; padding:10px 14px; }
+html:root body .abv-prc b{ display:block; font-size:24px; font-weight:700; line-height:1.25; font-variant-numeric:tabular-nums; }
+html:root body .abv-prc i{ font-style:normal; font-size:11.5px; color:var(--ab-muted); }
+html:root body .abv-diff{ align-self:center; font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:999px; background:var(--ab-orange-50); color:var(--ab-orange); }
+html:root body .abv-nt{ gap:10px; padding:0 6px; }
+html:root body .abv-ntf{ display:flex; align-items:flex-start; gap:12px; padding:11px 13px; border-radius:18px; background:var(--ab-mat); box-shadow:0 0 0 .5px var(--ab-hair), 0 10px 26px -14px rgba(0,0,0,.35); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px); }
+html:root body .abv-ntf-ic{ width:32px; height:32px; border-radius:9px; display:grid; place-items:center; flex:0 0 auto; background:var(--ab-red); color:#fff; }
+html:root body .abv-ntf-ic svg{ width:18px; height:18px; }
+html:root body .abv-ntf-t{ flex:1; min-width:0; } html:root body .abv-ntf-t b{ display:block; font-size:13px; } html:root body .abv-ntf-t small{ font-size:12px; color:var(--ab-ink-2); line-height:1.5; }
+html:root body .abv-ntf time{ font-size:11px; color:var(--ab-muted); white-space:nowrap; }
+html:root body .abv-form{ gap:9px; }
+html:root body .abv-field small{ margin-bottom:4px; }
+html:root body .abv-input{ display:flex; align-items:center; min-height:36px; padding:0 12px; border-radius:10px; background:var(--ab-subtle); box-shadow:inset 0 0 0 1px var(--ab-line); font-family:var(--ab-mono) !important; font-size:14px; color:var(--ab-ink); }
+html:root body .abv-caret{ display:inline-block; width:1.5px; height:16px; margin-inline-start:2px; background:var(--ab-red); animation:abvBlink 1s steps(1) infinite; }
+@keyframes abvBlink{ 50%{ opacity:0; } }
+html:root body .abv-two{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+html:root body .abv-seg{ display:grid; grid-template-columns:1fr 1fr; gap:2px; padding:3px; border-radius:11px; background:var(--ab-fill); }
+html:root body .abv-seg-3{ grid-template-columns:1fr 1fr 1fr; }
+html:root body .abv-seg span{ text-align:center; padding:6px 0; border-radius:8px; font-size:12.5px; color:var(--ab-ink-2); }
+html:root body .abv-seg span.on{ background:var(--ab-surface); color:var(--ab-ink); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+html:root body .abv-cta{ text-align:center; padding:9px 0; border-radius:11px; background:var(--ab-red); color:#fff; font-weight:600; font-size:13.5px; }
+html:root body .abv-toast{ align-self:center; display:flex; gap:8px; align-items:baseline; padding:6px 14px; border-radius:999px; background:var(--ab-green-50); color:var(--ab-green); }
+html:root body .abv-toast b{ font-size:12.5px; } html:root body .abv-toast small{ color:var(--ab-green); opacity:.85; }
+html:root body .abv-rows{ display:flex; flex-direction:column; gap:7px; }
+html:root body .abv-row-li{ display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:12px; background:var(--ab-subtle); }
+html:root body .abv-row-li span{ flex:1; min-width:0; font-weight:600; }
+html:root body .abv-row-li b{ font-weight:500; color:var(--ab-ink-2); font-variant-numeric:tabular-nums; }
+html:root body .abv-row-li > em{ margin-inline-start:4px; }
+html:root body .abv-rep .abv-row-li em{ background:var(--ab-orange-50); color:var(--ab-orange); }
+html:root body .abv-cmp b{ min-width:54px; text-align:left; }
+html:root body .abv-xls{ align-self:flex-start; display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:999px; background:var(--ab-green-50); color:var(--ab-green); font-weight:600; font-size:12.5px; }
+html:root body .abv-xls svg{ width:16px; height:16px; }
+html:root body .abv-legend{ gap:8px; }
+html:root body .abv-lg{ display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; background:var(--ab-subtle); }
+html:root body .abv-lg b{ font-size:13.5px; } html:root body .abv-lg small{ margin-inline-start:auto; }
+html:root body .abv-dot{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; }
+html:root body .abv-dot.late{ background:var(--ab-danger); } html:root body .abv-dot.warn{ background:var(--ab-orange-solid); } html:root body .abv-dot.ok{ background:var(--ab-green-solid); }
+html:root body .abv-step{ display:flex; align-items:center; justify-content:space-between; padding:8px 12px; border-radius:12px; background:var(--ab-subtle); }
+html:root body .abv-stepper{ display:inline-flex; align-items:center; gap:12px; }
+html:root body .abv-stepper i{ width:26px; height:26px; display:grid; place-items:center; border-radius:50%; background:var(--ab-fill); font-style:normal; font-weight:600; }
+html:root body .abv-stepper b{ font-size:16px; min-width:24px; text-align:center; font-variant-numeric:tabular-nums; }
+html:root body .abv-cam{ padding:0; }
+html:root body .abv-vf{ position:relative; height:100%; min-height:120px; border-radius:14px; background:radial-gradient(120% 120% at 50% 40%, #2a2a2e, #050506); overflow:hidden; display:grid; place-items:center; }
+html:root body .abv-vf em{ font-style:normal; color:#fff; font-family:var(--ab-mono) !important; letter-spacing:1px; font-size:22px; opacity:.85; background:#fff; color:#111; padding:6px 12px; border-radius:4px; }
+html:root body .abv-vf > span{ position:absolute; width:26px; height:26px; border:0 solid #fff; }
+html:root body .abv-vf .c1{ top:18%; right:22%; border-width:3px 3px 0 0; border-radius:0 10px 0 0; } html:root body .abv-vf .c2{ top:18%; left:22%; border-width:3px 0 0 3px; border-radius:10px 0 0 0; }
+html:root body .abv-vf .c3{ bottom:18%; right:22%; border-width:0 3px 3px 0; border-radius:0 0 10px 0; } html:root body .abv-vf .c4{ bottom:18%; left:22%; border-width:0 0 3px 3px; border-radius:0 0 0 10px; }
+html:root body .abv-line{ position:absolute; left:24%; right:24%; height:2px; top:50%; background:#FF3B30; box-shadow:0 0 10px rgba(255,59,48,.9); animation:abvScan 2.2s ease-in-out infinite; }
+@keyframes abvScan{ 0%,100%{ transform:translateY(-34px); } 50%{ transform:translateY(34px); } }
+/* each slide builds when it lands */
+html:root body .ab-slide.play [style*="--i"]{ animation:abvIn .7s var(--ab-spring) both; animation-delay:calc(.12s + var(--i,0)*.08s); }
+html:root body .ab-slide.play .abv-stat, html:root body .ab-slide.play .abv-prc > div, html:root body .ab-slide.play .abv-node{ animation:abvIn .7s var(--ab-spring) both; animation-delay:.12s; }
+html:root body .ab-slide.play .abv-stat:nth-child(2), html:root body .ab-slide.play .abv-prc > div:nth-child(2), html:root body .ab-slide.play .abv-node:last-of-type{ animation-delay:.2s; }
+html:root body .ab-slide.play .abv-stat:nth-child(3){ animation-delay:.28s; }
+html:root body .ab-slide.play .abv-ntf{ animation-name:abvDrop; animation-timing-function:var(--ab-spring-bounce); animation-delay:calc(.2s + var(--i,0)*.35s); }
+html:root body .ab-slide.play .abv-chart span{ animation:abvGrow .8s var(--ab-spring) both; animation-delay:calc(.2s + var(--i)*.05s); }
+html:root body .ab-slide.play .abv-bar i{ animation:abvFill 1s var(--ab-spring) .3s both; }
+html:root body .ab-slide.play .abv-pkg{ animation:abvTravel 2.4s cubic-bezier(.65,0,.35,1) .35s both; }
+html:root body .ab-slide.play .abv-trmeta .ok{ animation:abvIn .6s var(--ab-spring-bounce) 2.6s both; }
+html:root body .ab-slide.play .abv-diff, html:root body .ab-slide.play .abv-toast{ animation:abvIn .6s var(--ab-spring-bounce) .6s both; }
+html:root body .ab-slide.play .abv-blocked{ animation:abvIn .7s var(--ab-spring) .2s both, abvShake .5s ease .9s both; }
+@keyframes abvIn{ from{ opacity:0; transform:translateY(10px) scale(.97); } to{ opacity:1; transform:none; } }
+@keyframes abvDrop{ from{ opacity:0; transform:translateY(-22px) scale(.96); } to{ opacity:1; transform:none; } }
+@keyframes abvGrow{ from{ transform:scaleY(0); } to{ transform:none; } }
+@keyframes abvFill{ from{ transform:scaleX(0); } to{ transform:none; } }
+@keyframes abvTravel{ from{ right:0; } to{ right:calc(100% - 38px); } }
+@keyframes abvShake{ 20%,60%{ transform:translateX(-5px); } 40%,80%{ transform:translateX(5px); } }
+
+/* ---------- F. Prices: search, camera, result ---------- */
+html:root body #tab-prices{ --card:var(--ab-surface); --glass:var(--ab-surface); --bg2:var(--ab-hover); --ok:var(--ab-green); --warn:var(--ab-orange); --err:var(--ab-danger); }
+html:root body #tab-prices .stabs{ background:var(--ab-fill) !important; border:0 !important; padding:3px !important; border-radius:12px !important; gap:2px !important; }
+html:root body #tab-prices .stab{ min-height:40px; border-radius:9px !important; font-size:14px !important; font-weight:500 !important; color:var(--ab-ink-2) !important; background:transparent !important; box-shadow:none !important; transition:background-color .25s ease, box-shadow .25s ease, color .2s ease !important; }
+html:root body #tab-prices .stab.on{ background:var(--ab-surface) !important; color:var(--ab-ink) !important; font-weight:600 !important; box-shadow:0 1px 3px rgba(0,0,0,.1), 0 0 0 .5px rgba(0,0,0,.04) !important; }
+html:root body:not(.light-mode) #tab-prices .stab.on{ background:#636366 !important; color:#fff !important; }
+html:root body #tab-prices .sb{ gap:10px !important; }
+html:root body #tab-prices .si{ min-height:50px; border-radius:var(--ab-r) !important; border:1px solid var(--ab-line-2) !important; background:var(--ab-surface) !important; color:var(--ab-ink) !important; font-size:17px !important; font-family:var(--ab-mono) !important; padding:0 16px !important; }
+html:root body #tab-prices .si::placeholder{ font-family:var(--ab-font) !important; font-size:15px; color:var(--ab-faint) !important; }
+html:root body #tab-prices .si:focus{ border-color:var(--ab-red) !important; box-shadow:var(--ab-ring) !important; }
+html:root body #tab-prices .sg{ min-height:50px; padding:0 22px !important; border-radius:var(--ab-r) !important; font-size:15px !important; font-weight:600 !important; background:var(--ab-red) !important; box-shadow:none !important; }
+html:root body #tab-prices .sg:hover{ transform:none !important; background:var(--ab-red-600) !important; }
+html:root body #tab-prices .cam-wrap{ background:var(--ab-surface) !important; border:0 !important; border-radius:var(--ab-r-lg) !important; box-shadow:var(--ab-sh-1) !important; }
+html:root body:not(.light-mode) #tab-prices .cam-wrap{ border:1px solid var(--ab-line) !important; }
+html:root body #tab-prices .cam-top{ border-bottom:1px solid var(--ab-line) !important; padding:12px 16px !important; }
+html:root body #tab-prices .cam-lbl{ font-size:15px !important; font-weight:600 !important; color:var(--ab-ink) !important; }
+html:root body #tab-prices .cam-go{ min-height:36px; padding:0 16px !important; background:var(--ab-red) !important; box-shadow:none !important; font-size:14px !important; font-weight:600 !important; }
+html:root body #tab-prices .cam-go.stop{ background:var(--ab-ink) !important; color:var(--ab-surface) !important; }
+html:root body #tab-prices #sw{ background:#000 !important; min-height:220px; }
+html:root body #tab-prices .cam-ph{ color:rgba(255,255,255,.7) !important; padding:40px 20px !important; }
+html:root body #tab-prices .cam-ph i{ opacity:.6 !important; }
+html:root body #tab-prices .sf{ width:230px !important; height:150px !important; }
+html:root body #tab-prices .sf::before, html:root body #tab-prices .sf::after, html:root body #tab-prices .sfb::before, html:root body #tab-prices .sfb::after{ border-color:#fff !important; width:28px !important; height:28px !important; filter:drop-shadow(0 0 6px rgba(0,0,0,.5)); }
+html:root body #tab-prices .sf::before{ border-radius:0 12px 0 0 !important; } html:root body #tab-prices .sf::after{ border-radius:12px 0 0 0 !important; }
+html:root body #tab-prices .sfb::before{ border-radius:0 0 12px 0 !important; } html:root body #tab-prices .sfb::after{ border-radius:0 0 0 12px !important; }
+html:root body #tab-prices .sline{ background:linear-gradient(90deg,transparent,#FF3B30,transparent) !important; box-shadow:0 0 10px rgba(255,59,48,.8) !important; height:2px !important; }
+
+/* result card */
+html:root body #tab-prices .rc{ scroll-margin-top:calc(var(--ab-top) + 16px); background:var(--ab-surface) !important; border:0 !important; border-radius:22px !important; box-shadow:var(--ab-sh-2) !important; margin-top:18px !important; }
+html:root body:not(.light-mode) #tab-prices .rc{ border:1px solid var(--ab-line) !important; box-shadow:none !important; }
+html:root body #tab-prices .rc::before{ display:none !important; }
+html:root body #tab-prices .rc.on{ animation:abRcIn .55s var(--ab-spring) both !important; }
+@keyframes abRcIn{ from{ opacity:0; transform:translateY(14px) scale(.985); } to{ opacity:1; transform:none; } }
+html:root body #tab-prices .ph{ align-items:center !important; gap:14px !important; padding:20px 22px 14px !important; border-bottom:0 !important; }
+html:root body #tab-prices .ph-ic{ width:52px !important; height:52px !important; border-radius:15px !important; border:0 !important; background:var(--ab-green-50) !important; color:var(--ab-green) !important; animation:abPop .6s var(--ab-spring-bounce) .1s both !important; }
+html:root body #tab-prices .ph-ic .ui-icon-slot{ width:26px !important; height:26px !important; }
+@keyframes abPop{ from{ transform:scale(.4); opacity:0; } to{ transform:none; opacity:1; } }
+html:root body #tab-prices .ph-name{ font-size:20px !important; font-weight:700 !important; line-height:1.4 !important; color:var(--ab-ink) !important; margin-bottom:4px !important; }
+html:root body #tab-prices .ph-bc{ font-family:var(--ab-mono) !important; font-size:13px !important; color:var(--ab-muted) !important; background:var(--ab-fill); padding:2px 8px; border-radius:6px; display:inline-flex !important; align-items:center; gap:6px; }
+html:root body #tab-prices .ph-bc .ui-icon-slot{ width:14px; height:14px; }
+html:root body #tab-prices .ph-tags{ gap:6px !important; margin-top:10px !important; }
+html:root body #tab-prices .tag{ font-size:12.5px !important; font-weight:500 !important; padding:3px 10px !important; border-radius:999px !important; border:0 !important; gap:5px !important; }
+html:root body #tab-prices .tag-src{ background:var(--ab-fill) !important; color:var(--ab-ink-2) !important; }
+html:root body #tab-prices .tag-ok{ background:var(--ab-green-50) !important; color:var(--ab-green) !important; }
+html:root body #tab-prices .tag-no{ background:var(--ab-danger-50) !important; color:var(--ab-danger) !important; }
+html:root body #tab-prices .tag .ui-icon-slot{ width:13px; height:13px; }
+html:root body #tab-prices .cobar{ margin:4px 22px 0 !important; padding:14px 16px !important; background:var(--ab-subtle) !important; border:0 !important; border-radius:16px !important; gap:12px !important; }
+html:root body #tab-prices .cobar-ic{ width:38px; height:38px; display:grid; place-items:center; border-radius:11px; background:var(--ab-surface); color:var(--ab-ink-2); box-shadow:var(--ab-sh-1); }
+html:root body #tab-prices .cobar-lbl{ font-size:12px !important; color:var(--ab-muted) !important; font-weight:500 !important; letter-spacing:0 !important; text-transform:none !important; }
+html:root body #tab-prices .cobar-name{ font-size:15px !important; font-weight:600 !important; color:var(--ab-ink) !important; }
+html:root body #tab-prices .cobar-code{ font-family:var(--ab-mono) !important; font-size:12px !important; color:var(--ab-muted) !important; }
+html:root body #tab-prices .diff-banner{ margin:6px 22px 0 !important; padding:10px 14px !important; border-radius:14px !important; border:0 !important; font-size:14px !important; font-weight:600 !important; display:flex; align-items:center; justify-content:center; gap:8px; }
+html:root body #tab-prices .diff-banner.hi{ background:var(--ab-orange-50) !important; color:var(--ab-orange) !important; }
+html:root body #tab-prices .diff-banner.same{ background:var(--ab-green-50) !important; color:var(--ab-green) !important; }
+html:root body #tab-prices .bcols{ display:grid !important; grid-template-columns:1fr 1fr !important; gap:12px !important; padding:14px 22px !important; }
+html:root body #tab-prices .bcol, html:root body #tab-prices .bcols > div[style]{ background:var(--ab-subtle) !important; border:0 !important; border-radius:18px !important; box-shadow:none !important; transform:none !important; }
+html:root body #tab-prices .bcols > div[style]{ padding:16px !important; }
+html:root body #tab-prices .bcol.miss{ background:transparent !important; border:1.5px dashed var(--ab-line-2) !important; opacity:1 !important; }
+html:root body #tab-prices .bcol.miss .bcol-b{ color:var(--ab-muted) !important; }
+html:root body #tab-prices .bcol-h{ padding:12px 16px !important; border-bottom:1px solid var(--ab-hair) !important; }
+html:root body #tab-prices .bcol-hl{ font-size:14.5px !important; font-weight:600 !important; color:var(--ab-ink) !important; gap:6px !important; }
+html:root body #tab-prices .bsts{ white-space:nowrap; font-size:12px !important; font-weight:600 !important; padding:3px 10px !important; border-radius:999px !important; border:0 !important; flex:0 0 auto; }
+html:root body #tab-prices .bsts.ok{ background:var(--ab-green-50) !important; color:var(--ab-green) !important; }
+html:root body #tab-prices .bsts.no{ background:var(--ab-danger-50) !important; color:var(--ab-danger) !important; }
+html:root body #tab-prices .bcol-b{ padding:14px 16px 16px !important; }
+html:root body #tab-prices .pr-lbl{ display:flex; align-items:center; gap:6px; font-size:13px !important; font-weight:500 !important; color:var(--ab-muted) !important; margin-bottom:4px !important; }
+html:root body #tab-prices .pr-lbl .ui-icon-slot{ width:15px; height:15px; }
+html:root body #tab-prices .pr-val{ font-variant-numeric:tabular-nums; text-shadow:none !important; line-height:1.15 !important; margin-bottom:2px !important; letter-spacing:0 !important; }
+html:root body #tab-prices .pr-val.sell{ font-size:clamp(28px,3.2vw,36px) !important; font-weight:700 !important; color:var(--ab-ink) !important; }
+html:root body #tab-prices .pr-val.cost{ font-size:22px !important; font-weight:600 !important; color:var(--ab-ink-2) !important; }
+html:root body #tab-prices .pr-val.dash{ color:var(--ab-faint) !important; }
+html:root body #tab-prices .pr-cur{ font-size:12.5px !important; color:var(--ab-muted) !important; }
+html:root body #tab-prices .pr-sep{ height:1px !important; background:var(--ab-hair) !important; margin:14px 0 !important; }
+html:root body #tab-prices .prt{ font-size:12.5px !important; font-weight:600 !important; padding:4px 10px !important; border-radius:999px !important; border:0 !important; margin-top:8px !important; }
+html:root body #tab-prices .prt.pos{ background:var(--ab-green-50) !important; color:var(--ab-green) !important; }
+html:root body #tab-prices .prt.neg{ background:var(--ab-danger-50) !important; color:var(--ab-danger) !important; }
+html:root body #tab-prices .co-mini{ font-size:13px !important; color:var(--ab-ink-2) !important; border-top:1px solid var(--ab-hair) !important; margin-top:14px !important; padding-top:12px !important; line-height:1.55 !important; }
+html:root body #tab-prices .co-mini strong{ display:flex !important; align-items:center; gap:6px; font-size:12px !important; font-weight:500 !important; color:var(--ab-muted) !important; letter-spacing:0 !important; text-transform:none !important; margin-bottom:2px !important; }
+html:root body #tab-prices .co-mini .ui-icon-slot{ width:14px; height:14px; }
+html:root body #tab-prices .cp-s{ border-top:1px solid var(--ab-hair) !important; padding:10px 16px !important; }
+html:root body #tab-prices .cpb{ min-height:34px; padding:0 14px !important; border-radius:999px !important; border:0 !important; background:var(--ab-surface) !important; color:var(--ab-ink) !important; font-size:13px !important; font-weight:500 !important; box-shadow:var(--ab-sh-1); gap:6px !important; }
+html:root body:not(.light-mode) #tab-prices .cpb{ background:var(--ab-hover) !important; }
+html:root body #tab-prices .cpb:hover{ color:var(--ab-red) !important; }
+html:root body #tab-prices .cpb.done{ background:var(--ab-green-50) !important; color:var(--ab-green) !important; box-shadow:none; }
+html:root body #tab-prices .cpb .ui-icon-slot{ width:14px; height:14px; }
+/* details as an inset grouped list */
+html:root body #tab-prices .mgrid{ margin:4px 22px 16px !important; padding:0 !important; gap:0 !important; grid-template-columns:1fr 1fr !important; background:var(--ab-subtle); border-radius:16px; overflow:hidden; }
+html:root body #tab-prices .mi{ display:flex; align-items:center; justify-content:space-between; gap:12px; background:transparent !important; border:0 !important; border-radius:0 !important; border-bottom:1px solid var(--ab-hair) !important; margin-bottom:-1px; padding:12px 16px !important; min-width:0; }
+html:root body #tab-prices .mi:nth-child(odd){ border-left:1px solid var(--ab-hair) !important; }
+html:root body #tab-prices .mi-l{ font-size:13px !important; font-weight:400 !important; color:var(--ab-muted) !important; margin:0 !important; gap:6px !important; white-space:nowrap; }
+html:root body #tab-prices .mi-l .ui-icon-slot{ width:14px; height:14px; }
+html:root body #tab-prices .mi-v{ font-size:14px !important; font-weight:500 !important; color:var(--ab-ink) !important; text-align:left; word-break:normal !important; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
+html:root body #tab-prices .ract{ gap:10px !important; padding:0 22px 20px !important; }
+html:root body #tab-prices .ra{ min-height:42px; padding:0 16px !important; border-radius:12px !important; border:0 !important; background:var(--ab-fill) !important; color:var(--ab-ink) !important; font-size:14px !important; font-weight:500 !important; gap:7px !important; }
+html:root body #tab-prices .ra:hover{ background:var(--ab-hover) !important; color:var(--ab-ink) !important; }
+html:root body #tab-prices .ra.del{ background:var(--ab-danger-50) !important; color:var(--ab-danger) !important; }
+html:root body #tab-prices .ra .ui-icon-slot{ width:16px; height:16px; }
+html:root body #tab-prices .erres{ padding:32px 22px !important; }
+html:root body #tab-prices .erres i{ width:56px; height:56px; margin:0 auto 14px !important; display:grid !important; place-items:center; border-radius:50%; background:var(--ab-danger-50); color:var(--ab-danger); font-size:0 !important; animation:abPop .55s var(--ab-spring-bounce) both; }
+html:root body #tab-prices .erres i .ui-icon-slot{ width:26px; height:26px; }
+html:root body #tab-prices .erres h3{ font-size:18px !important; font-weight:600 !important; color:var(--ab-ink) !important; }
+html:root body #tab-prices .erres p{ font-size:14px !important; color:var(--ab-muted) !important; }
+html:root body #tab-prices .erres code{ font-family:var(--ab-mono) !important; font-size:14px !important; color:var(--ab-ink-2) !important; background:var(--ab-fill) !important; padding:3px 10px !important; border-radius:8px !important; }
+/* history = grouped rows */
+html:root body #tab-prices .hlst{ gap:0 !important; background:var(--ab-surface); border-radius:16px; overflow:hidden; box-shadow:var(--ab-sh-1); }
+html:root body:not(.light-mode) #tab-prices .hlst{ border:1px solid var(--ab-line); }
+html:root body #tab-prices .hlst .hi{ background:transparent !important; border:0 !important; border-radius:0 !important; border-bottom:1px solid var(--ab-hair) !important; margin-bottom:-1px; padding:12px 16px !important; }
+html:root body #tab-prices .hlst .hi:hover{ background:var(--ab-subtle) !important; }
+html:root body #tab-prices .hdot.ok{ background:var(--ab-green-solid) !important; box-shadow:none !important; }
+html:root body #tab-prices .hn{ font-size:14px !important; font-weight:600 !important; color:var(--ab-ink) !important; }
+html:root body #tab-prices .hs{ font-size:12.5px !important; color:var(--ab-muted) !important; }
+html:root body #tab-prices .hp{ font-size:15px !important; font-weight:700 !important; color:var(--ab-ink) !important; font-variant-numeric:tabular-nums; }
+html:root body #tab-prices .ht{ font-size:12px !important; color:var(--ab-faint) !important; }
+html:root body #tab-prices .hclr{ border:0 !important; background:var(--ab-danger-50) !important; border-radius:999px !important; padding:4px 12px !important; font-size:13px !important; }
+html:root body #tab-prices .stv, html:root body #tab-prices .sc-v, html:root body .sc-v{ color:var(--ab-ink) !important; text-shadow:none !important; }
+/* HUD toasts (the prices page has its own) */
+html:root body .tst{ background:rgba(28,28,30,.86) !important; color:#fff !important; border:0 !important; font-size:14px !important; font-weight:500 !important; padding:10px 18px !important;
+  backdrop-filter:saturate(1.8) blur(20px) !important; -webkit-backdrop-filter:saturate(1.8) blur(20px) !important; box-shadow:0 12px 30px -10px rgba(0,0,0,.45) !important; }
+html:root body .tst.ok, html:root body .tst.er{ color:#fff !important; }
+@media (max-width:640px){
+  html:root body #tab-prices .bcols{ grid-template-columns:1fr !important; padding:12px 16px !important; }
+  html:root body #tab-prices .mgrid{ grid-template-columns:1fr !important; margin:4px 16px 14px !important; }
+  html:root body #tab-prices .mi:nth-child(odd){ border-left:0 !important; }
+  html:root body #tab-prices .ph{ flex-direction:row !important; padding:18px 16px 12px !important; align-items:flex-start !important; }
+  html:root body #tab-prices .ph-ic{ width:44px !important; height:44px !important; border-radius:13px !important; }
+  html:root body #tab-prices .ph-name{ font-size:18px !important; }
+  html:root body #tab-prices .cobar, html:root body #tab-prices .diff-banner{ margin-inline:16px !important; }
+  html:root body #tab-prices .ract{ padding:0 16px 16px !important; }
+  html:root body #tab-prices .ra{ flex:1; justify-content:center; }
+  html:root body #tab-prices .sb{ flex-direction:row !important; }
+  html:root body #tab-prices .sg{ padding:0 16px !important; }
+}
+
+/* ---------- G. Accessibility preferences ---------- */
+@media (prefers-reduced-motion:reduce){
+  html:root body .ab-page-in, html:root body div[id$="Modal"] > .ab-grow, html:root body #tab-prices .rc.on, html:root body #tab-prices .ph-ic, html:root body #tab-prices .erres i{ animation:abFadeOnly .2s ease both !important; }
+  html:root body .ab-slide.play *{ animation:none !important; }
+  html:root body button, html:root body .tab-btn{ transition-duration:.01s !important; }
+}
+@keyframes abFadeOnly{ from{ opacity:0; } to{ opacity:1; } }
+@media (prefers-reduced-transparency:reduce){
+  html:root body .dashboard-header, html:root body #toastContainer .allosh-toast, html:root body .tst, html:root body .abv-ntf{ background:var(--ab-surface) !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; }
+  html:root body .tst{ background:#1C1C1E !important; }
+}
+@media (prefers-contrast:more){
+  :root{ --ab-hair:rgba(0,0,0,.45); --ab-muted:#48484A; }
+  html:root body .glass-card, html:root body #tab-prices .rc, html:root body #tab-prices .bcol{ border:1px solid var(--ab-ink-2) !important; }
+}
+/* ab-icons line icons inside the prices card */
+html:root body #tab-prices .pr-lbl .ab-ico, html:root body #tab-prices .mi-l .ab-ico, html:root body #tab-prices .co-mini .ab-ico, html:root body #tab-prices .tag .ab-ico, html:root body #tab-prices .cpb .ab-ico, html:root body #tab-prices .ph-bc .ab-ico{ width:14px; height:14px; }
+html:root body #tab-prices .ph-ic .ab-ico{ width:26px; height:26px; }
+html:root body #tab-prices .ra .ab-ico{ width:16px; height:16px; }
+
+/* ---------- H. التسعيرات (pricing) — clean, theme-aware controls ---------- */
+html:root body #tab-pricing .pricing-tabs-wrap{ background:var(--ab-fill) !important; border:0 !important; padding:3px !important; border-radius:12px !important; gap:2px !important; }
+html:root body #tab-pricing .pricing-tab-btn{ flex:1; min-height:38px; display:inline-flex !important; align-items:center; justify-content:center; gap:5px; white-space:nowrap; padding:0 6px !important; border-radius:9px !important; background:transparent !important; color:var(--ab-ink-2) !important; font-size:13.5px !important; font-weight:500 !important; box-shadow:none !important; border:0 !important; }
+html:root body #tab-pricing .pricing-tab-btn.active{ background:var(--ab-surface) !important; color:var(--ab-ink) !important; font-weight:600 !important; box-shadow:0 1px 3px rgba(0,0,0,.1), 0 0 0 .5px rgba(0,0,0,.04) !important; }
+html:root body:not(.light-mode) #tab-pricing .pricing-tab-btn.active{ background:#636366 !important; color:#fff !important; }
+/* toggles: one tile per option (the nested icon spans stay plain) */
+html:root body #tab-pricing .toggle-item > span{ display:flex !important; align-items:center; justify-content:center; gap:6px; min-height:44px; padding:8px 10px !important;
+  border-radius:12px !important; border:1px solid var(--ab-line) !important; background:var(--ab-surface) !important; color:var(--ab-ink-2) !important;
+  font-size:13px !important; font-weight:500 !important; box-shadow:none !important; transition:background-color .2s ease, border-color .2s ease, color .2s ease !important; }
+html:root body #tab-pricing .toggle-item > span span{ display:inline-flex !important; align-items:center; padding:0 !important; margin:0 !important; min-height:0 !important; border:0 !important; border-radius:0 !important; background:none !important; box-shadow:none !important; color:inherit !important; font:inherit !important; }
+html:root body #tab-pricing .toggle-item > span .ui-icon-slot, html:root body #tab-pricing .toggle-item > span .ab-ico{ width:16px; height:16px; }
+html:root body #tab-pricing .toggle-item input:checked + span{ background:var(--ab-red-50) !important; border-color:var(--ab-red) !important; color:var(--ab-red) !important; font-weight:600 !important; }
+html:root body #tab-pricing .toggle-item:hover > span{ border-color:var(--ab-line-2) !important; }
+/* card templates = segmented choices */
+html:root body #tab-pricing .tpl-card{ min-height:42px; display:grid; place-items:center; border-radius:12px !important; border:1px solid var(--ab-line) !important; background:var(--ab-surface) !important; color:var(--ab-ink-2) !important; font-size:13px !important; font-weight:500 !important; box-shadow:none !important; }
+html:root body #tab-pricing .tpl-card.active{ background:var(--ab-red-50) !important; border-color:var(--ab-red) !important; color:var(--ab-red) !important; font-weight:600 !important; }
+/* group cards */
+html:root body #tab-pricing .pricing-g-card{ background:transparent !important; border:0 !important; box-shadow:none !important; padding:14px 0 !important; border-bottom:1px solid var(--ab-hair) !important; border-radius:0 !important; }
+html:root body #tab-pricing .pricing-g-card:last-child{ border-bottom:0 !important; }
+/* colour pickers: a real swatch instead of a thin line */
+html:root body #tab-pricing input[type="color"]{ -webkit-appearance:none; appearance:none; width:44px !important; height:32px !important; min-height:0 !important; padding:3px !important; border-radius:10px !important; border:1px solid var(--ab-line-2) !important; background:var(--ab-surface) !important; cursor:pointer; }
+html:root body #tab-pricing input[type="color"]::-webkit-color-swatch-wrapper{ padding:0; }
+html:root body #tab-pricing input[type="color"]::-webkit-color-swatch{ border:0; border-radius:7px; }
+html:root body #tab-pricing input[type="color"]::-moz-color-swatch{ border:0; border-radius:7px; }
+html:root body #tab-pricing #pricing_borderPreview{ background:var(--ab-subtle) !important; }
+/* header tools */
+html:root body #tab-pricing .pricing-h-btn, html:root body #tab-pricing .pricing-lock-toggle{ width:36px !important; height:36px !important; border-radius:10px !important; background:var(--ab-fill) !important; color:var(--ab-ink-2) !important; border:0 !important; display:grid !important; place-items:center; }
+/* buttons: one primary action (print); the rest are quieter */
+html:root body #tab-pricing button[onclick*="loadFromFirebase"]{ background:var(--ab-red) !important; border-radius:12px !important; min-height:46px; font-weight:600 !important; box-shadow:none !important; }
+html:root body #tab-pricing .btn-accent{ background:var(--ab-red) !important; color:#fff !important; border:0 !important; border-radius:12px !important; min-height:46px; font-weight:600 !important; box-shadow:none !important; }
+html:root body #tab-pricing .btn-purple, html:root body #tab-pricing .btn-primary[onclick*="openRulesModal"]{ background:var(--ab-fill) !important; color:var(--ab-ink) !important; border:0 !important; border-radius:12px !important; min-height:44px; font-weight:500 !important; box-shadow:none !important; }
+html:root body #tab-pricing .btn-danger{ background:var(--ab-surface) !important; color:var(--ab-red) !important; border:1px solid var(--ab-line) !important; border-radius:12px !important; min-height:44px; font-weight:500 !important; box-shadow:none !important; }
+html:root body #tab-pricing .btn-outline{ background:var(--ab-surface) !important; color:var(--ab-ink-2) !important; border:1px solid var(--ab-line) !important; border-radius:12px !important; min-height:42px; font-weight:500 !important; }
+html:root body #tab-pricing button[onclick*="printPreview"]{ background:var(--ab-red-50) !important; border:0 !important; color:var(--ab-red) !important; border-radius:999px !important; font-weight:600 !important; padding:7px 14px !important; }
+html:root body #tab-pricing details > label[for="pricing_fileInput"]{ border:1.5px dashed var(--ab-line-2) !important; background:var(--ab-subtle); border-radius:14px !important; }
+html:root body #tab-pricing .pricing-preview{ background:var(--ab-fill) !important; border:0 !important; border-radius:22px !important; }
+html:root body #tab-pricing #pricing_printArea{ box-shadow:var(--ab-sh-2); }
+html:root body #tab-pricing #pricing_statusText{ color:var(--ab-ink-2) !important; }
+html:root body .ab-login-modules[hidden]{ display:none !important; }
+
+/* ---------- I. sign-in form side: translucent red brand pattern filling the empty space below ---------- */
+html:root body #loginPage > .glass-card{ isolation:isolate; overflow:hidden; }
+html:root body #loginPage > .glass-card > *{ position:relative; z-index:1; }
+html:root body #loginPage > .glass-card::after{ content:""; position:absolute; left:0; right:0; bottom:0; height:40%; z-index:0; pointer-events:none;
+  background-image:
+    radial-gradient(circle at 0 0, transparent 27px, rgba(200,16,46,.55) 28px, rgba(200,16,46,.55) 29.5px, transparent 30.5px),
+    radial-gradient(circle at 56px 56px, transparent 27px, rgba(200,16,46,.55) 28px, rgba(200,16,46,.55) 29.5px, transparent 30.5px),
+    radial-gradient(circle at 28px 28px, rgba(200,16,46,.5) 2px, transparent 2.6px);
+  background-size:56px 56px; background-position:0 100%;
+  opacity:.3;
+  -webkit-mask-image:linear-gradient(to top, #000 0%, rgba(0,0,0,.65) 40%, transparent 100%); mask-image:linear-gradient(to top, #000 0%, rgba(0,0,0,.65) 40%, transparent 100%);
+  animation:abPatternDrift 40s linear infinite; }
+html:root body #loginPage > .glass-card::before{ content:""; position:absolute; left:-10%; right:-10%; bottom:-30%; height:55%; z-index:0; pointer-events:none;
+  background:radial-gradient(60% 60% at 50% 100%, rgba(200,16,46,.10), transparent 70%); }
+html:root body:not(.light-mode) #loginPage > .glass-card::after{ opacity:.34; }
+html:root body:not(.light-mode) #loginPage > .glass-card::before{ background:radial-gradient(60% 60% at 50% 100%, rgba(226,51,76,.16), transparent 70%); }
+@keyframes abPatternDrift{ from{ background-position:0 100%; } to{ background-position:56px 100%; } }
+@media (max-width:900px){ html:root body #loginPage > .glass-card::after{ height:34%; } }
+@media (prefers-reduced-motion:reduce){ html:root body #loginPage > .glass-card::after{ animation:none; } }
+
+/* ---------- J. «تنبيهات الموظفين» admin sheet ---------- */
+html:root body .tabs-wrapper .ab-empn-nav{ order:35; }
+html:root body .ab-en-i{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; flex:0 0 auto; }
+html:root body.ab-en-open{ overflow:hidden; }
+html:root body .ab-en{ position:fixed; inset:0; z-index:100001; display:flex; align-items:center; justify-content:center; padding:24px; }
+html:root body .ab-en[hidden]{ display:none; }
+html:root body .ab-en-scrim{ position:absolute; inset:0; background:var(--ab-overlay); opacity:0; transition:opacity .3s ease; }
+html:root body .ab-en.on .ab-en-scrim{ opacity:1; }
+html:root body .ab-en-sheet{ position:relative; width:min(1080px,100%); max-height:min(880px,100%); display:flex; flex-direction:column; background:var(--ab-canvas); border-radius:26px; box-shadow:var(--ab-sh-3); overflow:hidden;
+  opacity:0; transform:translateY(18px) scale(.98); transition:opacity .25s ease, transform .5s var(--ab-spring); color:var(--ab-ink); }
+html:root body .ab-en.on .ab-en-sheet{ opacity:1; transform:none; }
+html:root body .ab-en-head{ flex:0 0 auto; display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:20px 24px 10px; }
+html:root body .ab-en-head h2{ font-size:22px; font-weight:700; margin:0; }
+html:root body .ab-en-head p{ margin:2px 0 0; color:var(--ab-muted); font-size:14px; }
+html:root body .ab-en-ib{ width:36px; height:36px; display:grid; place-items:center; border:0; border-radius:50%; background:var(--ab-fill); color:var(--ab-ink-2); cursor:pointer; flex:0 0 auto; }
+html:root body .ab-en-ib.sm{ width:32px; height:32px; }
+html:root body .ab-en-ib:hover{ background:var(--ab-hover); color:var(--ab-ink); }
+html:root body .ab-en-seg{ flex:0 0 auto; display:flex; gap:2px; padding:3px; margin:4px 24px 0; border-radius:12px; background:var(--ab-fill); align-self:flex-start; max-width:calc(100% - 48px); overflow-x:auto; }
+html:root body .ab-en-seg button{ border:0; background:transparent; color:var(--ab-ink-2); min-height:36px; padding:0 16px; border-radius:9px; font-size:14px; font-weight:500; cursor:pointer; white-space:nowrap; }
+html:root body .ab-en-seg button[aria-selected="true"], html:root body .ab-en-seg button[aria-pressed="true"]{ background:var(--ab-surface); color:var(--ab-ink); font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.1); }
+html:root body:not(.light-mode) .ab-en-seg button[aria-selected="true"], html:root body:not(.light-mode) .ab-en-seg button[aria-pressed="true"]{ background:#636366; color:#fff; }
+html:root body .ab-en-seg.sm{ margin:0; max-width:100%; }
+html:root body .ab-en-seg.sm button{ min-height:32px; padding:0 12px; font-size:13px; }
+html:root body .ab-en-body{ overflow:auto; padding:16px 24px 24px; flex:1; }
+html:root body .ab-en-grid{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px; align-items:start; }
+html:root body .ab-en-card{ background:var(--ab-surface); border-radius:20px; padding:18px 20px; box-shadow:var(--ab-sh-1); }
+html:root body:not(.light-mode) .ab-en-card{ border:1px solid var(--ab-line); }
+html:root body .ab-en-card h3{ font-size:16px; font-weight:700; margin:0 0 10px; }
+html:root body .ab-en-card h3:not(:first-child){ margin-top:22px; }
+html:root body .ab-en-err b{ color:var(--ab-danger); display:block; margin-bottom:6px; }
+html:root body .ab-en-mut{ color:var(--ab-muted); font-size:13.5px; margin:0 0 8px; }
+html:root body .ab-en-f{ display:block; margin:0 0 14px; }
+html:root body .ab-en-f > span{ display:flex; justify-content:space-between; font-size:13.5px; color:var(--ab-ink-2); font-weight:500; margin-bottom:6px; }
+html:root body .ab-en-f > span em{ font-style:normal; color:var(--ab-faint); font-variant-numeric:tabular-nums; }
+html:root body .ab-en-f input, html:root body .ab-en-f textarea, html:root body .ab-en-toolbar input, html:root body .ab-en-toolbar select, html:root body .ab-en-tpl input, html:root body .ab-en-tpl textarea{ width:100%; min-height:44px; border-radius:12px !important; border:1px solid var(--ab-line-2) !important; background:var(--ab-surface) !important; color:var(--ab-ink) !important; padding:8px 12px !important; font-size:15px !important; box-shadow:none !important; }
+html:root body .ab-en-f textarea, html:root body .ab-en-tpl textarea{ resize:vertical; line-height:1.6; }
+html:root body .ab-en-f input:focus, html:root body .ab-en-f textarea:focus, html:root body .ab-en-tpl input:focus, html:root body .ab-en-tpl textarea:focus{ border-color:var(--ab-red) !important; box-shadow:var(--ab-ring) !important; outline:none; }
+html:root body .ab-en-f.inline{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:-4px 0 12px; padding-inline-start:12px; }
+html:root body .ab-en-f.inline > span{ margin:0; font-weight:400; color:var(--ab-muted); }
+html:root body .ab-en-f.inline input{ width:96px; min-height:38px; text-align:center; }
+html:root body .ab-en-row{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+html:root body .ab-en-check{ display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ab-ink-2); cursor:pointer; }
+html:root body .ab-en-check input{ width:18px; height:18px; accent-color:var(--ab-red); }
+html:root body .ab-en-chips{ display:flex; flex-wrap:wrap; gap:6px; max-height:180px; overflow:auto; padding:2px; margin-top:8px; }
+html:root body .ab-en-chips button{ border:1px solid var(--ab-line); background:var(--ab-surface); color:var(--ab-ink-2); border-radius:999px; min-height:32px; padding:0 12px; font-size:13px; cursor:pointer; }
+html:root body .ab-en-chips button[aria-pressed="true"]{ background:var(--ab-red-50); border-color:var(--ab-red); color:var(--ab-red); font-weight:600; }
+html:root body .ab-en-chips button[hidden]{ display:none; }
+html:root body .ab-en-reach{ margin:6px 0 4px; padding:12px 14px; border-radius:14px; background:var(--ab-subtle); font-size:14px; color:var(--ab-ink-2); }
+html:root body .ab-en-reach b{ color:var(--ab-ink); font-variant-numeric:tabular-nums; }
+html:root body .ab-en-reach small{ display:block; color:var(--ab-muted); margin-top:2px; }
+html:root body .ab-en-btn{ display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:46px; margin-top:12px; border:0; border-radius:14px; background:var(--ab-red); color:#fff !important; font-weight:600; font-size:15px; cursor:pointer; text-decoration:none; }
+html:root body .ab-en-btn.confirm{ background:var(--ab-ink); color:var(--ab-surface) !important; }
+html:root body .ab-en-btn.ghost{ background:var(--ab-fill); color:var(--ab-ink) !important; }
+html:root body .ab-en-btn.sm{ width:auto; min-height:34px; margin:0; padding:0 12px; font-size:13px; border-radius:10px; font-weight:500; }
+html:root body .ab-en-btn[disabled]{ opacity:.6; pointer-events:none; }
+html:root body .ab-en-link{ border:0; background:none; color:var(--ab-red); font-size:13px; font-weight:500; cursor:pointer; padding:6px 0 0; }
+html:root body .ab-en-link.danger{ color:var(--ab-danger); }
+html:root body .ab-en-list{ list-style:none; padding:0; margin:0; }
+html:root body .ab-en-list > li{ padding:12px 0; border-bottom:1px solid var(--ab-hair); }
+html:root body .ab-en-list > li:last-child{ border-bottom:0; }
+html:root body .ab-en-li-h{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+html:root body .ab-en-list p{ margin:3px 0; font-size:14px; color:var(--ab-ink-2); }
+html:root body .ab-en-list small{ display:block; color:var(--ab-faint); font-size:12.5px; }
+html:root body .ab-en-counts{ color:var(--ab-muted) !important; }
+html:root body .ab-en-st{ font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; background:var(--ab-fill); color:var(--ab-ink-2); }
+html:root body .ab-en-st.st-sent, html:root body .ab-en-st.st-done{ background:var(--ab-green-50); color:var(--ab-green); }
+html:root body .ab-en-st.st-failed{ background:var(--ab-danger-50); color:var(--ab-danger); }
+html:root body .ab-en-st.st-queued, html:root body .ab-en-st.st-sending, html:root body .ab-en-st.st-paused{ background:var(--ab-orange-50); color:var(--ab-orange); }
+html:root body .ab-en-tag{ display:inline-block; font-size:11.5px; font-weight:600; padding:1px 8px; border-radius:6px; background:var(--ab-fill); color:var(--ab-ink-2); margin-inline-end:4px; }
+html:root body .ab-en-toolbar{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+html:root body .ab-en-toolbar input{ flex:1 1 220px; width:auto; }
+html:root body .ab-en-toolbar select{ flex:0 1 180px; width:auto; }
+html:root body .ab-en-emp{ display:flex; align-items:center; gap:12px; }
+html:root body .ab-en-emp > div{ flex:1; min-width:0; }
+html:root body .ab-en-emp b{ display:block; font-size:15px; }
+html:root body .ab-en-emp small{ font-size:12.5px; color:var(--ab-muted); }
+html:root body .ab-en-av{ width:38px; height:38px; border-radius:50%; display:grid; place-items:center; background:var(--ab-red-50); color:var(--ab-red); font-weight:700; flex:0 0 auto; }
+html:root body .ab-en-emp-a{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:10px; padding-inline-start:50px; }
+html:root body .ab-en-days{ display:inline-flex; gap:3px; padding:3px; border-radius:10px; background:var(--ab-fill); margin-inline-end:auto; }
+html:root body .ab-en-days button{ width:28px; height:28px; border:0; border-radius:7px; background:transparent; color:var(--ab-ink-2); font-size:12.5px; font-weight:600; cursor:pointer; }
+html:root body .ab-en-days button[aria-pressed="true"]{ background:var(--ab-ink); color:var(--ab-surface); }
+html:root body .ab-en-days.lg{ display:flex; flex-wrap:wrap; }
+html:root body .ab-en-days.lg button{ width:auto; padding:0 10px; height:32px; }
+html:root body .ab-en-pin{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; border-radius:16px; background:var(--ab-red-50); margin:6px 0 10px; animation:abvIn .5s var(--ab-spring) both; }
+html:root body .ab-en-pin small{ display:block; color:var(--ab-ink-2); font-size:13px; }
+html:root body .ab-en-pin b{ display:block; font-size:30px; letter-spacing:.12em; font-family:var(--ab-mono) !important; color:var(--ab-red); line-height:1.3; }
+html:root body .ab-en-pin code{ display:block; font-size:12px; color:var(--ab-muted); word-break:break-all; font-family:var(--ab-mono) !important; }
+html:root body .ab-en-pin-a{ display:flex; gap:8px; align-items:center; }
+html:root body .ab-en-sw{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-bottom:1px solid var(--ab-hair); cursor:pointer; }
+html:root body .ab-en-sw b{ display:block; font-size:14.5px; font-weight:500; } html:root body .ab-en-sw small{ display:block; color:var(--ab-muted); font-size:12.5px; }
+html:root body .ab-en-sw input{ position:absolute; opacity:0; pointer-events:none; }
+html:root body .ab-en-sw i{ position:relative; width:46px; height:28px; border-radius:999px; background:var(--ab-line-2); flex:0 0 auto; transition:background-color .25s ease; }
+html:root body .ab-en-sw i::after{ content:""; position:absolute; top:3px; right:3px; width:22px; height:22px; border-radius:50%; background:#fff; box-shadow:0 2px 4px rgba(0,0,0,.2); transition:transform .45s var(--ab-spring); }
+html:root body .ab-en-sw input:checked + i{ background:var(--ab-green-solid); }
+html:root body .ab-en-sw input:checked + i::after{ transform:translateX(-18px); }
+html:root body .ab-en-sw input:focus-visible + i{ box-shadow:var(--ab-ring); }
+html:root body .ab-en-tpl{ border:0; padding:0; margin:0 0 12px; }
+html:root body .ab-en-tpl legend{ font-size:13px; font-weight:600; color:var(--ab-ink-2); margin-bottom:6px; padding:0; }
+html:root body .ab-en-tpl input{ margin-bottom:6px; }
+html:root body .ab-en-empty{ text-align:center; color:var(--ab-muted); padding:28px 0; font-size:14px; }
+html:root body .ab-en-spin{ display:inline-block; width:16px; height:16px; margin-inline-end:8px; vertical-align:-3px; border-radius:50%; border:2px solid var(--ab-line-2); border-top-color:var(--ab-red); animation:abEnSpin .8s linear infinite; }
+@keyframes abEnSpin{ to{ transform:rotate(360deg); } }
+@media (max-width:760px){
+  html:root body .ab-en{ padding:0; align-items:flex-end; }
+  html:root body .ab-en-sheet{ max-height:94vh; border-radius:22px 22px 0 0; transform:translateY(40px); }
+  html:root body .ab-en-head{ padding:16px 16px 8px; } html:root body .ab-en-head h2{ font-size:19px; }
+  html:root body .ab-en-seg{ margin:4px 16px 0; max-width:calc(100% - 32px); }
+  html:root body .ab-en-body{ padding:12px 12px 20px; }
+  html:root body .ab-en-grid{ grid-template-columns:1fr; }
+  html:root body .ab-en-card{ padding:16px; }
+  html:root body .ab-en-emp-a{ padding-inline-start:0; }
+}
+@media (prefers-reduced-motion:reduce){ html:root body .ab-en-sheet, html:root body .ab-en-scrim, html:root body .ab-en-sw i::after{ transition:none !important; } }
+
+/* ═══ K: «واتساب» — QR connection, official API, provider, log ═══ */
+html:root body .tabs-wrapper .ab-wa-nav{ order:36; }
+html:root body .ab-en-st.st-skipped{ background:var(--ab-fill); color:var(--ab-muted); }
+html:root body .ab-wa-grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.15fr); gap:16px; align-items:start; }
+@media (max-width:760px){ html:root body .ab-wa-grid{ grid-template-columns:1fr; } html:root body .ab-wa-qrcard{ order:-1; min-height:0; padding-block:28px; } }
+html:root body .ab-wa-pill{ display:inline-flex; align-items:center; gap:8px; padding:6px 14px; border-radius:999px; font-weight:600; font-size:14px; background:var(--ab-fill); color:var(--ab-ink-2); margin-bottom:12px; }
+html:root body .ab-wa-pill i{ width:9px; height:9px; border-radius:50%; background:currentColor; }
+html:root body .ab-wa-pill.on{ background:var(--ab-green-50); color:var(--ab-green); }
+html:root body .ab-wa-pill.on i{ box-shadow:0 0 0 0 currentColor; animation:abWaPulse 2.4s ease-out infinite; }
+html:root body .ab-wa-pill.wait{ background:var(--ab-orange-50); color:var(--ab-orange); }
+html:root body .ab-wa-pill.off{ background:var(--ab-danger-50); color:var(--ab-danger); }
+@keyframes abWaPulse{ 0%{ box-shadow:0 0 0 0 rgba(52,199,89,.45); } 70%{ box-shadow:0 0 0 8px rgba(52,199,89,0); } 100%{ box-shadow:0 0 0 0 rgba(52,199,89,0); } }
+html:root body .ab-wa-dl{ margin:0 0 14px; display:grid; gap:0; }
+html:root body .ab-wa-dl > div{ display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--ab-hair); font-size:14px; }
+html:root body .ab-wa-dl dt{ color:var(--ab-muted); } html:root body .ab-wa-dl dd{ margin:0; font-weight:600; font-variant-numeric:tabular-nums; text-align:end; }
+html:root body .ab-wa-actions{ display:flex; flex-wrap:wrap; gap:8px; }
+html:root body .ab-en-btn.danger{ color:var(--ab-danger) !important; }
+html:root body .ab-wa-qrcard{ text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:360px; }
+html:root body .ab-wa-qrcard h3{ margin:0 0 14px; }
+html:root body .ab-wa-qrimg{ position:relative; width:272px; height:272px; display:grid; place-items:center; border-radius:24px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.06), 0 12px 32px rgba(0,0,0,.08); animation:abWaIn .5s var(--ab-spring) both; }
+html:root body .ab-wa-qrimg img{ width:236px; height:236px; image-rendering:pixelated; border-radius:6px; }
+html:root body .ab-wa-bar{ width:240px; height:4px; border-radius:4px; background:var(--ab-fill); margin-top:16px; overflow:hidden; }
+html:root body .ab-wa-bar i{ display:block; height:100%; background:var(--ab-red); border-radius:inherit; transform-origin:right center; transition:transform 1s linear; }
+html:root body .ab-wa-cd{ margin:14px 0 6px; color:var(--ab-muted); font-size:13.5px; font-variant-numeric:tabular-nums; min-height:1.4em; }
+html:root body .ab-wa-steps{ text-align:start; margin:6px 0 0; padding-inline-start:20px; color:var(--ab-ink-2); font-size:14px; line-height:1.9; }
+html:root body .ab-wa-done{ display:flex; flex-direction:column; align-items:center; gap:6px; animation:abWaIn .45s var(--ab-spring) both; }
+html:root body .ab-wa-done > .ab-en-i{ width:64px; height:64px; padding:14px; border-radius:50%; background:var(--ab-green-50); color:var(--ab-green); stroke-width:2.2; }
+html:root body .ab-wa-done.off > .ab-en-i{ background:var(--ab-fill); color:var(--ab-muted); }
+html:root body .ab-wa-done h3{ margin:8px 0 0; }
+@keyframes abWaIn{ from{ opacity:0; transform:scale(.96); } to{ opacity:1; transform:none; } }
+html:root body .ab-wa-note{ display:flex; gap:8px; align-items:flex-start; margin-top:14px; font-size:13px; }
+html:root body .ab-wa-note .ab-en-i{ flex:0 0 18px; width:18px; height:18px; margin-top:2px; color:var(--ab-orange); }
+html:root body .ab-wa-warn{ color:var(--ab-orange); font-weight:600; }
+html:root body .ab-wa-err{ color:var(--ab-danger); font-size:13.5px; background:var(--ab-danger-50); padding:8px 12px; border-radius:10px; }
+html:root body .ab-wa-prov{ margin:0 0 10px !important; max-width:100% !important; }
+html:root body .ab-wa-num{ display:inline-flex; align-items:center; gap:6px; } html:root body .ab-wa-num em{ font-style:normal; color:var(--ab-muted); font-size:12.5px; white-space:nowrap; }
+html:root body .ab-wa-type{ display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--ab-hair); padding-bottom:8px; margin-bottom:4px; }
+html:root body .ab-wa-type .ab-en-sw{ border:0; flex:1 1 160px; }
+html:root body .ab-wa-type > .ab-en-mut{ margin:0; font-size:12.5px; }
+html:root body .ab-wa-mgr{ display:grid; grid-template-columns:1fr 1fr auto; gap:8px; align-items:start; padding:10px 0; border-bottom:1px solid var(--ab-hair); }
+html:root body .ab-wa-mgr input{ width:100%; min-height:40px; border-radius:10px !important; border:1px solid var(--ab-line-2) !important; background:var(--ab-surface) !important; color:var(--ab-ink) !important; padding:6px 10px !important; font-size:14px !important; }
+html:root body .ab-wa-mgr .ab-en-chips{ grid-column:1 / -1; margin:0; }
+html:root body .ab-wa-mgr .ab-en-ib{ color:var(--ab-danger); }
+html:root body .ab-wa-lang{ max-width:80px; }
+html:root body .ab-wa-otpl input{ margin-bottom:8px; }
+html:root body .ab-wa-setup{ max-width:520px; margin:12px auto; }
+html:root body .ab-en-link.danger{ color:var(--ab-danger); }
+@media (prefers-reduced-motion:reduce){ html:root body .ab-wa-pill.on i, html:root body .ab-wa-qrimg, html:root body .ab-wa-done{ animation:none; } html:root body .ab-wa-bar i{ transition:none; } }
+
+/* ═══ L: universal close button for popups + notification chips fade ═══ */
+html:root body .ab-x{ position:fixed; z-index:2147483000; width:40px; height:40px; display:grid; place-items:center; padding:0; border:0; border-radius:50%; cursor:pointer;
+  background:var(--ab-surface); color:var(--ab-ink); box-shadow:0 0 0 1px var(--ab-line), 0 6px 18px rgba(0,0,0,.18); animation:abXIn .35s var(--ab-spring) both; -webkit-tap-highlight-color:transparent; }
+html:root body .ab-x svg{ width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; }
+html:root body .ab-x:hover{ background:var(--ab-red); color:#fff; }
+html:root body .ab-x:active{ transform:scale(.92); }
+html:root body .ab-x:focus-visible{ outline:none; box-shadow:var(--ab-ring); }
+html:root body:not(.light-mode) .ab-x{ background:#2c2c2e; color:#fff; box-shadow:0 0 0 1px rgba(255,255,255,.12), 0 6px 18px rgba(0,0,0,.5); }
+html:root body .ab-x.in{ width:36px; height:36px; background:var(--ab-fill); box-shadow:none; }
+html:root body:not(.light-mode) .ab-x.in{ background:#3a3a3c; box-shadow:none; }
+@keyframes abXIn{ from{ opacity:0; transform:scale(.6); } to{ opacity:1; transform:none; } }
+@media (prefers-reduced-motion:reduce){ html:root body .ab-x{ animation:none; } }
+html:root body .ab-ntf-chips{ -webkit-mask-image:linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image:linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+
+/* modal entrance plays once: after the grow animation the default entrance must not replay */
+html:root body div[id$="Modal"] > .ab-grown, html:root body .perm-modal > .ab-grown{ animation:none !important; opacity:1; }
+
+
+</style>
 <script id="ab-ui-shell-v3">
 /* ALLOSH BAZAR — prank sound effects, synthesised with the Web Audio API.
    No audio files and no network: every sound is built from oscillators and noise.
@@ -31889,6 +32595,310 @@ var ABSFX=(function(){
   return { FX:FX, unlock:unlock, play:play };
 })();
 
+/* ALLOSH BAZAR — Keynote-style presentations (presentation only; no ids, handlers or data touched).
+   1. Sign-in (outside): a general welcome deck on a black/red split. It says nothing about the
+      system's pages or data, so nobody learns what is inside before signing in.
+   2. Inside: every section has its own short deck at the top of its page (attendance, dates,
+      transfers, prices). It lives inside that page, so only people who can open the page see it.
+      The overview sits on the home page for full-access users only; the notifications slide sits
+      inside the notification center. Each deck can be hidden; a small «عرض تعريفي» pill brings it back.
+   Engine: drag/swipe follows the finger 1:1, release velocity is projected to the target slide and
+   handed to a spring; autoplay pauses on hover, focus, the pause button, or when off screen.
+   Reduced motion: no autoplay, slides cross-fade. */
+(function(){
+  'use strict';
+  var reduce=!!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function ic(d){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+d+'</svg>'; }
+  var I={
+    prev:ic('<path d="m9 6 6 6-6 6"/>'), next:ic('<path d="m15 6-6 6 6 6"/>'),
+    pause:ic('<path d="M9 6v12M15 6v12"/>'), play:ic('<path d="M8 6.5v11l9-5.5z"/>'),
+    close:ic('<path d="M6 6l12 12M18 6 6 18"/>'), spark:ic('<path d="m12 3 1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6z"/>'),
+    bell:ic('<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>'),
+    box:ic('<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/>'),
+    scan:ic('<path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3M8 9v6M11 9v6M14 9v6M17 9v6"/>'),
+    file:ic('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>'),
+    lock:ic('<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>')
+  };
+  function two(n){ return (n<10?'0':'')+n; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  /* ---------- slide visuals (illustrations with made-up sample data) ---------- */
+  function vis(kind){
+    switch(kind){
+      case 'overview': return '<div class="abv abv-ov">'+
+        '<div class="abv-row"><div class="abv-stat"><small>حضور النهارده</small><b>48</b><i class="up">+6</i></div>'+
+        '<div class="abv-stat"><small>أصناف قربت تخلص</small><b>12</b><i class="warn">تنبيه</i></div>'+
+        '<div class="abv-stat"><small>تحويلات</small><b>7</b><i>النهارده</i></div></div>'+
+        '<div class="abv-chart">'+[38,62,48,80,56,92,70].map(function(h,i){ return '<span style="--h:'+h+'%;--i:'+i+'"></span>'; }).join('')+'</div></div>';
+      case 'attendance': return '<div class="abv abv-list">'+
+        [['أحمد سمير','08:58','في الميعاد','ok'],['منى خالد','09:21','متأخر 21 د','late'],['كريم عادل','09:02','في الميعاد','ok']].map(function(r,i){
+          return '<div class="abv-li" style="--i:'+i+'"><span class="abv-av">'+r[0].charAt(0)+'</span><span class="abv-nm">'+r[0]+'<small>كاشير</small></span><span class="abv-tm">'+r[1]+'</span><em class="'+r[3]+'">'+r[2]+'</em></div>'; }).join('')+'</div>';
+      case 'att-register': return '<div class="abv abv-form">'+
+        '<div class="abv-field" style="--i:0"><small>كود الموظف</small><span class="abv-input" dir="ltr">1004<i class="abv-caret"></i></span></div>'+
+        '<div class="abv-seg" style="--i:1"><span class="on">حضور</span><span>انصراف</span></div>'+
+        '<div class="abv-cta" style="--i:2">تسجيل الحركة</div>'+
+        '<div class="abv-toast" style="--i:3"><b>تم التسجيل</b><small>منى خالد · 09:21</small></div></div>';
+      case 'att-report': return '<div class="abv abv-rep">'+
+        '<div class="abv-seg abv-seg-3" style="--i:0"><span>اليوم</span><span class="on">أسبوع</span><span>شهر</span></div>'+
+        '<div class="abv-rows">'+[['الأحد','46','2'],['الإثنين','48','1'],['الثلاثاء','47','3']].map(function(r,i){ return '<div class="abv-row-li" style="--i:'+(i+1)+'"><span>'+r[0]+'</span><b>'+r[1]+' حضور</b><em>'+r[2]+' تأخير</em></div>'; }).join('')+'</div>'+
+        '<div class="abv-xls" style="--i:4">'+I.file+'<span>تصدير Excel</span></div></div>';
+      case 'dates': return '<div class="abv abv-list">'+
+        [['جبنة رومي 500 جم','باقي 4 أيام',18,'late'],['زبادي طبيعي','باقي 12 يوم',46,'warn'],['عصير مانجو 1 لتر','باقي 70 يوم',88,'ok']].map(function(r,i){
+          return '<div class="abv-li abv-exp" style="--i:'+i+'"><span class="abv-nm">'+r[0]+'<small>'+r[1]+'</small></span><span class="abv-bar '+r[3]+'"><i style="--w:'+r[2]+'%"></i></span></div>'; }).join('')+'</div>';
+      case 'dates-add': return '<div class="abv abv-form">'+
+        '<div class="abv-field" style="--i:0"><small>الباركود</small><span class="abv-input" dir="ltr">6221031490019</span></div>'+
+        '<div class="abv-two"><div class="abv-field" style="--i:1"><small>الكمية</small><span class="abv-input" dir="ltr">24</span></div>'+
+        '<div class="abv-field" style="--i:2"><small>تاريخ الانتهاء</small><span class="abv-input" dir="ltr">2026-12-01</span></div></div>'+
+        '<div class="abv-cta" style="--i:3">إضافة الصنف</div></div>';
+      case 'dates-legend': return '<div class="abv abv-legend">'+
+        [['late','قرب ينتهي','أقل من أسبوع'],['warn','خلي بالك','أقل من شهر'],['ok','تمام','لسه بدري']].map(function(r,i){
+          return '<div class="abv-lg" style="--i:'+i+'"><span class="abv-dot '+r[0]+'"></span><b>'+r[1]+'</b><small>'+r[2]+'</small></div>'; }).join('')+'</div>';
+      case 'transfers': return '<div class="abv abv-tr">'+
+        '<div class="abv-node"><small>من</small><b>البازار</b></div>'+
+        '<div class="abv-path"><span class="abv-pkg">'+I.box+'</span></div>'+
+        '<div class="abv-node"><small>إلى</small><b>القاهرة</b></div>'+
+        '<div class="abv-trmeta"><span>24 قطعة</span><span>ينتهي 12/2026</span><span class="ok">تم الحفظ</span></div></div>';
+      case 'tr-scan': return '<div class="abv abv-form">'+
+        '<div class="abv-scan" style="--i:0">'+I.scan+'<span dir="ltr">6221031490019</span></div>'+
+        '<div class="abv-step" style="--i:1"><small>الكمية</small><span class="abv-stepper"><i>−</i><b>24</b><i>+</i></span></div>'+
+        '<div class="abv-cta" style="--i:2">إضافة صنف</div></div>';
+      case 'tr-guard': return '<div class="abv abv-list">'+
+        '<div class="abv-li" style="--i:0"><span class="abv-nm">زبادي طبيعي<small>ينتهي 2026-12-14</small></span><em class="ok">تمام</em></div>'+
+        '<div class="abv-li abv-blocked" style="--i:1"><span class="abv-nm">لبن كامل الدسم<small>انتهى 2026-10-30</small></span><em class="late">مش هيتحوّل</em></div>'+
+        '<div class="abv-li" style="--i:2"><span class="abv-nm">عصير مانجو 1 لتر<small>ينتهي 2027-01-10</small></span><em class="ok">تمام</em></div></div>';
+      case 'prices': return '<div class="abv abv-pr">'+
+        '<div class="abv-scan">'+I.scan+'<span dir="ltr">6221031490019</span></div>'+
+        '<div class="abv-prc"><div><small>البازار</small><b>185.50</b><i>جنيه</i></div><div><small>القاهرة</small><b>179.00</b><i>جنيه</i></div></div>'+
+        '<div class="abv-diff">فرق السعر 6.50 جنيه</div></div>';
+      case 'pr-cam': return '<div class="abv abv-cam"><div class="abv-vf"><span class="c1"></span><span class="c2"></span><span class="c3"></span><span class="c4"></span><i class="abv-line"></i><em dir="ltr">||| |||| || ||||| |</em></div></div>';
+      case 'pr-compare': return '<div class="abv abv-rows">'+
+        [['جبنة رومي 500 جم','185.50','179.00','hi'],['زبادي طبيعي','12.00','12.00','same'],['شاي 250 جم','64.00','61.50','hi']].map(function(r,i){
+          return '<div class="abv-row-li abv-cmp" style="--i:'+i+'"><span>'+r[0]+'</span><b dir="ltr">'+r[1]+'</b><b dir="ltr">'+r[2]+'</b><em class="'+(r[3]==='same'?'ok':'warn')+'">'+(r[3]==='same'?'نفس السعر':'مختلف')+'</em></div>'; }).join('')+'</div>';
+      case 'notify': return '<div class="abv abv-nt">'+
+        [['تأخير في الحضور','منى خالد وصلت 9:21 — متأخرة 21 دقيقة','الآن'],['تحويل جديد','سارة عملت تحويل من البازار إلى القاهرة','قبل 3 د']].map(function(r,i){
+          return '<div class="abv-ntf" style="--i:'+i+'"><span class="abv-ntf-ic">'+I.bell+'</span><span class="abv-ntf-t"><b>'+r[0]+'</b><small>'+r[1]+'</small></span><time>'+r[2]+'</time></div>'; }).join('')+'</div>';
+    }
+    return '';
+  }
+
+  /* ---------- spring (Apple: damping 1 by default, a little bounce only after a flick) ---------- */
+  function Spring(onFrame){ this.x=0; this.v=0; this.to=0; this.raf=0; this.f=onFrame; }
+  Spring.prototype.go=function(to, opts){
+    opts=opts||{}; this.to=to; if(opts.v!=null) this.v=opts.v;
+    var resp=opts.response||0.5, zeta=opts.damping==null?1:opts.damping, self=this;
+    var k=Math.pow(2*Math.PI/resp,2), c=4*Math.PI*zeta/resp, last=performance.now();
+    cancelAnimationFrame(this.raf);
+    function step(now){
+      var dt=Math.min(0.064,(now-last)/1000); last=now;
+      for(var n=0;n<4;n++){ var h=dt/4, a=-k*(self.x-self.to)-c*self.v; self.v+=a*h; self.x+=self.v*h; }
+      if(Math.abs(self.x-self.to)<0.0005 && Math.abs(self.v)<0.002){ self.x=self.to; self.v=0; self.f(self.x); return; }
+      self.f(self.x); self.raf=requestAnimationFrame(step);
+    }
+    this.raf=requestAnimationFrame(step);
+  };
+  Spring.prototype.stop=function(){ cancelAnimationFrame(this.raf); };
+  Spring.prototype.set=function(x){ cancelAnimationFrame(this.raf); this.x=x; this.v=0; this.f(x); };
+
+  /* ---------- generic deck ----------
+     cfg: { slides:[{kicker,title,text,vis}], autoplay:ms, canvas:bool, label, onPaint(pos), visible(), extra:html, h:'h1'|'h2' } */
+  function createDeck(root, cfg){
+    var S0=cfg.slides, N=S0.length, H=cfg.h||'h2';
+    root.classList.add('ab-deck'); root.setAttribute('role','region'); root.setAttribute('aria-roledescription','عرض تقديمي'); if(cfg.label) root.setAttribute('aria-label',cfg.label);
+    root.innerHTML=
+      '<div class="ab-deck-stage" tabindex="-1">'+S0.map(function(s,i){
+        return '<section class="ab-slide" role="group" aria-roledescription="شريحة" aria-label="'+(i+1)+' من '+N+'">'+
+          '<div class="ab-slide-copy">'+(s.kicker?'<span class="ab-slide-kicker">'+esc(s.kicker)+'</span>':'')+'<'+H+' class="ab-slide-title">'+esc(s.title)+'</'+H+'><p>'+esc(s.text)+'</p></div>'+
+          (cfg.canvas && s.vis?'<div class="ab-slide-canvas" aria-hidden="true">'+vis(s.vis)+'</div>':'')+'</section>'; }).join('')+'</div>'+
+      '<div class="ab-deck-bar">'+
+        (N>1?'<span class="ab-deck-count" aria-live="polite"><b>01</b> / '+two(N)+'</span>'+
+        '<span class="ab-deck-seg" aria-hidden="true">'+S0.map(function(){ return '<i><u></u></i>'; }).join('')+'</span>':'<span class="ab-deck-fill"></span>')+
+        '<span class="ab-deck-ctl">'+
+          (N>1?'<button type="button" class="ab-deck-btn" data-d="prev" aria-label="الشريحة السابقة">'+I.prev+'</button>'+
+          '<button type="button" class="ab-deck-btn" data-d="toggle" aria-label="إيقاف العرض">'+I.pause+'</button>'+
+          '<button type="button" class="ab-deck-btn" data-d="next" aria-label="الشريحة التالية">'+I.next+'</button>':'')+
+          (cfg.extra||'')+
+        '</span></div>';
+    var stage=root.querySelector('.ab-deck-stage'), slides=[].slice.call(root.querySelectorAll('.ab-slide'));
+    var segs=[].slice.call(root.querySelectorAll('.ab-deck-seg u'));
+    var count=root.querySelector('.ab-deck-count b'), tgl=root.querySelector('[data-d="toggle"]');
+    var rtl=(getComputedStyle(root).direction||document.dir)==='rtl', SG=rtl?-1:1;
+    var DUR=cfg.autoplay||0, cur=0, W=1, paused=reduce||!DUR||N<2, hold=0, elapsed=0, tPrev=0, raf=0, dead=false;
+    var dragging=false, decided=false, x0=0, y0=0, pos0=0, hist=[];
+
+    function width(){ W=stage.getBoundingClientRect().width||1; }
+    function paint(pos){
+      for(var i=0;i<N;i++){
+        var d=i-pos, ad=Math.abs(d), el=slides[i];
+        if(ad>1.2){ el.style.visibility='hidden'; continue; }
+        el.style.visibility='';
+        var copy=el.firstChild, canvas=el.children[1];
+        if(reduce){ el.style.opacity=String(Math.max(0,1-ad)); continue; }
+        copy.style.transform='translate3d('+(d*W*SG)+'px,0,0)';
+        copy.style.opacity=String(Math.max(0,1-ad*1.6));
+        if(canvas){ canvas.style.transform='translate3d('+(d*W*SG*0.55)+'px,0,0) scale('+(1-Math.min(ad,1)*0.08)+')'; canvas.style.opacity=String(Math.max(0,1-ad*2)); }
+      }
+      if(cfg.onPaint) cfg.onPaint(pos);
+    }
+    var sp=new Spring(paint);
+    function progress(p){ segs.forEach(function(u,k){ u.style.transform='scaleX('+(k===cur?p:(k<cur?1:0))+')'; }); }
+    function mark(i){
+      cur=i; if(count) count.textContent=two(i+1);
+      slides.forEach(function(el,k){ var on=k===i; el.setAttribute('aria-hidden',on?'false':'true'); el.classList.toggle('on',on); if(on){ el.classList.remove('play'); void el.offsetWidth; el.classList.add('play'); } });
+      segs.forEach(function(u,k){ u.parentNode.className=k<i?'done':''; });
+      elapsed=0; progress(0);
+    }
+    function go(i, opts){
+      var wrap=i>=N||i<0; i=((i%N)+N)%N; mark(i); if(reduce){ sp.set(i); return; }
+      var from=sp.x; if(wrap || Math.abs(i-from)>1.2){ var dir=wrap?(i===0?1:-1):(i>from?1:-1); sp.stop(); sp.x=i-dir; sp.v=0; }
+      sp.go(i, opts||{response:0.55,damping:1});
+    }
+    function visible(){ if(document.hidden || !root.isConnected) return false; if(cfg.visible) return cfg.visible(); return root.getClientRects().length>0; }
+    function tick(now){
+      if(dead) return;
+      var dt=tPrev?now-tPrev:0; tPrev=now;
+      if(!paused && !hold && !dragging && visible()){ elapsed+=dt; if(elapsed>=DUR) go(cur+1); else progress(elapsed/DUR); }
+      raf=requestAnimationFrame(tick);
+    }
+    function setPaused(p){ paused=p; if(tgl){ tgl.innerHTML=p?I.play:I.pause; tgl.setAttribute('aria-label',p?'تشغيل العرض':'إيقاف العرض'); } root.classList.toggle('paused',p); }
+    function rubber(o){ return (o*0.55)/(1+0.55*o*2); }
+
+    if(N>1){
+      stage.addEventListener('pointerdown', function(e){ if(e.button>0) return; dragging=true; decided=false; x0=e.clientX; y0=e.clientY; pos0=sp.x; hist=[{x:e.clientX,t:e.timeStamp}]; sp.stop(); width(); });
+      stage.addEventListener('pointermove', function(e){
+        if(!dragging) return; var dx=e.clientX-x0, dy=e.clientY-y0;
+        if(!decided){ if(Math.abs(dx)<8 && Math.abs(dy)<8) return; if(Math.abs(dy)>Math.abs(dx)){ dragging=false; go(Math.round(pos0)); return; } decided=true; try{ stage.setPointerCapture(e.pointerId); }catch(_){} root.classList.add('dragging'); }
+        var p=pos0-dx/(W*SG); if(p<0) p=-rubber(-p); else if(p>N-1) p=N-1+rubber(p-(N-1));
+        sp.x=p; paint(p); hist.push({x:e.clientX,t:e.timeStamp}); if(hist.length>6) hist.shift();
+      });
+      var release=function(){
+        if(!dragging) return; dragging=false; root.classList.remove('dragging'); if(!decided){ go(Math.round(pos0)); return; }
+        var a=hist[0], b=hist[hist.length-1], dt=Math.max(1,b.t-a.t), v=-((b.x-a.x)/dt*1000)/(W*SG);
+        var target=Math.max(0,Math.min(N-1,Math.round(sp.x+(v/1000)*0.998/(1-0.998)*0.35)));
+        if(target===Math.round(pos0) && Math.abs(v)>0.6) target=Math.max(0,Math.min(N-1,Math.round(pos0)+(v>0?1:-1)));
+        mark(target); sp.go(target,{v:v, response:0.5, damping:Math.abs(v)>0.6?0.86:1});
+      };
+      stage.addEventListener('pointerup', release); stage.addEventListener('pointercancel', release);
+      stage.addEventListener('dragstart', function(e){ e.preventDefault(); });
+      root.addEventListener('keydown', function(e){ if(e.target.closest('input,textarea,select')) return; var f=rtl?{ArrowLeft:1,ArrowRight:-1}:{ArrowLeft:-1,ArrowRight:1}; if(f[e.key]==null) return; e.preventDefault(); go(cur+f[e.key]); });
+    }
+    root.addEventListener('click', function(e){ var b=e.target.closest('.ab-deck-btn[data-d]'); if(!b) return; var d=b.getAttribute('data-d');
+      if(d==='toggle') setPaused(!paused); else if(d==='prev'||d==='next') go(cur+(d==='next'?1:-1)); });
+    root.addEventListener('pointerenter', function(e){ if(e.pointerType==='mouse') hold++; });
+    root.addEventListener('pointerleave', function(e){ if(e.pointerType==='mouse') hold=Math.max(0,hold-1); });
+    root.addEventListener('focusin', function(){ hold++; }); root.addEventListener('focusout', function(){ hold=Math.max(0,hold-1); });
+    var onResize=function(){ width(); paint(sp.x); }; window.addEventListener('resize', onResize);
+    width(); setPaused(paused); mark(0); sp.set(0);
+    if(DUR && N>1) raf=requestAnimationFrame(tick);
+    return { go:go, cur:function(){ return cur; }, pause:setPaused, replay:function(){ mark(cur); },
+      destroy:function(){ dead=true; cancelAnimationFrame(raf); sp.stop(); window.removeEventListener('resize', onResize); } };
+  }
+
+  /* ---------- 1. sign-in deck (outside): general, black / red split ---------- */
+  var LOGIN=[
+    { kicker:'علوش البازار', title:'أهلًا بيك', text:'سجّل دخولك عشان تبدأ يومك.' },
+    { kicker:'فريق واحد', title:'كل الفروع على نظام واحد', text:'نفس البيانات، لحظة بلحظة، في كل فرع.' },
+    { kicker:'صلاحياتك', title:'كل واحد يشوف اللي يخصه', text:'الإدارة بتحدد لكل مستخدم الصفحات المسموحة له.' },
+    { kicker:'أمان حسابك', title:'حسابك مسؤوليتك', text:'ماتشاركش كلمة المرور، وسجّل خروج لو الجهاز مش بتاعك.' }
+  ];
+  /* where the split line sits on each slide: [top x %, bottom x %] measured from the left edge */
+  var SPLIT=[[44,30],[30,58],[56,40],[38,46]];
+  function initLogin(aside){
+    var deck=aside.querySelector('.ab-deck'); if(!deck || deck.getAttribute('data-ready')) return; deck.setAttribute('data-ready','1');
+    var mods=aside.querySelector('.ab-login-modules'); if(mods){ mods.innerHTML=''; mods.hidden=true; }
+    aside.classList.add('ab-split-aside');
+    var layer=document.createElement('div'); layer.className='ab-split'; layer.setAttribute('aria-hidden','true');
+    layer.innerHTML='<div class="ab-split-dark"></div><div class="ab-split-mark ab-split-mark-red"><span>ع</span></div><div class="ab-split-mark ab-split-mark-dark"><span>ع</span></div><div class="ab-split-edge"></div>';
+    aside.insertBefore(layer, aside.firstChild);
+    var lp=document.getElementById('loginPage');
+    var ctl=createDeck(deck,{ slides:LOGIN, autoplay:6000, canvas:false, h:'h1', label:'ترحيب',
+      visible:function(){ if(!lp) return false; var cs=getComputedStyle(lp); return cs.display!=='none' && cs.visibility!=='hidden' && lp.getClientRects().length>0; },
+      onPaint:function(pos){
+        var n=SPLIT.length, i=Math.max(0,Math.min(n-1,Math.floor(pos))), j=Math.min(n-1,i+1), t=Math.max(0,Math.min(1,pos-i));
+        if(pos<0){ i=j=0; } var a=SPLIT[i][0]+(SPLIT[j][0]-SPLIT[i][0])*t, b=SPLIT[i][1]+(SPLIT[j][1]-SPLIT[i][1])*t;
+        aside.style.setProperty('--sa',a.toFixed(2)); aside.style.setProperty('--sb',b.toFixed(2));
+        aside.style.setProperty('--mx',(pos*-26).toFixed(1)+'px');
+      } });
+    window.ABDeck.go=ctl.go; window.ABDeck.cur=ctl.cur; window.ABDeck.pause=ctl.pause;
+  }
+
+  /* ---------- 2. inside: a deck per section ---------- */
+  var SECTIONS={
+    attendance:{ sel:'#tab-attendance', name:'الحضور', slides:[
+      { kicker:'الحضور والانصراف', title:'البصمة بالكود، والتأخير بيتحسب لوحده', text:'كل حضور بيتقارن بميعاد الموظف، والتأخير والجزاءات بتتحسب تلقائي.', vis:'attendance' },
+      { kicker:'الحضور والانصراف', title:'سجّل في ثانية', text:'اكتب كود الموظف أو امسحه، اختار حضور أو انصراف، ودوس تسجيل.', vis:'att-register' },
+      { kicker:'الحضور والانصراف', title:'تقارير جاهزة', text:'فلتر السجل باليوم أو الأسبوع أو الشهر، وصدّره Excel.', vis:'att-report' } ] },
+    products:{ sel:'#tab-products', name:'التواريخ', slides:[
+      { kicker:'التواريخ', title:'ولا صنف يعدّي تاريخه', text:'تابع صلاحية كل صنف في كل فرع قبل ما ينتهي بوقت كافي.', vis:'dates' },
+      { kicker:'التواريخ', title:'ضيف الصنف بالباركود', text:'الباركود والكمية وتاريخ الانتهاء، والفرع بيتسجل معاه.', vis:'dates-add' },
+      { kicker:'التواريخ', title:'الألوان بتقولك', text:'أحمر قرب ينتهي، برتقالي خلّي بالك، وأخضر لسه بدري.', vis:'dates-legend' } ] },
+    transfers:{ sel:'#tab-transfers', name:'التحويلات', slides:[
+      { kicker:'التحويلات', title:'تحويل بين الفروع في خطوة', text:'من فرع لفرع، بالكمية والتاريخ، وكل تحويل متسجل.', vis:'transfers' },
+      { kicker:'التحويلات', title:'امسح وضيف', text:'امسح الباركود، حدد الكمية، وضيف الصنف لقائمة التحويل.', vis:'tr-scan' },
+      { kicker:'التحويلات', title:'محمي من الأخطاء', text:'الصنف اللي تاريخه انتهى مش هيتحوّل.', vis:'tr-guard' } ] },
+    prices:{ sel:'#tab-prices', name:'الأسعار', slides:[
+      { kicker:'الأسعار', title:'امسح الباركود، واعرف السعر في ثانية', text:'سعر البيع والتكلفة في الفرعين جنب بعض.', vis:'prices' },
+      { kicker:'الأسعار', title:'بالكاميرا', text:'شغّل الكاميرا ووجّهها على الباركود، والسعر بيظهر لوحده.', vis:'pr-cam' },
+      { kicker:'الأسعار', title:'قارن الفرعين', text:'صفحة المقارنة بتجمعلك الأصناف اللي سعرها مختلف.', vis:'pr-compare' } ] },
+    overview:{ sel:'#abHome', after:'.ab-home-head', name:'نظرة عامة', perm:'all', slides:[
+      { kicker:'نظرة عامة', title:'كل فروعك في نظام واحد', text:'الحضور والتواريخ والتحويلات والأسعار وشؤون الموظفين، متصلة لحظيًا بكل الفروع.', vis:'overview' } ] }
+  };
+  function ST(){ try{ return (typeof State!=='undefined')?State:null; }catch(e){ return null; } }
+  function userKey(){ var st=ST(), u=st&&st.currentUser; return u?String(u.username||u.id||''):''; }
+  function perms(){ var st=ST(), u=st&&st.currentUser; return (u&&Array.isArray(u.permissions))?u.permissions:[]; }
+  function store(k,v){ try{ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }catch(_){ return null; } }
+  function hiddenKey(id){ return 'ab_intro_hidden_'+id+'_'+userKey(); }
+  var mounted={};
+  function mountSection(id){
+    var c=SECTIONS[id], host=document.querySelector(c.sel); if(!host) return;
+    var box=mounted[id];
+    if(c.perm && perms().indexOf(c.perm)<0){ if(box){ if(box.ctl) box.ctl.destroy(); box.el.remove(); delete mounted[id]; } return; }
+    if(!box){
+      var el=document.createElement('section'); el.className='ab-intro'; el.setAttribute('data-intro',id);
+      var anchor=c.after?host.querySelector(c.after):null;
+      if(anchor && anchor.nextSibling) host.insertBefore(el, anchor.nextSibling); else if(anchor) host.appendChild(el); else host.insertBefore(el, host.firstChild);
+      box=mounted[id]={ el:el, ctl:null, user:'' };
+    }
+    if(box.user===userKey() && box.el.childNodes.length) return;
+    box.user=userKey(); render(id);
+  }
+  function render(id){
+    var c=SECTIONS[id], box=mounted[id]; if(!box) return;
+    if(box.ctl){ box.ctl.destroy(); box.ctl=null; }
+    var el=box.el, hidden=store(hiddenKey(id))==='1';
+    el.className='ab-intro'+(hidden?' ab-intro-min':'');
+    if(hidden){
+      el.innerHTML='<button type="button" class="ab-intro-pill">'+I.spark+'<span>عرض تعريفي · '+esc(c.name)+'</span></button>';
+      el.firstChild.addEventListener('click', function(){ store(hiddenKey(id),'0'); render(id); });
+      return;
+    }
+    el.innerHTML='<div class="ab-intro-deck"></div>';
+    box.ctl=createDeck(el.firstChild,{ slides:c.slides, autoplay:8000, canvas:true, label:'عرض تعريفي — '+c.name,
+      extra:'<button type="button" class="ab-deck-btn ab-intro-close" aria-label="إخفاء العرض التعريفي">'+I.close+'</button>' });
+    el.querySelector('.ab-intro-close').addEventListener('click', function(){ store(hiddenKey(id),'1'); render(id); });
+  }
+  function mountAll(){ if(!userKey()) return; Object.keys(SECTIONS).forEach(mountSection); }
+  /* the notifications slide lives inside the notification center (only people who can open it see it) */
+  function notifyCard(panel){
+    if(!panel || !userKey()) return;
+    var body=panel.querySelector('.ab-ntf-body'); if(!body || body.querySelector('.ab-intro-ntf')) return;
+    if(store(hiddenKey('notify'))==='1') return;
+    var el=document.createElement('div'); el.className='ab-intro-ntf';
+    el.innerHTML='<div class="ab-intro-ntf-canvas" aria-hidden="true">'+vis('notify')+'</div>'+
+      '<div class="ab-intro-ntf-copy"><b>اللي يهمك بس، على موبايلك</b><p>بيوصلك إشعار عن الصفحات اللي في صلاحياتك بس. فعّل الإشعارات على الجهاز ده من فوق.</p>'+
+      '<button type="button" class="ab-deck-btn ab-intro-close" aria-label="إخفاء">'+I.close+'</button></div>';
+    body.insertBefore(el, body.firstChild);
+    requestAnimationFrame(function(){ el.classList.add('play'); });
+    el.querySelector('.ab-intro-close').addEventListener('click', function(e){ e.stopPropagation(); store(hiddenKey('notify'),'1'); el.remove(); });
+  }
+  function boot(){
+    var last='', t=0;
+    (function poll(){ var u=userKey(); if(u!==last){ last=u; if(u) mountAll(); } if(u){ Object.keys(SECTIONS).forEach(function(id){ if(!mounted[id] || !mounted[id].el.isConnected){ delete mounted[id]; mountSection(id); } }); } t=setTimeout(poll, 1500); })();
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+
+  window.ABDeck={ init:initLogin, create:createDeck, sections:SECTIONS, mountAll:mountAll, notifyCard:notifyCard, slides:LOGIN.length };
+})();
+
 /* ALLOSH BAZAR — UI shell v3 (presentation only).
    Sidebar chrome, header, smart home, command palette and motion.
    Reads existing data (State, rendered counters) and reuses existing controls via
@@ -31971,14 +32981,14 @@ var ABSFX=(function(){
     var aside=document.createElement('aside'); aside.className='ab-login-aside';
     aside.innerHTML=
       '<div class="ab-login-brand"><span class="ab-mark" id="abLogoSecret" aria-hidden="true">ع</span><span>علوش البازار</span></div>'+
-      '<div class="ab-login-hero" aria-hidden="true"><h1>إدارة الفروع والموظفين من مكان واحد</h1>'+
-      '<p>الحضور والانصراف، المخازن والتحويلات، والتسعير وشؤون الموظفين في نظام واحد متصل بكل الفروع.</p></div>'+
-      '<div class="ab-login-modules" aria-hidden="true"><span>الحضور</span><span>المخازن</span><span>التحويلات</span><span>التسعير</span><span>الموارد البشرية</span></div>';
+      '<div class="ab-login-hero ab-deck" role="region" aria-roledescription="عرض تقديمي" aria-label="تعريف بالنظام"></div>'+
+      '<div class="ab-login-modules" role="tablist" aria-label="شرائح العرض"></div>';
     lp.insertBefore(aside, lp.firstChild);
     var card=q('.glass-card',lp);
     if(card && !q('.ab-login-foot',card)){ var f=document.createElement('p'); f.className='ab-login-foot'; f.textContent='الدخول لحسابات موظفي علوش البازار فقط. لو نسيت كلمة المرور، تواصل مع مدير النظام.'; card.appendChild(f); }
     setupPrank(lp, card);
     guardRestore();
+    if(window.ABDeck) window.ABDeck.init(aside);
     chipProximity(aside);
   }
   /* Keep the loading screen up while a remembered session is being restored, so the
@@ -31994,7 +33004,7 @@ var ABSFX=(function(){
   /* The five module chips lean toward the pointer as it approaches. */
   function chipProximity(aside){
     var wrap=q('.ab-login-modules',aside); if(!wrap || !(window.matchMedia && matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
-    var chips=qa('span',wrap), raf=0, mx=-1e4, my=-1e4;
+    var chips=qa('button',wrap), raf=0, mx=-1e4, my=-1e4;
     function paint(){ raf=0; chips.forEach(function(c){ var r=c.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
       var d=Math.hypot(mx-cx, my-cy), p=Math.max(0, 1-d/180); p=Math.round(p*100)/100;
       c.style.setProperty('--p', p); c.style.setProperty('--px', ((mx-cx)/Math.max(d,1)*p*6).toFixed(1)+'px'); c.style.setProperty('--py', ((my-cy)/Math.max(d,1)*p*6).toFixed(1)+'px'); }); }
@@ -32788,11 +33798,11 @@ var ABSFX=(function(){
         var cr=card.getBoundingClientRect();
         var ox=pt ? Math.max(0, Math.min(cr.width, pt.x-cr.left)) : cr.width/2, oy=pt ? Math.max(0, Math.min(cr.height, pt.y-cr.top)) : cr.height/2;
         card.style.setProperty('--ab-mo', ox.toFixed(0)+'px '+oy.toFixed(0)+'px');
-        card.classList.remove('ab-grow'); void card.offsetWidth; card.classList.add('ab-grow');
+        card.classList.remove('ab-grow','ab-grown'); void card.offsetWidth; card.classList.add('ab-grow');
       });
     });
     list.forEach(function(m){ mo.observe(m,{attributes:true, attributeFilter:['style','class']}); });
-    document.addEventListener('animationend', function(e){ if(e.target.classList && e.target.classList.contains('ab-grow')) e.target.classList.remove('ab-grow'); }, true);
+    document.addEventListener('animationend', function(e){ if(e.target.classList && e.target.classList.contains('ab-grow')) { e.target.classList.add('ab-grown'); e.target.classList.remove('ab-grow'); } }, true);
   }
 
   /* ---------- 7. quick fade on every page switch ---------- */
@@ -33025,6 +34035,7 @@ var ABSFX=(function(){
       }).join('')+'</ul>';
     }
     panel.innerHTML='<div class="ab-ntf-card">'+header('الإشعارات')+deviceRow()+chips+'<div class="ab-ntf-body">'+body+'</div></div>';
+    if(window.ABDeck && ABDeck.notifyCard) try{ ABDeck.notifyCard(panel); }catch(_){}
   }
   function tg(id,label,on,hint){ return '<label class="ab-ntf-row"><span><b>'+label+'</b>'+(hint?'<small>'+hint+'</small>':'')+'</span><input type="checkbox" class="ab-ntf-sw" data-k="'+id+'"'+(on?' checked':'')+'></label>'; }
   function times(id,val){ var o=''; for(var h=0;h<24;h++){ var v=(h<10?'0':'')+h+':00'; var lab=new Intl.DateTimeFormat('ar-EG-u-nu-latn',{hour:'numeric',timeZone:'UTC'}).format(new Date(Date.UTC(2020,0,1,h))); o+='<option value="'+v+'"'+(v===val?' selected':'')+'>'+lab+'</option>'; } return '<select class="ab-ntf-sel" data-k="'+id+'">'+o+'</select>'; }
@@ -33092,6 +34103,663 @@ var ABSFX=(function(){
   setInterval(function(){ if(open && view==='list') render(); }, 60000);
   window.addEventListener('resize',function(){ if(open) place(); });
   window.ABNotify={open:show,close:close,prefs:function(){ return prefs; },items:function(){ return items; }};
+})();
+
+/* ALLOSH BAZAR — v4 Apple layer helpers (presentation only).
+   The prices page builds its result with emoji labels (📦 🏙 🗑 ⚡ ...). They are
+   stripped from the visible text only — values, barcodes and handlers stay as they are. */
+(function(){
+  'use strict';
+  var EMO=/(?:[⌀-⏿☀-➿⬀-⯿]|\ud83c[\udc00-\udfff]|\ud83d[\udc00-\udfff]|\ud83e[\udc00-\udfff])️?\s?/g;
+  var KEEP=/^[▲▼←→↑↓—–•·…]$/;
+  function clean(root){
+    if(!root) return;
+    var w=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, list=[];
+    while((n=w.nextNode())) list.push(n);
+    list.forEach(function(t){
+      if(t.parentNode && t.parentNode.closest && t.parentNode.closest('svg,script,style,input,textarea')) return;
+      var v=t.nodeValue, out=v.replace(EMO, function(m){ return KEEP.test(m.trim())?m:''; });
+      if(out!==v) t.nodeValue=out;
+    });
+  }
+  function watch(sel){
+    var el=document.querySelector(sel); if(!el) return;
+    setTimeout(function(){ clean(el); }, 300);
+    /* ab-icons turns the emoji it knows into line icons on the next frame; only the
+       leftovers are removed here, two frames later */
+    var t=0;
+    new MutationObserver(function(){ if(t) return; t=requestAnimationFrame(function(){ requestAnimationFrame(function(){ t=0; clean(el); }); }); }).observe(el,{childList:true,subtree:true,characterData:true});
+  }
+  function init(){ ['#rc','#hlst','#prTstC','#pg-search .stabs','.tst-c'].forEach(watch); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', init); else init();
+  window.ABApple={ clean:clean };
+})();
+
+/* ALLOSH BAZAR — «تنبيهات الموظفين»: admin screen for the employee-notifications API.
+   It only talks to the Cloudflare Worker API (never writes employee data itself, except saving
+   the public API address at employeeNotify/public/apiUrl so the employee page can find it).
+   Visible to: all, employeeNotify («تنبيهات الموظفين»), broadcast («الرسائل الجماعية»). */
+(function(){
+  'use strict';
+  function S(){ try{ return (typeof State!=='undefined')?State:null; }catch(e){ return null; } }
+  function DB(){ try{ return (typeof db!=='undefined')?db:null; }catch(e){ return null; } }
+  function me(){ var s=S(); return s&&s.currentUser||null; }
+  function perms(){ var u=me(); return (u&&Array.isArray(u.permissions))?u.permissions:[]; }
+  function has(p){ var x=perms(); return x.indexOf('all')>-1 || x.indexOf(p)>-1; }
+  function canManage(){ return has('employeeNotify'); }
+  function canBroadcast(){ return has('broadcast'); }
+  function allowed(){ return !!me() && (canManage() || canBroadcast()); }
+  function q(s,r){ return (r||document).querySelector(s); }
+  function qa(s,r){ return [].slice.call((r||document).querySelectorAll(s)); }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function toast(m,t){ try{ UI.toast(m,t||'info'); }catch(e){} }
+  function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){ return null; } }
+  function ss(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k); if(v===null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){ return null; } }
+  var NS='http://www.w3.org/2000/svg';
+  var P={ mega:'<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>',
+    send:'<path d="m4 12 16-8-6 16-2.5-6.5z"/>', key:'<circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/>', bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+    trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7l1-3h4l1 3"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+    wa:'<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.5 2.5 2.5 4.5 5 5l1.2-1.2 2 1-1 1.7c-3.3.3-7.7-4-7.4-7.4L10.5 7.6l1 2z"/>', refresh:'<path d="M20 11a8 8 0 0 0-14-4l-2 2M4 5v4h4M4 13a8 8 0 0 0 14 4l2-2M20 19v-4h-4"/>' };
+  function svg(n){ return '<svg class="ab-en-i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" xmlns="'+NS+'">'+(P[n]||'')+'</svg>'; }
+  var DAYS=['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'], DAYA=['ح','ن','ث','ر','خ','ج','س'];
+  function emps(n){ n=Number(n)||0; return n===0?'مفيش موظفين':n===1?'موظف واحد':n===2?'موظفين اتنين':(n<=10?n+' موظفين':n+' موظف'); }
+  var TYPE={ reminder:'قبل الدوام', late:'تأخير', noShow:'عدم حضور', leaveApproved:'موافقة إجازة', leaveRejected:'رفض إجازة', permitOut:'خروج بإذن', permitBack:'رجوع من إذن', broadcast:'رسالة جماعية', test:'تجربة' };
+  var STATUS={ sent:'اتبعت', failed:'فشل', skipped:'اتخطّى', queued:'في الانتظار', sending:'بيتبعت', done:'خلص', cancelled:'اتلغى', paused:'متوقف' };
+  var REASON={ no_device:'مفعّلش الإشعارات', budget:'هيتبعت الدقيقة الجاية' };
+
+  /* ---------- API ---------- */
+  var API_KEY='ab_empn_api', TOK_KEY='ab_empn_tok';
+  var apiUrl=ls(API_KEY)||'';
+  function loadApiUrl(){ var d=DB(); if(!d) return Promise.resolve(apiUrl); return d.ref('employeeNotify/public/apiUrl').once('value').then(function(s){ var v=s.val(); if(v && /^https:\/\//.test(v)){ apiUrl=String(v).replace(/\/+$/,''); ls(API_KEY,apiUrl); } return apiUrl; }).catch(function(){ return apiUrl; }); }
+  function session(force){
+    var t=ss(TOK_KEY); if(t && !force){ try{ var j=JSON.parse(t); if(j.exp>Date.now()+60000 && j.user===((me()||{}).username)) return Promise.resolve(j.token); }catch(e){} }
+    var saved={}; try{ saved=JSON.parse(ls('loggedUser')||'{}'); }catch(e){}
+    var u=me(); if(!u || !saved.passwordHash) return Promise.reject(new Error('سجّل الدخول للسيستم تاني'));
+    return raw('POST','/api/session',{ username:u.username, passwordHash:saved.passwordHash }).then(function(j){ ss(TOK_KEY, JSON.stringify({ token:j.token, exp:j.expiresAt, user:u.username })); return j.token; });
+  }
+  function raw(method, path, body, token){
+    if(!apiUrl) return Promise.reject(Object.assign(new Error('رابط سيرفر الإشعارات مش متضبط'),{code:'no_api'}));
+    var h={ 'content-type':'application/json' }; if(token) h.authorization='Bearer '+token;
+    return fetch(apiUrl+path,{ method:method, headers:h, body: body?JSON.stringify(body):undefined }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok){ var e=new Error(j.error||('خطأ '+r.status)); e.code=j.code; e.status=r.status; throw e; } return j; });
+    }, function(){ throw Object.assign(new Error('مش قادر أوصل لسيرفر الإشعارات'),{code:'network'}); });
+  }
+  function api(method, path, body){
+    return session().then(function(t){ return raw(method,path,body,t); }).catch(function(e){
+      if(e.status===401 && e.code==='session_expired') return session(true).then(function(t){ return raw(method,path,body,t); });
+      throw e;
+    });
+  }
+
+  /* ---------- UI ---------- */
+  var root=null, tab='broadcast', cache={ employees:null, groups:null };
+  function nav(){
+    var tw=q('.tabs-wrapper'); if(!tw) return;
+    var b=q('.ab-empn-nav',tw);
+    if(!allowed()){ if(b) b.remove(); return; }
+    if(b) return;
+    b=document.createElement('button'); b.type='button'; b.className='ab-home-btn ab-empn-nav';
+    b.innerHTML='<span aria-hidden="true">'+svg('mega')+'</span> تنبيهات الموظفين';
+    b.addEventListener('click', function(){ open(); });
+    tw.appendChild(b);
+  }
+  function open(t){
+    if(!allowed()) return;
+    if(!root){ root=document.createElement('div'); root.id='abEmpN'; root.className='ab-en'; root.setAttribute('role','dialog'); root.setAttribute('aria-modal','true'); root.setAttribute('aria-labelledby','abEnTitle');
+      root.addEventListener('click', onClick); root.addEventListener('input', onInput); root.addEventListener('change', onInput);
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape' && root && !root.hidden) close(); });
+      document.body.appendChild(root); }
+    tab=t||(canBroadcast()?'broadcast':'employees');
+    root.hidden=false; document.body.classList.add('ab-en-open');
+    requestAnimationFrame(function(){ root.classList.add('on'); });
+    loadApiUrl().then(render);
+  }
+  function close(){ if(!root) return; root.classList.remove('on'); document.body.classList.remove('ab-en-open'); setTimeout(function(){ if(root && !root.classList.contains('on')) root.hidden=true; }, 260); }
+  function tabs(){
+    var t=[]; if(canBroadcast()) t.push(['broadcast','رسالة جماعية']); if(canManage()) t.push(['employees','الموظفين']); t.push(['log','السجل']); if(canManage()) t.push(['settings','الإعدادات']);
+    return '<div class="ab-en-seg" role="tablist">'+t.map(function(x){ return '<button type="button" role="tab" data-tab="'+x[0]+'" aria-selected="'+(tab===x[0])+'">'+x[1]+'</button>'; }).join('')+'</div>';
+  }
+  function shell(body){
+    root.innerHTML='<div class="ab-en-scrim" data-act="close"></div><div class="ab-en-sheet">'+
+      '<div class="ab-en-head"><div><h2 id="abEnTitle">تنبيهات الموظفين</h2><p>رسايل وتنبيهات بتوصل لموبايل الموظف نفسه</p></div>'+
+      '<button type="button" class="ab-en-ib" data-act="close" aria-label="إغلاق">'+svg('x')+'</button></div>'+
+      (apiUrl?tabs():'')+'<div class="ab-en-body">'+body+'</div></div>';
+  }
+  function loading(){ return '<div class="ab-en-empty"><span class="ab-en-spin"></span>جارٍ التحميل…</div>'; }
+  function errBox(e){
+    if(e && e.code==='no_api') return setupBox();
+    return '<div class="ab-en-card ab-en-err"><b>'+esc(e.message||e)+'</b>'+(e.code==='not_configured'?'<p>السيرفر محتاج Secret اسمه API_SECRET. راجع دليل التركيب.</p>':'')+'<button type="button" class="ab-en-btn ghost" data-act="retry">'+svg('refresh')+' حاول تاني</button></div>';
+  }
+  function setupBox(){
+    return '<div class="ab-en-card"><h3>اربط السيستم بسيرفر الإشعارات</h3><p class="ab-en-mut">اكتب رابط الـ Worker اللي على Cloudflare (بيخلص بـ workers.dev).</p>'+
+      '<label class="ab-en-f"><span>رابط السيرفر</span><input type="url" id="enApi" dir="ltr" placeholder="https://allosh-notify.xxx.workers.dev" value="'+esc(apiUrl)+'"></label>'+
+      '<button type="button" class="ab-en-btn" data-act="saveapi">اختبار وحفظ</button><p class="ab-en-mut" id="enApiMsg"></p></div>';
+  }
+  function render(){
+    if(!root) return;
+    if(!apiUrl){ shell(canManage()?setupBox():'<div class="ab-en-card"><b>سيرفر الإشعارات لسه ماتربطش.</b><p class="ab-en-mut">اطلب من مدير النظام يضبطه من شاشة «تنبيهات الموظفين».</p></div>'); return; }
+    shell(loading());
+    var body=q('.ab-en-body',root);
+    var p = tab==='broadcast'?viewBroadcast():tab==='employees'?viewEmployees():tab==='log'?viewLog():viewSettings();
+    p.then(function(html){ body.innerHTML=html; afterRender(); }).catch(function(e){ body.innerHTML=errBox(e); });
+  }
+  function employees(force){ if(cache.employees && !force) return Promise.resolve(cache.employees); return api('GET','/api/employees').then(function(j){ cache.employees=j; return j; }); }
+  function groups(force){ if(cache.groups && !force) return Promise.resolve(cache.groups); return api('GET','/api/groups').then(function(j){ cache.groups=j.groups; return j.groups; }); }
+
+  /* ----- broadcast ----- */
+  var bc={ type:'all', values:[], urgent:false, when:'' };
+  function viewBroadcast(){
+    return Promise.all([employees(), groups(), api('GET','/api/broadcasts')]).then(function(r){
+      var E=r[0], G=r[1], B=r[2].broadcasts;
+      var opts = bc.type==='branch'?E.branches.map(function(b){ return [b,b]; }) : bc.type==='job'?E.jobs.map(function(b){ return [b,b]; }) : bc.type==='group'?G.map(function(g){ return [g.id,g.name+' ('+g.members.length+')']; }) : bc.type==='employees'?E.employees.filter(function(e){ return e.active; }).map(function(e){ return [e.key,e.name+' · '+e.code]; }) : [];
+      return '<div class="ab-en-grid"><section class="ab-en-card"><h3>رسالة جديدة</h3>'+
+        '<label class="ab-en-f"><span>العنوان</span><input id="enTitle" maxlength="80" placeholder="مثال: اجتماع الفرع"></label>'+
+        '<label class="ab-en-f"><span>نص الرسالة <em id="enCount">0/500</em></span><textarea id="enBody" maxlength="500" rows="4" placeholder="اكتب الرسالة اللي هتوصل للموظفين"></textarea></label>'+
+        '<div class="ab-en-f"><span>تتبعت لمين</span><div class="ab-en-seg sm">'+[['all','الكل'],['branch','فرع'],['job','وظيفة'],['group','مجموعة'],['employees','موظفين']].map(function(t){ return '<button type="button" data-bt="'+t[0]+'" aria-pressed="'+(bc.type===t[0])+'">'+t[1]+'</button>'; }).join('')+'</div></div>'+
+        (bc.type==='all'?'':'<div class="ab-en-f">'+(bc.type==='employees'?'<input id="enFind" placeholder="دوّر بالاسم أو الكود">':'')+'<div class="ab-en-chips" id="enChips">'+(opts.length?opts.map(function(o){ return '<button type="button" data-bv="'+esc(o[0])+'" aria-pressed="'+(bc.values.indexOf(o[0])>-1)+'">'+esc(o[1])+'</button>'; }).join(''):'<span class="ab-en-mut">'+(bc.type==='group'?'مفيش مجموعات لسه. اختار «موظفين» وحدد ناس واحفظهم كمجموعة.':'مفيش اختيارات')+'</span>')+'</div>'+
+          (bc.type==='employees'?'<button type="button" class="ab-en-link" data-act="savegroup">احفظ المختارين كمجموعة</button>':'')+'</div>')+
+        '<div class="ab-en-row"><label class="ab-en-check"><input type="checkbox" id="enUrgent"'+(bc.urgent?' checked':'')+'> عاجلة (تتبعت حتى في ساعات الهدوء)</label></div>'+
+        '<label class="ab-en-f"><span>ميعاد الإرسال (اختياري)</span><input type="datetime-local" id="enWhen" value="'+esc(bc.when)+'"></label>'+
+        '<div class="ab-en-reach" id="enReach">—</div>'+
+        '<button type="button" class="ab-en-btn" data-act="send" id="enSend">'+svg('send')+' إرسال</button></section>'+
+        '<section class="ab-en-card"><h3>آخر الرسايل</h3>'+(B.length?'<ul class="ab-en-list">'+B.map(function(b){
+          var c=b.counts||{}; return '<li><div class="ab-en-li-h"><b>'+esc(b.title)+'</b><span class="ab-en-st st-'+esc(b.status)+'">'+esc(STATUS[b.status]||b.status)+'</span></div><p>'+esc(b.body)+'</p>'+
+            '<small>'+esc(fmt(b.createdAt))+' • '+esc(b.createdBy||'')+' • '+esc(targetText(b.target))+'</small>'+
+            '<small class="ab-en-counts">اتبعت '+(c.sent||0)+' • فشل '+(c.failed||0)+' • مش مفعّل '+(c.noDevice||0)+' من '+(b.total||0)+'</small>'+
+            ((b.status==='queued'||b.status==='sending'||b.status==='paused')?'<button type="button" class="ab-en-link danger" data-act="cancel" data-id="'+esc(b.id)+'">إلغاء الإرسال</button>':'')+'</li>'; }).join('')+'</ul>':'<div class="ab-en-empty">لسه مفيش رسايل جماعية.</div>')+'</section></div>';
+    });
+  }
+  function targetText(t){ if(!t) return ''; var n={all:'كل الموظفين',branch:'فرع',job:'وظيفة',group:'مجموعة',employees:'موظفين محددين'}[t.type]||''; return t.type==='all'?n:n+': '+(t.type==='employees'||t.type==='group'?(t.values||[]).length:(t.values||[]).join('، ')); }
+  function fmt(ts){ try{ return new Intl.DateTimeFormat('ar-EG',{ timeZone:'Africa/Cairo', day:'numeric', month:'numeric', hour:'numeric', minute:'2-digit' }).format(new Date(ts)); }catch(e){ return ''; } }
+  var reachT=0;
+  function updateReach(){
+    var el=q('#enReach',root); if(!el) return;
+    if(bc.type!=='all' && !bc.values.length){ el.textContent='اختار المستلمين'; return; }
+    el.textContent='بحسب…'; clearTimeout(reachT);
+    reachT=setTimeout(function(){ api('POST','/api/reach',{ target:{ type:bc.type, values:bc.values } }).then(function(j){
+      el.innerHTML='هتوصل لـ <b>'+emps(j.employees)+'</b> — <b>'+j.reachable+'</b> منهم مفعّلين الإشعارات'+(j.reachable<j.employees?'<small>الباقيين محتاجين يربطوا موبايلاتهم من «الموظفين».</small>':''); el.dataset.n=j.employees;
+    }).catch(function(e){ el.textContent=e.message; }); }, 250);
+  }
+
+  /* ----- employees ----- */
+  var empFilter={ q:'', branch:'' };
+  function viewEmployees(){
+    return employees().then(function(E){
+      var list=E.employees.filter(function(e){ return (!empFilter.branch||e.branch===empFilter.branch) && (!empFilter.q||e.name.indexOf(empFilter.q)>-1||String(e.code).indexOf(empFilter.q)>-1); });
+      return '<div class="ab-en-card"><div class="ab-en-toolbar"><input id="enEmpQ" placeholder="دوّر بالاسم أو الكود" value="'+esc(empFilter.q)+'"><select id="enEmpBr"><option value="">كل الفروع</option>'+E.branches.map(function(b){ return '<option'+(b===empFilter.branch?' selected':'')+'>'+esc(b)+'</option>'; }).join('')+'</select>'+
+        '<span class="ab-en-mut">'+E.withDevice+' من '+E.total+' مفعّلين</span></div>'+
+        '<div class="ab-en-pin" id="enPin" hidden></div>'+
+        '<ul class="ab-en-list ab-en-emps">'+list.map(function(e){
+          var rd=e.restDays||[];
+          return '<li data-key="'+esc(e.key)+'"><div class="ab-en-emp"><span class="ab-en-av">'+esc(e.name.charAt(0))+'</span><div><b>'+esc(e.name)+'</b><small>كود '+esc(e.code)+' • '+esc(e.branch||'—')+(e.shiftStart?' • ميعاده '+esc(e.shiftStart):' • مفيش ميعاد دوام')+(e.source==='b'?' • بصمة البازار':'')+(e.active?'':' • غير نشط')+'</small></div>'+
+            '<span class="ab-en-st '+(e.devices?'st-sent':'st-skipped')+'">'+(e.devices?'مفعّل'+(e.devices>1?' ('+e.devices+')':''):'مش مفعّل')+'</span></div>'+
+            '<div class="ab-en-emp-a"><span class="ab-en-days" title="أيام الراحة: مفيش تنبيه حضور فيها">'+DAYS.map(function(d,i){ return '<button type="button" data-day="'+i+'" aria-pressed="'+(rd.indexOf(i)>-1)+'" aria-label="راحة يوم '+d+'">'+DAYA[i]+'</button>'; }).join('')+'</span>'+
+            '<button type="button" class="ab-en-btn sm ghost" data-act="pair">'+svg('key')+' رمز ربط</button>'+
+            (e.devices?'<button type="button" class="ab-en-btn sm ghost" data-act="test">'+svg('bell')+' تجربة</button><button type="button" class="ab-en-ib sm" data-act="unlink" aria-label="إلغاء ربط أجهزة '+esc(e.name)+'">'+svg('trash')+'</button>':'')+'</div></li>'; }).join('')+'</ul>'+
+        (list.length?'':'<div class="ab-en-empty">مفيش موظفين بالبحث ده.</div>')+'</div>';
+    });
+  }
+  function waLink(phone, text){ var p=String(phone||'').replace(/\D/g,''); if(/^01\d{9}$/.test(p)) p='2'+p; return 'https://wa.me/'+(p.length>=11?p:'')+'?text='+encodeURIComponent(text); }
+
+  /* ----- log ----- */
+  var logF={ type:'', status:'' };
+  function viewLog(){
+    var qs='?limit=150'+(logF.type?'&type='+logF.type:'')+(logF.status?'&status='+logF.status:'');
+    return api('GET','/api/deliveries'+qs).then(function(j){
+      return '<div class="ab-en-card"><div class="ab-en-toolbar"><select id="enLogType"><option value="">كل الأنواع</option>'+Object.keys(TYPE).map(function(k){ return '<option value="'+k+'"'+(logF.type===k?' selected':'')+'>'+TYPE[k]+'</option>'; }).join('')+'</select>'+
+        '<select id="enLogSt"><option value="">كل الحالات</option>'+['sent','failed','skipped'].map(function(k){ return '<option value="'+k+'"'+(logF.status===k?' selected':'')+'>'+STATUS[k]+'</option>'; }).join('')+'</select>'+
+        '<button type="button" class="ab-en-ib" data-act="retry" aria-label="تحديث">'+svg('refresh')+'</button></div>'+
+        (j.deliveries.length?'<ul class="ab-en-list ab-en-log">'+j.deliveries.map(function(d){
+          return '<li><div class="ab-en-li-h"><b>'+esc(d.name||d.emp)+'</b><span class="ab-en-st st-'+esc(d.status)+'">'+esc(STATUS[d.status]||d.status)+'</span></div>'+
+            '<p><span class="ab-en-tag">'+esc(TYPE[d.type]||d.type)+'</span> '+esc(d.title)+' — '+esc(d.body)+'</p>'+
+            '<small>'+esc(fmt(d.at))+' • '+esc(d.branch||'')+' • '+(d.ok||0)+'/'+(d.devices||0)+' جهاز'+(d.reason?' • '+esc(REASON[d.reason]||d.reason):'')+'</small></li>'; }).join('')+'</ul>':'<div class="ab-en-empty">مفيش إرسال مسجّل بالفلتر ده.</div>')+'</div>';
+    });
+  }
+
+  /* ----- settings ----- */
+  var S0=null;
+  function sw(id,on,label,hint){ return '<label class="ab-en-sw"><span><b>'+label+'</b>'+(hint?'<small>'+hint+'</small>':'')+'</span><input type="checkbox" id="'+id+'"'+(on?' checked':'')+'><i aria-hidden="true"></i></label>'; }
+  function num(id,v,label,min,max){ return '<label class="ab-en-f inline"><span>'+label+'</span><input type="number" id="'+id+'" value="'+v+'" min="'+min+'" max="'+max+'"></label>'; }
+  function viewSettings(){
+    return api('GET','/api/settings').then(function(j){
+      var s=S0=j.settings, t=s.templates;
+      return '<div class="ab-en-grid"><section class="ab-en-card"><h3>التنبيهات</h3>'+
+        sw('enOn',s.enabled,'تشغيل تنبيهات الموظفين','لو اتقفلت مفيش أي رسالة هتتبعت')+
+        sw('enRem',s.reminder.enabled,'قبل الدوام')+num('enRemMin',s.reminder.minutesBefore,'قبل الميعاد بكام دقيقة',5,180)+
+        sw('enLate',s.late.enabled,'تأخير في الحضور','لما يسجّل حضور متأخر')+num('enLateMin',s.late.thresholdMinutes,'يعتبر متأخر بعد (دقيقة)',0,120)+
+        sw('enNs',s.noShow.enabled,'ماسجّلش حضور')+num('enNsMin',s.noShow.afterMinutes,'بعد بداية الوردية بكام دقيقة',5,240)+
+        sw('enNsB',s.noShow.sources.b,'عدم الحضور لموظفين بصمة البازار','اقفلها لو مزامنة جهاز البصمة مش تلقائية')+
+        sw('enLeave',s.leave.enabled,'قبول ورفض الإجازة')+sw('enPermit',s.permit.enabled,'الخروج والرجوع بإذن')+sw('enBc',s.broadcast.enabled,'الرسائل الجماعية')+
+        '<h3>ساعات الهدوء</h3>'+sw('enQ',s.quiet.enabled,'تأجيل الرسائل الجماعية العادية','العاجلة بتتبعت عادي')+
+        '<div class="ab-en-row"><label class="ab-en-f inline"><span>من</span><input type="time" id="enQf" value="'+esc(s.quiet.from)+'"></label><label class="ab-en-f inline"><span>لـ</span><input type="time" id="enQt" value="'+esc(s.quiet.to)+'"></label></div>'+
+        '<h3>أيام الراحة الافتراضية</h3><p class="ab-en-mut">مفيش تنبيه حضور فيها، إلا لو الموظف له أيام راحة خاصة بيه.</p><div class="ab-en-days lg" id="enDefDays">'+DAYS.map(function(d,i){ return '<button type="button" data-dday="'+i+'" aria-pressed="'+(s.restDaysDefault.indexOf(i)>-1)+'">'+d+'</button>'; }).join('')+'</div>'+
+        '<h3>رابط السيرفر</h3><label class="ab-en-f"><span>Worker URL</span><input type="url" id="enApi" dir="ltr" value="'+esc(apiUrl)+'"></label></section>'+
+        '<section class="ab-en-card"><h3>نص الرسايل</h3><p class="ab-en-mut">تقدر تستخدم: {name} الاسم، {time} الوقت، {late} دقايق التأخير، {expected} الميعاد، {date} التاريخ، {duration} المدة.</p>'+
+        Object.keys(t).map(function(k){ return '<fieldset class="ab-en-tpl"><legend>'+esc(TYPE[k]||k)+'</legend><input data-tt="'+k+'" maxlength="80" value="'+esc(t[k].title)+'"><textarea data-tb="'+k+'" maxlength="300" rows="2">'+esc(t[k].body)+'</textarea></fieldset>'; }).join('')+
+        '<button type="button" class="ab-en-btn" data-act="savesettings">حفظ الإعدادات</button></section></div>';
+    });
+  }
+
+  function afterRender(){ if(tab==='broadcast') updateReach(); }
+  function onInput(e){
+    var t=e.target;
+    if(t.id==='enBody'){ var c=q('#enCount',root); if(c) c.textContent=t.value.length+'/500'; }
+    if(t.id==='enUrgent') bc.urgent=t.checked;
+    if(t.id==='enWhen') bc.when=t.value;
+    if(t.id==='enFind'){ var v=t.value.trim(); qa('#enChips button',root).forEach(function(b){ b.hidden=v && b.textContent.indexOf(v)<0; }); }
+    if(t.id==='enEmpQ' && e.type==='input'){ empFilter.q=t.value.trim(); clearTimeout(onInput.t); onInput.t=setTimeout(function(){ viewEmployees().then(function(h){ var b=q('.ab-en-body',root); b.innerHTML=h; var i=q('#enEmpQ',root); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }); },250); }
+    if(t.id==='enEmpBr'){ empFilter.branch=t.value; render(); }
+    if(t.id==='enLogType'){ logF.type=t.value; render(); }
+    if(t.id==='enLogSt'){ logF.status=t.value; render(); }
+  }
+  function onClick(e){
+    var b=e.target.closest('button,[data-act]'); if(!b || !root.contains(b)) return;
+    var act=b.getAttribute('data-act');
+    if(act==='close'){ close(); return; }
+    if(act==='retry'){ cache.employees=null; render(); return; }
+    if(b.dataset.tab){ tab=b.dataset.tab; render(); return; }
+    if(b.dataset.bt){ bc.type=b.dataset.bt; bc.values=[]; render(); return; }
+    if(b.dataset.bv!=null){ var v=b.dataset.bv, i=bc.values.indexOf(v); if(i>-1) bc.values.splice(i,1); else bc.values.push(v); b.setAttribute('aria-pressed', i<0); updateReach(); return; }
+    if(b.dataset.dday!=null){ b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')!=='true'); return; }
+    if(act==='saveapi'){ saveApi(); return; }
+    if(act==='send'){ send(b); return; }
+    if(act==='cancel'){ api('POST','/api/broadcasts/'+b.dataset.id+'/cancel').then(function(){ toast('اتلغى الإرسال','warning'); render(); }).catch(function(x){ toast(x.message,'error'); }); return; }
+    if(act==='savegroup'){ saveGroup(); return; }
+    if(act==='savesettings'){ saveSettings(b); return; }
+    var li=b.closest('li[data-key]'); if(!li) return; var key=li.dataset.key;
+    if(b.dataset.day!=null){
+      b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')!=='true');
+      var days=qa('[data-day]',li).filter(function(x){ return x.getAttribute('aria-pressed')==='true'; }).map(function(x){ return +x.dataset.day; });
+      api('PUT','/api/employees/'+encodeURIComponent(key)+'/profile',{ restDays:days }).then(function(){ cache.employees=null; toast('اتحفظت أيام الراحة','success'); }).catch(function(x){ toast(x.message,'error'); });
+      return;
+    }
+    if(act==='pair'){ pair(key, li); return; }
+    if(act==='test'){ b.disabled=true; api('POST','/api/test',{ employee:key }).then(function(j){ toast(j.status==='sent'?'اتبعت إشعار تجربة':'مقدرتش أبعت: '+(REASON[j.reason]||j.reason||''), j.status==='sent'?'success':'error'); }).catch(function(x){ toast(x.message,'error'); }).then(function(){ b.disabled=false; }); return; }
+    if(act==='unlink'){ if(!confirm('هتلغي ربط كل أجهزة الموظف ده، ومش هيوصله أي إشعار لحد ما يربط تاني. متأكد؟')) return; api('DELETE','/api/employees/'+encodeURIComponent(key)+'/devices').then(function(){ cache.employees=null; toast('اتلغى الربط','warning'); render(); }).catch(function(x){ toast(x.message,'error'); }); return; }
+  }
+  function saveApi(){
+    var inp=q('#enApi',root), m=q('#enApiMsg',root), v=String(inp.value||'').trim().replace(/\/+$/,'');
+    if(!/^https:\/\/[^\s]+$/.test(v)){ if(m) m.textContent='الرابط لازم يبدأ بـ https://'; return; }
+    if(m) m.textContent='بجرّب الاتصال…';
+    fetch(v+'/api/health').then(function(r){ return r.json(); }).then(function(j){
+      if(!j || !j.ok) throw new Error('الرابط ده مش سيرفر الإشعارات');
+      apiUrl=v; ls(API_KEY,v); ss(TOK_KEY,null);
+      var d=DB(); return d ? d.ref('employeeNotify/public/apiUrl').set(v) : null;
+    }).then(function(){ toast('اتربط بسيرفر الإشعارات','success'); render(); })
+    .catch(function(e){ if(m) m.textContent='مقدرتش أوصل: '+(e.message||e); });
+  }
+  function send(btn){
+    var title=String(q('#enTitle',root).value||'').trim(), body=String(q('#enBody',root).value||'').trim();
+    if(!title){ toast('اكتب عنوان','error'); q('#enTitle',root).focus(); return; }
+    if(!body){ toast('اكتب نص الرسالة','error'); q('#enBody',root).focus(); return; }
+    if(bc.type!=='all' && !bc.values.length){ toast('اختار المستلمين','error'); return; }
+    var n=(q('#enReach',root)||{}).dataset; n=n&&n.n;
+    if(!btn.dataset.confirm){ btn.dataset.confirm='1'; btn.innerHTML=svg('send')+' تأكيد الإرسال'+(n?' لـ '+emps(n):''); btn.classList.add('confirm'); setTimeout(function(){ if(btn.isConnected){ delete btn.dataset.confirm; btn.innerHTML=svg('send')+' إرسال'; btn.classList.remove('confirm'); } }, 5000); return; }
+    btn.disabled=true; btn.textContent='بيتبعت…';
+    var payload={ title:title, body:body, target:{ type:bc.type, values:bc.values }, urgent:bc.urgent };
+    if(bc.when) payload.scheduledAt=new Date(bc.when).toISOString();
+    api('POST','/api/broadcasts',payload).then(function(j){
+      toast(j.scheduledAt>Date.now()+60000?'الرسالة اتجدولت':'الرسالة في الطريق لـ '+emps(j.total),'success');
+      bc={ type:'all', values:[], urgent:false, when:'' }; render();
+    }).catch(function(x){ toast(x.message,'error'); btn.disabled=false; btn.innerHTML=svg('send')+' إرسال'; delete btn.dataset.confirm; });
+  }
+  function saveGroup(){
+    if(!bc.values.length){ toast('اختار موظفين الأول','error'); return; }
+    var name=prompt('اسم المجموعة'); if(!name) return;
+    api('POST','/api/groups',{ name:name, members:bc.values }).then(function(){ cache.groups=null; toast('اتحفظت المجموعة','success'); }).catch(function(x){ toast(x.message,'error'); });
+  }
+  function pair(key, li){
+    var box=q('#enPin',root);
+    api('POST','/api/employees/'+encodeURIComponent(key)+'/pairing').then(function(j){
+      var text='أهلًا '+j.employee+'، علشان توصلك إشعارات الشغل على موبايلك افتح الرابط ده واكتب الرمز '+j.pin+' (صالح 24 ساعة):\n'+j.link;
+      box.hidden=false;
+      box.innerHTML='<div><small>رمز ربط '+esc(j.employee)+' (صالح 24 ساعة، مرة واحدة)</small><b dir="ltr">'+esc(j.pin.replace(/(\d{3})(\d{3})/,'$1 $2'))+'</b><code dir="ltr">'+esc(j.link)+'</code></div>'+
+        '<div class="ab-en-pin-a"><a class="ab-en-btn sm" target="_blank" rel="noopener" href="'+esc(waLink(j.phone,text))+'">'+svg('wa')+' ابعته واتساب</a><button type="button" class="ab-en-btn sm ghost" data-copy>'+svg('copy')+' نسخ</button><button type="button" class="ab-en-ib sm" data-closepin aria-label="إخفاء">'+svg('x')+'</button></div>';
+      q('[data-copy]',box).onclick=function(){ try{ navigator.clipboard.writeText(text); toast('اتنسخ','success'); }catch(e){} };
+      q('[data-closepin]',box).onclick=function(){ box.hidden=true; };
+      box.scrollIntoView({ block:'nearest', behavior:'smooth' });
+    }).catch(function(x){ toast(x.message,'error'); });
+  }
+  function saveSettings(btn){
+    var g=function(id){ return q('#'+id,root); }, ck=function(id){ return !!(g(id)&&g(id).checked); }, nv=function(id){ return Number(g(id).value); };
+    var tpl={}; qa('[data-tt]',root).forEach(function(i){ tpl[i.dataset.tt]={ title:i.value, body:(q('[data-tb="'+i.dataset.tt+'"]',root)||{}).value||'' }; });
+    var s={ enabled:ck('enOn'), reminder:{ enabled:ck('enRem'), minutesBefore:nv('enRemMin') }, late:{ enabled:ck('enLate'), thresholdMinutes:nv('enLateMin'), maxAgeMinutes:S0.late.maxAgeMinutes },
+      noShow:{ enabled:ck('enNs'), afterMinutes:nv('enNsMin'), sources:{ m:true, b:ck('enNsB') } }, leave:{ enabled:ck('enLeave') }, permit:{ enabled:ck('enPermit') }, broadcast:{ enabled:ck('enBc') },
+      quiet:{ enabled:ck('enQ'), from:g('enQf').value, to:g('enQt').value }, restDaysDefault:qa('[data-dday]',root).filter(function(b){ return b.getAttribute('aria-pressed')==='true'; }).map(function(b){ return +b.dataset.dday; }),
+      sources:S0.sources, templates:tpl };
+    var newApi=String(g('enApi').value||'').trim().replace(/\/+$/,'');
+    btn.disabled=true;
+    api('PUT','/api/settings',{ settings:s }).then(function(){ toast('اتحفظت الإعدادات','success');
+      if(newApi && newApi!==apiUrl && /^https:\/\//.test(newApi)){ apiUrl=newApi; ls(API_KEY,newApi); ss(TOK_KEY,null); var d=DB(); if(d) d.ref('employeeNotify/public/apiUrl').set(newApi); }
+      render(); }).catch(function(x){ toast(x.message,'error'); btn.disabled=false; });
+  }
+
+  /* keep the sidebar entry in step with who is signed in */
+  (function poll(){ try{ nav(); }catch(e){} setTimeout(poll, 1500); })();
+  window.ABEmpN={ open:open, close:close, allowed:allowed };
+})();
+
+/* ALLOSH BAZAR — «واتساب» screen: two separate providers + the switch between them.
+   Tabs: WhatsApp QR Connection | WhatsApp API الرسمي | مزوّد الرسائل والإعدادات | سجل الرسائل
+   Talks only to the WhatsApp gateway (Node.js) over HTTPS + Socket.IO with a signed session.
+   No session data, keys or tokens ever reach this page: the QR arrives as an image, numbers arrive masked.
+   Visible to «واتساب» (whatsapp) and «كل الصلاحيات» (all). */
+(function(){
+  'use strict';
+  function S(){ try{ return (typeof State!=='undefined')?State:null; }catch(e){ return null; } }
+  function DB(){ try{ return (typeof db!=='undefined')?db:null; }catch(e){ return null; } }
+  function me(){ var s=S(); return s&&s.currentUser||null; }
+  function perms(){ var u=me(); return (u&&Array.isArray(u.permissions))?u.permissions:[]; }
+  function allowed(){ var p=perms(); return !!me() && (p.indexOf('all')>-1 || p.indexOf('whatsapp')>-1); }
+  function q(s,r){ return (r||document).querySelector(s); }
+  function qa(s,r){ return [].slice.call((r||document).querySelectorAll(s)); }
+  function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function toast(m,t){ try{ UI.toast(m,t||'info'); }catch(e){} }
+  function ls(k,v){ try{ if(v===undefined) return localStorage.getItem(k); if(v===null) localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){ return null; } }
+  function ss(k,v){ try{ if(v===undefined) return sessionStorage.getItem(k); if(v===null) sessionStorage.removeItem(k); else sessionStorage.setItem(k,v); }catch(e){ return null; } }
+  var NS='http://www.w3.org/2000/svg';
+  var P={ wa:'<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c.5 2.5 2.5 4.5 5 5l1.2-1.2 2 1-1 1.7c-3.3.3-7.7-4-7.4-7.4L10.5 7.6l1 2z"/>', x:'<path d="M6 6l12 12M18 6 6 18"/>', qr:'<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z"/>',
+    plug:'<path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0zM12 17v5"/>', unplug:'<path d="M9 2v6M15 2v6M6 8h12v3a6 6 0 0 1-12 0zM12 17v5M3 3l18 18"/>', refresh:'<path d="M20 11a8 8 0 0 0-14-4l-2 2M4 5v4h4M4 13a8 8 0 0 0 14 4l2-2M20 19v-4h-4"/>',
+    check:'<path d="m5 12.5 4.5 4.5L19 7.5"/>', send:'<path d="m4 12 16-8-6 16-2.5-6.5z"/>', shield:'<path d="M12 3 20 6v5c0 5-3.4 8.2-8 10-4.6-1.8-8-5-8-10V6l8-3Z"/>', plus:'<path d="M12 5v14M5 12h14"/>', trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 14h10l1-14M9 7l1-3h4l1 3"/>' };
+  function svg(n){ return '<svg class="ab-en-i" viewBox="0 0 24 24" aria-hidden="true" focusable="false" xmlns="'+NS+'">'+(P[n]||'')+'</svg>'; }
+  var STATUS={ idle:['مش متصل','off'], connecting:['بيتصل…','wait'], qr:['مستني مسح الكود','wait'], open:['متصل','on'], reconnecting:['بيعيد الاتصال…','wait'], logged_out:['اتفصل من الموبايل','off'], replaced:['اتفتح من مكان تاني','off'], qr_timeout:['انتهت مهلة الربط','off'], error:['خطأ في الاتصال','off'] };
+  var MSG={ queued:'في الانتظار', retrying:'بيعيد المحاولة', fallback:'اتحوّل للمزوّد التاني', sent:'تم الإرسال', failed:'فشل الإرسال', unknown:'غير مؤكد', cancelled:'اتلغى', delivered:'اتسلمت', read:'اتقرت' };
+  var TYPE={ late:'تأخير', absent:'غياب', noCheckout:'عدم تسجيل الانصراف', repeatedLate:'تكرار التأخير', dailyReport:'التقرير اليومي', test:'تجربة' };
+  var TO={ employee:'الموظف', manager:'المدير', both:'الاتنين' };
+  var ERR={ not_connected:'واتساب QR مش متصل', not_on_whatsapp:'الرقم مش على واتساب', not_configured:'الـ API الرسمي مش متضبط' };
+
+  /* ---------- gateway connection ---------- */
+  var URL_KEY='ab_wa_gw', TOK='ab_wa_tok', gw=ls(URL_KEY)||'', socket=null, sockLoading=null;
+  function loadGw(){ if(!gw) gw=ls(URL_KEY)||''; var d=DB(); if(!d) return Promise.resolve(gw); return d.ref('whatsapp/public/gatewayUrl').once('value').then(function(s){ var v=s.val(); if(v && /^https?:\/\//.test(v)){ gw=String(v).replace(/\/+$/,''); ls(URL_KEY,gw); } return gw; }).catch(function(){ return gw; }); }
+  function session(force){
+    var t=ss(TOK); if(t && !force){ try{ var j=JSON.parse(t); if(j.exp>Date.now()+60000 && j.user===((me()||{}).username) && j.gw===gw) return Promise.resolve(j.token); }catch(e){} }
+    var saved={}; try{ saved=JSON.parse(ls('loggedUser')||'{}'); }catch(e){}
+    var u=me(); if(!u||!saved.passwordHash) return Promise.reject(new Error('سجّل الدخول للسيستم تاني'));
+    return raw('POST','/api/session',{ username:u.username, passwordHash:saved.passwordHash }).then(function(j){ ss(TOK, JSON.stringify({ token:j.token, exp:j.expiresAt, user:u.username, gw:gw })); return j.token; });
+  }
+  function raw(method, path, body, token){
+    if(!gw) return Promise.reject(Object.assign(new Error('رابط بوابة واتساب مش متضبط'),{code:'no_gw'}));
+    var h={ 'content-type':'application/json' }; if(token) h.authorization='Bearer '+token;
+    return fetch(gw+path,{ method:method, headers:h, body:body?JSON.stringify(body):undefined }).then(function(r){
+      return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok){ var e=new Error(j.error||('خطأ '+r.status)); e.code=j.code; e.status=r.status; throw e; } return j; });
+    }, function(){ throw Object.assign(new Error('مش قادر أوصل لبوابة واتساب'),{code:'network'}); });
+  }
+  function api(m,p,b){ return session().then(function(t){ return raw(m,p,b,t); }).catch(function(e){ if(e.status===401){ ss(TOK,null); return session(true).then(function(t){ return raw(m,p,b,t); }); } throw e; }); }
+  function ioLib(){
+    if(window.io) return Promise.resolve(window.io);
+    if(sockLoading) return sockLoading;
+    sockLoading=new Promise(function(res,rej){ var s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js'; s.crossOrigin='anonymous'; s.onload=function(){ res(window.io); }; s.onerror=function(){ sockLoading=null; rej(new Error('مقدرتش أحمّل Socket.IO')); }; document.head.appendChild(s); });
+    return sockLoading;
+  }
+  function connectSocket(){
+    if(socket) return Promise.resolve(socket);
+    return Promise.all([ioLib(), session()]).then(function(r){
+      socket=r[0](gw,{ auth:{ token:r[1] }, transports:['websocket','polling'], reconnectionDelayMax:10000 });
+      socket.on('qr', function(s){ live.qr=s; if(tab==='qr') paintQr(); paintHead(); });
+      socket.on('state', function(s){ live.state=s; paintHead(); });
+      socket.on('message', function(m){ var i=live.messages.findIndex(function(x){ return x.id===m.id; }); if(i>-1) live.messages[i]=Object.assign({},live.messages[i],m); else live.messages.unshift(m); if(tab==='log') paintLog(); });
+      socket.on('connect_error', function(e){ if(String(e&&e.message)==='unauthorized'){ ss(TOK,null); socket.close(); socket=null; } live.sockErr=true; paintHead(); });
+      socket.on('connect', function(){ live.sockErr=false; paintHead(); });
+      return socket;
+    });
+  }
+
+  /* ---------- UI ---------- */
+  var root=null, tab='qr', live={ qr:null, state:null, messages:[], settings:null, branches:[], sockErr:false }, cdTimer=0;
+  function nav(){
+    var tw=q('.tabs-wrapper'); if(!tw) return; var b=q('.ab-wa-nav',tw);
+    if(!allowed()){ if(b) b.remove(); if(socket){ socket.close(); socket=null; } return; }
+    if(b) return;
+    b=document.createElement('button'); b.type='button'; b.className='ab-home-btn ab-wa-nav'; b.innerHTML='<span aria-hidden="true">'+svg('wa')+'</span> واتساب';
+    b.addEventListener('click', function(){ open(); }); tw.appendChild(b);
+  }
+  function open(t){
+    if(!allowed()) return;
+    if(!root){ root=document.createElement('div'); root.id='abWa'; root.className='ab-en ab-wa'; root.setAttribute('role','dialog'); root.setAttribute('aria-modal','true'); root.setAttribute('aria-labelledby','abWaTitle');
+      root.addEventListener('click', onClick); root.addEventListener('change', onChange); root.addEventListener('input', onInputEv);
+      document.addEventListener('keydown', function(e){ if(e.key==='Escape' && root && !root.hidden) close(); }); document.body.appendChild(root); }
+    if(t) tab=t; root.hidden=false; document.body.classList.add('ab-en-open'); requestAnimationFrame(function(){ root.classList.add('on'); });
+    loadGw().then(function(){ render(); if(gw) connectSocket().catch(function(e){ live.sockErr=true; paintHead(); }); });
+  }
+  function close(){ if(!root) return; root.classList.remove('on'); document.body.classList.remove('ab-en-open'); clearInterval(cdTimer); setTimeout(function(){ if(root && !root.classList.contains('on')) root.hidden=true; }, 260); }
+  function shell(){
+    var tabs=[['qr','WhatsApp QR Connection'],['official','WhatsApp API الرسمي'],['settings','مزوّد الرسائل والإعدادات'],['log','سجل الرسائل']];
+    root.innerHTML='<div class="ab-en-scrim" data-act="close"></div><div class="ab-en-sheet">'+
+      '<div class="ab-en-head"><div><h2 id="abWaTitle">واتساب</h2><p id="waHead">رسائل الحضور والانصراف على واتساب</p></div><button type="button" class="ab-en-ib" data-act="close" aria-label="إغلاق">'+svg('x')+'</button></div>'+
+      (gw?'<div class="ab-en-seg" role="tablist">'+tabs.map(function(x){ return '<button type="button" role="tab" data-tab="'+x[0]+'" aria-selected="'+(tab===x[0])+'">'+x[1]+'</button>'; }).join('')+'</div>':'')+
+      '<div class="ab-en-body" id="waBody"></div></div>';
+  }
+  function render(){
+    if(!root) return; shell(); clearInterval(cdTimer);
+    var body=q('#waBody',root);
+    if(!gw){ body.innerHTML=setupCard(); return; }
+    paintHead();
+    if(tab==='qr'){ body.innerHTML=qrView(); paintQr(); api('GET','/api/state').then(function(s){ live.qr=s.qr; live.state=s; paintQr(); paintHead(); }).catch(showErr); }
+    else if(tab==='official'){ body.innerHTML='<div class="ab-en-empty"><span class="ab-en-spin"></span>جارٍ التحميل…</div>'; Promise.all([api('GET','/api/state'), api('GET','/api/settings')]).then(function(r){ live.state=r[0]; live.settings=r[1].settings; body.innerHTML=officialView(); }).catch(showErr); }
+    else if(tab==='settings'){ body.innerHTML='<div class="ab-en-empty"><span class="ab-en-spin"></span>جارٍ التحميل…</div>'; api('GET','/api/settings').then(function(j){ live.settings=j.settings; live.branches=j.branches||[]; body.innerHTML=settingsView(); }).catch(showErr); }
+    else { body.innerHTML='<div class="ab-en-empty"><span class="ab-en-spin"></span>جارٍ التحميل…</div>'; api('GET','/api/messages?limit=200').then(function(j){ live.messages=j.messages; paintLog(); }).catch(showErr); }
+  }
+  function showErr(e){ var b=q('#waBody',root); if(!b) return; b.innerHTML=e.code==='no_gw'?setupCard():'<div class="ab-en-card ab-en-err"><b>'+esc(e.message)+'</b>'+(e.code==='forbidden'?'<p class="ab-en-mut">محتاج صلاحية «واتساب».</p>':'<p class="ab-en-mut">اتأكد إن بوابة واتساب شغالة على الكمبيوتر أو السيرفر.</p>')+'<button type="button" class="ab-en-btn ghost" data-act="retry">'+svg('refresh')+' حاول تاني</button><button type="button" class="ab-en-link" data-act="changegw">تغيير رابط البوابة</button></div>'; }
+  function setupCard(){ return '<div class="ab-en-card ab-wa-setup"><h3>اربط السيستم ببوابة واتساب</h3><p class="ab-en-mut">اكتب رابط البوابة اللي شغالة على الكمبيوتر أو السيرفر.</p><label class="ab-en-f"><span>رابط البوابة</span><input type="url" id="waGw" dir="ltr" placeholder="https://wa.example.com  أو  http://127.0.0.1:8790" value="'+esc(gw)+'"></label><button type="button" class="ab-en-btn" data-act="savegw">اختبار وحفظ</button><p class="ab-en-mut" id="waGwMsg"></p></div>'; }
+  function paintHead(){
+    var h=q('#waHead',root); if(!h) return;
+    var st=live.state||{}, qs=live.qr||{}, prov=st.provider||(live.settings&&live.settings.provider);
+    var p={ qr:'WhatsApp QR', official:'API الرسمي', off:'متوقف' }[prov]||'—';
+    h.innerHTML='مزوّد الرسائل الحالي: <b>'+esc(p)+'</b>'+(st.fallback?' • تحويل احتياطي مفعّل':'')+(live.sockErr?' • <span class="ab-wa-warn">الاتصال المباشر بالبوابة مقطوع</span>':'');
+  }
+  function fmt(ts){ if(!ts) return '—'; try{ return new Intl.DateTimeFormat('ar-EG',{ timeZone:'Africa/Cairo', day:'numeric', month:'numeric', hour:'numeric', minute:'2-digit' }).format(new Date(ts)); }catch(e){ return ''; } }
+
+  /* ----- QR tab ----- */
+  function qrView(){
+    return '<div class="ab-wa-grid"><section class="ab-en-card ab-wa-status" id="waStatus"></section><section class="ab-en-card ab-wa-qrcard" id="waQr"></section></div>'+
+      '<p class="ab-en-mut ab-wa-note">'+svg('shield')+' الربط بالـ QR بيستخدم نسخة واتساب ويب غير رسمية (Baileys). استخدم رقم شغل مخصص، وابعت رسائل للموظفين اللي موافقين بس، علشان ماتعرّضش الرقم للحظر.</p>';
+  }
+  function paintQr(){
+    var s=live.qr; var st=q('#waStatus',root), box=q('#waQr',root); if(!st||!box||!s) return;
+    var info=STATUS[s.status]||[s.status,'off'];
+    st.innerHTML='<div class="ab-wa-pill '+info[1]+'"><i></i>'+esc(info[0])+'</div>'+
+      '<dl class="ab-wa-dl"><div><dt>الرقم المتصل</dt><dd dir="ltr">'+esc(s.me&&s.me.masked||'—')+'</dd></div>'+(s.me&&s.me.name?'<div><dt>الاسم</dt><dd>'+esc(s.me.name)+'</dd></div>':'')+
+      '<div><dt>آخر اتصال</dt><dd>'+esc(fmt(s.lastConnectedAt))+'</dd></div>'+(s.lastDisconnect&&s.lastDisconnect.at?'<div><dt>آخر انقطاع</dt><dd>'+esc(fmt(s.lastDisconnect.at))+(s.lastDisconnect.code?' <small dir="ltr">('+esc(s.lastDisconnect.code)+')</small>':'')+'</dd></div>':'')+'</dl>'+
+      '<div class="ab-wa-actions"><button type="button" class="ab-en-btn sm" data-act="new">'+svg('qr')+' إنشاء اتصال جديد</button>'+
+      '<button type="button" class="ab-en-btn sm ghost" data-act="reconnect"'+(s.status==='connecting'||s.status==='qr'?' disabled':'')+'>'+svg('refresh')+' إعادة الاتصال</button>'+
+      '<button type="button" class="ab-en-btn sm ghost danger" data-act="disconnect"'+(s.status==='idle'&&!s.hasSession?' disabled':'')+'>'+svg('unplug')+' فصل الاتصال</button></div>';
+    clearInterval(cdTimer);
+    if(s.status==='qr' && s.qr){
+      box.innerHTML='<h3>امسح الكود من واتساب</h3><div class="ab-wa-qrimg"><img src="'+s.qr+'" alt="QR لربط واتساب" width="248" height="248"></div><div class="ab-wa-bar" aria-hidden="true"><i></i></div>'+
+        '<p class="ab-wa-cd" id="waCd"></p><ol class="ab-wa-steps"><li>افتح واتساب على موبايل الشغل.</li><li>الإعدادات ← الأجهزة المرتبطة ← ربط جهاز.</li><li>وجّه الكاميرا على الكود.</li></ol>';
+      var tick=function(){ var cd=q('#waCd',root); if(!cd) return; var left=Math.max(0,Math.round((s.qrExpiresAt-Date.now())/1000)); cd.textContent=left>0?'الكود بيتجدد لوحده خلال '+left+' ثانية':'بيجيب كود جديد…'; var bar=q('.ab-wa-bar i',root); if(bar){ var total=(s.qrExpiresAt-s.qrAt)||20000; bar.style.transform='scaleX('+Math.max(0,Math.min(1,(s.qrExpiresAt-Date.now())/total)).toFixed(3)+')'; } };
+      tick(); cdTimer=setInterval(tick,1000);
+    } else if(s.status==='open'){
+      box.innerHTML='<div class="ab-wa-done">'+svg('check')+'<h3>واتساب متصل</h3><p class="ab-en-mut">الرسائل بتتبعت من الرقم '+esc(s.me&&s.me.masked||'')+'.</p></div>';
+    } else if(s.status==='connecting'||s.status==='reconnecting'){
+      box.innerHTML='<div class="ab-wa-done wait"><span class="ab-en-spin"></span><h3>'+esc(info[0])+'</h3>'+(s.retryAt?'<p class="ab-en-mut">المحاولة الجاية '+esc(fmt(s.retryAt))+'</p>':'')+'</div>';
+    } else {
+      box.innerHTML='<div class="ab-wa-done off">'+svg('qr')+'<h3>'+(s.status==='qr_timeout'?'انتهت مهلة الربط':'مفيش رقم مربوط')+'</h3><p class="ab-en-mut">'+(s.status==='replaced'?'واتساب ويب اتفتح على جهاز تاني. دوس «إعادة الاتصال» لو عايز ترجّع البوابة.':s.status==='logged_out'?'الجهاز اتشال من الموبايل. اعمل اتصال جديد.':'دوس «إنشاء اتصال جديد» وامسح الكود اللي هيظهر.')+'</p></div>';
+    }
+  }
+
+  /* ----- official tab ----- */
+  function officialView(){
+    var o=(live.state&&live.state.official)||{}, t=(live.settings&&live.settings.officialTemplates)||{};
+    var rows=['late','absent','noCheckout','repeatedLate','dailyReport'].map(function(k){ var x=t[k]||{}; return '<fieldset class="ab-en-tpl ab-wa-otpl" data-otype="'+k+'"><legend>'+TYPE[k]+'</legend><div class="ab-en-row"><input data-o="name" placeholder="اسم القالب (template)" dir="ltr" value="'+esc(x.name||'')+'"><input data-o="lang" placeholder="ar" dir="ltr" value="'+esc(x.lang||'ar')+'" class="ab-wa-lang"></div><input data-o="params" dir="ltr" placeholder="name,time,late,expected" value="'+esc((x.params||[]).join(','))+'"></fieldset>'; }).join('');
+    return '<div class="ab-en-grid"><section class="ab-en-card"><h3>حالة الـ API الرسمي</h3>'+
+      '<div class="ab-wa-pill '+(o.configured&&!o.lastError?'on':'off')+'"><i></i>'+(o.configured?(o.lastError?'فيه مشكلة':'متضبط'):'مش متضبط')+'</div>'+
+      '<dl class="ab-wa-dl"><div><dt>رقم الهاتف (Phone number ID)</dt><dd dir="ltr">'+esc(o.phoneIdMasked||'—')+'</dd></div><div><dt>رقم واتساب</dt><dd dir="ltr">'+esc(o.info&&o.info.phone||'—')+'</dd></div><div><dt>الاسم الموثّق</dt><dd>'+esc(o.info&&o.info.name||'—')+'</dd></div><div><dt>جودة الرقم</dt><dd>'+esc(o.info&&o.info.quality||'—')+'</dd></div><div><dt>آخر فحص</dt><dd>'+esc(fmt(o.lastCheck))+'</dd></div></dl>'+
+      (o.lastError?'<p class="ab-wa-err">'+esc(o.lastError==='not_configured'?'التوكن ورقم الهاتف بيتحطوا في ملف ‎.env على السيرفر (WA_CLOUD_TOKEN و WA_CLOUD_PHONE_ID) — مش هنا.':o.lastError)+'</p>':'')+
+      '<button type="button" class="ab-en-btn sm ghost" data-act="ocheck">'+svg('refresh')+' فحص الاتصال</button>'+
+      '<p class="ab-en-mut ab-wa-note">'+svg('shield')+' التوكن مابيظهرش هنا ولا بيوصل للمتصفح. بيتحط على السيرفر بس.</p></section>'+
+      '<section class="ab-en-card"><h3>قوالب الرسائل المعتمدة</h3><p class="ab-en-mut">واتساب الرسمي بيطلب قالب معتمد من Meta للرسائل اللي الشركة بتبدأها. اكتب اسم القالب ولغته وترتيب المتغيرات ({{1}}، {{2}}…). لو سبته فاضي هيتبعت النص العادي، وده بيوصل بس لو الموظف كلّمكم في آخر 24 ساعة.</p>'+rows+
+      '<button type="button" class="ab-en-btn" data-act="saveotpl">حفظ القوالب</button></section></div>';
+  }
+
+  /* ----- settings tab ----- */
+  function sw(id,on,label,hint){ return '<label class="ab-en-sw"><span><b>'+label+'</b>'+(hint?'<small>'+hint+'</small>':'')+'</span><input type="checkbox" id="'+id+'"'+(on?' checked':'')+'><i aria-hidden="true"></i></label>'; }
+  function num(id,v,label,min,max,unit){ return '<label class="ab-en-f inline"><span>'+label+'</span><span class="ab-wa-num"><input type="number" id="'+id+'" value="'+v+'" min="'+min+'" max="'+max+'">'+(unit?'<em>'+unit+'</em>':'')+'</span></label>'; }
+  function settingsView(){
+    var s=live.settings, T=s.templates;
+    var types=['late','absent','noCheckout','repeatedLate','dailyReport'].map(function(k){ var t=s.types[k];
+      return '<div class="ab-wa-type">'+sw('wt_'+k,t.enabled,TYPE[k])+(k==='dailyReport'?'<p class="ab-en-mut">للمديرين بس</p>':'<div class="ab-en-seg sm" data-to="'+k+'">'+['employee','manager','both'].map(function(x){ return '<button type="button" data-tov="'+x+'" aria-pressed="'+(t.to===x)+'">'+TO[x]+'</button>'; }).join('')+'</div>')+'</div>'; }).join('');
+    var mgr=(s.managers||[]).map(function(m,i){ return mgrRow(m,i); }).join('');
+    var tpl=[['late','تأخير — للموظف'],['lateManager','تأخير — للمدير'],['absent','غياب — للموظف'],['absentManager','غياب — للمدير'],['noCheckout','عدم انصراف — للموظف'],['noCheckoutManager','عدم انصراف — للمدير'],['repeatedLate','تكرار تأخير — للموظف'],['repeatedLateManager','تكرار تأخير — للمدير'],['dailyReport','التقرير اليومي']].map(function(x){ return '<fieldset class="ab-en-tpl"><legend>'+x[1]+'</legend><textarea data-tpl="'+x[0]+'" rows="'+(x[0]==='dailyReport'?5:2)+'" maxlength="700">'+esc(T[x[0]])+'</textarea></fieldset>'; }).join('');
+    return '<div class="ab-en-grid"><section class="ab-en-card"><h3>Message Provider</h3><p class="ab-en-mut">الطريقة اللي الرسائل بتتبعت بيها. التغيير بيشتغل على طول من غير أي تعديل في الكود.</p>'+
+      '<div class="ab-en-seg ab-wa-prov">'+[['qr','WhatsApp QR'],['official','API الرسمي'],['off','إيقاف']].map(function(x){ return '<button type="button" data-prov="'+x[0]+'" aria-pressed="'+(s.provider===x[0])+'">'+x[1]+'</button>'; }).join('')+'</div>'+
+      sw('wFb',s.fallback,'تحويل احتياطي للمزوّد التاني','بيحصل بس لو الإرسال فشل فشل أكيد. لو النتيجة مش مؤكدة مش هيتبعت تاني')+
+      num('wAtt',s.maxAttempts,'عدد محاولات إعادة الإرسال',1,6)+num('wGap',s.minGapSeconds,'المسافة بين رسائل QR',3,120,'ثانية')+num('wCap',s.dailyCap,'أقصى عدد رسائل QR في اليوم',10,2000)+
+      '<h3>الحضور والانصراف</h3>'+num('wGrace',s.graceMinutes,'وقت السماح بالتأخير',0,120,'دقيقة')+num('wAbs',s.absentAfterMinutes,'يعتبر غياب بعد بداية الوردية بـ',10,600,'دقيقة')+num('wOut',s.checkoutAfterMinutes,'عدم الانصراف بعد نهاية الوردية بـ',10,600,'دقيقة')+num('wRep',s.repeatThreshold,'تكرار التأخير من',2,20,'مرات في الشهر')+
+      '<label class="ab-en-f inline"><span>ميعاد التقرير اليومي</span><input type="time" id="wRt" value="'+esc(s.reportTime)+'"></label>'+
+      sw('wRest',s.useRestDays,'احترام أيام الراحة','نفس أيام الراحة اللي في «تنبيهات الموظفين»')+
+      '<h3>الرسائل ومين يستلمها</h3>'+types+
+      '<p class="ab-en-mut">كل واقعة بتتبعت مرة واحدة بس لكل مستلم. تسجيل حضور تاني في نفس اليوم مش بيعمل رسالة تأخير جديدة.</p></section>'+
+      '<section class="ab-en-card"><h3>المديرين</h3><p class="ab-en-mut">الأرقام دي بتتحفظ على سيرفر البوابة بس، ومش بتتحط في قاعدة البيانات المفتوحة.</p><div id="waMgrs">'+mgr+'</div><button type="button" class="ab-en-btn sm ghost" data-act="addmgr">'+svg('plus')+' إضافة مدير</button>'+
+      '<h3>نص الرسائل</h3><p class="ab-en-mut">المتغيرات: {name} الاسم، {branch} الفرع، {time} وقت الحضور، {late} دقايق التأخير، {expected} الميعاد، {count} عدد مرات التأخير، {date} التاريخ. وفي التقرير: {present} {total} {lateList} {absentList} {noCheckoutList} {branches}.</p>'+tpl+
+      '<h3>رسالة تجربة</h3><div class="ab-en-row"><input type="tel" id="wTestPhone" dir="ltr" placeholder="01xxxxxxxxx"><button type="button" class="ab-en-btn sm ghost" data-act="test">'+svg('send')+' ابعت تجربة</button></div>'+
+      '<button type="button" class="ab-en-btn" data-act="savesettings">حفظ الإعدادات</button></section></div>';
+  }
+  function mgrRow(m,i){ var br=live.branches||[]; return '<div class="ab-wa-mgr" data-i="'+i+'"><input data-m="name" placeholder="الاسم" value="'+esc(m.name||'')+'"><input data-m="phone" type="tel" dir="ltr" placeholder="01xxxxxxxxx" value="'+esc(m.phone||'')+'">'+
+    '<div class="ab-en-chips">'+br.map(function(b){ return '<button type="button" data-mb="'+esc(b)+'" aria-pressed="'+((m.branches||[]).indexOf(b)>-1)+'">'+esc(b)+'</button>'; }).join('')+'<small class="ab-en-mut">'+(br.length?'من غير اختيار = كل الفروع':'')+'</small></div>'+
+    '<button type="button" class="ab-en-ib sm" data-act="delmgr" aria-label="حذف المدير">'+svg('trash')+'</button></div>'; }
+
+  /* ----- log tab ----- */
+  var logF='';
+  function paintLog(){
+    var b=q('#waBody',root); if(!b||tab!=='log') return;
+    var list=live.messages.filter(function(m){ return !logF || m.status===logF || (logF==='sent'&&m.delivery); });
+    var c={}; live.messages.forEach(function(m){ c[m.status]=(c[m.status]||0)+1; });
+    b.innerHTML='<div class="ab-en-card"><div class="ab-en-toolbar"><div class="ab-en-seg sm">'+[['','الكل'],['sent','تم الإرسال'],['failed','فشل'],['unknown','غير مؤكد'],['queued','في الانتظار']].map(function(x){ return '<button type="button" data-lf="'+x[0]+'" aria-pressed="'+(logF===x[0])+'">'+x[1]+(x[0]&&c[x[0]]?' '+c[x[0]]:'')+'</button>'; }).join('')+'</div>'+
+      '<button type="button" class="ab-en-ib" data-act="retry" aria-label="تحديث">'+svg('refresh')+'</button></div>'+
+      (list.length?'<ul class="ab-en-list ab-en-log">'+list.slice(0,200).map(function(m){
+        var stc=m.delivery?'st-sent':m.status==='sent'?'st-sent':m.status==='failed'?'st-failed':m.status==='unknown'?'st-skipped':'st-queued';
+        return '<li data-id="'+esc(m.id)+'"><div class="ab-en-li-h"><b>'+esc(m.to||'—')+' <small dir="ltr">'+esc(m.phone||'')+'</small></b><span class="ab-en-st '+stc+'">'+esc(MSG[m.delivery]||MSG[m.status]||m.status)+'</span></div>'+
+          '<p><span class="ab-en-tag">'+esc(TYPE[m.type]||m.type)+'</span>'+(m.provider?'<span class="ab-en-tag">'+(m.provider==='qr'?'QR':'API الرسمي')+'</span>':'')+esc(m.text)+'</p>'+
+          '<small>'+esc(fmt(m.updatedAt||m.createdAt))+(m.attempts?' • محاولات '+m.attempts:'')+(m.error?' • '+esc(ERR[m.error]||m.error):'')+(m.by?' • '+esc(m.by):'')+'</small>'+
+          (m.status==='failed'||m.status==='unknown'?'<button type="button" class="ab-en-link" data-act="resend">إعادة الإرسال</button>':'')+(m.status==='queued'||m.status==='retrying'?'<button type="button" class="ab-en-link danger" data-act="cancelmsg">إلغاء</button>':'')+'</li>'; }).join('')+'</ul>':'<div class="ab-en-empty">مفيش رسائل'+(logF?' بالحالة دي':'')+'.</div>')+'</div>';
+  }
+
+  /* ----- events ----- */
+  function onInputEv(){}
+  function onChange(){}
+  function collectSettings(){
+    var s=JSON.parse(JSON.stringify(live.settings)), g=function(id){ return q('#'+id,root); }, ck=function(id){ return !!(g(id)&&g(id).checked); }, nv=function(id){ return Number(g(id).value); };
+    s.fallback=ck('wFb'); s.maxAttempts=nv('wAtt'); s.minGapSeconds=nv('wGap'); s.dailyCap=nv('wCap'); s.graceMinutes=nv('wGrace'); s.absentAfterMinutes=nv('wAbs'); s.checkoutAfterMinutes=nv('wOut'); s.repeatThreshold=nv('wRep'); s.reportTime=g('wRt').value; s.useRestDays=ck('wRest');
+    var pv=q('[data-prov][aria-pressed="true"]',root); if(pv) s.provider=pv.dataset.prov;
+    Object.keys(s.types).forEach(function(k){ s.types[k].enabled=ck('wt_'+k); var b=q('[data-to="'+k+'"] [aria-pressed="true"]',root); if(b) s.types[k].to=b.dataset.tov; });
+    qa('[data-tpl]',root).forEach(function(t){ s.templates[t.dataset.tpl]=t.value; });
+    s.managers=qa('.ab-wa-mgr',root).map(function(r,i){ return { id:(live.settings.managers[i]&&live.settings.managers[i].id)||('mgr'+Date.now().toString(36)+i), name:q('[data-m="name"]',r).value.trim(), phone:q('[data-m="phone"]',r).value.trim(), branches:qa('[data-mb][aria-pressed="true"]',r).map(function(b){ return b.dataset.mb; }) }; }).filter(function(m){ return m.phone; });
+    return s;
+  }
+  function onClick(e){
+    var b=e.target.closest('button,[data-act]'); if(!b||!root.contains(b)) return;
+    var act=b.getAttribute('data-act');
+    if(act==='close') return close();
+    if(act==='retry') return render();
+    if(act==='changegw'){ gw=''; return render(); }
+    if(b.dataset.tab){ tab=b.dataset.tab; return render(); }
+    if(b.dataset.prov){ qa('[data-prov]',root).forEach(function(x){ x.setAttribute('aria-pressed', x===b); }); return; }
+    if(b.dataset.tov){ qa('[data-tov]',b.parentNode).forEach(function(x){ x.setAttribute('aria-pressed', x===b); }); return; }
+    if(b.dataset.mb!=null){ b.setAttribute('aria-pressed', b.getAttribute('aria-pressed')!=='true'); return; }
+    if(b.dataset.lf!=null){ logF=b.dataset.lf; return paintLog(); }
+    if(act==='savegw') return saveGw();
+    if(act==='new'){ if(live.qr&&live.qr.status==='open'&&!confirm('فيه رقم متصل دلوقتي. الاتصال الجديد هيفصله ويطلب مسح كود جديد. تكمّل؟')) return; b.disabled=true; return api('POST','/api/qr/new').then(function(){ toast('بيجهّز كود جديد…','info'); }).catch(function(x){ toast(x.message,'error'); b.disabled=false; }); }
+    if(act==='reconnect'){ b.disabled=true; return api('POST','/api/qr/reconnect').catch(function(x){ toast(x.message,'error'); b.disabled=false; }); }
+    if(act==='disconnect'){ if(!confirm('هيتفصل رقم واتساب من البوابة ويتشال من الأجهزة المرتبطة على الموبايل. متأكد؟')) return; b.disabled=true; return api('POST','/api/qr/disconnect').then(function(){ toast('اتفصل الاتصال','warning'); }).catch(function(x){ toast(x.message,'error'); b.disabled=false; }); }
+    if(act==='ocheck'){ b.disabled=true; return api('POST','/api/official/check').then(function(o){ live.state=Object.assign({},live.state,{ official:o }); q('#waBody',root).innerHTML=officialView(); }).catch(function(x){ toast(x.message,'error'); b.disabled=false; }); }
+    if(act==='saveotpl'){
+      var ot={}; qa('[data-otype]',root).forEach(function(f){ var n=q('[data-o="name"]',f).value.trim(); if(!n) return; ot[f.dataset.otype]={ name:n, lang:q('[data-o="lang"]',f).value.trim()||'ar', params:q('[data-o="params"]',f).value.split(',').map(function(x){ return x.trim(); }).filter(Boolean) }; });
+      return api('PUT','/api/settings',{ settings:{ officialTemplates:ot } }).then(function(j){ live.settings=j.settings; toast('اتحفظت القوالب','success'); }).catch(function(x){ toast(x.message,'error'); });
+    }
+    if(act==='addmgr'){ var box=q('#waMgrs',root); live.settings.managers=live.settings.managers||[]; box.insertAdjacentHTML('beforeend', mgrRow({},box.children.length)); return; }
+    if(act==='delmgr'){ b.closest('.ab-wa-mgr').remove(); return; }
+    if(act==='savesettings'){ var s=collectSettings(); b.disabled=true; return api('PUT','/api/settings',{ settings:s }).then(function(j){ live.settings=j.settings; toast('اتحفظت الإعدادات','success'); render(); }).catch(function(x){ toast(x.message,'error'); b.disabled=false; }); }
+    if(act==='test'){ var ph=q('#wTestPhone',root).value.trim(); if(!ph){ toast('اكتب رقم','error'); return; } return api('POST','/api/test',{ phone:ph }).then(function(){ toast('رسالة التجربة في الطريق — تابعها في «سجل الرسائل»','success'); }).catch(function(x){ toast(x.message,'error'); }); }
+    var li=b.closest('li[data-id]'); if(!li) return; var id=li.dataset.id;
+    if(act==='cancelmsg') return api('POST','/api/messages/'+encodeURIComponent(id)+'/cancel').then(function(){ toast('اتلغت','warning'); }).catch(function(x){ toast(x.message,'error'); });
+    if(act==='resend'){
+      var m=live.messages.find(function(x){ return x.id===id; })||{}, body={};
+      if(m.status==='unknown'){ if(!confirm('حالة الرسالة دي غير مؤكدة، يعني ممكن تكون وصلت فعلًا. اتأكد من المستلم الأول. تبعتها تاني؟')) return; body.confirmUnknown=true; }
+      return api('POST','/api/messages/'+encodeURIComponent(id)+'/resend',body).then(function(){ toast('اتحطت في الطابور تاني','success'); }).catch(function(x){ toast(x.message,'error'); });
+    }
+  }
+  function saveGw(){
+    var inp=q('#waGw',root), m=q('#waGwMsg',root), v=String(inp.value||'').trim().replace(/\/+$/,'');
+    if(!/^https:\/\/[^\s]+$/.test(v) && !/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(v)){ m.textContent='الرابط لازم يبدأ بـ https:// (أو http://127.0.0.1 لو البوابة على نفس الكمبيوتر)'; return; }
+    m.textContent='بجرّب الاتصال…';
+    fetch(v+'/health').then(function(r){ return r.json(); }).then(function(j){
+      if(!j||!j.ok) throw new Error('الرابط ده مش بوابة واتساب');
+      gw=v; ls(URL_KEY,v); ss(TOK,null); if(socket){ socket.close(); socket=null; }
+      var d=DB(); if(d && /^https:/.test(v)) d.ref('whatsapp/public/gatewayUrl').set(v);
+    }).then(function(){ toast('اتربط ببوابة واتساب','success'); render(); connectSocket().catch(function(){}); })
+    .catch(function(e){ m.textContent='مقدرتش أوصل: '+(e.message||e); });
+  }
+  (function poll(){ try{ nav(); }catch(e){} setTimeout(poll,1500); })();
+  window.ABWa={ open:open, close:close, allowed:allowed };
+})();
+
+/* ALLOSH BAZAR — a close button for every popup.
+   Any full-screen overlay (fixed, covering the viewport) that is open and has no visible close button near its
+   top gets a floating ✕ at the card's corner. Closing reuses the popup's own logic:
+   1) its own close / cancel button, 2) its own backdrop click, 3) hide it. Esc closes the top-most popup too. */
+(function(){
+  'use strict';
+  var SKIP='#loginPage,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
+  var CLOSE_RX=/^\s*(×|✕|✖|x|X)\s*$|إغلاق|اغلاق|close/i;
+  var X='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+  function vis(e){ if(!e||!e.isConnected) return false; var cs=getComputedStyle(e); if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0) return false; var r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }
+  function isOverlay(e){
+    if(!(e instanceof HTMLElement) || e.matches(SKIP) || e.closest('.ab-en,#abNotifyPanel,.ab-cmdk')) return false;
+    var cs=getComputedStyle(e); if(cs.position!=='fixed') return false; if(!vis(e)) return false;
+    var r=e.getBoundingClientRect(); return r.width>=innerWidth*0.85 && r.height>=innerHeight*0.85;
+  }
+  function card(m){
+    var c=m, va=innerWidth*innerHeight;
+    for(var d=0; d<4; d++){
+      var best=null, ba=0; [].forEach.call(c.children, function(k){ if(k.classList.contains('ab-x')||!vis(k)) return; var r=k.getBoundingClientRect(), a=r.width*r.height; if(a>ba){ ba=a; best=k; } });
+      if(!best) return c===m?null:c;
+      if(ba<va*0.92) return best; c=best;
+    }
+    return c;
+  }
+  function closeBtns(m){ return [].filter.call(m.querySelectorAll('button,[onclick],[role="button"],.close,[class*="close"]'), function(b){ if(b.classList.contains('ab-x')||!vis(b)) return false;
+    var t=(b.textContent||'')+' '+(b.getAttribute('aria-label')||'')+' '+(b.getAttribute('title')||''), oc=b.getAttribute('onclick')||'';
+    return CLOSE_RX.test(t.trim()) || /close/i.test(String(b.className)) || /\bclose\w*\s*\(/i.test(oc); }); }
+  function hasOwnClose(m,c){ var top=c.getBoundingClientRect().top; return closeBtns(m).some(function(b){ var r=b.getBoundingClientRect(); return r.top<top+84 && r.width<=64; }); }
+  function closeIt(m){
+    // 1) its own cancel / close button
+    var own=[].filter.call(m.querySelectorAll('button,[onclick]'), function(b){ if(b.classList.contains('ab-x')||!vis(b)) return false; var oc=b.getAttribute('onclick')||'', t=(b.textContent||'').trim();
+      return /\b(close|hide|cancel)\w*\s*\(/i.test(oc) || /^(إلغاء|الغاء|إغلاق|اغلاق|×|✕|✖)$/.test(t); });
+    own.sort(function(a,b){ return (/close/i.test(b.getAttribute('onclick')||'')?1:0)-(/close/i.test(a.getAttribute('onclick')||'')?1:0); });
+    if(own[0]){ own[0].click(); }
+    // 2) its own backdrop click
+    if(isOverlay(m) && (m.getAttribute('onclick')||m.onclick)){ m.dispatchEvent(new MouseEvent('click',{ bubbles:true, cancelable:true })); }
+    // 3) hide
+    setTimeout(function(){ if(isOverlay(m)){ m.style.display='none'; m.classList.remove('show','active','open','visible'); if(m.hasAttribute('hidden')===false && isOverlay(m)) m.hidden=true; } sweep(); }, 60);
+  }
+  var open=[];
+  function place(m){ var x=m.__abX, c=m.__abCard; if(!x||!c||!c.isConnected) return; var r=c.getBoundingClientRect();
+    var inside=r.left<24 || r.top<24;   // edge-to-edge sheet (phone): sit inside the corner
+    x.style.top=Math.max(8, Math.min(innerHeight-48, inside ? r.top+12 : r.top-14))+'px'; x.style.left=Math.max(8, Math.min(innerWidth-48, inside ? r.left+12 : r.left-14))+'px'; x.classList.toggle('in', inside); }
+  function sweep(){
+    var now=[].filter.call(document.body.querySelectorAll('body > *, body > * > *, [id$="Modal"], [id$="modal"], [class*="modal"], [class*="overlay"], [class*="popup"], [role="dialog"]'), isOverlay);
+    open.forEach(function(m){ if(now.indexOf(m)<0 && m.__abX){ m.__abX.remove(); m.__abX=null; } });
+    open=now;
+    now.forEach(function(m){
+      if(m.__abX && m.__abX.isConnected){ place(m); return; }
+      var c=card(m); if(!c) return; m.__abCard=c;
+      if(hasOwnClose(m,c)){ m.__abX=null; return; }
+      var b=document.createElement('button'); b.type='button'; b.className='ab-x'; b.setAttribute('aria-label','إغلاق'); b.title='إغلاق'; b.innerHTML=X;
+      b.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); closeIt(m); });
+      m.appendChild(b); m.__abX=b; place(m);
+    });
+  }
+  function top(){ var best=null, bz=-1; open.forEach(function(m){ if(!isOverlay(m)) return; var z=parseInt(getComputedStyle(m).zIndex,10)||0; if(z>=bz){ bz=z; best=m; } }); return best; }
+  document.addEventListener('keydown', function(e){
+    if(e.key!=='Escape') return; if(document.querySelector('.ab-en:not([hidden]).on')) return;
+    var m=top(); if(m && m.__abX){ e.preventDefault(); closeIt(m); }
+  });
+  addEventListener('resize', function(){ open.forEach(place); });
+  document.addEventListener('scroll', function(){ open.forEach(place); }, true);
+  function boot(){ sweep(); setInterval(sweep, 250); document.addEventListener('click', function(){ setTimeout(sweep, 30); }, true); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  window.ABClose={ sweep:sweep };
 })();
 
 </script>
