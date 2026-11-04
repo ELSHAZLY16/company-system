@@ -26544,14 +26544,17 @@ setInterval(() => {
             transferExpiryInput.setAttribute("aria-label", "تاريخ انتهاء الصلاحية — اليوم أو تاريخ مستقبلي فقط");
             transferExpiryInput.setAttribute("title", "لا يمكن اختيار تاريخ انتهاء سابق لليوم");
             transferExpiryInput.addEventListener("focus", () => TransferService._refreshExpiryMin());
-            transferExpiryInput.addEventListener("change", function(){
+            const transferExpiryCheck = function(final){
               const enteredValue = this.value;
-              const todayKey = TransferService._refreshExpiryMin();
+              if (!final && enteredValue && Number(String(enteredValue).slice(0,4)) < 1000) return;   // still typing the year
+              const todayKey = TransferService._todayExpiryKey();
               if (enteredValue && !TransferService._isValidExpiryDate(enteredValue, todayKey)) {
                 this.value = "";
                 UI.toast("تاريخ انتهاء الصلاحية لا يمكن أن يكون قبل اليوم. اختر تاريخ اليوم أو تاريخًا مستقبليًا.", "error", 8000);
               }
-            });
+            };
+            transferExpiryInput.addEventListener("change", function(){ transferExpiryCheck.call(this, false); });
+            transferExpiryInput.addEventListener("blur", function(){ transferExpiryCheck.call(this, true); });
           }
         } catch (transferExpiryInitError) {
           console.warn('[Transfers] expiry date guard initialization failed', transferExpiryInitError);
