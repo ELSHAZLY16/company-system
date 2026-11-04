@@ -4002,6 +4002,7 @@ body.light-mode .uj-session-sub,body.light-mode .uj-event-meta,body.light-mode .
 <option value="الصباح">فرع الصباح</option>
 <option value="باب40">مخزن باب 40</option>
 <option value="الثلاجة">الثلاجة</option>
+<option value="القاهرة">فرع القاهرة</option>
 
 </select>
 
@@ -4017,6 +4018,7 @@ body.light-mode .uj-session-sub,body.light-mode .uj-event-meta,body.light-mode .
 <option value="الصباح">فرع الصباح</option>
 <option value="باب40">مخزن باب 40</option>
 <option value="الثلاجة">الثلاجة</option>
+<option value="القاهرة">فرع القاهرة</option>
 
 </select>
 
@@ -4149,6 +4151,7 @@ onchange="UI.renderTransfers()">
 <option value="الصباح">فرع الصباح</option>
 <option value="باب40">مخزن باب 40</option>
 <option value="الثلاجة">الثلاجة</option>
+<option value="القاهرة">فرع القاهرة</option>
 </select>
 
 <select id="transferDirFilter" onchange="UI.renderTransfers()"
@@ -4727,8 +4730,9 @@ body.dates-print-only #tab-products .dates-view-toolbar{display:none!important;}
       </div>
       <div class="dates-desktop-table dates-table-wrap">
         <table class="dates-table" aria-label="جدول دفعات تواريخ الصلاحية">
-          <thead><tr><th>#</th><th>الباركود</th><th>اسم الصنف</th><th>الفرع</th><th>الكمية</th><th class="price-col">التكلفة</th><th class="price-col">البيع</th><th>تاريخ الانتهاء</th><th>الأيام المتبقية</th><th>الحالة</th><th>المضيف</th><th>المصدر</th><th>وقت الإضافة</th><th>الإجراءات</th></tr></thead>
-          <tbody id="productsBody"><tr><td colspan="14" class="dates-empty">جارٍ تحميل دفعات التواريخ...</td></tr></tbody>
+          <colgroup><col class="dc-n"><col class="dc-item"><col class="dc-branch"><col class="dc-qty"><col class="dc-money price-col"><col class="dc-money price-col"><col class="dc-exp"><col class="dc-status"><col class="dc-added"><col class="dc-src"><col class="dc-act"></colgroup>
+          <thead><tr><th>#</th><th class="dates-th-item">الصنف</th><th>الفرع</th><th>الكمية</th><th class="price-col">التكلفة</th><th class="price-col">البيع</th><th>الانتهاء</th><th>الحالة</th><th>الإضافة</th><th>المصدر</th><th>الإجراءات</th></tr></thead>
+          <tbody id="productsBody"><tr><td colspan="11" class="dates-empty">جارٍ تحميل دفعات التواريخ...</td></tr></tbody>
         </table>
       </div>
       <div id="productsCards" class="dates-mobile-cards" aria-label="بطاقات دفعات تواريخ الصلاحية"></div>
@@ -6429,6 +6433,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
         <option value="الصباح">الصباح</option>
         <option value="باب40">باب 40</option>
           <option value="الثلاجة">الثلاجة</option>
+          <option value="القاهرة">القاهرة</option>
       </select>
 
       <select id="analyticsToFilter"
@@ -6439,6 +6444,7 @@ style="flex:1; text-align:center; font-size:22px; font-weight:bold; letter-spaci
         <option value="الصباح">الصباح</option>
         <option value="باب40">باب 40</option>
           <option value="الثلاجة">الثلاجة</option>
+          <option value="القاهرة">القاهرة</option>
       </select>
 
       <select id="analyticsUserFilter"
@@ -8435,6 +8441,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 <option value="الصباح">فرع الصباح</option>
 <option value="باب40">مخزن باب 40</option>
 <option value="الثلاجة">الثلاجة</option>
+<option value="القاهرة">فرع القاهرة</option>
 </select>
 </div>
 
@@ -8446,6 +8453,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 <option value="الصباح">فرع الصباح</option>
 <option value="باب40">مخزن باب 40</option>
 <option value="الثلاجة">الثلاجة</option>
+<option value="القاهرة">فرع القاهرة</option>
 </select>
 </div>
 
@@ -17215,7 +17223,7 @@ const InventoryService = {
   _migrationBusy: false,
   _purchaseSaving: false,
   _resetBusy: false,
-  locationsBase: ['باب40','البازار','الصباح','الثلاجة','الميرغني','المقطم'],
+  locationsBase: ['باب40','البازار','الصباح','الثلاجة','القاهرة','الميرغني','المقطم'],
 
   _escape(value) {
     return String(value === null || value === undefined ? '' : value)
@@ -17268,6 +17276,7 @@ const InventoryService = {
     if(compact==='البازار') return 'البازار';
     if(compact==='الصباح') return 'الصباح';
     if(compact==='الثلاجة') return 'الثلاجة';
+    if(compact==='القاهرة') return 'القاهرة';
     if(s.startsWith('فرع ')) s=s.slice(4).trim();
     return s;
   },
@@ -17276,6 +17285,7 @@ const InventoryService = {
     if(s==='باب40') return 'مخزن باب 40';
     if(s==='البازار') return 'فرع البازار';
     if(s==='الصباح') return 'فرع الصباح';
+    if(s==='القاهرة') return 'فرع القاهرة';
     return s || '—';
   },
   isTrackedWarehouse(value) { return this.normalizeLocation(value)==='باب40'; },
@@ -25205,16 +25215,16 @@ renderTransfers(){
             const cost=pr.cost!==null&&pr.cost!==undefined&&pr.cost!==''?`${Number(pr.cost).toLocaleString('ar-EG')} ج`:'—';
             const price=pr.price!==null&&pr.price!==undefined&&pr.price!==''?`${Number(pr.price).toLocaleString('ar-EG')} ج`:'—';
             return `<tr class="dates-data-row ${m.key}" data-product-id="${escAttr(p?.id||'')}">
-              <td>${(from+i+1).toLocaleString('ar-EG')}</td>
-              <td class="dates-barcode">${esc(p?.barcode||'-')}</td>
-              <td style="font-weight:800;text-align:right;min-width:125px">${esc(name)}</td>
-              <td>${esc(p?.branch||'-')}</td>
-              <td><strong class="dates-qty" style="color:${qtyColor}">${m.quantity.toLocaleString('ar-EG')}</strong></td>
-              <td class="price-col">${cost}</td><td class="price-col">${price}</td>
-              <td dir="ltr">${esc(dateKey(m.expiry)||m.expiry||'-')}</td><td>${daysHtml(m)}</td><td>${statusHtml(m)}</td>
-              <td>${esc(p?._displayUser||p?.user||p?.lastAddedBy||'-')}</td><td>${sourceHtml(p)}${mergedBadgeHtml(p)}</td>
-              <td style="font-size:10px;white-space:nowrap">${esc(p?.lastAddedAt||p?.addedAt||'-')}</td>
-              <td>${actionButtons(p)}</td>
+              <td class="dc-n">${(from+i+1).toLocaleString('ar-EG')}</td>
+              <td class="dc-item"><span class="dc-name" title="${escAttr(name)}">${esc(name)}</span><bdi class="dates-barcode">${esc(p?.barcode||'-')}</bdi></td>
+              <td class="dc-branch">${esc(p?.branch||'-')}</td>
+              <td class="dc-qty"><strong class="dates-qty" style="color:${qtyColor}">${m.quantity.toLocaleString('ar-EG')}</strong></td>
+              <td class="price-col dc-money">${cost}</td><td class="price-col dc-money">${price}</td>
+              <td class="dc-exp"><bdi dir="ltr" class="dc-date">${esc(dateKey(m.expiry)||m.expiry||'-')}</bdi>${daysHtml(m)}</td>
+              <td class="dc-status">${statusHtml(m)}</td>
+              <td class="dc-added"><span class="dc-user" title="${escAttr(p?._displayUser||p?.user||p?.lastAddedBy||'-')}">${esc(p?._displayUser||p?.user||p?.lastAddedBy||'-')}</span><small>${esc(p?.lastAddedAt||p?.addedAt||'-')}</small></td>
+              <td class="dc-src">${sourceHtml(p)}${mergedBadgeHtml(p)}</td>
+              <td class="dc-act">${actionButtons(p)}</td>
             </tr>`;
           }).join('');
           const tbody=document.getElementById('productsBody');
@@ -32506,6 +32516,42 @@ html:root body .ab-ntf-chips{ -webkit-mask-image:linear-gradient(to left, #000 c
 html:root body div[id$="Modal"] > .ab-grown, html:root body .perm-modal > .ab-grown{ animation:none !important; opacity:1; }
 /* notification center: only the list scrolls; header, device row and filters never get squeezed */
 html:root body .ab-ntf-card > :not(.ab-ntf-body){ flex:0 0 auto; }
+/* header search: a clear way out */
+html:root body .ab-cmdk-x{ flex:0 0 auto; width:36px; height:36px; display:grid; place-items:center; padding:0; margin-inline-start:4px; border:0; border-radius:50%; background:var(--ab-fill); color:var(--ab-ink-2); cursor:pointer; transition:background-color .15s ease, color .15s ease; }
+html:root body .ab-cmdk-x svg{ width:16px !important; height:16px !important; fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; color:inherit !important; }
+html:root body .ab-cmdk-x:hover{ background:var(--ab-red); color:#fff; }
+html:root body .ab-cmdk-x:focus-visible{ outline:none; box-shadow:var(--ab-ring); }
+
+/* ═══ N: التواريخ — table view, 11 tidy columns ═══ */
+html:root body #tab-products.dates-view-table .dates-table-wrap{ overflow-x:auto !important; }
+html:root body #tab-products .dates-table{ table-layout:fixed !important; width:100% !important; min-width:1000px !important; font-size:13px !important; border-collapse:separate !important; border-spacing:0 !important; }
+html:root body #tab-products .dates-table col.dc-n{ width:3.5%; } html:root body #tab-products .dates-table col.dc-item{ width:19%; } html:root body #tab-products .dates-table col.dc-branch{ width:7%; }
+html:root body #tab-products .dates-table col.dc-qty{ width:5.5%; } html:root body #tab-products .dates-table col.dc-money{ width:7%; } html:root body #tab-products .dates-table col.dc-exp{ width:10.5%; }
+html:root body #tab-products .dates-table col.dc-status{ width:12%; } html:root body #tab-products .dates-table col.dc-added{ width:12%; } html:root body #tab-products .dates-table col.dc-src{ width:7%; } html:root body #tab-products .dates-table col.dc-act{ width:10%; }
+html:root body #tab-products .dates-table th{ padding:12px 8px !important; font-size:12px !important; font-weight:600 !important; line-height:1.3 !important; white-space:nowrap !important; text-align:center !important; position:sticky; top:0; }
+html:root body #tab-products .dates-table th.dates-th-item{ text-align:start !important; padding-inline-start:12px !important; }
+html:root body #tab-products .dates-table td{ padding:10px 8px !important; min-width:0 !important; max-width:none !important; width:auto !important; line-height:1.35 !important; overflow:hidden; text-overflow:ellipsis; white-space:nowrap !important; vertical-align:middle !important; text-align:center !important; font-size:13px !important; overflow-wrap:normal !important; }
+html:root body #tab-products .dates-table td.dc-n{ color:var(--ab-muted) !important; font-variant-numeric:tabular-nums; }
+html:root body #tab-products .dates-table td.dc-item{ text-align:start !important; padding-inline-start:12px !important; }
+html:root body #tab-products .dates-table .dc-name{ display:block; font-weight:600; color:var(--ab-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html:root body #tab-products .dates-table td.dc-item .dates-barcode{ display:block; margin-top:2px; font-size:11.5px !important; color:var(--ab-muted); font-variant-numeric:tabular-nums; letter-spacing:.2px; text-align:start; direction:ltr; unicode-bidi:isolate; }
+html:root body #tab-products .dates-table td.dc-money, html:root body #tab-products .dates-table td.dc-qty{ font-variant-numeric:tabular-nums; }
+html:root body #tab-products .dates-table td.dc-exp .dc-date{ display:block; font-variant-numeric:tabular-nums; font-size:12.5px; }
+html:root body #tab-products .dates-table td.dc-exp .dates-days{ display:inline-block; margin-top:3px; font-size:11px !important; padding:1px 7px !important; border-radius:6px !important; }
+html:root body #tab-products .dates-table .dates-status{ font-size:11.5px !important; padding:3px 8px !important; white-space:nowrap; }
+html:root body #tab-products .dates-table td.dc-added .dc-user{ display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ab-ink-2); }
+html:root body #tab-products .dates-table td.dc-added small{ display:block; margin-top:2px; font-size:11px; color:var(--ab-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html:root body #tab-products .dates-table td.dc-src{ white-space:normal !important; }
+html:root body #tab-products .dates-table td.dc-src .dates-status{ display:inline-flex; margin:1px; }
+html:root body #tab-products .dates-table td.dc-act{ overflow:visible; }
+html:root body #tab-products .dates-table .dates-row-actions{ display:flex !important; flex-wrap:nowrap !important; justify-content:center !important; gap:4px !important; width:auto !important; min-width:0 !important; max-width:none !important; }
+html:root body #tab-products .dates-table .dates-row-actions .dates-action-btn{ flex:0 0 30px !important; width:30px !important; height:30px !important; min-width:0 !important; min-height:0 !important; padding:0 !important; font-size:0 !important; line-height:0 !important; border-radius:9px !important; display:inline-grid !important; place-items:center !important; overflow:hidden; }
+html:root body #tab-products .dates-table .dates-row-actions .dates-action-btn svg, html:root body #tab-products .dates-table .dates-row-actions .dates-action-btn .ui-icon-slot{ width:15px !important; height:15px !important; font-size:15px; margin:0 !important; }
+html:root body #tab-products .dates-table tbody tr:nth-child(even) td{ background:var(--ab-subtle); }
+html:root body #tab-products .dates-table .dates-row-actions .dates-action-btn .ab-ico{ width:16px !important; height:16px !important; margin:0 !important; font-size:16px; }
+html:root body #tab-products .dates-table .dates-row-actions .dates-action-btn .ab-ico svg{ width:16px !important; height:16px !important; }
+html:root body #tab-products .dates-table .dates-row-actions .dates-action-btn.delete{ color:var(--ab-danger) !important; }
+html:root body #tab-products .dates-table .dates-row-actions{ gap:3px !important; }
 
 
 </style>
@@ -33438,14 +33484,35 @@ var ABSFX=(function(){
     var dash=q('#dashboard'); if(!dash) return;
     var wasVisible=false;
     var check=function(){ var vis=dash.style.display!=='none' && getComputedStyle(dash).display!=='none';
-      if(vis && !wasVisible){ wasVisible=true; document.body.classList.add('ab-booting'); setTimeout(showHome,0); waitData(); }
-      else if(!vis && wasVisible){ wasVisible=false; hideHome(); document.body.classList.remove('ab-home-seen'); closeNav(); } };
+      if(vis && !wasVisible){ wasVisible=true; document.body.classList.add('ab-booting'); restoreView(); waitData(); }
+      else if(!vis && wasVisible){ wasVisible=false; hideHome(); document.body.classList.remove('ab-home-seen'); closeNav(); try{ sessionStorage.removeItem('ab_view'); }catch(e){} } };
     new MutationObserver(check).observe(dash,{attributes:true,attributeFilter:['style']}); check();
     // any page becoming visible means the user left home
     qa('.tab-content').forEach(function(tc){ new MutationObserver(function(){ if(tc.style.display!=='none' && tc.style.display!==''){ if(document.body.classList.contains('ab-on-home') && q('.tab-btn.active')) hideHome(); onPageShown(tc); } }).observe(tc,{attributes:true,attributeFilter:['style']}); });
     setInterval(function(){ if(document.body.classList.contains('ab-on-home') && !document.hidden) renderHome(false); }, 5000);
     window.addEventListener('online', function(){ renderHome(false); }); window.addEventListener('offline', function(){ renderHome(false); });
   }
+  /* a refresh brings the user back to the page they were on (this browser tab only; a new sign-in starts at home) */
+  function restoreView(){
+    var v=null; try{ v=sessionStorage.getItem('ab_view'); }catch(e){}
+    if(!v || v==='home'){ setTimeout(showHome,0); return; }
+    var t0=Date.now();
+    (function tryOpen(){
+      var b=q('.tab-btn[data-tab="'+v+'"]');
+      var ok=b && b.style.display!=='none' && getComputedStyle(b).display!=='none';
+      var st=S(), ready=st && st.currentUser;
+      if(ok && ready){ if(!b.classList.contains('active')) b.click(); var tc=q('#tab-'+v); if(tc && tc.style.display==='none') b.click(); return; }
+      if(Date.now()-t0>5000){ showHome(); return; }
+      setTimeout(tryOpen,120);
+    })();
+  }
+  function rememberView(){
+    var dash=q('#dashboard'); if(!dash || getComputedStyle(dash).display==='none') return;
+    var a=q('.tab-btn.active'), v=document.body.classList.contains('ab-on-home')||!a ? 'home' : a.getAttribute('data-tab');
+    try{ sessionStorage.setItem('ab_view', v); }catch(e){}
+  }
+  window.addEventListener('pagehide', rememberView); window.addEventListener('beforeunload', rememberView);
+  document.addEventListener('visibilitychange', function(){ if(document.hidden) rememberView(); });
   function waitData(){ var t0=Date.now(); (function poll(){ var st=S(); if((st && st.isFirebaseLoaded && Date.now()-t0>600) || Date.now()-t0>8000){ document.body.classList.remove('ab-booting'); renderHome(true); return; } setTimeout(poll,250); })(); }
   var visited={};
   function onPageShown(tc){
@@ -33459,7 +33526,8 @@ var ABSFX=(function(){
   var cm, cmInput, cmList, cmItems=[], cmSel=0, cmReturn=null;
   function buildCmdk(){
     cm=document.createElement('div'); cm.className='ab-cmdk'; cm.setAttribute('role','dialog'); cm.setAttribute('aria-modal','true'); cm.setAttribute('aria-label','البحث والانتقال السريع');
-    cm.innerHTML='<div class="ab-cmdk-box"><div class="ab-cmdk-input">'+svg('search')+'<input type="text" id="abCmdkInput" placeholder="اكتب اسم صفحة أو موظف أو إجراء…" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="abCmdkList"></div><ul class="ab-cmdk-list" id="abCmdkList" role="listbox"></ul><div class="ab-cmdk-foot"><span><kbd class="ab-kbd">↑</kbd> <kbd class="ab-kbd">↓</kbd> للتنقل</span><span><kbd class="ab-kbd">Enter</kbd> للفتح</span><span><kbd class="ab-kbd">Esc</kbd> للإغلاق</span></div></div>';
+    cm.innerHTML='<div class="ab-cmdk-box"><div class="ab-cmdk-input">'+svg('search')+'<input type="text" id="abCmdkInput" placeholder="اكتب اسم صفحة أو موظف أو إجراء…" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="abCmdkList"><button type="button" class="ab-cmdk-x" aria-label="إغلاق البحث" title="إغلاق"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><ul class="ab-cmdk-list" id="abCmdkList" role="listbox"></ul><div class="ab-cmdk-foot"><span><kbd class="ab-kbd">↑</kbd> <kbd class="ab-kbd">↓</kbd> للتنقل</span><span><kbd class="ab-kbd">Enter</kbd> للفتح</span><span><kbd class="ab-kbd">Esc</kbd> للإغلاق</span></div></div>';
+    cm.querySelector('.ab-cmdk-x').addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); closeCmdk(); });
     document.body.appendChild(cm); cmInput=q('#abCmdkInput'); cmList=q('#abCmdkList');
     cm.addEventListener('mousedown', function(e){ if(e.target===cm) closeCmdk(); });
     cmInput.addEventListener('input', function(){ cmSel=0; renderCmdk(); });
@@ -33639,7 +33707,7 @@ var ABSFX=(function(){
     '📦':'package','🗃':'package','🗄':'package','🔍':'search','🔎':'search','⌕':'search','💰':'money','💵':'money',
     '🌙':'moon','☀':'sun','✏':'pencil','✎':'pencil','✍':'pencil','📝':'pencil','💾':'save',
     '📊':'chart','▤':'table','📈':'trendUp','📉':'trendDown','📋':'clipboard','📑':'clipboard','🧾':'receipt','📄':'file',
-    '👤':'user','♙':'user','👥':'users','🔄':'refresh','↻':'refresh','♲':'refresh','➕':'plus','＋':'plus','➖':'minus',
+    '👤':'user','♙':'user','👥':'users','🔄':'refresh','↻':'refresh','♲':'trash','➕':'plus','＋':'plus','➖':'minus',
     '👋':'logout','🚪':'door','⇥':'login','🏙':'building','🏢':'building','🏣':'building','🏪':'store','▦':'grid','▣':'grid',
     '📅':'calendar','⇄':'swap','⇅':'arrowsSwapV','🏖':'palm','📱':'phone','💼':'briefcase','⚡':'zap','🎁':'gift',
     '⏸':'pause','▶':'play','⏹':'stop','↩':'undo','↪':'redo','▲':'up','▼':'down','📌':'pinPaper','📍':'pin','☕':'coffee',
@@ -34777,6 +34845,55 @@ var ABSFX=(function(){
   function boot(){ sweep(); setInterval(sweep, 250); document.addEventListener('click', function(){ setTimeout(sweep, 30); }, true); }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', boot); else boot();
   window.ABClose={ sweep:sweep };
+})();
+
+/* ALLOSH BAZAR — «بصمة البازار»: the «شهر التصدير» month drives every table.
+   Opens on the current month. Changing it re-filters attendance, advances, penalties, leaves, incentives,
+   permits, payroll and payslip to that month (and the export uses the same month, as before).
+   Each pane keeps its own month field, so a single table can still be looked at on another month. */
+(function(){
+  'use strict';
+  function S(){ return window.BazarHRSuite; }
+  function pad(n){ return (n<10?'0':'')+n; }
+  function today(){ var s=S(); try{ if(s && s._today) return s._today(); }catch(e){} var d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function valid(m){ var x=/^(\d{4})-(0[1-9]|1[0-2])$/.exec(m||''); return !!x && +x[1]>=2000; }
+  function master(){ var i=document.getElementById('bhr-export-month'); var v=i&&i.value; return valid(v)?v:today().slice(0,7); }
+  function range(m){ var y=+m.slice(0,4), mo=+m.slice(5,7), last=new Date(Date.UTC(y,mo,0)).getUTCDate(), to=m+'-'+pad(last), t=today(); if(t.slice(0,7)===m && t<to) to=t; return [m+'-01', to]; }
+  /* put the month into one pane's own filters; returns true if anything changed */
+  function seed(pane, m){
+    if(!pane) return false; var changed=false;
+    pane.querySelectorAll('[data-filter="month"]').forEach(function(i){ if(i.value!==m){ i.value=m; changed=true; } });
+    var f=pane.querySelector('[data-filter="from"]'), t=pane.querySelector('[data-filter="to"]');
+    if(f && t){ var r=range(m); if(f.value!==r[0]||t.value!==r[1]){ f.value=r[0]; t.value=r[1]; changed=true; } }
+    pane.dataset.abMonth=m; return changed;
+  }
+  function hook(){
+    var s=S(); if(!s || s.__abMonthHooked || typeof s.renderActive!=='function') return !!(s&&s.__abMonthHooked);
+    s.__abMonthHooked=true;
+    var orig=s.renderActive;
+    s.renderActive=function(){
+      var r=orig.apply(this, arguments);
+      try{
+        var pane=document.getElementById('bh-pane-'+this._active), m=master();
+        if(pane && pane.dataset.abMonth!==m && seed(pane, m)) r=orig.apply(this, arguments);   // render once more with the month applied
+      }catch(e){ console.warn('[Bazar month]', e); }
+      return r;
+    };
+    var inp=document.getElementById('bhr-export-month');
+    if(inp && !inp.__abMonth){
+      inp.__abMonth=true;
+      var apply=function(){
+        if(!valid(inp.value)) return;   // still typing the year
+        document.querySelectorAll('#tab-fingerprint-bazar .bhr-pane').forEach(function(p){ delete p.dataset.abMonth; });
+        try{ s.renderActive(); }catch(e){}
+      };
+      inp.addEventListener('change', apply);
+      inp.addEventListener('blur', function(){ if(!valid(inp.value)) inp.value=today().slice(0,7); apply(); });
+    }
+    return true;
+  }
+  (function wait(n){ if(hook() || n>200) return; setTimeout(function(){ wait(n+1); }, 300); })(0);
+  window.ABBhrMonth={ master:master };
 })();
 
 </script>
