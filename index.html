@@ -3685,6 +3685,26 @@ body.light-mode .uj-session-sub,body.light-mode .uj-event-meta,body.light-mode .
 #bh-pane-payroll .bhr-table td.bhr-long{white-space:normal!important;min-width:190px;max-width:220px}
 </style>
 
+
+<style id="bazar-salary-permission-guard">
+/* لا نعرض قيمة الجزاء المحسوبة من أجر الساعة لمن لا يملك صلاحية الرواتب. */
+body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(2) .bhr-table th:nth-child(9),
+body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(2) .bhr-table td:nth-child(9),
+body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(2) .bhr-table col:nth-child(9),
+body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(3) .bhr-table th:nth-child(6),
+body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(3) .bhr-table td:nth-child(6),
+body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(3) .bhr-table col:nth-child(6){display:none!important;}
+</style>
+<style id="permissions-icons-white-restore-v77">
+/* Restore the original permission-card appearance: white labels with icons only as accents. */
+#tab-users #permissionsGrid .permission-card{color:#f4f4f5!important;}
+#tab-users #permissionsGrid .permission-card>span:first-of-type{color:#b5121f!important;}
+#tab-users #permissionsGrid .permission-card>span:nth-of-type(2){color:#f4f4f5!important;}
+#tab-users #permissionsGrid .permission-card.active>span:nth-of-type(2){color:#fff!important;}
+#tab-users #permissionsGrid .permission-card.fingerprint-perm-card .fingerprint-perm-gear{color:#b5121f!important;}
+.fingerprint-perm-item .fp-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;min-width:22px;font-size:18px;line-height:1;}
+.fingerprint-perm-item .fp-label{color:#e4e4e7!important;}
+</style>
 </head>
 <body>
 <!-- Lightweight internal SVG icon system: no icon images / no external icon font needed -->
@@ -4464,6 +4484,15 @@ onclick="TransferService.exportExcel()">
   #tab-shortages .sh-title{align-items:flex-start;}
 }
 @media(prefers-reduced-motion:reduce){#tab-shortages .sh-panel,#tab-shortages .sh-modal-box{animation:none!important;transition:none!important;}}
+/* V78 — سجل الطلبات: كل إجراء في عمود مستقل، وأزرار الإجراءات الأساسية في صف واحد. */
+#tab-shortages .sh-requests-table{min-width:980px!important;table-layout:auto;}
+#tab-shortages .sh-requests-table th,#tab-shortages .sh-requests-table td{text-align:center;vertical-align:middle;}
+#tab-shortages .sh-requests-table .sh-row-actions{display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:6px;width:max-content;min-width:0;margin:0 auto;white-space:nowrap;}
+#tab-shortages .sh-requests-table .sh-row-actions .sh-btn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:66px;min-height:36px;padding:6px 10px;font-size:11px;line-height:1.2;white-space:nowrap;}
+#tab-shortages .sh-requests-table .sh-edit-col,#tab-shortages .sh-requests-table .sh-delete-col{width:82px;min-width:82px;}
+#tab-shortages .sh-requests-table .sh-edit-col .sh-btn,#tab-shortages .sh-requests-table .sh-delete-col .sh-btn{min-width:64px;}
+#tab-shortages #missingCancelEditBtn{border-color:var(--ab-red-200);color:var(--ab-red);}
+@media(max-width:600px){#tab-shortages .sh-requests-table{min-width:980px!important;}#tab-shortages .sh-requests-table .sh-row-actions{gap:5px;}#tab-shortages .sh-requests-table .sh-row-actions .sh-btn{min-width:62px;padding:6px 8px;font-size:10px;}}
 </style>
 
 <div id="tab-shortages" class="tab-content" style="display:none;">
@@ -4491,6 +4520,7 @@ onclick="TransferService.exportExcel()">
       <div class="sh-actions">
         <button type="button" class="sh-btn sh-btn-primary" onclick="MissingService.addDraftItem()">＋ إضافة الصنف للطلب</button>
         <button type="button" class="sh-btn sh-btn-success" onclick="MissingService.saveRequest()">💾 حفظ طلب النواقص</button>
+        <button type="button" class="sh-btn sh-btn-muted" id="missingCancelEditBtn" style="display:none" onclick="MissingService.cancelEdit()">إلغاء التعديل</button>
         <button type="button" class="sh-btn sh-btn-muted" onclick="MissingService.clearDraftConfirm()">مسح الطلب الحالي</button>
       </div>
       <div class="sh-kpis">
@@ -4510,7 +4540,7 @@ onclick="TransferService.exportExcel()">
         <div><h3>طلبات النواقص المحفوظة</h3><div class="sh-sub">تقدر تراجع أي طلب سابق وتصدره Excel بنفس بياناته.</div></div>
         <div class="sh-history-filter"><div class="sh-field"><label for="missingHistoryBranch">تصفية حسب الفرع</label><select id="missingHistoryBranch" onchange="MissingService.renderRequests()"><option value="">كل الفروع</option><option value="البازار">البازار</option><option value="الصباح">الصباح</option><option value="باب40">باب 40</option><option value="الثلاجة">الثلاجة</option><option value="القاهرة">القاهرة</option></select></div><button type="button" class="sh-btn sh-btn-muted" onclick="MissingService.refresh()">تحديث ↻</button></div>
       </div>
-      <div class="sh-table-wrap"><table><thead><tr><th>#</th><th>رقم الطلب</th><th>الفرع</th><th>التاريخ</th><th>عدد الأصناف</th><th>مقدم الطلب</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody id="missingRequestsBody"><tr><td colspan="8" class="sh-empty">جارٍ تحميل الطلبات...</td></tr></tbody></table></div>
+      <div class="sh-table-wrap"><table class="sh-requests-table"><thead id="missingRequestsHead"></thead><tbody id="missingRequestsBody"><tr><td colspan="10" class="sh-empty">جارٍ تحميل الطلبات...</td></tr></tbody></table></div>
     </section>
   </div>
   <div id="missingViewModal" class="sh-modal" onclick="if(event.target===this)MissingService.closeView()">
@@ -12246,7 +12276,7 @@ const DeviceInfo = {
         autoExemptions: {},
         _absenceAutoReady: { attendance:false, leaves:false, penalties:false, empData:false, exemptions:false },
         penaltyExemptLog: [],
-        appBuild: "2026-11-05.75-shortages-design-aligned",
+        appBuild: "2026-11-05.77-permission-icons-white-restored",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -16714,6 +16744,7 @@ window.addEventListener('resize', () => {
 const FingerprintPermissionPicker = {
   tabs:[
     {key:'employees',perm:'fingerprint-bazar:employees',label:'بيانات الموظفين',icon:'👥'},
+    {key:'salary',perm:'fingerprint-bazar:salary',label:'عرض الرواتب والأجور',icon:'💰'},
     {key:'attendance',perm:'fingerprint-bazar:attendance',label:'الحضور والانصراف',icon:'🕘'},
     {key:'advances',perm:'fingerprint-bazar:advances',label:'سلف الموظفين',icon:'💵'},
     {key:'incentives',perm:'fingerprint-bazar:incentives',label:'مكافآت الموظفين',icon:'🎁'},
@@ -16726,8 +16757,8 @@ const FingerprintPermissionPicker = {
   _context:null,_root:null,
   _ensureHiddenInputs(context){const rootId=context==='edit'?'fingerprintSubPermsEdit':'fingerprintSubPermsNew',root=document.getElementById(rootId);if(!root)return null;if(!root.dataset.ready){root.innerHTML=this.tabs.map(t=>`<input type="checkbox" class="perm-checkbox fingerprint-subperm-checkbox" value="${t.perm}" data-fingerprint-child="${t.key}">`).join('');root.dataset.ready='1';}return root;},
   _set(context,permissions){const perms=Array.isArray(permissions)?permissions:[],root=this._ensureHiddenInputs(context);root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=perms.includes(cb.value)||perms.includes('all'));const parent=document.querySelector(context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(parent){parent.checked=perms.includes('fingerprint')||perms.includes('all');if(context==='new')parent.closest('.permission-card')?.classList.toggle('active',parent.checked);}},
-  _ensureModal(){let m=document.getElementById('fingerprintPermModal');if(m)return m;m=document.createElement('div');m.id='fingerprintPermModal';m.className='fingerprint-perm-modal';m.hidden=true;m.innerHTML=`<div class="fingerprint-perm-box" role="dialog" aria-modal="true"><div class="fingerprint-perm-head"><div><div class="fingerprint-perm-head-title">🖐️ صلاحيات بصمة البازار</div><div class="fingerprint-perm-head-sub" id="fingerprintPermUserLabel">تحديد التابات المسموح بها</div></div><button class="fingerprint-perm-close" type="button" data-fp-close>✕</button></div><div class="fingerprint-perm-body"><label class="fingerprint-parent-toggle"><input id="fingerprintParentAccess" type="checkbox"><div><b>السماح بالدخول إلى صفحة بصمة البازار</b><span>لو لم تحدد أي تاب فرعي فسيتم التعامل معها كصلاحية كاملة للحسابات القديمة.</span></div></label><div class="fingerprint-perm-grid" id="fingerprintPermGrid"></div><div class="fingerprint-perm-actions"><button class="fingerprint-perm-save" type="button" data-fp-save>💾 حفظ التابات</button><button class="fingerprint-perm-cancel" type="button" data-fp-close>إلغاء</button></div></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-fp-close]'))this.close();else if(e.target.closest('[data-fp-save]'))this.save();});return m;},
-  open(context,user){this._context=context;this._root=this._ensureHiddenInputs(context);const perms=context==='edit'?(user?.permissions||[]):Array.from(document.querySelectorAll('#permissionsGrid .perm-checkbox:checked')).map(x=>x.value);this._set(context,perms);const m=this._ensureModal(),parent=m.querySelector('#fingerprintParentAccess');parent.checked=perms.includes('fingerprint')||perms.includes('all');m.querySelector('#fingerprintPermUserLabel').textContent=context==='edit'?`المستخدم: ${user?.username||'-'} • اختر التابات المسموح له بها`:'صلاحيات المستخدم الجديد • اختر التابات المسموح بها';const grid=m.querySelector('#fingerprintPermGrid');grid.innerHTML=this.tabs.map(t=>`<label class="fingerprint-perm-item"><input type="checkbox" value="${t.perm}" data-fp-child="${t.key}"><span class="fp-icon">${t.icon}</span><span class="fp-label">${t.label}</span></label>`).join('');grid.querySelectorAll('input[data-fp-child]').forEach(cb=>{const hidden=this._root?.querySelector(`.fingerprint-subperm-checkbox[value="${cb.value}"]`);cb.checked=!!hidden?.checked;cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);cb.addEventListener('change',()=>{if(hidden)hidden.checked=cb.checked;cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);});});parent.onchange=()=>{const enabled=parent.checked,main=document.querySelector(context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(main){main.checked=enabled;main.closest('.permission-card')?.classList.toggle('active',enabled);}if(!enabled){this._root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);m.querySelectorAll('input[data-fp-child]').forEach(cb=>{cb.checked=false;cb.closest('.fingerprint-perm-item')?.classList.remove('active');});}};m.hidden=false;},
+  _ensureModal(){let m=document.getElementById('fingerprintPermModal');if(m)return m;m=document.createElement('div');m.id='fingerprintPermModal';m.className='fingerprint-perm-modal';m.hidden=true;m.innerHTML=`<div class="fingerprint-perm-box" role="dialog" aria-modal="true"><div class="fingerprint-perm-head"><div><div class="fingerprint-perm-head-title">🖐️ صلاحيات بصمة البازار</div><div class="fingerprint-perm-head-sub" id="fingerprintPermUserLabel">تحديد التابات المسموح بها</div></div><button class="fingerprint-perm-close" type="button" data-fp-close>✕</button></div><div class="fingerprint-perm-body"><label class="fingerprint-parent-toggle"><input id="fingerprintParentAccess" type="checkbox"><div><b>السماح بالدخول إلى صفحة بصمة البازار</b><span>لو لم تحدد أي تاب فرعي فسيتم التعامل معها كصلاحية كاملة للحسابات القديمة، لكن الرواتب والأجور تحتاج تفعيل صلاحيتها المستقلة.</span></div></label><div class="fingerprint-perm-grid" id="fingerprintPermGrid"></div><div class="fingerprint-perm-actions"><button class="fingerprint-perm-save" type="button" data-fp-save>💾 حفظ التابات</button><button class="fingerprint-perm-cancel" type="button" data-fp-close>إلغاء</button></div></div></div>`;document.body.appendChild(m);m.addEventListener('click',e=>{if(e.target===m||e.target.closest('[data-fp-close]'))this.close();else if(e.target.closest('[data-fp-save]'))this.save();});return m;},
+  open(context,user){this._context=context;this._root=this._ensureHiddenInputs(context);const perms=context==='edit'?(user?.permissions||[]):Array.from(document.querySelectorAll('#permissionsGrid .perm-checkbox:checked')).map(x=>x.value);this._set(context,perms);const m=this._ensureModal(),parent=m.querySelector('#fingerprintParentAccess');parent.checked=perms.includes('fingerprint')||perms.includes('all');m.querySelector('#fingerprintPermUserLabel').textContent=context==='edit'?`المستخدم: ${user?.username||'-'} • اختر التابات المسموح له بها`:'صلاحيات المستخدم الجديد • اختر التابات المسموح بها';const grid=m.querySelector('#fingerprintPermGrid');grid.innerHTML=this.tabs.map(t=>`<label class="fingerprint-perm-item"><input type="checkbox" value="${t.perm}" data-fp-child="${t.key}"><span class="fp-icon">${t.icon||'•'}</span><span class="fp-label">${t.label}</span></label>`).join('');grid.querySelectorAll('input[data-fp-child]').forEach(cb=>{const hidden=this._root?.querySelector(`.fingerprint-subperm-checkbox[value="${cb.value}"]`);cb.checked=!!hidden?.checked;cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);cb.addEventListener('change',()=>{if(hidden)hidden.checked=cb.checked;cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);});});parent.onchange=()=>{const enabled=parent.checked,main=document.querySelector(context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(main){main.checked=enabled;main.closest('.permission-card')?.classList.toggle('active',enabled);}if(!enabled){this._root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);m.querySelectorAll('input[data-fp-child]').forEach(cb=>{cb.checked=false;cb.closest('.fingerprint-perm-item')?.classList.remove('active');});}};m.hidden=false;},
   save(){const m=this._ensureModal(),parent=!!m.querySelector('#fingerprintParentAccess')?.checked,main=document.querySelector(this._context==='edit'?'#permModal input[value="fingerprint"]':'#permissionsGrid input[value="fingerprint"]');if(main){main.checked=parent;main.closest('.permission-card')?.classList.toggle('active',parent);}if(!parent)this._root?.querySelectorAll('.fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);this.close();UI.toast(parent?'✅ تم حفظ صلاحيات تابات بصمة البازار':'ℹ️ تم تعطيل الدخول إلى بصمة البازار','success');},
   close(){const m=document.getElementById('fingerprintPermModal');if(m)m.hidden=true;},
   bind(){document.addEventListener('click',e=>{const card=e.target.closest('[data-fingerprint-picker]');if(!card)return;e.preventDefault();e.stopImmediatePropagation();const context=card.getAttribute('data-fingerprint-picker');if(context==='edit')this.open('edit',UserService.editingUser||{});else this.open('new',null);},true);}
@@ -19424,6 +19455,18 @@ const MissingService = {
   _lookupSeq: 0,
   _loadSeq: 0,
   _viewedRequestId: null,
+  _editingRequestId: null,
+
+  canEditRequests() { return typeof hasPermission === 'function' && hasPermission('edit'); },
+  canDeleteRequests() { return typeof hasPermission === 'function' && hasPermission('delete'); },
+  updateEditModeUI() {
+    const active = !!this._editingRequestId;
+    const saveBtn = document.querySelector('#tab-shortages .sh-btn-success');
+    const cancelBtn = document.getElementById('missingCancelEditBtn');
+    if (saveBtn) saveBtn.textContent = active ? '💾 حفظ تعديلات الطلب' : '💾 حفظ طلب النواقص';
+    if (cancelBtn) cancelBtn.style.display = active ? '' : 'none';
+  },
+  requestTableColumnCount() { return 8 + (this.canEditRequests() ? 1 : 0) + (this.canDeleteRequests() ? 1 : 0); },
 
   canAccess(showMessage = false) {
     const ok = !!State.currentUser && hasPermission('shortages');
@@ -19445,6 +19488,7 @@ const MissingService = {
     const date = document.getElementById('missingDate');
     if (date && !date.value) date.value = this.dateKeyNow();
     this.renderDraft();
+    this.renderRequests();
     this.refresh();
     this._initialized = true;
   },
@@ -19546,6 +19590,8 @@ const MissingService = {
   },
   async saveRequest() {
     if (!this.canAccess(true) || this._saving) return;
+    const editingId = this._editingRequestId;
+    if (editingId && !this.canEditRequests()) { UI.toast('ليس لديك صلاحية تعديل طلبات النواقص', 'error'); return; }
     const branch = String(document.getElementById('missingBranch')?.value || '');
     const date = String(document.getElementById('missingDate')?.value || this.dateKeyNow());
     if (!branch) { UI.toast('اختر الفرع الطالب أولًا', 'warning'); document.getElementById('missingBranch')?.focus(); return; }
@@ -19554,35 +19600,113 @@ const MissingService = {
     if (typeof db === 'undefined' || !db?.ref) { UI.toast('اتصال Firebase غير متاح حاليًا', 'error'); return; }
     this._saving = true;
     const saveBtn = document.querySelector('#tab-shortages .sh-btn-success');
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'جارٍ الحفظ...'; }
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = editingId ? 'جارٍ حفظ التعديلات...' : 'جارٍ الحفظ...'; }
     try {
-      const ref = db.ref('shortageRequests').push();
-      const payload = {
-        id: ref.key,
-        branch,
-        branchLabel: this.branchLabel(branch),
-        date,
-        items: this.draftItems.map(item => ({ barcode:item.barcode, name:item.name, quantity:Number(item.quantity), unit:item.unit })),
-        itemsCount: this.draftItems.length,
-        createdBy: String(State.currentUser?.username || State.currentUser?.name || '-'),
-        status: 'جديد',
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      };
-      await ref.set(payload);
+      const items = this.draftItems.map(item => ({ barcode:item.barcode, name:item.name, quantity:Number(item.quantity), unit:item.unit }));
+      const userName = String(State.currentUser?.username || State.currentUser?.name || '-');
+      let requestId;
+      if (editingId) {
+        const ref = db.ref('shortageRequests').child(String(editingId));
+        const existingSnap = await ref.once('value');
+        if (!existingSnap.exists()) throw new Error('الطلب الأصلي لم يعد موجودًا؛ حدّث القائمة قبل التعديل.');
+        await ref.update({
+          branch,
+          branchLabel: this.branchLabel(branch),
+          date,
+          items,
+          itemsCount: items.length,
+          updatedBy: userName,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        requestId = String(editingId);
+      } else {
+        const ref = db.ref('shortageRequests').push();
+        const payload = {
+          id: ref.key,
+          branch,
+          branchLabel: this.branchLabel(branch),
+          date,
+          items,
+          itemsCount: items.length,
+          createdBy: userName,
+          status: 'جديد',
+          timestamp: firebase.database.ServerValue.TIMESTAMP
+        };
+        await ref.set(payload);
+        requestId = ref.key;
+      }
       this.draftItems = [];
+      this._editingRequestId = null;
+      this.updateEditModeUI();
       this.renderDraft();
       const today = document.getElementById('missingDate'); if (today) today.value = this.dateKeyNow();
-      await this.refresh();
-      try { SystemLog.add('ShortageRequestAdd', ref.key, 'حفظ طلب نواقص', { branch, date, itemsCount:payload.itemsCount }); } catch (_) {}
       await this.refresh(true);
-      UI.toast('تم حفظ طلب النواقص بنجاح', 'success', 5000);
+      try {
+        SystemLog.add(editingId ? 'ShortageRequestEdit' : 'ShortageRequestAdd', requestId,
+          editingId ? 'تعديل طلب نواقص' : 'حفظ طلب نواقص',
+          { branch, date, itemsCount:items.length });
+      } catch (_) {}
+      UI.toast(editingId ? 'تم حفظ تعديلات طلب النواقص بنجاح' : 'تم حفظ طلب النواقص بنجاح', 'success', 5000);
     } catch (err) {
       console.error('[Shortages] save failed', err);
-      UI.toast('تعذر حفظ طلب النواقص: ' + String(err?.message || err), 'error', 7000);
+      UI.toast('تعذر حفظ الطلب: ' + String(err?.message || err), 'error', 7000);
     } finally {
       this._saving = false;
-      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 حفظ طلب النواقص'; }
+      this.updateEditModeUI();
+      if (saveBtn) saveBtn.disabled = false;
     }
+  },
+  editRequest(id) {
+    if (!this.canAccess(true)) return;
+    if (!this.canEditRequests()) { UI.toast('ليس لديك صلاحية تعديل طلبات النواقص', 'error'); return; }
+    const request = this.findRequest(id);
+    if (!request) { UI.toast('الطلب غير موجود؛ اضغط تحديث القائمة وحاول مرة أخرى', 'error'); return; }
+    const items = Array.isArray(request.items) ? request.items : [];
+    if (!items.length) { UI.toast('لا يمكن تعديل طلب لا يحتوي على أصناف', 'warning'); return; }
+    this._editingRequestId = String(id);
+    this.draftItems = items.map(item => ({
+      barcode: String(item.barcode || ''),
+      name: String(item.name || ''),
+      quantity: Number(item.quantity) || 0,
+      unit: String(item.unit || 'كرتونة')
+    }));
+    const branch = document.getElementById('missingBranch');
+    const date = document.getElementById('missingDate');
+    if (branch) branch.value = String(request.branch || '');
+    if (date) date.value = /^\d{4}-\d{2}-\d{2}$/.test(String(request.date || '')) ? request.date : this.dateKeyNow();
+    this.updateEditModeUI();
+    this.renderDraft();
+    document.getElementById('tab-shortages')?.scrollIntoView({ behavior:'smooth', block:'start' });
+    UI.toast('تم تحميل الطلب للتعديل. احفظ التغييرات بعد الانتهاء.', 'info', 5000);
+  },
+  cancelEdit() {
+    if (!this._editingRequestId) return;
+    this._editingRequestId = null;
+    this.draftItems = [];
+    this.updateEditModeUI();
+    this.renderDraft();
+    UI.toast('تم إلغاء تعديل الطلب المحفوظ', 'info');
+  },
+  deleteRequest(id) {
+    if (!this.canAccess(true)) return;
+    if (!this.canDeleteRequests()) { UI.toast('ليس لديك صلاحية حذف طلبات النواقص', 'error'); return; }
+    const request = this.findRequest(id);
+    if (!request) { UI.toast('الطلب غير موجود؛ حدّث القائمة وحاول مرة أخرى', 'error'); return; }
+    const label = `${this.branchLabel(request.branch)} — ${request.date || '-'}`;
+    showConfirm(`هل أنت متأكد من حذف طلب النواقص ${label}؟ لا يمكن التراجع عن الحذف.`, async () => {
+      if (!this.canDeleteRequests()) { UI.toast('ليس لديك صلاحية حذف طلبات النواقص', 'error'); return; }
+      try {
+        await db.ref('shortageRequests').child(String(id)).remove();
+        this.requests = this.requests.filter(item => String(item.id) !== String(id));
+        if (this._editingRequestId === String(id)) this.cancelEdit();
+        this.renderRequests();
+        try { SystemLog.add('ShortageRequestDelete', String(id), 'حذف طلب نواقص', { branch:request.branch, date:request.date }); } catch (_) {}
+        UI.toast('تم حذف طلب النواقص', 'success');
+      } catch (err) {
+        console.error('[Shortages] delete failed', err);
+        UI.toast('تعذر حذف طلب النواقص: ' + String(err?.message || err), 'error', 7000);
+      }
+    });
   },
   async refresh(force = false) {
     if (!this.canAccess(true) || (this._loading && !force)) return;
@@ -19590,7 +19714,7 @@ const MissingService = {
     const loadSeq = ++this._loadSeq;
     this._loading = true;
     const body = document.getElementById('missingRequestsBody');
-    if (body) body.innerHTML = '<tr><td colspan="8" class="sh-empty">جارٍ تحديث الطلبات...</td></tr>';
+    if (body) body.innerHTML = `<tr><td colspan=\"${this.requestTableColumnCount()}\" class=\"sh-empty\">جارٍ تحديث الطلبات...</td></tr>`;
     try {
       const snap = await db.ref('shortageRequests').once('value');
       if (loadSeq !== this._loadSeq) return;
@@ -19601,7 +19725,7 @@ const MissingService = {
     } catch (err) {
       console.error('[Shortages] load failed', err);
       if (loadSeq === this._loadSeq) {
-        if (body) body.innerHTML = '<tr><td colspan="8" class="sh-empty">تعذر تحميل الطلبات. تحقق من اتصال Firebase وصلاحية القراءة.</td></tr>';
+        if (body) body.innerHTML = `<tr><td colspan=\"${this.requestTableColumnCount()}\" class=\"sh-empty\">تعذر تحميل الطلبات. تحقق من اتصال Firebase وصلاحية القراءة.</td></tr>`;
         UI.toast('تعذر تحميل طلبات النواقص: ' + String(err?.message || err), 'error', 6500);
       }
     } finally {
@@ -19611,6 +19735,15 @@ const MissingService = {
   renderRequests() {
     const body = document.getElementById('missingRequestsBody');
     if (!body) return;
+    const canEdit = this.canEditRequests();
+    const canDelete = this.canDeleteRequests();
+    const head = document.getElementById('missingRequestsHead');
+    if (head) head.innerHTML = `<tr>
+      <th>#</th><th>رقم الطلب</th><th>الفرع</th><th>التاريخ</th><th>عدد الأصناف</th><th>مقدم الطلب</th><th>الحالة</th><th>الإجراءات</th>
+      ${canEdit ? '<th class="sh-edit-col">تعديل</th>' : ''}
+      ${canDelete ? '<th class="sh-delete-col">حذف</th>' : ''}
+    </tr>`;
+    const columnCount = this.requestTableColumnCount();
     const branchFilter = String(document.getElementById('missingHistoryBranch')?.value || '');
     const filtered = this.requests.filter(request => !branchFilter || String(request.branch || '') === branchFilter);
     body.innerHTML = filtered.length ? filtered.map((request, index) => {
@@ -19623,9 +19756,11 @@ const MissingService = {
         <td>${this.escape(request.branchLabel || this.branchLabel(request.branch))}</td>
         <td>${this.escape(date)}</td><td>${items.length.toLocaleString('ar-EG')}</td>
         <td>${this.escape(request.createdBy || '-')}</td><td><span class="badge badge-success">${this.escape(request.status || 'جديد')}</span></td>
-        <td><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap"><button type="button" class="sh-btn sh-btn-muted" onclick='MissingService.viewRequest(${safeId})'>عرض</button><button type="button" class="sh-btn sh-btn-success" onclick='MissingService.exportRequest(${safeId})'>Excel ⇩</button></div></td>
+        <td><div class="sh-row-actions"><button type="button" class="sh-btn sh-btn-muted" onclick='MissingService.viewRequest(${safeId})'>عرض</button><button type="button" class="sh-btn sh-btn-success" onclick='MissingService.exportRequest(${safeId})'>Excel ⇩</button></div></td>
+        ${canEdit ? `<td class="sh-edit-col"><button type="button" class="sh-btn sh-btn-muted" onclick='MissingService.editRequest(${safeId})'>✎ تعديل</button></td>` : ''}
+        ${canDelete ? `<td class="sh-delete-col"><button type="button" class="sh-btn sh-btn-muted" onclick='MissingService.deleteRequest(${safeId})'>⌫ حذف</button></td>` : ''}
       </tr>`;
-    }).join('') : '<tr><td colspan="8" class="sh-empty">لا توجد طلبات محفوظة لهذا الاختيار</td></tr>';
+    }).join('') : `<tr><td colspan="${columnCount}" class="sh-empty">لا توجد طلبات محفوظة لهذا الاختيار</td></tr>`;
   },
   findRequest(id) {
     return this.requests.find(item => String(item.id) === String(id)) || null;
@@ -22148,8 +22283,9 @@ const BazarHRSuite = {
   _canDelete(){return hasPermission('delete')||hasPermission('all');},
   _canExcel(){return hasPermission('excel')||hasPermission('all');},
   _fingerprintChildPerms(){return (Array.isArray(State.securePermissions)?State.securePermissions:[]).filter(p=>String(p).startsWith('fingerprint-bazar:'));},
-  _canFingerprintTab(tab){if(hasPermission('all'))return true;if(!hasPermission('fingerprint'))return false;const explicit=this._fingerprintChildPerms();if(explicit.length===0)return true;return explicit.includes('fingerprint-bazar:'+tab);},
-  applyPermissionVisibility(){const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;const buttons=Array.from(root.querySelectorAll('#bazarHrTabs .bhr-tab'));let firstAllowed=null;buttons.forEach(btn=>{const allowed=this._canFingerprintTab(btn.dataset.bhrTab);btn.style.display=allowed?'':'none';if(allowed&&!firstAllowed)firstAllowed=btn.dataset.bhrTab;});const actions={sync:this._canFingerprintTab('attendance'),refresh:!!firstAllowed,export:this._canExcel()};Object.entries(actions).forEach(([k,ok])=>{const b=root.querySelector(`[data-bhr-action="${k}"]`);if(b)b.style.display=ok?'':'none';});const exportMonthPicker=root.querySelector('.bhr-export-month');if(exportMonthPicker)exportMonthPicker.style.display=this._canExcel()?'':'none';if(!this._canFingerprintTab(this._active)){if(firstAllowed)this.openPane(firstAllowed);else{this._active='';root.querySelectorAll('.bhr-pane').forEach(p=>p.hidden=true);}}},
+  _canViewSalary(){return hasPermission('all')||this._fingerprintChildPerms().includes('fingerprint-bazar:salary');},
+  _canFingerprintTab(tab){if(hasPermission('all'))return true;if(!hasPermission('fingerprint'))return false;if((tab==='payroll'||tab==='payslip')&&!this._canViewSalary())return false;const explicit=this._fingerprintChildPerms();if(explicit.length===0)return true;return explicit.includes('fingerprint-bazar:'+tab);},
+  applyPermissionVisibility(){const root=document.getElementById('tab-fingerprint-bazar');if(!root)return;document.body.classList.toggle('no-bazar-salary-perm',!this._canViewSalary());const buttons=Array.from(root.querySelectorAll('#bazarHrTabs .bhr-tab'));let firstAllowed=null;buttons.forEach(btn=>{const allowed=this._canFingerprintTab(btn.dataset.bhrTab);btn.style.display=allowed?'':'none';if(allowed&&!firstAllowed)firstAllowed=btn.dataset.bhrTab;});const actions={sync:this._canFingerprintTab('attendance'),refresh:!!firstAllowed,export:this._canExcel()};Object.entries(actions).forEach(([k,ok])=>{const b=root.querySelector(`[data-bhr-action="${k}"]`);if(b)b.style.display=ok?'':'none';});const exportMonthPicker=root.querySelector('.bhr-export-month');if(exportMonthPicker)exportMonthPicker.style.display=this._canExcel()?'':'none';if(!this._canFingerprintTab(this._active)){if(firstAllowed)this.openPane(firstAllowed);else{this._active='';root.querySelectorAll('.bhr-pane').forEach(p=>p.hidden=true);}}else if(this._active==='employees'){this.renderEmployees();}},
   _canExempt(){return hasPermission('permit')||hasPermission('all');},
   _canLeaves(){return hasPermission('leaves')||hasPermission('leaveApprove')||hasPermission('all');},
   _canLeaveEdit(){return hasPermission('edit')||hasPermission('all');},
@@ -22759,9 +22895,9 @@ const BazarHRSuite = {
       permits:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['type','النوع'],['breakTime','الخروج'],['returnTime','الرجوع'],['duration','المدة'],['status','الحالة'],['user','المستخدم'],['note','الملاحظة']],
       attendance:[['date','التاريخ'],['name','الموظف'],['code','الكود'],['job','الوظيفة'],['note','الملاحظات'],['checkIn','الحضور الفعلي'],['checkOut','الانصراف الفعلي'],['officialIn','الحضور الرسمي'],['officialOut','الانصراف الرسمي'],['officialHours','الساعات الرسمية'],['actual','الساعات الفعلية'],['late','التأخير'],['early','الخروج المبكر'],['overtime','الإضافي'],['status','الحالة'],['source','المصدر'],['events','عدد الحركات']],
       payroll:[['serial','م'],['code','كود الموظف'],['name','اسم الموظف'],['nationalId','رقم البطاقة'],['salary','الراتب الأساسي'],['hourlyRate','أجر ساعة العمل'],['present','أيام العمل الفعلية'],['bonuses','المكافآت / بدل الإجازة'],['overtimeDays','الإضافي (الأيام)'],['overtimeDayPay','قيمة إضافي الأيام'],['overtimeHours','الإضافي (ساعات)'],['overtimePay','قيمة إضافي الساعات'],['absence','الغياب (الأيام)'],['absenceDeduction','قيمة الغياب'],['officialHours','إجمالي ساعات العمل الرسمي'],['actualHours','إجمالي ساعات العمل الفعلي'],['permitHours','الأذونات بالساعات'],['totalHours','إجمالي ساعات العمل'],['advances','السلف والمسحوبات'],['penalties','الجزاءات'],['net','صافي المرتب']]
-    };return c[key]||[];
+    };const cols=c[key]||[];return key==='employees'&&!this._canViewSalary()?cols.filter(col=>col[0]!=='salary'):cols;
   },
-  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,105,105,95,100,105,110,210,150,115],leaves:[110,150,90,120,110,110,120,125,110,220],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,220,105,105,105,105,110,110,95,105,95,120,120,90],payroll:[58,105,190,145,125,115,110,150,105,135,125,145,105,135,155,155,130,150,145,135,145]};return [...(map[key]||[]),...Array(extra*90).fill(90).slice(0,extra*90)];},
+  _widths(key,extra){const map={employees:[90,150,120,95,105,105,135,125,105,105,90,90],advances:[105,150,90,110,200,115],incentives:[105,150,90,105,110,90,200,125,115],penalties:[105,150,90,105,105,95,100,105,110,210,150,115],leaves:[110,150,90,120,110,110,120,125,110,220],permits:[105,150,90,100,100,100,100,100,115,200],attendance:[105,150,90,120,220,105,105,105,105,110,110,95,105,95,120,120,90],payroll:[58,105,190,145,125,115,110,150,105,135,125,145,105,135,155,155,130,150,145,135,145]};const widths=(map[key]||[]).slice();if(key==='employees'&&!this._canViewSalary())widths.splice(4,1);return [...widths,...Array(extra*90).fill(90).slice(0,extra*90)];},
   _actionMeta(){return {edit:this._canEdit(),delete:this._canDelete()};},
   _table(key,rowsHtml,actions){const cols=this._cols(key);const meta=this._actionMeta();const showEdit=!!actions&&meta.edit;const showDelete=!!actions&&meta.delete;const actionCount=(showEdit?1:0)+(showDelete?1:0);const widths=[...this._widths(key,0),...(showEdit?[90]:[]),...(showDelete?[90]:[])];const head=cols.map(c=>`<th>${this._esc(c[1])}</th>`).join('')+(showEdit?'<th class="bhr-action-cell">تعديل</th>':'')+(showDelete?'<th class="bhr-action-cell">حذف</th>':'');const colgroup=widths.map(w=>`<col style="width:${w}px">`).join('');const count=cols.length+actionCount;return `<div class="bhr-table-box"><table class="bhr-table"><colgroup>${colgroup}</colgroup><thead><tr>${head}</tr></thead><tbody>${rowsHtml||`<tr><td colspan="${count}" class="bhr-empty">لا توجد بيانات</td></tr>`}</tbody></table></div>`;},
   _actionCells(codes){const id=this._esc(codes);const cells=[];if(this._canEdit())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn" data-bhr-row="edit" data-id="${id}">✏️ تعديل</button></td>`);if(this._canDelete())cells.push(`<td class="bhr-action-cell"><button class="bhr-row-btn danger" data-bhr-row="delete" data-id="${id}">🗑 حذف</button></td>`);return cells.join('');},
@@ -22769,7 +22905,7 @@ const BazarHRSuite = {
 
   _renderShell(pane,title,toolbar,table){pane.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">${title}</h3></div><div class="bhr-toolbar-right">${toolbar||''}</div></div></div>${table}`;},
 
-  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=this._searchValue(p),status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف')))).sort((a,b)=>this._compareEmployeeCodes(a.code,b.code));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>{const sh=this._officialSchedule(e);return `<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td><td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td><td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(sh.checkIn||'-')}</td><td>${this._esc(sh.checkOut||'-')}</td><td>${sh.hours?this._fmtMin(Math.round(sh.hours*60)):'-'}</td><td>${this._esc(e.employmentStatus||'نشط')}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`;}).join('');p.innerHTML=`<div class="bhr-card glass-card bhr-employee-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">${toolbar}</div>`+filters+`<div class="bhr-card glass-card">${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
+  renderEmployees(){const p=document.getElementById('bh-pane-employees');if(!p)return;const q=this._searchValue(p),status=p.querySelector('[data-filter="status"]')?.value||'';const all=this._employees().filter(e=>(!q||String(e.name||'').toLowerCase().includes(q.toLowerCase())||String(e.code||'').includes(q)||String(e.job||'').toLowerCase().includes(q.toLowerCase()))&&(!status||((status==='active'?e.employmentStatus==='نشط':status==='resigned'?e.employmentStatus==='مستقيل':e.employmentStatus==='موقوف')))).sort((a,b)=>this._compareEmployeeCodes(a.code,b.code));const toolbar=`<span class="bhr-count">إجمالي <b>${all.length}</b></span>${this._canEdit()?'<button class="bhr-btn bhr-primary" data-bhr-action="add-employee">➕ موظف جديد</button>':''}`;const filters=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>بحث</span><input class="bhr-input" data-filter="search" value="${this._esc(this._searchDraftValue(p))}" placeholder="الاسم أو الكود أو الوظيفة"></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" data-filter="status"><option value="">كل الحالات</option><option value="active" ${status==='active'?'selected':''}>نشط</option><option value="resigned" ${status==='resigned'?'selected':''}>مستقيل</option><option value="stopped" ${status==='stopped'?'selected':''}>موقوف</option></select></label></div></div>`;const body=all.map(e=>{const sh=this._officialSchedule(e);return `<tr><td>${this._esc(e.code)}</td><td>${this._esc(e.name||'-')}</td><td class="bhr-long">${this._esc(e.job||'-')}</td><td>${this._esc(e.branch||'-')}</td>${this._canViewSalary()?`<td class="bhr-money">${this._money(e.salary).toLocaleString('ar-EG')} ج</td>`:''}<td>${this._esc(this._dateText(e.hireDate))}</td><td>${this._esc(e.nationalId||'-')}</td><td>${this._esc(e.phone||'-')}</td><td>${this._esc(sh.checkIn||'-')}</td><td>${this._esc(sh.checkOut||'-')}</td><td>${sh.hours?this._fmtMin(Math.round(sh.hours*60)):'-'}</td><td>${this._esc(e.employmentStatus||'نشط')}</td>${this._canEdit()||this._canDelete()?this._actionCells(e.code):''}</tr>`;}).join('');p.innerHTML=`<div class="bhr-card glass-card bhr-employee-toolbar" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">${toolbar}</div>`+filters+`<div class="bhr-card glass-card">${this._table('employees',body,this._canEdit()||this._canDelete())}</div>`;this._bindPaneFilters(p,()=>this.renderEmployees());},
   _renderShellTmp:false,
 
   renderAdvances(){return this._renderTransaction('advances','سلف الموظفين','advance');},
@@ -23136,6 +23272,7 @@ const BazarHRSuite = {
     });
   },
   renderPayroll(){
+    if(!this._canViewSalary()){const denied=document.getElementById('bh-pane-payroll');if(denied)denied.innerHTML='';return this._toast('ليس لديك صلاحية عرض الرواتب','error');}
     const p=document.getElementById('bh-pane-payroll');if(!p)return;
     const old=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);
     // Payroll reads only Bazar-owned Firebase collections; no legacy core collection is loaded here.
@@ -23169,8 +23306,8 @@ const BazarHRSuite = {
     p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-toolbar"><div class="bhr-toolbar-left"><h3 style="margin:0">بيان المرتبات</h3><span class="bhr-count">الموظفون <b>${rows.length}</b></span></div><div class="bhr-toolbar-right"><label class="bhr-field"><span>الشهر</span><input class="bhr-input" data-filter="month" type="month" value="${this._esc(old)}"></label></div></div><div class="bhr-note" style="margin-top:8px">حركات الشهر المجمعة: سلف ${advCount} · مكافآت ${incCount} · جزاءات مستحقة ${penCount}. معادلة الصافي: أجر الساعة × ساعات العمل المحتسبة + المكافآت − السلف − الجزاءات − خصم الإجازة غير المدفوعة. الإجازة المعتمدة تُحتسب بساعات الشيفت الرسمي؛ وكل 15 يوم حضور فعلي = يومين استحقاق بدل إجازة.</div></div><div class="bhr-card glass-card">${this._table('payroll',body,false)}</div>`;
     this._bindPaneFilters(p,()=>this.renderPayroll());
   },
-  renderPayslip(){const p=document.getElementById('bh-pane-payslip');if(!p)return;const empCode=p.querySelector('[data-filter="employee"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);const opts=this._employees().map(e=>`<option value="${this._esc(e.code)}" ${empCode===e.code?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" data-filter="employee"><option value="">اختر الموظف</option>${opts}</select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" type="month" data-filter="month" value="${this._esc(month)}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="show-payslip">🧾 عرض الشيك</button></div></div><div id="bhr-slip-result" style="margin-top:14px"></div></div>`;if(empCode)this._showPayslip(empCode,month);},
-  _showPayslip(code,month){const emp=this._employee(code);if(!emp){this._toast('اختر الموظف','warning');return;}const row=this._payrollRows(month).find(r=>r.e.code===code);if(!row){this._toast('لا توجد بيانات لهذا الموظف','warning');return;}const box=document.getElementById('bhr-slip-result');if(!box)return;box.innerHTML=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;font-size:21px;font-weight:900">علوش البازار</div><div style="text-align:center;margin-top:4px">شيك قبض الموظف — ${this._esc(month)}</div><hr><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><div><b>الموظف:</b> ${this._esc(emp.name)}</div><div><b>الكود:</b> ${this._esc(emp.code)}</div><div><b>الوظيفة:</b> ${this._esc(emp.job||'-')}</div><div><b>أجر الساعة:</b> ${row.hourlyRate.toFixed(2)} ج</div><div><b>ساعات العمل الفعلي:</b> ${row.actualHours.toFixed(2)} ساعة</div><div><b>أجر الساعات:</b> ${row.workedHoursPay.toFixed(2)} ج</div><div><b>المكافآت وبدل الإجازة المصروف:</b> + ${row.bonuses.toFixed(2)} ج</div><div><b>السلف:</b> − ${row.advances.toFixed(2)} ج</div><div><b>الجزاءات:</b> − ${row.penalties.toFixed(2)} ج</div><div><b>خصم الإجازة غير المدفوعة:</b> − ${row.unpaidLeaveDeduction.toFixed(2)} ج</div><div><b>استحقاق بدل الإجازة:</b> ${row.leaveEntitledDays} يوم</div><div><b>إجازات مستخدمة:</b> ${row.leaveDaysUsed} يوم</div><div><b>بدل سبق صرفه:</b> ${row.leaveAllowanceDaysPaid} يوم</div><div><b>المتبقي لبدل الإجازة:</b> ${row.leaveAllowanceDaysRemaining} يوم</div><div style="grid-column:1/-1;border-top:1px solid #ddd;padding-top:8px"><b>صافي المرتب:</b> ${row.net.toFixed(2)} ج</div></div><div style="margin-top:18px;display:flex;justify-content:center"><button class="bhr-btn" data-bhr-action="print-slip">🖨️ طباعة</button></div></div>`;},
+  renderPayslip(){if(!this._canViewSalary()){const denied=document.getElementById('bh-pane-payslip');if(denied)denied.innerHTML='';return this._toast('ليس لديك صلاحية عرض شيك القبض','error');}const p=document.getElementById('bh-pane-payslip');if(!p)return;const empCode=p.querySelector('[data-filter="employee"]')?.value||'',month=p.querySelector('[data-filter="month"]')?.value||this._today().slice(0,7);const opts=this._employees().map(e=>`<option value="${this._esc(e.code)}" ${empCode===e.code?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');p.innerHTML=`<div class="bhr-card glass-card"><div class="bhr-filter-row"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" data-filter="employee"><option value="">اختر الموظف</option>${opts}</select></label><label class="bhr-field"><span>الشهر</span><input class="bhr-input" type="month" data-filter="month" value="${this._esc(month)}"></label><div class="bhr-field"><span>&nbsp;</span><button class="bhr-btn bhr-primary" data-bhr-action="show-payslip">🧾 عرض الشيك</button></div></div><div id="bhr-slip-result" style="margin-top:14px"></div></div>`;if(empCode)this._showPayslip(empCode,month);},
+  _showPayslip(code,month){if(!this._canViewSalary())return this._toast('ليس لديك صلاحية عرض شيك القبض','error');const emp=this._employee(code);if(!emp){this._toast('اختر الموظف','warning');return;}const row=this._payrollRows(month).find(r=>r.e.code===code);if(!row){this._toast('لا توجد بيانات لهذا الموظف','warning');return;}const box=document.getElementById('bhr-slip-result');if(!box)return;box.innerHTML=`<div class="glass-card" style="padding:20px;background:#fff;color:#111"><div style="text-align:center;font-size:21px;font-weight:900">علوش البازار</div><div style="text-align:center;margin-top:4px">شيك قبض الموظف — ${this._esc(month)}</div><hr><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px"><div><b>الموظف:</b> ${this._esc(emp.name)}</div><div><b>الكود:</b> ${this._esc(emp.code)}</div><div><b>الوظيفة:</b> ${this._esc(emp.job||'-')}</div><div><b>أجر الساعة:</b> ${row.hourlyRate.toFixed(2)} ج</div><div><b>ساعات العمل الفعلي:</b> ${row.actualHours.toFixed(2)} ساعة</div><div><b>أجر الساعات:</b> ${row.workedHoursPay.toFixed(2)} ج</div><div><b>المكافآت وبدل الإجازة المصروف:</b> + ${row.bonuses.toFixed(2)} ج</div><div><b>السلف:</b> − ${row.advances.toFixed(2)} ج</div><div><b>الجزاءات:</b> − ${row.penalties.toFixed(2)} ج</div><div><b>خصم الإجازة غير المدفوعة:</b> − ${row.unpaidLeaveDeduction.toFixed(2)} ج</div><div><b>استحقاق بدل الإجازة:</b> ${row.leaveEntitledDays} يوم</div><div><b>إجازات مستخدمة:</b> ${row.leaveDaysUsed} يوم</div><div><b>بدل سبق صرفه:</b> ${row.leaveAllowanceDaysPaid} يوم</div><div><b>المتبقي لبدل الإجازة:</b> ${row.leaveAllowanceDaysRemaining} يوم</div><div style="grid-column:1/-1;border-top:1px solid #ddd;padding-top:8px"><b>صافي المرتب:</b> ${row.net.toFixed(2)} ج</div></div><div style="margin-top:18px;display:flex;justify-content:center"><button class="bhr-btn" data-bhr-action="print-slip">🖨️ طباعة</button></div></div>`;},
 
   _bindPaneFilters(pane,draw){
     if(!pane||typeof draw!=='function')return;
@@ -23212,8 +23349,8 @@ const BazarHRSuite = {
   _employeeOptions(selected){return `<option value="">اختر الموظف</option>`+this._employees().map(e=>`<option value="${this._esc(e.code)}" ${String(selected)===String(e.code)?'selected':''}>${this._esc(e.name)} (${this._esc(e.code)})</option>`).join('');},
   _attachForm(id,save){const f=document.getElementById(id);if(f)f.addEventListener('submit',e=>{e.preventDefault();save();});},
 
-  openEmployeeForm(code=''){if(!this._canEdit()){this._toast('⛔ لا توجد صلاحية تعديل','error');return;}const old=this._employee(code)||{code:'',name:'',job:'',branch:'البازار',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'نشط'};this._openModal(code?'تعديل موظف':'موظف جديد',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الكود</span><input class="bhr-input" id="bhr-code" required value="${this._esc(old.code)}"></label><label class="bhr-field"><span>الاسم</span><input class="bhr-input" id="bhr-name" required value="${this._esc(old.name)}"></label><label class="bhr-field"><span>الوظيفة</span><input class="bhr-input" id="bhr-job" value="${this._esc(old.job)}"></label><label class="bhr-field"><span>الفرع</span><input class="bhr-input" id="bhr-branch" value="${this._esc(old.branch)}"></label><label class="bhr-field"><span>الراتب</span><input class="bhr-input" id="bhr-salary" type="number" min="0" value="${this._esc(old.salary)}"></label><label class="bhr-field"><span>التعيين</span><input class="bhr-input" id="bhr-hire" type="date" value="${this._esc(old.hireDate)}"></label><label class="bhr-field"><span>الرقم القومي</span><input class="bhr-input" id="bhr-national" value="${this._esc(old.nationalId)}"></label><label class="bhr-field"><span>الهاتف</span><input class="bhr-input" id="bhr-phone" value="${this._esc(old.phone)}"></label><label class="bhr-field"><span>الحضور الرسمي</span><input class="bhr-input" id="bhr-in" type="time" value="${this._esc(old.checkIn)}"></label><label class="bhr-field"><span>الانصراف الرسمي</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.checkOut)}"></label><label class="bhr-field"><span>ساعات العمل <small style="opacity:.7">(تحسب تلقائيًا)</small></span><input class="bhr-input" id="bhr-hours" type="number" step="0.25" min="0" value="${this._esc(old.workHours||this._calcWorkHours(old.checkIn,old.checkOut))}" readonly aria-readonly="true" tabindex="-1"><small id="bhr-hours-help" style="display:block;margin-top:6px;opacity:.7">حدد الحضور والانصراف الرسمي ليتم حساب الساعات تلقائيًا.</small></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" id="bhr-status"><option value="نشط" ${old.employmentStatus==='نشط'?'selected':''}>نشط</option><option value="مستقيل" ${old.employmentStatus==='مستقيل'?'selected':''}>مستقيل</option><option value="موقوف" ${old.employmentStatus==='موقوف'?'selected':''}>موقوف</option></select></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button><button class="bhr-btn" type="button" data-bhr-action="close-modal">إلغاء</button></div></form>`);const updateHours=()=>{const cin=document.getElementById('bhr-in')?.value||'',cout=document.getElementById('bhr-out')?.value||'',hoursEl=document.getElementById('bhr-hours'),help=document.getElementById('bhr-hours-help');if(!hoursEl)return;const h=this._calcWorkHours(cin,cout);hoursEl.value=h>0?String(h):'';if(help)help.textContent=h>0?`⏱ إجمالي ساعات العمل الرسمي: ${h} ساعة — يتم حسابها تلقائيًا ولا يمكن تعديلها.`:'حدد الحضور والانصراف الرسمي ليتم حساب الساعات تلقائيًا.';};['input','change'].forEach(ev=>{document.getElementById('bhr-in')?.addEventListener(ev,updateHours);document.getElementById('bhr-out')?.addEventListener(ev,updateHours);});updateHours();this._attachForm('bhr-form',()=>this._saveEmployee(code));},
-  async _saveEmployee(oldCode){const code=String(document.getElementById('bhr-code')?.value||'').trim(),name=String(document.getElementById('bhr-name')?.value||'').trim();if(!code||!name){this._toast('الكود والاسم مطلوبان','error');return;}if(!oldCode&&this._employee(code)){this._toast('هذا الكود موجود بالفعل','error');return;}if(oldCode&&code!==String(oldCode)&&this._employee(code)){this._toast('الكود الجديد مستخدم بالفعل','error');return;}const old=this._employee(oldCode)||{};const checkIn=String(document.getElementById('bhr-in')?.value||'').trim(),checkOut=String(document.getElementById('bhr-out')?.value||'').trim(),derivedHours=this._calcWorkHours(checkIn,checkOut);const selectedStatus=this._status(document.getElementById('bhr-status')?.value||'نشط');const oldStatus=this._status(old.employmentStatus||old.status||'نشط');let statusEffectiveDate='';if(selectedStatus==='مستقيل'){statusEffectiveDate=oldStatus==='مستقيل'?this._employmentStatusEffectiveDate(old):this._today();}const rec={...old,code,name,job:String(document.getElementById('bhr-job')?.value||'').trim(),branch:String(document.getElementById('bhr-branch')?.value||'البازار').trim()||'البازار',salary:this._money(document.getElementById('bhr-salary')?.value),hireDate:this._normDate(document.getElementById('bhr-hire')?.value||''),nationalId:String(document.getElementById('bhr-national')?.value||'').trim(),phone:String(document.getElementById('bhr-phone')?.value||'').trim(),checkIn,checkOut,workHours:derivedHours,employmentStatus:selectedStatus,employmentStatusEffectiveDate:statusEffectiveDate,employmentStatusChangedAt:Date.now(),updatedAt:Date.now(),updatedBy:State.currentUser?.username||'-'};try{if(oldCode&&code!==String(oldCode)){const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode));const oldKey=oldRow?.firebaseKey||oldRow?.id||oldCode;await db.ref().update({[`bazarEmpData/${oldKey}`]:null,[`bazarEmpData/${code}`]:rec});}else{const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode||code));const key=oldRow?.firebaseKey||oldRow?.id||code;await db.ref('bazarEmpData/'+key).set(rec);}await this._auditBazar(oldCode?'BazarEmployeeEdit':'BazarEmployeeAdd',code,`${oldCode?'تعديل بيانات':'إضافة موظف'} — ${name}`,{entityType:'موظف',entityId:code,previousCode:oldCode||'',previous:{name:old.name||'',job:old.job||'',branch:old.branch||'',salary:old.salary??null,checkIn:old.checkIn||'',checkOut:old.checkOut||'',employmentStatus:old.employmentStatus||old.status||'نشط'},current:{name,job:rec.job||'',branch:rec.branch||'',salary:rec.salary,checkIn,checkOut,employmentStatus:selectedStatus},employmentStatus:selectedStatus,statusEffectiveDate});this.closeModal();this._toast('✅ تم حفظ الموظف','success');}catch(e){this._toast('❌ '+e.message,'error');}},
+  openEmployeeForm(code=''){if(!this._canEdit()){this._toast('⛔ لا توجد صلاحية تعديل','error');return;}const old=this._employee(code)||{code:'',name:'',job:'',branch:'البازار',salary:'',hireDate:'',nationalId:'',phone:'',checkIn:'',checkOut:'',workHours:'',employmentStatus:'نشط'};this._openModal(code?'تعديل موظف':'موظف جديد',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الكود</span><input class="bhr-input" id="bhr-code" required value="${this._esc(old.code)}"></label><label class="bhr-field"><span>الاسم</span><input class="bhr-input" id="bhr-name" required value="${this._esc(old.name)}"></label><label class="bhr-field"><span>الوظيفة</span><input class="bhr-input" id="bhr-job" value="${this._esc(old.job)}"></label><label class="bhr-field"><span>الفرع</span><input class="bhr-input" id="bhr-branch" value="${this._esc(old.branch)}"></label>${this._canViewSalary()?`<label class="bhr-field"><span>الراتب الأساسي</span><input class="bhr-input" id="bhr-salary" type="number" min="0" value="${this._esc(old.salary)}"></label>`:''}<label class="bhr-field"><span>التعيين</span><input class="bhr-input" id="bhr-hire" type="date" value="${this._esc(old.hireDate)}"></label><label class="bhr-field"><span>الرقم القومي</span><input class="bhr-input" id="bhr-national" value="${this._esc(old.nationalId)}"></label><label class="bhr-field"><span>الهاتف</span><input class="bhr-input" id="bhr-phone" value="${this._esc(old.phone)}"></label><label class="bhr-field"><span>الحضور الرسمي</span><input class="bhr-input" id="bhr-in" type="time" value="${this._esc(old.checkIn)}"></label><label class="bhr-field"><span>الانصراف الرسمي</span><input class="bhr-input" id="bhr-out" type="time" value="${this._esc(old.checkOut)}"></label><label class="bhr-field"><span>ساعات العمل <small style="opacity:.7">(تحسب تلقائيًا)</small></span><input class="bhr-input" id="bhr-hours" type="number" step="0.25" min="0" value="${this._esc(old.workHours||this._calcWorkHours(old.checkIn,old.checkOut))}" readonly aria-readonly="true" tabindex="-1"><small id="bhr-hours-help" style="display:block;margin-top:6px;opacity:.7">حدد الحضور والانصراف الرسمي ليتم حساب الساعات تلقائيًا.</small></label><label class="bhr-field"><span>الحالة</span><select class="bhr-input" id="bhr-status"><option value="نشط" ${old.employmentStatus==='نشط'?'selected':''}>نشط</option><option value="مستقيل" ${old.employmentStatus==='مستقيل'?'selected':''}>مستقيل</option><option value="موقوف" ${old.employmentStatus==='موقوف'?'selected':''}>موقوف</option></select></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button><button class="bhr-btn" type="button" data-bhr-action="close-modal">إلغاء</button></div></form>`);const updateHours=()=>{const cin=document.getElementById('bhr-in')?.value||'',cout=document.getElementById('bhr-out')?.value||'',hoursEl=document.getElementById('bhr-hours'),help=document.getElementById('bhr-hours-help');if(!hoursEl)return;const h=this._calcWorkHours(cin,cout);hoursEl.value=h>0?String(h):'';if(help)help.textContent=h>0?`⏱ إجمالي ساعات العمل الرسمي: ${h} ساعة — يتم حسابها تلقائيًا ولا يمكن تعديلها.`:'حدد الحضور والانصراف الرسمي ليتم حساب الساعات تلقائيًا.';};['input','change'].forEach(ev=>{document.getElementById('bhr-in')?.addEventListener(ev,updateHours);document.getElementById('bhr-out')?.addEventListener(ev,updateHours);});updateHours();this._attachForm('bhr-form',()=>this._saveEmployee(code));},
+  async _saveEmployee(oldCode){const code=String(document.getElementById('bhr-code')?.value||'').trim(),name=String(document.getElementById('bhr-name')?.value||'').trim();if(!code||!name){this._toast('الكود والاسم مطلوبان','error');return;}if(!oldCode&&this._employee(code)){this._toast('هذا الكود موجود بالفعل','error');return;}if(oldCode&&code!==String(oldCode)&&this._employee(code)){this._toast('الكود الجديد مستخدم بالفعل','error');return;}const old=this._employee(oldCode)||{};const checkIn=String(document.getElementById('bhr-in')?.value||'').trim(),checkOut=String(document.getElementById('bhr-out')?.value||'').trim(),derivedHours=this._calcWorkHours(checkIn,checkOut);const selectedStatus=this._status(document.getElementById('bhr-status')?.value||'نشط');const oldStatus=this._status(old.employmentStatus||old.status||'نشط');let statusEffectiveDate='';if(selectedStatus==='مستقيل'){statusEffectiveDate=oldStatus==='مستقيل'?this._employmentStatusEffectiveDate(old):this._today();}const rec={...old,code,name,job:String(document.getElementById('bhr-job')?.value||'').trim(),branch:String(document.getElementById('bhr-branch')?.value||'البازار').trim()||'البازار',salary:this._canViewSalary()?this._money(document.getElementById('bhr-salary')?.value):this._money(old.salary??old.baseSalary??0),hireDate:this._normDate(document.getElementById('bhr-hire')?.value||''),nationalId:String(document.getElementById('bhr-national')?.value||'').trim(),phone:String(document.getElementById('bhr-phone')?.value||'').trim(),checkIn,checkOut,workHours:derivedHours,employmentStatus:selectedStatus,employmentStatusEffectiveDate:statusEffectiveDate,employmentStatusChangedAt:Date.now(),updatedAt:Date.now(),updatedBy:State.currentUser?.username||'-'};try{if(oldCode&&code!==String(oldCode)){const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode));const oldKey=oldRow?.firebaseKey||oldRow?.id||oldCode;await db.ref().update({[`bazarEmpData/${oldKey}`]:null,[`bazarEmpData/${code}`]:rec});}else{const oldRow=this._data.employees.find(e=>String(e.code)===String(oldCode||code));const key=oldRow?.firebaseKey||oldRow?.id||code;await db.ref('bazarEmpData/'+key).set(rec);}await this._auditBazar(oldCode?'BazarEmployeeEdit':'BazarEmployeeAdd',code,`${oldCode?'تعديل بيانات':'إضافة موظف'} — ${name}`,{entityType:'موظف',entityId:code,previousCode:oldCode||'',previous:{name:old.name||'',job:old.job||'',branch:old.branch||'',checkIn:old.checkIn||'',checkOut:old.checkOut||'',employmentStatus:old.employmentStatus||old.status||'نشط'},current:{name,job:rec.job||'',branch:rec.branch||'',checkIn,checkOut,employmentStatus:selectedStatus},employmentStatus:selectedStatus,statusEffectiveDate});this.closeModal();this._toast('✅ تم حفظ الموظف','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openAdvanceForm(id=''){if(!this._canEdit())return this._toast('⛔ لا توجد صلاحية','error');const old=this._data.advances.find(r=>String(r.id)===String(id))||{};this._openModal(id?'تعديل سلفة':'إضافة سلفة',`<form id="bhr-form"><div class="bhr-grid"><label class="bhr-field"><span>الموظف</span><select class="bhr-input" id="bhr-emp" required>${this._employeeOptions(old.code)}</select></label><label class="bhr-field"><span>القيمة</span><input class="bhr-input" id="bhr-amount" type="number" min="0" step="0.01" required value="${this._esc(old.amount??'')}"></label><label class="bhr-field"><span>التاريخ</span><input class="bhr-input" id="bhr-date" type="date" required value="${this._esc(old.date||this._today())}"></label><label class="bhr-field" style="grid-column:1/-1"><span>ملاحظة</span><input class="bhr-input" id="bhr-note" value="${this._esc(old.note||'')}"></label></div><div class="bhr-modal-actions"><button class="bhr-btn bhr-primary" type="submit">💾 حفظ</button></div></form>`);this._attachForm('bhr-form',()=>this._saveAdvance(id));},
   async _saveAdvance(id){const code=document.getElementById('bhr-emp')?.value,emp=this._employee(code),amount=this._money(document.getElementById('bhr-amount')?.value),date=this._normDate(document.getElementById('bhr-date')?.value||this._today());if(!emp||amount<=0)return this._toast('اختر الموظف وأدخل قيمة صحيحة','error');const rec={code:emp.code,name:emp.name,amount,date,note:String(document.getElementById('bhr-note')?.value||''),addedBy:State.currentUser?.username||'-',updatedAt:Date.now()};try{const ref=id?db.ref('bazarAdvances/'+id):db.ref('bazarAdvances').push();if(id)await ref.update(rec);else await ref.set(rec);await this._auditBazar(id?'BazarAdvanceEdit':'BazarAdvanceAdd',emp.code,`${id?'تعديل سلفة':'إضافة سلفة'} — ${emp.name}`,{entityType:'سلفة',entityId:id||ref.key,recordDate:date,amount,note:rec.note||''});this.closeModal();this._toast('✅ تم حفظ السلفة','success');}catch(e){this._toast('❌ '+e.message,'error');}},
   openIncentiveForm(id=''){
@@ -23566,6 +23703,7 @@ const BazarHRSuite = {
 
   async exportCurrent(){
     if(!this._canExcel())return this._toast('ليس لديك صلاحية تصدير Excel','error');
+    const canViewSalary=this._canViewSalary();
     try{
       // Export only the Bazar-owned data already loaded from Bazar collections.
       const bin=atob(BAZAR_XLSX_TEMPLATE_B64);
@@ -23819,6 +23957,14 @@ const BazarHRSuite = {
 
       // Keep workbook structure/formulas/formatting from the exact supplied template.
       wb.Workbook=wb.Workbook||{};wb.Workbook.CalcPr={calcMode:'auto',fullCalcOnLoad:true,forceFullCalc:true};
+      if(!canViewSalary){
+        // Salary is sensitive: remove base salary values, derived unpaid-leave deduction,
+        // and the dedicated payroll/receipt sheets from exports for non-authorized users.
+        for(let rr=1;rr<=Math.max(1200,4+emps.length);rr++)clearCell(wsEmp,`I${rr}`);
+        for(let rr=1;rr<=1000;rr++){clearCell(wsLeave,`I${rr}`);clearCell(wsPen,`E${rr}`);clearCell(wsPen,`G${rr}`);}
+        delete wb.Sheets['بيان المرتبات'];
+        delete wb.Sheets['شيك قبض الموظف'];
+      }
       const orderedNames=names.filter(name=>!!wb.Sheets[name]);
       const sheetMeta=new Map((wb.Workbook.Sheets||[]).map(meta=>[meta.name,meta]));
       wb.SheetNames=orderedNames.slice();
@@ -26780,6 +26926,7 @@ body.innerHTML = html
                 "fingerprint-bazar:penalties":"بصمة البازار — الجزاءات",
                 "fingerprint-bazar:leaves":"بصمة البازار — الإجازات",
                 "fingerprint-bazar:permits":"بصمة البازار — الأذونات",
+                "fingerprint-bazar:salary":"بصمة البازار — عرض الرواتب والأجور",
                 "fingerprint-bazar:payroll":"بصمة البازار — بيان المرتبات",
                 "fingerprint-bazar:payslip":"بصمة البازار — شيك قبض الموظف",
                 excel: "تصدير Excel", edit: "التعديل", delete: "الحذف", prices: "الأسعار",
