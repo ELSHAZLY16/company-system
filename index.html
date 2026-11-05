@@ -3952,6 +3952,7 @@ body.light-mode .uj-session-sub,body.light-mode .uj-event-meta,body.light-mode .
 </button>
 
       <button class="tab-btn" data-tab="inventory"><span>📦</span> المخازن</button>
+      <button class="tab-btn" data-tab="shortages"><span>📋</span> النواقص</button>
             <button class="tab-btn" data-tab="transfer-analytics">
 <span><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></span>
 تحليل التحويلات
@@ -4335,6 +4336,185 @@ onclick="TransferService.exportExcel()">
         </div>
       </div>
     </section>
+  </div>
+</div>
+
+<style id="shortages-page-styles">
+/* صفحة النواقص — متوافقة مع Design System v3 وبلا أي امتداد أفقي خارج إطار الصفحة */
+#tab-shortages{
+  display:block;width:100%;max-width:100%;min-width:0;margin:0 auto;padding:clamp(8px,1.4vw,18px);
+  box-sizing:border-box;direction:rtl;color:var(--ab-ink,var(--text-main));overflow-x:clip;
+}
+#tab-shortages *,#tab-shortages *::before,#tab-shortages *::after{box-sizing:border-box;min-width:0;}
+#tab-shortages .sh-wrap{display:flex;flex-direction:column;gap:14px;width:100%;max-width:100%;min-width:0;}
+#tab-shortages .sh-panel{
+  width:100%;max-width:100%;min-width:0;padding:clamp(14px,1.8vw,22px);
+  border:1px solid var(--ab-line,var(--border));border-radius:var(--ab-r-lg,18px);
+  background:var(--ab-surface,var(--bg-card));color:var(--ab-ink,var(--text-main));
+  box-shadow:var(--ab-sh-1,var(--shadow));transition:border-color .18s ease,box-shadow .2s ease;
+  animation:shPanelIn .36s var(--ab-ease,cubic-bezier(.23,1,.32,1)) both;
+}
+#tab-shortages .sh-panel:nth-child(2){animation-delay:.045s}
+#tab-shortages .sh-panel:nth-child(3){animation-delay:.09s}
+@keyframes shPanelIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@media(hover:hover){#tab-shortages .sh-panel:hover{border-color:var(--ab-line-2);box-shadow:var(--ab-sh-2)}}
+#tab-shortages .sh-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0;}
+#tab-shortages .sh-title{display:flex;align-items:center;gap:12px;flex:1 1 240px;min-width:0;}
+#tab-shortages .sh-title>div:last-child{min-width:0;}
+#tab-shortages .sh-title-icon{width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border:1px solid var(--ab-red-200);border-radius:var(--ab-r-md);background:var(--ab-red-50);color:var(--ab-red);font-size:22px;}
+#tab-shortages h2,#tab-shortages h3{margin:0;color:var(--ab-ink);font-weight:650;line-height:1.45;overflow-wrap:anywhere;}
+#tab-shortages h2{font-size:clamp(19px,2vw,25px)}
+#tab-shortages h3{font-size:17px}
+#tab-shortages .sh-sub{margin-top:4px;color:var(--ab-muted);font-size:12px;line-height:1.75;overflow-wrap:anywhere;}
+#tab-shortages .sh-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-top:17px;width:100%;}
+#tab-shortages .sh-field{display:flex;flex-direction:column;gap:6px;min-width:0;}
+#tab-shortages .sh-field label{font-size:12px;font-weight:550;color:var(--ab-ink-2);}
+#tab-shortages input:not([type="checkbox"]),#tab-shortages select{
+  display:block;width:100%;max-width:100%;min-width:0;min-height:43px;padding:9px 12px;
+  border:1px solid var(--ab-line-2);border-radius:var(--ab-r);background:var(--ab-subtle);
+  color:var(--ab-ink);font:inherit;font-size:13px;outline:none;box-shadow:none;
+  transition:border-color .16s ease,box-shadow .16s ease,background-color .16s ease;
+}
+#tab-shortages input::placeholder{color:var(--ab-faint);opacity:1;}
+#tab-shortages input:focus,#tab-shortages select:focus{border-color:var(--ab-red);box-shadow:var(--ab-ring);background:var(--ab-surface);}
+#tab-shortages #missingDate{direction:ltr;text-align:center;}
+#tab-shortages .sh-scan-row{display:flex;align-items:stretch;gap:7px;width:100%;min-width:0;}
+#tab-shortages .sh-scan-row input{flex:1 1 0;width:0;min-width:0;}
+#tab-shortages .sh-scan-row .sh-btn{flex:0 0 auto;}
+#tab-shortages .sh-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:0;min-height:42px;
+  padding:9px 13px;border:1px solid var(--ab-line-2);border-radius:var(--ab-r);
+  background:var(--ab-surface);color:var(--ab-ink-2);font:inherit;font-size:13px;font-weight:550;
+  cursor:pointer;white-space:normal;text-align:center;line-height:1.35;
+  transition:background-color .16s ease,border-color .16s ease,box-shadow .18s ease,transform .16s ease;
+}
+#tab-shortages .sh-btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
+@media(hover:hover){#tab-shortages .sh-btn:hover:not(:disabled){border-color:var(--ab-line-2);background:var(--ab-hover);box-shadow:var(--ab-sh-1);}}
+#tab-shortages .sh-btn:active:not(:disabled){transform:scale(.98);}
+#tab-shortages .sh-btn-primary{background:var(--ab-red);border-color:var(--ab-red);color:#fff;box-shadow:0 5px 14px -8px rgba(200,16,46,.65);}
+@media(hover:hover){#tab-shortages .sh-btn-primary:hover:not(:disabled){background:var(--ab-red-600);border-color:var(--ab-red-600);}}
+#tab-shortages .sh-btn-success{background:var(--ab-green-50);border-color:var(--ab-green-200);color:var(--ab-green);}
+#tab-shortages .sh-btn-muted{background:var(--ab-surface);border-color:var(--ab-line);color:var(--ab-ink-2);}
+#tab-shortages .sh-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;min-width:0;}
+#tab-shortages .sh-actions .sh-btn{flex:0 1 auto;}
+#tab-shortages .sh-table-wrap{display:block;width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;border:1px solid var(--ab-line);border-radius:var(--ab-r-md);margin-top:12px;background:var(--ab-surface);-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;}
+#tab-shortages table{width:100%;min-width:610px;max-width:none;border-collapse:separate;border-spacing:0;background:transparent;color:var(--ab-ink);}
+#tab-shortages th{padding:11px 12px;background:var(--ab-subtle);color:var(--ab-muted);font-size:12px;font-weight:550;white-space:nowrap;text-align:right;border-bottom:1px solid var(--ab-line);}
+#tab-shortages td{padding:10px 12px;border-bottom:1px solid var(--ab-line);color:var(--ab-ink-2);font-size:13px;text-align:right;vertical-align:middle;line-height:1.5;}
+#tab-shortages tbody tr:last-child td{border-bottom:0;}
+#tab-shortages tbody tr{transition:background-color .14s ease;}
+#tab-shortages tbody tr:hover td{background:var(--ab-hover);}
+#tab-shortages .sh-empty{text-align:center;color:var(--ab-muted);padding:24px!important;}
+#tab-shortages .sh-barcode{font-family:ui-monospace,monospace;color:var(--ab-red);direction:ltr;white-space:nowrap;}
+#tab-shortages .sh-qty{font-weight:650;font-size:14px;color:var(--ab-ink);}
+#tab-shortages .sh-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px;width:100%;}
+#tab-shortages .sh-kpi{min-width:0;padding:12px;border:1px solid var(--ab-line);border-radius:var(--ab-r-md);background:var(--ab-subtle);}
+#tab-shortages .sh-kpi span{display:block;font-size:11px;color:var(--ab-muted);line-height:1.5;}
+#tab-shortages .sh-kpi strong{display:block;margin-top:5px;color:var(--ab-ink);font-size:21px;font-weight:650;overflow-wrap:anywhere;}
+#tab-shortages .sh-history-tools{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;min-width:0;}
+#tab-shortages .sh-history-tools>div:first-child{min-width:0;flex:1 1 220px;}
+#tab-shortages .sh-history-filter{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;flex:1 1 270px;min-width:0;}
+#tab-shortages .sh-history-filter .sh-field{min-width:150px;max-width:260px;flex:1 1 160px;}
+#tab-shortages .sh-modal{position:fixed;inset:0;z-index:10030;display:none;align-items:center;justify-content:center;padding:12px;background:var(--ab-overlay);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
+#tab-shortages .sh-modal.open{display:flex;}
+#tab-shortages .sh-modal-box{width:min(760px,96vw);max-width:100%;max-height:92vh;overflow:auto;background:var(--ab-surface);color:var(--ab-ink);border:1px solid var(--ab-line);border-radius:var(--ab-r-xl);box-shadow:var(--ab-sh-3);animation:shModalIn .24s var(--ab-ease) both;}
+@keyframes shModalIn{from{opacity:0;transform:scale(.97) translateY(5px)}to{opacity:1;transform:none}}
+#tab-shortages .sh-modal-head{position:sticky;top:0;z-index:2;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px 16px;background:var(--ab-surface);border-bottom:1px solid var(--ab-line);}
+#tab-shortages .sh-modal-body{padding:14px;}
+#tab-shortages .sh-modal-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px;}
+#tab-shortages .sh-meta-cell{min-width:0;padding:10px;border:1px solid var(--ab-line);border-radius:var(--ab-r);background:var(--ab-subtle);}
+#tab-shortages .sh-meta-cell small{display:block;color:var(--ab-muted);font-size:11px;}
+#tab-shortages .sh-meta-cell strong{display:block;color:var(--ab-ink);font-size:13px;margin-top:4px;overflow-wrap:anywhere;}
+@media(max-width:760px){
+  #tab-shortages .sh-fields{grid-template-columns:repeat(2,minmax(0,1fr));}
+  #tab-shortages .sh-modal-meta{grid-template-columns:1fr 1fr;}
+}
+@media(max-width:560px){
+  #tab-shortages{padding:8px;}
+  #tab-shortages .sh-wrap{gap:11px;}
+  #tab-shortages .sh-panel{padding:13px;border-radius:var(--ab-r-md);}
+  #tab-shortages .sh-head{align-items:flex-start;}
+  #tab-shortages .sh-title{gap:9px;flex-basis:100%;}
+  #tab-shortages .sh-title-icon{width:41px;height:41px;flex-basis:41px;font-size:20px;}
+  #tab-shortages .sh-head>.sh-btn{width:100%;}
+  #tab-shortages .sh-fields{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+  #tab-shortages .sh-fields>.sh-field[style*="grid-column:span 2"]{grid-column:1/-1!important;}
+  #tab-shortages .sh-field label{font-size:11px;}
+  #tab-shortages input:not([type="checkbox"]),#tab-shortages select{min-height:41px;padding:8px 9px;font-size:12px;}
+  #tab-shortages .sh-scan-row{gap:6px;}
+  #tab-shortages .sh-scan-row .sh-btn{padding:8px 9px;min-height:41px;font-size:11px;}
+  #tab-shortages .sh-actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  #tab-shortages .sh-actions .sh-btn{width:100%;min-height:42px;padding:8px 7px;font-size:11px;}
+  #tab-shortages .sh-actions .sh-btn-primary{grid-column:1/-1;}
+  #tab-shortages .sh-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+  #tab-shortages .sh-kpi{padding:10px;}
+  #tab-shortages .sh-kpi:last-child{grid-column:1/-1;}
+  #tab-shortages .sh-history-tools{align-items:stretch;}
+  #tab-shortages .sh-history-filter{flex:1 1 100%;}
+  #tab-shortages .sh-history-filter .sh-field{max-width:none;}
+  #tab-shortages .sh-history-filter>.sh-btn{flex:0 0 auto;}
+  #tab-shortages .sh-modal{padding:0;align-items:flex-end;}
+  #tab-shortages .sh-modal-box{width:100%;max-width:none;max-height:92dvh;border-radius:22px 22px 0 0;border-bottom:0;animation:shSheetIn .3s var(--ab-ease-drawer) both;}
+  #tab-shortages .sh-modal-meta{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@keyframes shSheetIn{from{transform:translateY(100%)}to{transform:none}}
+@media(max-width:360px){
+  #tab-shortages .sh-actions{grid-template-columns:1fr;}
+  #tab-shortages .sh-actions .sh-btn-primary{grid-column:auto;}
+  #tab-shortages .sh-title{align-items:flex-start;}
+}
+@media(prefers-reduced-motion:reduce){#tab-shortages .sh-panel,#tab-shortages .sh-modal-box{animation:none!important;transition:none!important;}}
+</style>
+
+<div id="tab-shortages" class="tab-content" style="display:none;">
+  <div class="sh-wrap">
+    <section class="sh-panel">
+      <div class="sh-head">
+        <div class="sh-title">
+          <div class="sh-title-icon">📋</div>
+          <div><h2>طلبات النواقص</h2><div class="sh-sub">تسجيل الأصناف الناقصة في الفرع وتجهيز طلب واضح لإرساله إلى المخزن.</div></div>
+        </div>
+        <button class="sh-btn sh-btn-muted" type="button" onclick="MissingService.refresh()">↻ تحديث الطلبات</button>
+      </div>
+      <div class="sh-fields">
+        <div class="sh-field"><label for="missingBranch">الفرع الطالب</label>
+          <select id="missingBranch"><option value="">اختر الفرع</option><option value="البازار">فرع البازار</option><option value="الصباح">فرع الصباح</option><option value="باب40">مخزن باب 40</option><option value="الثلاجة">الثلاجة</option><option value="القاهرة">فرع القاهرة</option></select>
+        </div>
+        <div class="sh-field"><label for="missingDate">تاريخ الطلب</label><input id="missingDate" type="date"></div>
+        <div class="sh-field" style="grid-column:span 2"><label for="missingBarcode">باركود / QR الصنف</label>
+          <div class="sh-scan-row"><input id="missingBarcode" inputmode="numeric" autocomplete="off" placeholder="امسح الكود أو اكتبه" oninput="onMissingBarcodeInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();MissingService.focusQuantity();}"><button type="button" class="sh-btn sh-btn-primary" onclick="ProductService.scanBarcode('missingBarcode')" title="فتح الكاميرا">📷 مسح</button></div>
+        </div>
+        <div class="sh-field" style="grid-column:span 2"><label for="missingProductName">اسم الصنف</label><input id="missingProductName" placeholder="سيظهر اسم الصنف تلقائيًا بعد قراءة الكود" autocomplete="off"></div>
+        <div class="sh-field"><label for="missingQuantity">الكمية المطلوبة</label><input id="missingQuantity" type="number" min="0" step="any" inputmode="decimal" placeholder="أدخل الكمية" onkeydown="if(event.key==='Enter'){event.preventDefault();MissingService.addDraftItem();}"></div>
+        <div class="sh-field"><label for="missingUnit">الوحدة</label><select id="missingUnit"><option value="كرتونة" selected>كرتونة</option><option value="علبة">علبة</option><option value="قطعة">قطعة</option></select></div>
+      </div>
+      <div class="sh-actions">
+        <button type="button" class="sh-btn sh-btn-primary" onclick="MissingService.addDraftItem()">＋ إضافة الصنف للطلب</button>
+        <button type="button" class="sh-btn sh-btn-success" onclick="MissingService.saveRequest()">💾 حفظ طلب النواقص</button>
+        <button type="button" class="sh-btn sh-btn-muted" onclick="MissingService.clearDraftConfirm()">مسح الطلب الحالي</button>
+      </div>
+      <div class="sh-kpis">
+        <div class="sh-kpi"><span>عدد الأصناف في الطلب الحالي</span><strong id="missingDraftCount">0</strong></div>
+        <div class="sh-kpi"><span>إجمالي الكميات المدخلة</span><strong id="missingDraftQty">0</strong></div>
+        <div class="sh-kpi"><span>حالة الطلب الحالي</span><strong id="missingDraftStatus">مسودة</strong></div>
+      </div>
+    </section>
+
+    <section class="sh-panel">
+      <div class="sh-head"><div><h3>أصناف الطلب الحالي</h3><div class="sh-sub">راجع الأصناف والكميات قبل الحفظ.</div></div></div>
+      <div class="sh-table-wrap"><table><thead><tr><th>#</th><th>الباركود</th><th>اسم الصنف</th><th>الكمية</th><th>الوحدة</th><th>إزالة</th></tr></thead><tbody id="missingDraftBody"><tr><td colspan="6" class="sh-empty">لم تتم إضافة أصناف بعد</td></tr></tbody></table></div>
+    </section>
+
+    <section class="sh-panel">
+      <div class="sh-history-tools">
+        <div><h3>طلبات النواقص المحفوظة</h3><div class="sh-sub">تقدر تراجع أي طلب سابق وتصدره Excel بنفس بياناته.</div></div>
+        <div class="sh-history-filter"><div class="sh-field"><label for="missingHistoryBranch">تصفية حسب الفرع</label><select id="missingHistoryBranch" onchange="MissingService.renderRequests()"><option value="">كل الفروع</option><option value="البازار">البازار</option><option value="الصباح">الصباح</option><option value="باب40">باب 40</option><option value="الثلاجة">الثلاجة</option><option value="القاهرة">القاهرة</option></select></div><button type="button" class="sh-btn sh-btn-muted" onclick="MissingService.refresh()">تحديث ↻</button></div>
+      </div>
+      <div class="sh-table-wrap"><table><thead><tr><th>#</th><th>رقم الطلب</th><th>الفرع</th><th>التاريخ</th><th>عدد الأصناف</th><th>مقدم الطلب</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody id="missingRequestsBody"><tr><td colspan="8" class="sh-empty">جارٍ تحميل الطلبات...</td></tr></tbody></table></div>
+    </section>
+  </div>
+  <div id="missingViewModal" class="sh-modal" onclick="if(event.target===this)MissingService.closeView()">
+    <div class="sh-modal-box"><div class="sh-modal-head"><div><h3 id="missingViewTitle">تفاصيل طلب النواقص</h3><div class="sh-sub" id="missingViewSub"></div></div><button type="button" class="sh-btn sh-btn-muted" onclick="MissingService.closeView()">✕ إغلاق</button></div><div class="sh-modal-body"><div id="missingViewMeta" class="sh-modal-meta"></div><div class="sh-table-wrap"><table><thead><tr><th>#</th><th>الباركود</th><th>الصنف</th><th>الكمية</th><th>الوحدة</th></tr></thead><tbody id="missingViewItems"></tbody></table></div><div class="sh-actions"><button type="button" class="sh-btn sh-btn-success" onclick="MissingService.exportViewedRequest()">⇩ تصدير الطلب Excel</button></div></div></div>
   </div>
 </div>
 
@@ -7780,6 +7960,12 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
 </label>
 
        <label class="permission-card">
+<input type="checkbox" class="perm-checkbox" value="shortages" hidden>
+<span>📋</span>
+<span>النواقص</span>
+</label>
+
+       <label class="permission-card">
 <input type="checkbox" class="perm-checkbox" value="companies" hidden>
 <span><span class="ui-icon-slot" data-icon="building" aria-hidden="true"></span></span>
 <span>الشركات</span>
@@ -8554,6 +8740,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
 التحويلات
 </label>
         <label><input type="checkbox" value="inventory"> 📦 المخازن</label>
+        <label><input type="checkbox" value="shortages"> 📋 النواقص</label>
         
         <label><input type="checkbox" value="edit"> التعديل</label>
         <label><input type="checkbox" value="delete"> الحذف</label>
@@ -12059,7 +12246,7 @@ const DeviceInfo = {
         autoExemptions: {},
         _absenceAutoReady: { attendance:false, leaves:false, penalties:false, empData:false, exemptions:false },
         penaltyExemptLog: [],
-        appBuild: "2026-11-03.73-transfer-expiry-guard",
+        appBuild: "2026-11-05.75-shortages-design-aligned",
         transferRange: "day",
         companyRange: "day",
         breakRange: "day",
@@ -12678,7 +12865,7 @@ return firebase.database.ServerValue.TIMESTAMP
     const UserJourneyService = {
       pageLabels: {
         attendance:'الحضور', breaks:'الاستئذانات', products:'التواريخ', vehicles:'العربيات', prices:'الأسعار', pricing:'التسعيرات',
-        companies:'الشركات', transfers:'التحويلات', inventory:'المخازن', 'transfer-analytics':'تحليل التحويلات',
+        companies:'الشركات', transfers:'التحويلات', inventory:'المخازن', shortages:'النواقص', 'transfer-analytics':'تحليل التحويلات',
         'fingerprint-bazar':'بصمة البازار', 'fingerprint-sabah':'بصمة الصباح', penalties:'الجزاءات', incentives:'الحوافز',
         leaves:'الإجازات', empdata:'الموظفون', users:'الإدارة', system:'سجل النظام', archive:'الأرشيف', 'user-journey':'خط سير المستخدمين'
       },
@@ -13274,6 +13461,7 @@ const SystemLogService = {
                 DeleteProduct:  "🗑️ حذف صنف",
                 EditProduct:    "✏️ تعديل صنف",
                 TransferSaved:  "📋 حفظ تحويل",
+                ShortageRequestAdd: "📋 حفظ طلب نواقص",
                 DeleteTransfer: "🗑️ حذف تحويل",
                 DeleteAttendance: "🗑️ حذف حضور",
                 DeleteBreak:      "🗑️ حذف استئذان",
@@ -19213,6 +19401,294 @@ function getProductNameAsync(barcode, callback) {
     const p = PriceSheetService.lookup(barcode,data);
     callback(p?.name || null);
   }).catch(()=>callback(null));
+}
+
+
+// ============================================================
+// Missing / Shortages Requests — طلبات النواقص
+// مستقل عن المخزون والتحويلات؛ يحفظ طلب الفرع فقط ولا يغير الأرصدة.
+// ============================================================
+const MissingService = {
+  branches: [
+    { value: 'البازار', label: 'فرع البازار' },
+    { value: 'الصباح', label: 'فرع الصباح' },
+    { value: 'باب40', label: 'مخزن باب 40' },
+    { value: 'الثلاجة', label: 'الثلاجة' },
+    { value: 'القاهرة', label: 'فرع القاهرة' }
+  ],
+  draftItems: [],
+  requests: [],
+  _loading: false,
+  _saving: false,
+  _initialized: false,
+  _lookupSeq: 0,
+  _loadSeq: 0,
+  _viewedRequestId: null,
+
+  canAccess(showMessage = false) {
+    const ok = !!State.currentUser && hasPermission('shortages');
+    if (!ok && showMessage) UI.toast('ليس لديك صلاحية الوصول إلى صفحة النواقص', 'error');
+    return ok;
+  },
+  escape(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  },
+  branchLabel(value) {
+    return this.branches.find(b => b.value === String(value || ''))?.label || String(value || '-');
+  },
+  dateKeyNow() {
+    try { return EgyptClock.dateKey(TimeUtils.now()); }
+    catch (_) { return new Date().toISOString().slice(0,10); }
+  },
+  init() {
+    if (!this.canAccess(true)) return;
+    const date = document.getElementById('missingDate');
+    if (date && !date.value) date.value = this.dateKeyNow();
+    this.renderDraft();
+    this.refresh();
+    this._initialized = true;
+  },
+  focusQuantity() {
+    const qty = document.getElementById('missingQuantity');
+    if (qty) qty.focus();
+  },
+  async lookupBarcode(value) {
+    const barcode = String(value || '').trim();
+    const nameInput = document.getElementById('missingProductName');
+    if (!nameInput) return;
+    const seq = ++this._lookupSeq;
+    if (!barcode) {
+      nameInput.value = '';
+      nameInput.placeholder = 'سيظهر اسم الصنف تلقائيًا بعد قراءة الكود';
+      return;
+    }
+    const local = (typeof getProductName === 'function') ? getProductName(barcode) : null;
+    if (local) {
+      nameInput.value = local;
+      nameInput.placeholder = 'اسم الصنف';
+      this.focusQuantity();
+      return;
+    }
+    nameInput.value = '';
+    nameInput.placeholder = 'جارٍ البحث عن اسم الصنف...';
+    try {
+      let found = null;
+      if (typeof getProductNameAsync === 'function') {
+        found = await new Promise(resolve => getProductNameAsync(barcode, resolve));
+      } else if (typeof lookupProductFromPriceSheet === 'function') {
+        found = await new Promise(resolve => lookupProductFromPriceSheet(barcode, result => resolve(result?.name || null)));
+      }
+      if (seq !== this._lookupSeq) return;
+      if (found) {
+        nameInput.value = typeof found === 'string' ? found : (found.name || '');
+        nameInput.placeholder = 'اسم الصنف';
+        this.focusQuantity();
+      } else {
+        nameInput.placeholder = 'لم يتم العثور على الاسم؛ يمكنك كتابته يدويًا';
+      }
+    } catch (err) {
+      if (seq === this._lookupSeq) nameInput.placeholder = 'تعذر البحث؛ اكتب اسم الصنف يدويًا';
+      console.warn('[Shortages] barcode lookup failed', err);
+    }
+  },
+  addDraftItem() {
+    if (!this.canAccess(true)) return;
+    const barcode = String(document.getElementById('missingBarcode')?.value || '').trim();
+    const name = String(document.getElementById('missingProductName')?.value || '').trim();
+    const quantityRaw = document.getElementById('missingQuantity')?.value;
+    const quantity = Number(quantityRaw);
+    const unit = String(document.getElementById('missingUnit')?.value || 'كرتونة');
+    if (!barcode) { UI.toast('امسح أو أدخل باركود الصنف أولًا', 'warning'); document.getElementById('missingBarcode')?.focus(); return; }
+    if (!name) { UI.toast('لم يتم تحديد اسم الصنف؛ اكتب الاسم أو انتظر نتيجة البحث', 'warning'); document.getElementById('missingProductName')?.focus(); return; }
+    if (!Number.isFinite(quantity) || quantity <= 0) { UI.toast('أدخل كمية صحيحة أكبر من صفر', 'warning'); document.getElementById('missingQuantity')?.focus(); return; }
+    const existing = this.draftItems.find(item => item.barcode === barcode && item.unit === unit);
+    if (existing) existing.quantity = Number((existing.quantity + quantity).toFixed(3));
+    else this.draftItems.push({ barcode, name, quantity, unit });
+    ['missingBarcode','missingProductName','missingQuantity'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    const unitEl = document.getElementById('missingUnit'); if (unitEl) unitEl.value = 'كرتونة';
+    const scanEl = document.getElementById('missingBarcode'); if (scanEl) scanEl.focus();
+    this.renderDraft();
+    UI.toast(existing ? 'تم تجميع الكمية مع الصنف الموجود' : 'تمت إضافة الصنف للطلب', 'success');
+  },
+  removeDraftItem(index) {
+    if (!this.canAccess(true)) return;
+    if (!Number.isInteger(Number(index)) || !this.draftItems[Number(index)]) return;
+    this.draftItems.splice(Number(index), 1);
+    this.renderDraft();
+  },
+  clearDraftConfirm() {
+    if (!this.canAccess(true)) return;
+    if (!this.draftItems.length) { UI.toast('الطلب الحالي فارغ بالفعل', 'info'); return; }
+    showConfirm('هل تريد مسح كل الأصناف الموجودة في الطلب الحالي؟', () => {
+      this.draftItems = [];
+      this.renderDraft();
+      UI.toast('تم مسح الطلب الحالي', 'success');
+    });
+  },
+  renderDraft() {
+    const body = document.getElementById('missingDraftBody');
+    if (!body) return;
+    body.innerHTML = this.draftItems.length ? this.draftItems.map((item, index) => `
+      <tr>
+        <td>${index + 1}</td>
+        <td class="sh-barcode">${this.escape(item.barcode)}</td>
+        <td>${this.escape(item.name)}</td>
+        <td class="sh-qty">${Number(item.quantity).toLocaleString('ar-EG')}</td>
+        <td>${this.escape(item.unit)}</td>
+        <td><button type="button" class="sh-btn sh-btn-muted" onclick="MissingService.removeDraftItem(${index})">✕ إزالة</button></td>
+      </tr>`).join('') : '<tr><td colspan="6" class="sh-empty">لم تتم إضافة أصناف بعد</td></tr>';
+    const count = document.getElementById('missingDraftCount');
+    const qty = document.getElementById('missingDraftQty');
+    const status = document.getElementById('missingDraftStatus');
+    if (count) count.textContent = this.draftItems.length.toLocaleString('ar-EG');
+    if (qty) qty.textContent = this.draftItems.reduce((sum,item)=>sum+(Number(item.quantity)||0),0).toLocaleString('ar-EG');
+    if (status) status.textContent = this.draftItems.length ? 'جاهز للحفظ' : 'مسودة';
+  },
+  async saveRequest() {
+    if (!this.canAccess(true) || this._saving) return;
+    const branch = String(document.getElementById('missingBranch')?.value || '');
+    const date = String(document.getElementById('missingDate')?.value || this.dateKeyNow());
+    if (!branch) { UI.toast('اختر الفرع الطالب أولًا', 'warning'); document.getElementById('missingBranch')?.focus(); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { UI.toast('اختر تاريخًا صحيحًا للطلب', 'warning'); return; }
+    if (!this.draftItems.length) { UI.toast('أضف صنفًا واحدًا على الأقل قبل الحفظ', 'warning'); return; }
+    if (typeof db === 'undefined' || !db?.ref) { UI.toast('اتصال Firebase غير متاح حاليًا', 'error'); return; }
+    this._saving = true;
+    const saveBtn = document.querySelector('#tab-shortages .sh-btn-success');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'جارٍ الحفظ...'; }
+    try {
+      const ref = db.ref('shortageRequests').push();
+      const payload = {
+        id: ref.key,
+        branch,
+        branchLabel: this.branchLabel(branch),
+        date,
+        items: this.draftItems.map(item => ({ barcode:item.barcode, name:item.name, quantity:Number(item.quantity), unit:item.unit })),
+        itemsCount: this.draftItems.length,
+        createdBy: String(State.currentUser?.username || State.currentUser?.name || '-'),
+        status: 'جديد',
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+      await ref.set(payload);
+      this.draftItems = [];
+      this.renderDraft();
+      const today = document.getElementById('missingDate'); if (today) today.value = this.dateKeyNow();
+      await this.refresh();
+      try { SystemLog.add('ShortageRequestAdd', ref.key, 'حفظ طلب نواقص', { branch, date, itemsCount:payload.itemsCount }); } catch (_) {}
+      await this.refresh(true);
+      UI.toast('تم حفظ طلب النواقص بنجاح', 'success', 5000);
+    } catch (err) {
+      console.error('[Shortages] save failed', err);
+      UI.toast('تعذر حفظ طلب النواقص: ' + String(err?.message || err), 'error', 7000);
+    } finally {
+      this._saving = false;
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 حفظ طلب النواقص'; }
+    }
+  },
+  async refresh(force = false) {
+    if (!this.canAccess(true) || (this._loading && !force)) return;
+    if (typeof db === 'undefined' || !db?.ref) { UI.toast('اتصال Firebase غير متاح', 'error'); return; }
+    const loadSeq = ++this._loadSeq;
+    this._loading = true;
+    const body = document.getElementById('missingRequestsBody');
+    if (body) body.innerHTML = '<tr><td colspan="8" class="sh-empty">جارٍ تحديث الطلبات...</td></tr>';
+    try {
+      const snap = await db.ref('shortageRequests').once('value');
+      if (loadSeq !== this._loadSeq) return;
+      const raw = snap.val() || {};
+      this.requests = Object.entries(raw).map(([id, value]) => ({ id, ...(value || {}) }))
+        .sort((a,b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+      this.renderRequests();
+    } catch (err) {
+      console.error('[Shortages] load failed', err);
+      if (loadSeq === this._loadSeq) {
+        if (body) body.innerHTML = '<tr><td colspan="8" class="sh-empty">تعذر تحميل الطلبات. تحقق من اتصال Firebase وصلاحية القراءة.</td></tr>';
+        UI.toast('تعذر تحميل طلبات النواقص: ' + String(err?.message || err), 'error', 6500);
+      }
+    } finally {
+      if (loadSeq === this._loadSeq) this._loading = false;
+    }
+  },
+  renderRequests() {
+    const body = document.getElementById('missingRequestsBody');
+    if (!body) return;
+    const branchFilter = String(document.getElementById('missingHistoryBranch')?.value || '');
+    const filtered = this.requests.filter(request => !branchFilter || String(request.branch || '') === branchFilter);
+    body.innerHTML = filtered.length ? filtered.map((request, index) => {
+      const items = Array.isArray(request.items) ? request.items : [];
+      const date = String(request.date || '-');
+      const idText = String(request.id || '').slice(-8);
+      const safeId = JSON.stringify(String(request.id || '')).replace(/'/g, '\\u0027');
+      return `<tr>
+        <td>${index + 1}</td><td class="sh-barcode">${this.escape(idText || '-')}</td>
+        <td>${this.escape(request.branchLabel || this.branchLabel(request.branch))}</td>
+        <td>${this.escape(date)}</td><td>${items.length.toLocaleString('ar-EG')}</td>
+        <td>${this.escape(request.createdBy || '-')}</td><td><span class="badge badge-success">${this.escape(request.status || 'جديد')}</span></td>
+        <td><div style="display:flex;gap:5px;justify-content:center;flex-wrap:wrap"><button type="button" class="sh-btn sh-btn-muted" onclick='MissingService.viewRequest(${safeId})'>عرض</button><button type="button" class="sh-btn sh-btn-success" onclick='MissingService.exportRequest(${safeId})'>Excel ⇩</button></div></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="8" class="sh-empty">لا توجد طلبات محفوظة لهذا الاختيار</td></tr>';
+  },
+  findRequest(id) {
+    return this.requests.find(item => String(item.id) === String(id)) || null;
+  },
+  viewRequest(id) {
+    if (!this.canAccess(true)) return;
+    const request = this.findRequest(id);
+    if (!request) { UI.toast('لم يتم العثور على الطلب؛ حدّث القائمة وحاول مرة أخرى', 'error'); return; }
+    this._viewedRequestId = String(id);
+    const title = document.getElementById('missingViewTitle');
+    const sub = document.getElementById('missingViewSub');
+    const meta = document.getElementById('missingViewMeta');
+    const body = document.getElementById('missingViewItems');
+    if (title) title.textContent = 'تفاصيل طلب النواقص';
+    if (sub) sub.textContent = 'رقم الطلب: ' + String(id).slice(-8);
+    if (meta) meta.innerHTML = [
+      ['الفرع', request.branchLabel || this.branchLabel(request.branch)],
+      ['التاريخ', request.date || '-'],
+      ['مقدم الطلب', request.createdBy || '-']
+    ].map(([label,value]) => `<div class="sh-meta-cell"><small>${this.escape(label)}</small><strong>${this.escape(value)}</strong></div>`).join('');
+    const items = Array.isArray(request.items) ? request.items : [];
+    if (body) body.innerHTML = items.length ? items.map((item,index)=>`<tr><td>${index+1}</td><td class="sh-barcode">${this.escape(item.barcode)}</td><td>${this.escape(item.name)}</td><td class="sh-qty">${Number(item.quantity||0).toLocaleString('ar-EG')}</td><td>${this.escape(item.unit||'كرتونة')}</td></tr>`).join('') : '<tr><td colspan="5" class="sh-empty">لا توجد أصناف في الطلب</td></tr>';
+    document.getElementById('missingViewModal')?.classList.add('open');
+  },
+  closeView() {
+    document.getElementById('missingViewModal')?.classList.remove('open');
+    this._viewedRequestId = null;
+  },
+  exportViewedRequest() {
+    if (!this._viewedRequestId) return;
+    this.exportRequest(this._viewedRequestId);
+  },
+  exportRequest(id) {
+    if (!this.canAccess(true)) return;
+    if (!window.XLSX) { UI.toast('مكتبة Excel غير جاهزة؛ أعد فتح الصفحة وحاول مرة أخرى', 'error'); return; }
+    const request = this.findRequest(id);
+    if (!request) { UI.toast('الطلب غير موجود في القائمة؛ اضغط تحديث أولًا', 'error'); return; }
+    const items = Array.isArray(request.items) ? request.items : [];
+    const rows = [
+      ['علوش البازار — طلب نواقص'],
+      ['الفرع', request.branchLabel || this.branchLabel(request.branch), 'تاريخ الطلب', request.date || '-'],
+      ['رقم الطلب', request.id || id, 'مقدم الطلب', request.createdBy || '-'],
+      [],
+      ['م', 'الباركود', 'اسم الصنف', 'الكمية المطلوبة', 'الوحدة']
+    ];
+    items.forEach((item,index)=>rows.push([index+1, item.barcode || '', item.name || '', Number(item.quantity)||0, item.unit || 'كرتونة']));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:7},{wch:20},{wch:38},{wch:18},{wch:16}];
+    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}];
+    ws['!autofilter'] = { ref: `A5:E${Math.max(5, rows.length)}` };
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'النواقص');
+    const branchSlug = String(request.branch || 'branch').replace(/[^\u0600-\u06FF\w-]/g, '_');
+    const dateSlug = String(request.date || this.dateKeyNow()).replace(/[^0-9-]/g, '_');
+    XLSX.writeFile(wb, `نواقص_${branchSlug}_${dateSlug}.xlsx`);
+    try { SystemLog.add('ExportExcel', request.id || id, 'تصدير طلب نواقص Excel', { branch:request.branch, itemsCount:items.length }); } catch (_) {}
+    UI.toast('تم تجهيز ملف Excel للطلب', 'success');
+  }
+};
+window.MissingService = MissingService;
+
+function onMissingBarcodeInput(value) {
+  if (window.MissingService) MissingService.lookupBarcode(value);
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -26295,7 +26771,7 @@ body.innerHTML = html
                 attendance: "الحضور", vehicles: "العربيات", penalties: "الجزاءات",
                 leaves: "الإجازات", employees: "الموظفين", users: "المستخدمين",
                 breaks: "الاستئذانات", products: "التواريخ", system: "النظام",
-                transfers: "التحويلات", "transfer-analytics": "تحليل التحويلات",
+                transfers: "التحويلات", shortages: "النواقص", "transfer-analytics": "تحليل التحويلات",
                 fingerprint: "بصمة البازار", "fingerprint-sabah": "بصمة الصباح",
                 "fingerprint-bazar:employees":"بصمة البازار — بيانات الموظفين",
                 "fingerprint-bazar:attendance":"بصمة البازار — الحضور والانصراف",
@@ -26459,7 +26935,7 @@ function exportAdminUsersExcel() {
   if (!hasPermission("users") && !hasPermission("all")) { UI.toast("ليس لديك صلاحية تصدير بيانات المستخدمين", "error"); return; }
   if (!window.XLSX) { UI.toast("مكتبة Excel غير جاهزة؛ أعد فتح الصفحة وحاول مرة أخرى", "error"); return; }
   const users = Array.isArray(State.users) ? State.users : [];
-  const permissionLabels = { notifications:"الإشعارات", employeeNotify:"تنبيهات الموظفين", broadcast:"الرسائل الجماعية", whatsapp:"واتساب", attendance:"الحضور", vehicles:"العربيات", penalties:"الجزاءات", leaves:"الإجازات", employees:"الموظفين", users:"المستخدمين", "user-journey":"خط سير المستخدمين", breaks:"الاستئذانات", products:"التواريخ", system:"النظام", transfers:"التحويلات", "transfer-analytics":"تحليل التحويلات", fingerprint:"بصمة البازار", "fingerprint-sabah":"بصمة الصباح", excel:"تصدير Excel", edit:"التعديل", delete:"الحذف", prices:"الأسعار", pricing:"التسعيرات", viewPrices:"رؤية الأسعار", inventory:"المخازن", companies:"الشركات", incentives:"الحوافز", permit:"إذن (إعفاء من الخصم)", leaveApprove:"طلبات الإجازة", empdata:"بيانات الموظفين", archive:"الأرشيف", all:"كل الصلاحيات" };
+  const permissionLabels = { notifications:"الإشعارات", employeeNotify:"تنبيهات الموظفين", broadcast:"الرسائل الجماعية", whatsapp:"واتساب", attendance:"الحضور", vehicles:"العربيات", penalties:"الجزاءات", leaves:"الإجازات", employees:"الموظفين", users:"المستخدمين", "user-journey":"خط سير المستخدمين", breaks:"الاستئذانات", products:"التواريخ", system:"النظام", transfers:"التحويلات", shortages:"النواقص", "transfer-analytics":"تحليل التحويلات", fingerprint:"بصمة البازار", "fingerprint-sabah":"بصمة الصباح", excel:"تصدير Excel", edit:"التعديل", delete:"الحذف", prices:"الأسعار", pricing:"التسعيرات", viewPrices:"رؤية الأسعار", inventory:"المخازن", companies:"الشركات", incentives:"الحوافز", permit:"إذن (إعفاء من الخصم)", leaveApprove:"طلبات الإجازة", empdata:"بيانات الموظفين", archive:"الأرشيف", all:"كل الصلاحيات" };
   const rows = users.map(u => {
     const p = (typeof PresenceService !== "undefined" && PresenceService.getStatus) ? PresenceService.getStatus(u.id) : { online:false };
     return {
@@ -26605,6 +27081,7 @@ btn.onclick = () => {
 
 let tab = btn.dataset.tab;
 if (tab === "user-journey" && (!State.currentUser || (!hasPermission("user-journey") && !hasPermission("all")))) { UI.toast("ليس لديك صلاحية خط سير المستخدمين", "error"); return; }
+if (tab === "shortages" && (!State.currentUser || !hasPermission("shortages"))) { UI.toast("ليس لديك صلاحية الوصول إلى صفحة النواقص", "error"); return; }
 
 document.querySelectorAll(".tab-content").forEach(t => t.style.display = "none")
 document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"))
@@ -26638,6 +27115,9 @@ if(tab === "pricing"){
 }
 if(tab === "inventory"){
   InventoryService.init();
+}
+if(tab === "shortages"){
+  MissingService.init();
 }
 if(tab === "incentives"){
   const incDate = document.getElementById('incDate');
@@ -30766,7 +31246,7 @@ html:root body .ab-nav-pill{ position:absolute !important; z-index:0 !important;
 html:root body .tabs-wrapper.ab-pill-ready .ab-nav-pill.on{ opacity:1; }
 /* visual order (DOM order and permission logic untouched) */
 html:root body .tab-btn[data-tab="attendance"]{order:11}html:root body .tab-btn[data-tab="breaks"]{order:12}html:root body .tab-btn[data-tab="fingerprint-bazar"]{order:13}html:root body .tab-btn[data-tab="fingerprint-sabah"]{order:14}html:root body .tab-btn[data-tab="vehicles"]{order:15}html:root body .tab-btn[data-tab="companies"]{order:16}
-html:root body .tab-btn[data-tab="products"]{order:21}html:root body .tab-btn[data-tab="inventory"]{order:22}html:root body .tab-btn[data-tab="transfers"]{order:23}html:root body .tab-btn[data-tab="transfer-analytics"]{order:24}html:root body .tab-btn[data-tab="prices"]{order:25}html:root body .tab-btn[data-tab="pricing"]{order:26}
+html:root body .tab-btn[data-tab="products"]{order:21}html:root body .tab-btn[data-tab="inventory"]{order:22}html:root body .tab-btn[data-tab="shortages"]{order:23}html:root body .tab-btn[data-tab="transfers"]{order:24}html:root body .tab-btn[data-tab="transfer-analytics"]{order:25}html:root body .tab-btn[data-tab="prices"]{order:26}html:root body .tab-btn[data-tab="pricing"]{order:27}
 html:root body .tab-btn[data-tab="empdata"]{order:31}html:root body .tab-btn[data-tab="leaves"]{order:32}html:root body .tab-btn[data-tab="penalties"]{order:33}html:root body .tab-btn[data-tab="incentives"]{order:34}
 html:root body .tab-btn[data-tab="users"]{order:41}html:root body .tab-btn[data-tab="user-journey"]{order:42}html:root body .tab-btn[data-tab="system"]{order:43}html:root body .tab-btn[data-tab="archive"]{order:44}
 html:root body .ab-nav-group[data-g="ops"]{order:10}html:root body .ab-nav-group[data-g="stock"]{order:20}html:root body .ab-nav-group[data-g="hr"]{order:30}html:root body .ab-nav-group[data-g="admin"]{order:40}
