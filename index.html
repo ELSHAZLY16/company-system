@@ -1395,8 +1395,8 @@ body.light-mode .filter-btn.active { background: linear-gradient(135deg,#52525b,
 /* ============================================================
    بصمة البازار — الصلاحيات الداخلية
    ============================================================ */
-.fingerprint-perm-card{position:relative;}
-.fingerprint-perm-card .fingerprint-perm-gear{font-size:11px;color:#b5121f;margin-top:2px;display:block;}
+.fingerprint-perm-card,.sabah-fingerprint-perm-card{position:relative;}
+.fingerprint-perm-card .fingerprint-perm-gear,.sabah-fingerprint-perm-card .fingerprint-perm-gear{font-size:11px;color:#b5121f;margin-top:2px;display:block;}
 .fingerprint-perm-modal{position:fixed;inset:0;z-index:20050;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:14px;}
 .fingerprint-perm-modal[hidden]{display:none!important;}
 .fingerprint-perm-box{width:min(760px,96vw);max-height:92vh;overflow:auto;background:#18181b;border:1px solid rgba(215,25,45,.42);border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.5);direction:rtl;}
@@ -7892,7 +7892,8 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="empdata" hidden><span><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span><span>بيانات الموظفين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="transfer-analytics" hidden><span><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></span><span>تحليل التحويلات</span></label>
                     <label class="permission-card fingerprint-perm-card" data-fingerprint-picker="new"><input type="checkbox" class="perm-checkbox" value="fingerprint" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span><span>بصمة البازار</span><span class="fingerprint-perm-gear">⚙ إعداد التابات</span></label>
-                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="fingerprint-sabah" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span><span>بصمة الصباح</span></label>
+                    <label class="permission-card fingerprint-perm-card sabah-fingerprint-perm-card" data-sabah-fingerprint-picker="new"><input type="checkbox" class="perm-checkbox" value="fingerprint-sabah" hidden><span><span class="ui-icon-slot" data-icon="hand" aria-hidden="true"></span></span><span>بصمة الصباح</span><span class="fingerprint-perm-gear">⚙ إعداد التابات</span></label>
+                    <div id="sabahFingerprintSubPermsNew" style="display:none" aria-hidden="true"></div>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="breaks" hidden><span><span class="ui-icon-slot" data-icon="coffee" aria-hidden="true"></span></span><span>الاستئذانات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="notifications" hidden><span><span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span></span><span>الإشعارات</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="employeeNotify" hidden><span><span class="ui-icon-slot" data-icon="users" aria-hidden="true"></span></span><span>تنبيهات الموظفين</span></label>
@@ -8673,7 +8674,10 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
           <input type="checkbox" class="perm-checkbox" value="fingerprint"> 🖐️ بصمة البازار <span class="fingerprint-perm-gear">⚙ التابات</span>
         </label>
         <div id="fingerprintSubPermsEdit" style="display:none" aria-hidden="true"></div>
-        <label><input type="checkbox" value="fingerprint-sabah"> بصمة الصباح</label>
+        <label class="fingerprint-perm-card sabah-fingerprint-perm-card" data-sabah-fingerprint-picker="edit" style="display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer;border:1px solid rgba(255,255,255,.10);background:rgba(255,255,255,.035);border-radius:9px;padding:10px;">
+          <input type="checkbox" class="perm-checkbox" value="fingerprint-sabah"> 🖐️ بصمة الصباح <span class="fingerprint-perm-gear">⚙ التابات</span>
+        </label>
+        <div id="sabahFingerprintSubPermsEdit" style="display:none" aria-hidden="true"></div>
         <label><input type="checkbox" value="users"> المستخدمين</label>
         <label><input type="checkbox" value="user-journey"> <span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span> خط سير المستخدمين</label>
         <label><input type="checkbox" value="notifications"> الإشعارات</label>
@@ -15708,11 +15712,13 @@ SystemLog.add("ExportExcel", State.currentUser?.username || "-", "تصدير ت�
           if (!modal) { UI.toast("نافذة الصلاحيات غير متاحة", "error"); return; }
           modal.style.display = "flex";
           FingerprintPermissionPicker._ensureHiddenInputs('edit');
+          SabahFingerprintPermissionPicker._ensureHiddenInputs('edit');
           const allSelected = (user.permissions || []).includes("all");
           modal.querySelectorAll("input").forEach(c => {
             c.checked = allSelected || (user.permissions || []).includes(c.value);
           });
           FingerprintPermissionPicker._set('edit', user.permissions || []);
+          SabahFingerprintPermissionPicker._set('edit', user.permissions || []);
 
           const allCb = modal.querySelector('input[value="all"]');
           if (allCb) {
@@ -16643,6 +16649,115 @@ const FingerprintPermissionPicker = {
 FingerprintPermissionPicker.bind();
 FingerprintPermissionPicker._ensureHiddenInputs('new');
 FingerprintPermissionPicker._ensureHiddenInputs('edit');
+
+// ============================================================
+// صلاحيات بصمة الصباح الداخلية — نفس تقسيم بصمة البازار
+// مع مفاتيح مستقلة تمامًا fingerprint-sabah:*
+// ============================================================
+const SabahFingerprintPermissionPicker = {
+  tabs:[
+    {key:'employees',perm:'fingerprint-sabah:employees',label:'بيانات الموظفين',icon:'👥'},
+    {key:'salary',perm:'fingerprint-sabah:salary',label:'عرض الرواتب والأجور',icon:'💰'},
+    {key:'attendance',perm:'fingerprint-sabah:attendance',label:'الحضور والانصراف',icon:'🕘'},
+    {key:'advances',perm:'fingerprint-sabah:advances',label:'سلف الموظفين',icon:'💵'},
+    {key:'incentives',perm:'fingerprint-sabah:incentives',label:'مكافآت الموظفين',icon:'🎁'},
+    {key:'penalties',perm:'fingerprint-sabah:penalties',label:'جزاءات الموظفين',icon:'⚠️'},
+    {key:'leaves',perm:'fingerprint-sabah:leaves',label:'الإجازات',icon:'🏖️'},
+    {key:'permits',perm:'fingerprint-sabah:permits',label:'الأذونات',icon:'📝'},
+    {key:'payroll',perm:'fingerprint-sabah:payroll',label:'بيان المرتبات',icon:'💰'},
+    {key:'payslip',perm:'fingerprint-sabah:payslip',label:'شيك قبض الموظف',icon:'🧾'}
+  ],
+  _context:null,_root:null,
+  _ensureHiddenInputs(context){
+    const rootId=context==='edit'?'sabahFingerprintSubPermsEdit':'sabahFingerprintSubPermsNew';
+    const root=document.getElementById(rootId);
+    if(!root)return null;
+    if(!root.dataset.ready){
+      root.innerHTML=this.tabs.map(t=>`<input type="checkbox" class="perm-checkbox sabah-fingerprint-subperm-checkbox" value="${t.perm}" data-sabah-fingerprint-child="${t.key}">`).join('');
+      root.dataset.ready='1';
+    }
+    return root;
+  },
+  _set(context,permissions){
+    const perms=Array.isArray(permissions)?permissions:[];
+    const root=this._ensureHiddenInputs(context);
+    root?.querySelectorAll('.sabah-fingerprint-subperm-checkbox').forEach(cb=>cb.checked=perms.includes(cb.value)||perms.includes('all'));
+    const parent=document.querySelector(context==='edit'?'#permModal input[value="fingerprint-sabah"]':'#permissionsGrid input[value="fingerprint-sabah"]');
+    if(parent){
+      parent.checked=perms.includes('fingerprint-sabah')||perms.includes('all');
+      if(context==='new')parent.closest('.permission-card')?.classList.toggle('active',parent.checked);
+    }
+  },
+  _ensureModal(){
+    let m=document.getElementById('sabahFingerprintPermModal');
+    if(m)return m;
+    m=document.createElement('div');
+    m.id='sabahFingerprintPermModal';
+    m.className='fingerprint-perm-modal';
+    m.hidden=true;
+    m.innerHTML=`<div class="fingerprint-perm-box" role="dialog" aria-modal="true"><div class="fingerprint-perm-head"><div><div class="fingerprint-perm-head-title">🖐️ صلاحيات بصمة الصباح</div><div class="fingerprint-perm-head-sub" id="sabahFingerprintPermUserLabel">تحديد التابات المسموح بها</div></div><button class="fingerprint-perm-close" type="button" data-sabah-fp-close>✕</button></div><div class="fingerprint-perm-body"><label class="fingerprint-parent-toggle"><input id="sabahFingerprintParentAccess" type="checkbox"><div><b>السماح بالدخول إلى صفحة بصمة الصباح</b><span>حدد التابات المسموح بها. يمكن منح صلاحية الرواتب والأجور بصورة مستقلة.</span></div></label><div class="fingerprint-perm-grid" id="sabahFingerprintPermGrid"></div><div class="fingerprint-perm-actions"><button class="fingerprint-perm-save" type="button" data-sabah-fp-save>💾 حفظ التابات</button><button class="fingerprint-perm-cancel" type="button" data-sabah-fp-close>إلغاء</button></div></div></div>`;
+    document.body.appendChild(m);
+    m.addEventListener('click',e=>{
+      if(e.target===m||e.target.closest('[data-sabah-fp-close]'))this.close();
+      else if(e.target.closest('[data-sabah-fp-save]'))this.save();
+    });
+    return m;
+  },
+  open(context,user){
+    this._context=context;
+    this._root=this._ensureHiddenInputs(context);
+    const perms=context==='edit'?(user?.permissions||[]):Array.from(document.querySelectorAll('#permissionsGrid .perm-checkbox:checked')).map(x=>x.value);
+    this._set(context,perms);
+    const m=this._ensureModal();
+    const parent=m.querySelector('#sabahFingerprintParentAccess');
+    parent.checked=perms.includes('fingerprint-sabah')||perms.includes('all');
+    m.querySelector('#sabahFingerprintPermUserLabel').textContent=context==='edit'?`المستخدم: ${user?.username||'-'} • اختر التابات المسموح له بها`:'صلاحيات المستخدم الجديد • اختر التابات المسموح بها';
+    const grid=m.querySelector('#sabahFingerprintPermGrid');
+    grid.innerHTML=this.tabs.map(t=>`<label class="fingerprint-perm-item"><input type="checkbox" value="${t.perm}" data-sabah-fp-child="${t.key}"><span class="fp-icon">${t.icon||'•'}</span><span class="fp-label">${t.label}</span></label>`).join('');
+    grid.querySelectorAll('input[data-sabah-fp-child]').forEach(cb=>{
+      const hidden=this._root?.querySelector(`.sabah-fingerprint-subperm-checkbox[value="${cb.value}"]`);
+      cb.checked=!!hidden?.checked;
+      cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);
+      cb.addEventListener('change',()=>{
+        if(hidden)hidden.checked=cb.checked;
+        cb.closest('.fingerprint-perm-item')?.classList.toggle('active',cb.checked);
+      });
+    });
+    parent.onchange=()=>{
+      const enabled=parent.checked;
+      const main=document.querySelector(context==='edit'?'#permModal input[value="fingerprint-sabah"]':'#permissionsGrid input[value="fingerprint-sabah"]');
+      if(main){main.checked=enabled;main.closest('.permission-card')?.classList.toggle('active',enabled);}
+      if(!enabled){
+        this._root?.querySelectorAll('.sabah-fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);
+        m.querySelectorAll('input[data-sabah-fp-child]').forEach(cb=>{cb.checked=false;cb.closest('.fingerprint-perm-item')?.classList.remove('active');});
+      }
+    };
+    m.hidden=false;
+  },
+  save(){
+    const m=this._ensureModal();
+    const parent=!!m.querySelector('#sabahFingerprintParentAccess')?.checked;
+    const main=document.querySelector(this._context==='edit'?'#permModal input[value="fingerprint-sabah"]':'#permissionsGrid input[value="fingerprint-sabah"]');
+    if(main){main.checked=parent;main.closest('.permission-card')?.classList.toggle('active',parent);}
+    if(!parent)this._root?.querySelectorAll('.sabah-fingerprint-subperm-checkbox').forEach(cb=>cb.checked=false);
+    this.close();
+    UI.toast(parent?'✅ تم حفظ صلاحيات تابات بصمة الصباح':'ℹ️ تم تعطيل الدخول إلى بصمة الصباح','success');
+  },
+  close(){const m=document.getElementById('sabahFingerprintPermModal');if(m)m.hidden=true;},
+  bind(){
+    document.addEventListener('click',e=>{
+      const card=e.target.closest('[data-sabah-fingerprint-picker]');
+      if(!card)return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const context=card.getAttribute('data-sabah-fingerprint-picker');
+      if(context==='edit')this.open('edit',UserService.editingUser||{});else this.open('new',null);
+    },true);
+  }
+};
+SabahFingerprintPermissionPicker.bind();
+SabahFingerprintPermissionPicker._ensureHiddenInputs('new');
+SabahFingerprintPermissionPicker._ensureHiddenInputs('edit');
 
 // ========================= خدمة الصلاحيات (Permissions) =========================
 const PermissionService = {
@@ -26873,6 +26988,16 @@ body.innerHTML = html
                 "fingerprint-bazar:salary":"بصمة البازار — عرض الرواتب والأجور",
                 "fingerprint-bazar:payroll":"بصمة البازار — بيان المرتبات",
                 "fingerprint-bazar:payslip":"بصمة البازار — شيك قبض الموظف",
+                "fingerprint-sabah:employees":"بصمة الصباح — بيانات الموظفين",
+                "fingerprint-sabah:salary":"بصمة الصباح — عرض الرواتب والأجور",
+                "fingerprint-sabah:attendance":"بصمة الصباح — الحضور والانصراف",
+                "fingerprint-sabah:advances":"بصمة الصباح — السلف",
+                "fingerprint-sabah:incentives":"بصمة الصباح — المكافآت",
+                "fingerprint-sabah:penalties":"بصمة الصباح — الجزاءات",
+                "fingerprint-sabah:leaves":"بصمة الصباح — الإجازات",
+                "fingerprint-sabah:permits":"بصمة الصباح — الأذونات",
+                "fingerprint-sabah:payroll":"بصمة الصباح — بيان المرتبات",
+                "fingerprint-sabah:payslip":"بصمة الصباح — شيك قبض الموظف",
                 excel: "تصدير Excel", edit: "التعديل", delete: "الحذف", prices: "الأسعار",
                 pricing: "التسعيرات", viewPrices: "رؤية الأسعار", inventory: "المخازن",
                 companies: "الشركات", incentives: "الحوافز", permit: "إذن (إعفاء من الخصم)",
@@ -35758,7 +35883,7 @@ const SabahHRSuite = {
   _canDelete(){return hasPermission('delete')||hasPermission('all');},
   _canExcel(){return hasPermission('excel')||hasPermission('all');},
   _fingerprintChildPerms(){return (Array.isArray(State.securePermissions)?State.securePermissions:[]).filter(p=>String(p).startsWith('fingerprint-sabah:'));},
-  _canViewSalary(){return hasPermission('all')||this._fingerprintChildPerms().includes('fingerprint-sabah:salary')||(Array.isArray(State.securePermissions)&&State.securePermissions.includes('fingerprint-bazar:salary'));},
+  _canViewSalary(){return hasPermission('all')||this._fingerprintChildPerms().includes('fingerprint-sabah:salary');},
   _canFingerprintTab(tab){if(hasPermission('all'))return true;if(!hasPermission('fingerprint-sabah'))return false;if((tab==='payroll'||tab==='payslip')&&!this._canViewSalary())return false;const explicit=this._fingerprintChildPerms();if(explicit.length===0)return true;return explicit.includes('fingerprint-sabah:'+tab);},
   applyPermissionVisibility(){const root=document.getElementById('tab-fingerprint-sabah');if(!root)return;document.body.classList.toggle('no-sabah-salary-perm',!this._canViewSalary());const buttons=Array.from(root.querySelectorAll('#sabahHrTabs .bhr-tab'));let firstAllowed=null;buttons.forEach(btn=>{const allowed=this._canFingerprintTab(btn.dataset.bhrTab);btn.style.display=allowed?'':'none';if(allowed&&!firstAllowed)firstAllowed=btn.dataset.bhrTab;});const actions={sync:this._canFingerprintTab('attendance'),refresh:!!firstAllowed,export:this._canExcel()};Object.entries(actions).forEach(([k,ok])=>{const b=root.querySelector(`[data-bhr-action="${k}"]`);if(b)b.style.display=ok?'':'none';});const exportMonthPicker=root.querySelector('.bhr-export-month');if(exportMonthPicker)exportMonthPicker.style.display=this._canExcel()?'':'none';if(!this._canFingerprintTab(this._active)){if(firstAllowed)this.openPane(firstAllowed);else{this._active='';root.querySelectorAll('.bhr-pane').forEach(p=>p.hidden=true);}}else if(this._active==='employees'){this.renderEmployees();}},
   _canExempt(){return hasPermission('permit')||hasPermission('all');},
