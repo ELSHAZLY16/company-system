@@ -21421,14 +21421,15 @@ const PriceSheetService = (() => {
         const prev = data.baz.get(bc) || {};
         data.baz.set(bc, {
           barcode:bc,
-          name:String(e.n || prev.name || 'غير معلوم'),
+          name:String(e.n || prev.name || 'غير معلوم') + (e.u==='box' ? ' — علبة ' + (Number(e.f)||'') + ' قطعة' : ''),
+          unit:(e.u==='box' ? 'box' : 'pcs'), factor:(e.u==='box' ? (Number(e.f)||0) : 1), piecePrice:(e.u==='box' ? (Number(e.ps)||0) : 0), calcBox:(e.u==='box' && e.calc ? true : false),
           sellPrice:Number(e.s)||0,
           costPrice:prev.costPrice||0,
           vendorCode:prev.vendorCode||'', vendorName:prev.vendorName||'',
           modifiedBy:String(e.mb || ''),
           dateOfPrice:prev.dateOfPrice||null,
           modifiedAt:parseDate(e.ma),
-          source:'بورسعيد (AX)', live:true
+          source:(e.u==='box' ? (e.calc ? 'علبة — محسوبة من سعر القطعة (AX)' : 'علبة — سعر العرض (AX)') : 'بورسعيد (AX)'), live:true
         });
         applied++;
       });
@@ -38372,8 +38373,15 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   }
   function readSingle(){ if(!single) return; var g=function(id){ var e=q('#'+id,root); return e?e.value:undefined; };
     if(g('ppName')!=null) single.name=g('ppName'); if(g('ppQty')!=null) single.qty=g('ppQty'); if(g('ppPrice')!=null) single.price=g('ppPrice'); if(g('ppOld')!=null) single.oldPrice=g('ppOld'); if(g('ppSize')) single.size=g('ppSize'); if(g('ppStyle')) single.style=g('ppStyle'); }
+  /* a barcode that is not in the sheet never enters the list or the preview — only a notice */
+  var lastMiss={ code:'', at:0 };
+  function notFound(code){
+    var now=Date.now(); if(lastMiss.code===code && now-lastMiss.at<3000) return; lastMiss={ code:code, at:now };
+    toast((!sheet||!sheet.baz||!sheet.baz.size)?'❌ مفيش شيت أسعار محمّل — ارفعه من صفحة «الأسعار»':'❌ الباركود '+code+' غير موجود في شيت الأسعار','error',4500);
+    try{ if(navigator.vibrate) navigator.vibrate(180); }catch(_){}
+  }
   function onScan(code){
-    if(tab==='single'){ var hit=lookup(code); single=newSingle(code, hit); render(); var f=q(hit?'#ppPrice':'#ppName',root); if(f && window.matchMedia('(pointer:fine)').matches) f.focus(); if(!hit) toast('الباركود مش في شيت البازار','warning'); }
+    if(tab==='single'){ var hit=lookup(code); if(!hit){ notFound(code); return; } single=newSingle(code, hit); render(); var f=q('#ppPrice',root); if(f && window.matchMedia('(pointer:fine)').matches) f.focus(); }
     else if(tab==='batch'){ addBatch(code); }
   }
   function lookupAndScan(code){ code=bcNorm(code); if(!code) return; loadSheet().then(function(){ onScan(code); }); }
@@ -38382,8 +38390,8 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   function addBatch(code){
     var dup=batch.filter(function(x){ return x.barcode===code; })[0];
     if(dup){ toast('الصنف ده موجود في القايمة بالفعل','info',1800); flashRow(code); return; }
-    var hit=lookup(code); batch.unshift({ barcode:code, name:hit?hit.name:'', sheetPrice:hit?hit.sellPrice:null, qty:1, price:hit?applyRules(hit.sellPrice,1):'', oldPrice:'', size:(q('#ppBatchSize',root)||{}).value||settings.design.defaultSize, style:(q('#ppBatchStyle',root)||{}).value||settings.design.style||'logo', found:!!hit });
-    keepBatch(); paintBatch(); flashRow(code); if(!hit) toast('الباركود '+code+' مش في الشيت — اكتب الاسم والسعر','warning',3000);
+    var hit=lookup(code); if(!hit){ notFound(code); return; } batch.unshift({ barcode:code, name:hit?hit.name:'', sheetPrice:hit?hit.sellPrice:null, qty:1, price:hit?applyRules(hit.sellPrice,1):'', oldPrice:'', size:(q('#ppBatchSize',root)||{}).value||settings.design.defaultSize, style:(q('#ppBatchStyle',root)||{}).value||settings.design.style||'logo', found:!!hit });
+    keepBatch(); paintBatch(); flashRow(code);
   }
   function flashRow(code){ var r=q('tr[data-bc="'+CSS.escape(code)+'"]',root); if(r){ r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
   function batchView(){
