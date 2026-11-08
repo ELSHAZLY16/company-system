@@ -38267,7 +38267,33 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   function agentsAlive(){ var now=Date.now(); return Object.keys(agentsRaw||{}).filter(function(k){ var a=agentsRaw[k]; return a&&now-(a.at||0)<120000; }).length; }
   function paintSync(){
     var el=q('#ppSyncInfo',root); if(!el) return; var n=agentsAlive();
-    el.textContent=(liveMeta&&liveMeta.syncedAt?'آخر مزامنة من النظام: '+fmtTs(liveMeta.syncedAt)+(liveMeta.count?' • '+liveMeta.count+' صنف':''):'لسه ما اتعملتش مزامنة من النظام')+' • '+(n?'🟢 الوكيل متصل':'⚪ مفيش وكيل شغال');
+    var tot=Object.keys(agentsRaw||{}).length;
+    el.textContent=(liveMeta&&liveMeta.syncedAt?'آخر مزامنة من النظام: '+fmtTs(liveMeta.syncedAt)+(liveMeta.count?' • '+liveMeta.count+' صنف':''):'لسه ما اتعملتش مزامنة من النظام')+' • '+(n?'🟢 الأجهزة المتصلة '+n+' من '+tot:'🔴 مفيش جهاز شغّال');
+    watchOffline(); var ab=q('[data-act="agents"]',root); if(ab) ab.textContent='🖥 الأجهزة'+(tot?' ('+n+'/'+tot+')':'');
+    if(agentsModal) paintAgents();
+  }
+  /* ---- devices running the AX agent ---- */
+  var agentsModal=null, seenOnline={}, offlineWarned={};
+  function ago(ms){ var s=Math.max(0,Math.round((Date.now()-ms)/1000)); if(s<60) return 'من '+s+' ثانية'; var m=Math.round(s/60); if(m<60) return 'من '+m+' دقيقة'; var hh=Math.round(m/60); if(hh<48) return 'من '+hh+' ساعة'; return 'من '+Math.round(hh/24)+' يوم'; }
+  function watchOffline(){
+    var now=Date.now();
+    Object.keys(agentsRaw||{}).forEach(function(k){ var a=agentsRaw[k]; if(!a) return; var on=now-(a.at||0)<120000;
+      if(on){ seenOnline[k]=true; delete offlineWarned[k]; }
+      else if(seenOnline[k] && !offlineWarned[k]){ offlineWarned[k]=true; toast('⚠️ الجهاز «'+k+'» فصل — شغّل البرنامج عليه تاني','error',12000); } });
+  }
+  function paintAgents(){
+    if(!agentsModal) return; var box=q('.pp-agents-list',agentsModal); if(!box) return; var ks=Object.keys(agentsRaw||{}), now=Date.now();
+    ks.sort(function(a,b){ return ((agentsRaw[b]||{}).at||0)-((agentsRaw[a]||{}).at||0); });
+    box.innerHTML=ks.length?ks.map(function(k){ var a=agentsRaw[k]||{}, on=now-(a.at||0)<120000;
+      return '<div class="pp-ag '+(on?'on':'off')+'"><div><b>'+(on?'🟢 ':'🔴 ')+esc(k)+'</b>'+(a.host&&a.host!==k?' <small>('+esc(a.host)+')</small>':'')+'<br><small>'+(on?'متصل — آخر نبضة '+ago(a.at):'فاصل — آخر ظهور '+(a.at?ago(a.at):'—'))+(a.user?' • مستخدم: '+esc(a.user):'')+(a.version?' • نسخة '+esc(a.version):'')+'</small>'+(a.lastSyncAt?'<br><small>آخر مزامنة بالجهاز: '+fmtTs(a.lastSyncAt)+' ('+(a.lastSyncCount||0)+' صنف)</small>':'')+(a.lastError?'<br><small class="pp-warn">آخر خطأ: '+esc(a.lastError)+'</small>':'')+'</div>'+(isAll()&&!on?'<button type="button" class="pp-btn ghost sm" data-agdel="'+esc(k)+'">حذف</button>':'')+'</div>'; }).join(''):'<p>مفيش أجهزة سجّلت نفسها لسه. شغّل البرنامج على جهاز وهيظهر هنا خلال نص دقيقة.</p>';
+  }
+  function openAgents(){
+    if(agentsModal) return; var m=document.createElement('div'); m.className='pp-sendm';
+    m.innerHTML='<div class="pp-sendbox"><h3>🖥 الأجهزة اللي شغّالة عليها المزامنة</h3><p>كل جهاز بيبعت نبضة كل 30 ثانية. لو جهاز بقاله أكتر من دقيقتين ساكت يبقى فاصل.</p><div class="pp-sendlist pp-agents-list"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="pp-btn" data-agclose="1">إغلاق</button></div></div>';
+    m.addEventListener('click',function(e){ var t=e.target;
+      if(t===m||(t.getAttribute&&t.getAttribute('data-agclose'))){ m.remove(); agentsModal=null; return; }
+      var dk=t.getAttribute&&t.getAttribute('data-agdel'); if(dk&&confirm('حذف «'+dk+'» من القايمة؟ (هيرجع يظهر لوحده لو اشتغل تاني)')){ var d=DB(); if(d) d.ref('priceSync/agents/'+dk).remove(); } });
+    document.body.appendChild(m); agentsModal=m; paintAgents();
   }
   function watchSync(){ var d=DB(); if(!d||syncOn) return; syncOn=true;
     try{
@@ -38338,7 +38364,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     var tabs=TABS.filter(function(t){ return canTab(t[0]); });
     if(!tabs.length){ root.innerHTML='<div class="pp-empty">مفيش صلاحية لأي جزء من التسعيرات.</div>'; return; }
     var info=sheet&&sheet.meta?('شيت الأسعار: '+esc(sheet.meta.fileName||'')+' • '+(sheet.baz?sheet.baz.size.toLocaleString('ar-EG'):0)+' صنف (البازار)'):'جاري تحميل شيت الأسعار…';
-    root.innerHTML='<div class="pp-wrap"><header class="pp-head"><div><h2>التسعيرات</h2><p id="ppSheetInfo">'+info+'</p><div class="pp-sync"><button type="button" class="pp-btn ghost sm" data-act="sync">🔄 تحديث الأسعار من النظام</button>'+(isAll()?'<button type="button" class="pp-btn ghost sm" data-act="syncfull">مزامنة كاملة</button>':'')+'<small id="ppSyncInfo"></small></div></div></header>'+
+    root.innerHTML='<div class="pp-wrap"><header class="pp-head"><div><h2>التسعيرات</h2><p id="ppSheetInfo">'+info+'</p><div class="pp-sync"><button type="button" class="pp-btn ghost sm" data-act="sync">🔄 تحديث الأسعار من النظام</button><button type="button" class="pp-btn ghost sm" data-act="agents">🖥 الأجهزة</button>'+(isAll()?'<button type="button" class="pp-btn ghost sm" data-act="syncfull">مزامنة كاملة</button>':'')+'<small id="ppSyncInfo"></small></div></div></header>'+
       '<nav class="pp-tabs" role="tablist">'+tabs.map(function(t){ return '<button type="button" role="tab" data-tab="'+t[0]+'" aria-selected="'+(tab===t[0])+'">'+t[1]+(t[0]==='saved'?'<span class="pp-badge" hidden></span>':'')+'</button>'; }).join('')+'</nav>'+
       '<section class="pp-body" id="ppBody"></section></div>';
     var b=q('#ppBody',root);
@@ -38606,6 +38632,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
       return saveTags(batch.slice().reverse()).then(function(){ toast('اتحفظ '+batch.length+' تسعيرة','success'); batch=[]; keepBatch(); paintBatch(); b.disabled=false; }).catch(function(x){ b.disabled=false; toast(x.message||String(x),'error'); }); }
     if(act==='printsel'){ var list=savedList().filter(function(t){ return sel[t.id]; }); var ids=list.map(function(t){ return t.id; });
       return printTags(list, function(){ var ready=list.filter(function(t){ return t.status!=='printed'; }).map(function(t){ return t.id; }); if(ready.length && confirm('الطباعة تمت كويس؟ أعلّم '+ready.length+' تسعيرة إنها «اتطبعت»؟')) markPrinted(ready); }); }
+    if(act==='agents') return openAgents();
     if(act==='sync') return requestSync('incremental');
     if(act==='syncfull'){ if(confirm('مزامنة كاملة لكل أصناف البازار؟ ممكن تاخد كام دقيقة.')) requestSync('full'); return; }
     if(act==='sendsel'){ return openSend(Object.keys(sel).filter(function(i){ return sel[i]; })); }
@@ -38617,7 +38644,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(act==='savepart'){ var part=b.dataset.part; b.disabled=true; liveBackup=null; return saveSettings(part, readPart(part)).then(function(){ toast('اتحفظ — كل الأجهزة هتطبع بالشكل ده','success'); b.disabled=false; }).catch(function(x){ b.disabled=false; toast(x.message||String(x),'error'); }); }
     if(act==='reset'){ var p2=b.dataset.part; if(!confirm('ترجّع الإعدادات دي للأصل؟')) return; settings[p2]=JSON.parse(JSON.stringify(DEF[p2])); liveBackup=null; return saveSettings(p2, settings[p2]).then(function(){ render(); toast('رجعت للأصل','success'); }); }
   }
-  (function(){ var s2=document.createElement('style'); s2.id='pp-send-css'; s2.textContent='.pp-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}.pp-sync small{opacity:.8}.pp-sendm{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}.pp-sendbox{background:var(--ab-surface,#fff);color:var(--ab-ink,#111);border-radius:16px;padding:18px;width:min(440px,100%);max-height:86vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);direction:rtl}.pp-sendbox h3{margin:0;font-size:17px}.pp-sendbox p{margin:0;font-size:12.5px;opacity:.75}.pp-sendlist{overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:44vh;padding:2px}.pp-sendlist label{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(128,128,128,.28);border-radius:10px;cursor:pointer}.pp-sendlist small{opacity:.65}'; document.head.appendChild(s2); })();
+  (function(){ var s2=document.createElement('style'); s2.id='pp-send-css'; s2.textContent='.pp-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}.pp-sync small{opacity:.8}.pp-sendm{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}.pp-sendbox{background:var(--ab-surface,#fff);color:var(--ab-ink,#111);border-radius:16px;padding:18px;width:min(440px,100%);max-height:86vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);direction:rtl}.pp-sendbox h3{margin:0;font-size:17px}.pp-sendbox p{margin:0;font-size:12.5px;opacity:.75}.pp-sendlist{overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:44vh;padding:2px}.pp-sendlist label{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(128,128,128,.28);border-radius:10px;cursor:pointer}.pp-sendlist small{opacity:.65}.pp-ag{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border:1px solid rgba(128,128,128,.28);border-radius:10px}.pp-ag.off{border-color:#d33;background:rgba(220,50,50,.08)}'; document.head.appendChild(s2); })();
   (function(){ var st=document.createElement('style'); st.id='pp-tag-css'; st.textContent=TAG_CSS; document.head.appendChild(st); })();
   /* the old Excel-based «التسعيرات» module stays in the file but never runs again */
   try{ var OPM=window.PricingModule; if(OPM){ ['init','render','loadFromFirebase','startScanner'].forEach(function(k){ if(typeof OPM[k]==='function') OPM[k]=function(){}; }); } }catch(e){}
