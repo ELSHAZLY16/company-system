@@ -38050,6 +38050,57 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
 #tab-pricing .pp-galit.on{ border-color:var(--ab-red,#c8102e); }
 @media (max-width:420px){ #tab-pricing .pp-gal{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
 
+.pp-sendm .pp-warn{ color:var(--ab-danger,#d70015); font-weight:700; }
+.pp-sendm .pp-in{ box-sizing:border-box; width:100%; min-height:42px; padding:8px 11px; border-radius:10px; border:1px solid var(--ab-line,#e5e5ea); background:var(--ab-canvas,#f2f2f7); color:var(--ab-ink,#111); font:inherit; font-size:15px; outline:none; transition:border-color .15s, box-shadow .15s; }
+.pp-sendm .pp-in:focus{ border-color:var(--ab-red,#c8102e); box-shadow:0 0 0 3px rgba(200,16,46,.14); }
+.pp-sendm .pp-in.big{ font-size:22px; font-weight:800; }
+.pp-sendm .pp-in.sm{ min-height:36px; font-size:13.5px; width:auto; }
+.pp-sendm .pp-in.num{ text-align:center; min-width:64px; }
+.pp-sendm .pp-btn{ border:0; border-radius:10px; min-height:42px; padding:0 16px; font:inherit; font-weight:700; font-size:14px; cursor:pointer; background:var(--ab-ink,#111); color:var(--ab-surface,#fff); white-space:nowrap; display:inline-flex; align-items:center; justify-content:center; gap:6px; transition:transform .12s, opacity .15s; }
+.pp-sendm .pp-btn:active{ transform:scale(.97); }
+.pp-sendm .pp-btn:disabled{ opacity:.45; cursor:default; }
+.pp-sendm .pp-btn.primary{ background:var(--ab-red,#c8102e); color:#fff; }
+.pp-sendm .pp-btn.ghost{ background:var(--ab-fill,rgba(118,118,128,.12)); color:var(--ab-ink,#111); }
+.pp-sendm .pp-btn.ghost.on{ background:var(--ab-red,#c8102e); color:#fff; }
+.pp-sendm .pp-btn.danger{ color:var(--ab-danger,#d70015); }
+.pp-sendm .pp-btn.sm{ min-height:34px; padding:0 12px; font-size:13px; }
+.pp-sendm .pp-chk{ display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; cursor:pointer; }
+.pp-sendm .pp-chk input{ width:18px; height:18px; accent-color:var(--ab-red,#c8102e); }
+.pp-sendm .pp-actions{ display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-top:14px; }
+.pp-sendm .pp-empty{ text-align:center; padding:28px 12px; color:var(--ab-muted,#6b7280); font-weight:600; }
+.pp-sendm .pp-empty.sm{ padding:18px 8px; }
+
+/* ---- V91: buttons & dialogs polish (shared by the page and the body-level dialogs) ---- */
+#tab-pricing .pp-btn,.pp-sendm .pp-btn{ box-shadow:var(--ab-sh-1,0 1px 2px rgba(0,0,0,.08)); transition:transform .12s var(--ab-ease,ease),background .15s,box-shadow .15s,filter .15s,opacity .15s; letter-spacing:0; }
+#tab-pricing .pp-btn:hover:not(:disabled),.pp-sendm .pp-btn:hover:not(:disabled){ filter:brightness(1.06); box-shadow:var(--ab-sh-2,0 4px 14px rgba(0,0,0,.14)); transform:translateY(-1px); }
+#tab-pricing .pp-btn:active:not(:disabled),.pp-sendm .pp-btn:active:not(:disabled){ transform:scale(.97); box-shadow:none; }
+#tab-pricing .pp-btn:focus-visible,.pp-sendm .pp-btn:focus-visible{ outline:none; box-shadow:var(--ab-ring,0 0 0 3px rgba(200,16,46,.18)); }
+#tab-pricing .pp-btn.primary,.pp-sendm .pp-btn.primary{ background:linear-gradient(135deg,var(--ab-red,#c8102e),var(--ab-red-700,#9c0c24)); color:#fff; box-shadow:0 6px 16px -8px rgba(200,16,46,.7); }
+#tab-pricing .pp-btn.ghost,.pp-sendm .pp-btn.ghost{ background:var(--ab-subtle,#f7f8fa); color:var(--ab-ink,#111); border:1px solid var(--ab-line,#e3e5ea); box-shadow:none; }
+#tab-pricing .pp-btn.ghost:hover:not(:disabled),.pp-sendm .pp-btn.ghost:hover:not(:disabled){ background:var(--ab-hover,#f1f2f5); border-color:var(--ab-line-2,#d3d6dd); box-shadow:var(--ab-sh-1,none); }
+#tab-pricing .pp-btn.ghost.danger,.pp-sendm .pp-btn.ghost.danger{ color:var(--ab-danger,#d70015); border-color:rgba(215,0,21,.28); background:rgba(215,0,21,.06); }
+#tab-pricing .pp-btn.ghost.danger:hover:not(:disabled),.pp-sendm .pp-btn.ghost.danger:hover:not(:disabled){ background:rgba(215,0,21,.12); border-color:rgba(215,0,21,.5); }
+#tab-pricing .pp-btn.sm,.pp-sendm .pp-btn.sm{ border-radius:9px; }
+#tab-pricing .pp-sync{ background:var(--ab-subtle,#f7f8fa); border:1px solid var(--ab-line,#e3e5ea); border-radius:12px; padding:6px 8px; margin-top:8px; width:fit-content; max-width:100%; }
+#tab-pricing .pp-sync small{ font-size:12px; color:var(--ab-muted,#6a6f7c); }
+.pp-sendm{ position:fixed; inset:0; z-index:100000; background:rgba(12,14,18,.5); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:16px; font-family:Cairo,'Readex Pro',system-ui,sans-serif; animation:ppFade .16s ease-out; }
+.pp-sendm .pp-sendbox{ background:var(--ab-surface,#fff); color:var(--ab-ink,#121419); border:1px solid var(--ab-line,#e3e5ea); border-radius:20px; padding:20px; width:min(460px,100%); max-height:88vh; display:flex; flex-direction:column; gap:12px; box-shadow:var(--ab-sh-3,0 30px 70px rgba(0,0,0,.4)); direction:rtl; animation:ppPop .22s var(--ab-ease,ease-out); }
+.pp-sendm .pp-sendbox h3{ margin:0; font-size:18px; font-weight:800; }
+.pp-sendm .pp-sendbox > p{ margin:0; font-size:13px; line-height:1.6; color:var(--ab-muted,#6a6f7c); }
+.pp-sendm .pp-sendlist{ overflow:auto; display:flex; flex-direction:column; gap:6px; max-height:46vh; padding:2px; scrollbar-width:thin; }
+.pp-sendm .pp-sendlist label.pp-chk{ display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--ab-line,#e3e5ea); border-radius:12px; background:var(--ab-subtle,#f7f8fa); transition:background .15s,border-color .15s; font-size:14px; }
+.pp-sendm .pp-sendlist label.pp-chk:hover{ background:var(--ab-hover,#f1f2f5); border-color:var(--ab-line-2,#d3d6dd); }
+.pp-sendm .pp-sendlist label.pp-chk:has(input:checked){ border-color:var(--ab-red,#c8102e); background:rgba(200,16,46,.07); }
+.pp-sendm .pp-sendlist small{ opacity:.65; margin-inline-start:auto; }
+.pp-sendm .pp-actions{ margin-top:4px; padding-top:12px; border-top:1px solid var(--ab-line,#e3e5ea); }
+.pp-sendm .pp-ag{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border:1px solid var(--ab-line,#e3e5ea); border-radius:14px; background:var(--ab-subtle,#f7f8fa); line-height:1.7; }
+.pp-sendm .pp-ag.on{ border-inline-start:4px solid #16a34a; }
+.pp-sendm .pp-ag.off{ border-inline-start:4px solid var(--ab-danger,#d70015); background:rgba(215,0,21,.07); }
+.pp-sendm .pp-ag small{ color:var(--ab-muted,#6a6f7c); }
+@keyframes ppFade{ from{opacity:0} to{opacity:1} }
+@keyframes ppPop{ from{opacity:0; transform:translateY(10px) scale(.97)} to{opacity:1; transform:none} }
+@media (max-width:520px){ .pp-sendm{ align-items:flex-end; padding:0; } .pp-sendm .pp-sendbox{ width:100%; border-radius:20px 20px 0 0; max-height:92vh; } .pp-sendm .pp-actions .pp-btn{ flex:1; } }
+
 </style>
 <script id="pp-js">
 /* ALLOSH BAZAR — «التسعيرات» (Pricing tags)
@@ -38285,11 +38336,11 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(!agentsModal) return; var box=q('.pp-agents-list',agentsModal); if(!box) return; var ks=Object.keys(agentsRaw||{}), now=Date.now();
     ks.sort(function(a,b){ return ((agentsRaw[b]||{}).at||0)-((agentsRaw[a]||{}).at||0); });
     box.innerHTML=ks.length?ks.map(function(k){ var a=agentsRaw[k]||{}, on=now-(a.at||0)<120000;
-      return '<div class="pp-ag '+(on?'on':'off')+'"><div><b>'+(on?'🟢 ':'🔴 ')+esc(k)+'</b>'+(a.host&&a.host!==k?' <small>('+esc(a.host)+')</small>':'')+'<br><small>'+(on?'متصل — آخر نبضة '+ago(a.at):'فاصل — آخر ظهور '+(a.at?ago(a.at):'—'))+(a.user?' • مستخدم: '+esc(a.user):'')+(a.version?' • نسخة '+esc(a.version):'')+'</small>'+(a.lastSyncAt?'<br><small>آخر مزامنة بالجهاز: '+fmtTs(a.lastSyncAt)+' ('+(a.lastSyncCount||0)+' صنف)</small>':'')+(a.lastError?'<br><small class="pp-warn">آخر خطأ: '+esc(a.lastError)+'</small>':'')+'</div>'+(isAll()&&!on?'<button type="button" class="pp-btn ghost sm" data-agdel="'+esc(k)+'">حذف</button>':'')+'</div>'; }).join(''):'<p>مفيش أجهزة سجّلت نفسها لسه. شغّل البرنامج على جهاز وهيظهر هنا خلال نص دقيقة.</p>';
+      return '<div class="pp-ag '+(on?'on':'off')+'"><div><b>'+(on?'🟢 ':'🔴 ')+esc(k)+'</b>'+(a.host&&a.host!==k?' <small>('+esc(a.host)+')</small>':'')+'<br><small>'+(on?'متصل — آخر نبضة '+ago(a.at):'فاصل — آخر ظهور '+(a.at?ago(a.at):'—'))+(a.user?' • مستخدم: '+esc(a.user):'')+(a.version?' • نسخة '+esc(a.version):'')+'</small>'+(a.lastSyncAt?'<br><small>آخر مزامنة بالجهاز: '+fmtTs(a.lastSyncAt)+' ('+(a.lastSyncCount||0)+' صنف)</small>':'')+(a.lastError?'<br><small class="pp-warn">آخر خطأ: '+esc(a.lastError)+'</small>':'')+'</div>'+(isAll()&&!on?'<button type="button" class="pp-btn ghost danger sm" data-agdel="'+esc(k)+'">حذف</button>':'')+'</div>'; }).join(''):'<p>مفيش أجهزة سجّلت نفسها لسه. شغّل البرنامج على جهاز وهيظهر هنا خلال نص دقيقة.</p>';
   }
   function openAgents(){
     if(agentsModal) return; var m=document.createElement('div'); m.className='pp-sendm';
-    m.innerHTML='<div class="pp-sendbox"><h3>🖥 الأجهزة اللي شغّالة عليها المزامنة</h3><p>كل جهاز بيبعت نبضة كل 30 ثانية. لو جهاز بقاله أكتر من دقيقتين ساكت يبقى فاصل.</p><div class="pp-sendlist pp-agents-list"></div><div style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="pp-btn" data-agclose="1">إغلاق</button></div></div>';
+    m.innerHTML='<div class="pp-sendbox"><h3>🖥 الأجهزة اللي شغّالة عليها المزامنة</h3><p>كل جهاز بيبعت نبضة كل 30 ثانية. لو جهاز بقاله أكتر من دقيقتين ساكت يبقى فاصل.</p><div class="pp-sendlist pp-agents-list"></div><div class="pp-actions"><button type="button" class="pp-btn ghost" data-agclose="1">إغلاق</button></div></div>';
     m.addEventListener('click',function(e){ var t=e.target;
       if(t===m||(t.getAttribute&&t.getAttribute('data-agclose'))){ m.remove(); agentsModal=null; return; }
       var dk=t.getAttribute&&t.getAttribute('data-agdel'); if(dk&&confirm('حذف «'+dk+'» من القايمة؟ (هيرجع يظهر لوحده لو اشتغل تاني)')){ var d=DB(); if(d) d.ref('priceSync/agents/'+dk).remove(); } });
@@ -38644,7 +38695,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(act==='savepart'){ var part=b.dataset.part; b.disabled=true; liveBackup=null; return saveSettings(part, readPart(part)).then(function(){ toast('اتحفظ — كل الأجهزة هتطبع بالشكل ده','success'); b.disabled=false; }).catch(function(x){ b.disabled=false; toast(x.message||String(x),'error'); }); }
     if(act==='reset'){ var p2=b.dataset.part; if(!confirm('ترجّع الإعدادات دي للأصل؟')) return; settings[p2]=JSON.parse(JSON.stringify(DEF[p2])); liveBackup=null; return saveSettings(p2, settings[p2]).then(function(){ render(); toast('رجعت للأصل','success'); }); }
   }
-  (function(){ var s2=document.createElement('style'); s2.id='pp-send-css'; s2.textContent='.pp-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}.pp-sync small{opacity:.8}.pp-sendm{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}.pp-sendbox{background:var(--ab-surface,#fff);color:var(--ab-ink,#111);border-radius:16px;padding:18px;width:min(440px,100%);max-height:86vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);direction:rtl}.pp-sendbox h3{margin:0;font-size:17px}.pp-sendbox p{margin:0;font-size:12.5px;opacity:.75}.pp-sendlist{overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:44vh;padding:2px}.pp-sendlist label{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(128,128,128,.28);border-radius:10px;cursor:pointer}.pp-sendlist small{opacity:.65}.pp-ag{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border:1px solid rgba(128,128,128,.28);border-radius:10px}.pp-ag.off{border-color:#d33;background:rgba(220,50,50,.08)}'; document.head.appendChild(s2); })();
+  (function(){ var s2=document.createElement('style'); s2.id='pp-send-css'; s2.textContent='.pp-sync{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}.pp-sync small{opacity:.8}.pp-sendm{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px}.pp-sendbox{background:var(--ab-surface,#fff);color:var(--ab-ink,#111);border-radius:16px;padding:18px;width:min(440px,100%);max-height:86vh;display:flex;flex-direction:column;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.35);direction:rtl}.pp-sendbox h3{margin:0;font-size:17px}.pp-sendbox p{margin:0;font-size:12.5px;opacity:.75}.pp-sendlist{overflow:auto;display:flex;flex-direction:column;gap:6px;max-height:44vh;padding:2px}.pp-sendlist label{display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid rgba(128,128,128,.28);border-radius:10px;cursor:pointer}.pp-sendlist small{opacity:.65}'; document.head.appendChild(s2); })();
   (function(){ var st=document.createElement('style'); st.id='pp-tag-css'; st.textContent=TAG_CSS; document.head.appendChild(st); })();
   /* the old Excel-based «التسعيرات» module stays in the file but never runs again */
   try{ var OPM=window.PricingModule; if(OPM){ ['init','render','loadFromFirebase','startScanner'].forEach(function(k){ if(typeof OPM[k]==='function') OPM[k]=function(){}; }); } }catch(e){}
@@ -38655,5 +38706,32 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
 })();
 
 </script>
+<style id="light-contrast-v92">
+/* V92 — light mode readability: dark labels on white/tinted surfaces (dark theme untouched) */
+html:root body.light-mode #tab-users #permissionsGrid .permission-card,
+html:root body.light-mode #tab-users #permissionsGrid .permission-card>span:nth-of-type(2){ color:#27272a !important; }
+html:root body.light-mode #tab-users #permissionsGrid .permission-card.active>span:nth-of-type(2){ color:#7a091c !important; font-weight:800; }
+html:root body.light-mode #tab-users #permissionsGrid .permission-card>span:first-of-type{ color:#b5121f !important; }
+html:root body.light-mode #tab-users #permissionsGrid .permission-card:not(.active){ background:#fafafa; border-color:#d4d4d8; }
+html:root body.light-mode .fingerprint-perm-item .fp-label,
+html:root body.light-mode .fingerprint-perm-head-title,
+html:root body.light-mode .fingerprint-parent-toggle b{ color:#27272a !important; }
+html:root body.light-mode #tab-users .admin-live-chip,
+html:root body.light-mode #tab-users .admin-export-action,
+html:root body.light-mode .uj-privacy-note,
+html:root body.light-mode .uj-btn-export{ color:#15803d !important; }
+html:root body.light-mode #tab-system .stat-users strong{ color:#0f766e; }
+html:root body.light-mode #tab-system .stat-security strong{ color:#b45309; }
+html:root body.light-mode #tab-system .stat-errors strong{ color:#dc2626; }
+html:root body.light-mode #tab-system .stat-users .system-log-stat-icon{ color:#0f766e; }
+html:root body.light-mode #tab-system .stat-security .system-log-stat-icon{ color:#b45309; }
+html:root body.light-mode #tab-system .stat-errors .system-log-stat-icon{ color:#dc2626; }
+html:root body.light-mode #tab-archive .archive-action-row button:nth-child(1){ color:#7a091c !important; }
+html:root body.light-mode #tab-archive .archive-action-row button:nth-child(2){ color:#0f766e !important; }
+html:root body.light-mode #tab-archive .archive-action-row button:nth-child(3){ color:#9f1239 !important; }
+html:root body.light-mode #tab-archive .archive-log-table thead th{ color:#7a091c; background:#fdecee; }
+html:root body.light-mode #tab-archive .archive-log-table td[colspan]{ color:#52525b !important; }
+html:root body.light-mode .tab-btn:hover{ color:#18181b; }
+</style>
 </body>
 </html>
