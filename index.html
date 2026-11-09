@@ -38028,6 +38028,15 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   #tab-pricing .pp-saved{ grid-template-columns:1fr; }
   #tab-pricing .pp-saved li{ grid-template-columns:auto 96px minmax(0,1fr) auto; }
   #tab-pricing .pp-tools .pp-btn.primary{ width:100%; margin-inline-start:0; }
+  #tab-pricing .pp-card > .pp-actions{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  #tab-pricing .pp-card > .pp-actions .pp-btn{ width:100%; min-height:46px; margin:0; }
+  #tab-pricing .pp-card > .pp-actions .pp-btn.primary{ grid-column:1/-1; }
+  #tab-pricing .pp-f .pp-btn.sm{ min-height:42px; }
+  #tab-pricing .pp-oldrow .pp-in{ flex:1; min-width:0; }
+  #tab-pricing .pp-tools .pp-f.inline{ flex:1 1 100%; }
+  #tab-pricing .pp-tools .pp-f.inline > span{ flex:0 0 66px; white-space:nowrap; }
+  #tab-pricing .pp-tools .pp-f.inline .pp-in{ flex:1; min-width:0; width:auto; }
+  #tab-pricing .pp-tools .pp-count{ margin-inline-end:auto; }
   #tab-pricing .pp-tbl thead{ display:none; }
   #tab-pricing .pp-tbl tr{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)) 36px; gap:6px; padding:8px; border-top:1px solid var(--ab-line,#e5e5ea); }
   #tab-pricing .pp-tbl td{ display:block; padding:0; border:0; width:auto !important; }
@@ -38443,8 +38452,8 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
         '<div class="pp-form"><label class="pp-f wide"><span>اسم الصنف (تقدر تختصره)</span><input id="ppName" class="pp-in" value="'+esc(s.name)+'" maxlength="70"></label>'+
         '<label class="pp-f"><span>الكمية</span><input id="ppQty" class="pp-in" type="number" min="1" step="1" inputmode="numeric" value="'+esc(s.qty)+'"><small>1 = قطعة واحدة. 4 = «4 بـ»</small></label>'+
         '<label class="pp-f"><span>السعر</span><input id="ppPrice" class="pp-in big" type="number" min="0" step="any" inputmode="decimal" value="'+esc(s.price)+'"></label>'+
-        '<div class="pp-f"><span>البدل (اختياري)</span>'+(s.oldOn?'<div class="pp-oldrow"><input id="ppOld" class="pp-in" type="number" min="0" step="any" inputmode="decimal" value="'+esc(s.oldPrice)+'" placeholder="السعر القديم"><button type="button" class="pp-btn ghost danger sm" data-act="oldoff">حذف البدل</button></div>':'<button type="button" class="pp-btn ghost sm" data-act="oldon">+ إضافة بدل</button>')+'</div>'+
-        '<label class="pp-f"><span>المقاس</span>'+sizeSel('ppSize', s.size)+'</label><label class="pp-f"><span>الشكل</span>'+styleSel('ppStyle', styleOf(s))+'</label></div>'+
+        '<div class="pp-f wide"><span>البدل (اختياري)</span>'+(s.oldOn?'<div class="pp-oldrow"><input id="ppOld" class="pp-in" type="number" min="0" step="any" inputmode="decimal" value="'+esc(s.oldPrice)+'" placeholder="السعر القديم"><button type="button" class="pp-btn ghost danger sm" data-act="oldoff">حذف البدل</button></div>':'<button type="button" class="pp-btn ghost sm" data-act="oldon">+ إضافة بدل</button>')+'</div>'+
+        '<label class="pp-f wide"><span>المقاس</span>'+sizeSel('ppSize', s.size)+'</label><label class="pp-f wide"><span>الشكل</span>'+styleSel('ppStyle', styleOf(s))+'</label></div>'+
         '<div class="pp-actions"><button type="button" class="pp-btn ghost" data-act="sclear">مسح</button><button type="button" class="pp-btn ghost" data-act="sprint">طباعة دلوقتي</button><button type="button" class="pp-btn primary" data-act="ssave">حفظ التسعيرة</button></div>')
       :'<div class="pp-empty sm">امسح باركود المنتج علشان يظهر اسمه وسعره.</div>')+
       '</div><div class="pp-card pp-prevcard"><h3>شكل التسعيرة</h3>'+previewBox(s||{ name:'لارش ميلت كيك شيكولاتة بالكراميل', price:15, qty:4, oldPrice:20, barcode:'6224000000000' }, s?s.size:settings.design.defaultSize)+(s?'':'<p class="pp-hint">ده مثال. امسح منتج علشان تشوف تسعيرته.</p>')+'</div></div>';
@@ -38470,6 +38479,8 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(dup){ toast('الصنف ده موجود في القايمة بالفعل','info',1800); flashRow(code); return; }
     var hit=lookup(code); if(!hit){ notFound(code); return; } batch.unshift({ barcode:code, name:hit?hit.name:'', sheetPrice:hit?hit.sellPrice:null, qty:1, price:hit?applyRules(hit.sellPrice,1):'', oldPrice:'', size:(q('#ppBatchSize',root)||{}).value||settings.design.defaultSize, style:(q('#ppBatchStyle',root)||{}).value||settings.design.style||'logo', found:!!hit });
     keepBatch(); paintBatch(); flashRow(code);
+    toast('✅ اتضاف للقايمة: '+(hit.name||code)+' — '+money(hit.sellPrice)+' ج','success',2200);
+    try{ if(navigator.vibrate) navigator.vibrate(60); }catch(_){}
   }
   function flashRow(code){ var r=q('tr[data-bc="'+CSS.escape(code)+'"]',root); if(r){ r.classList.remove('flash'); void r.offsetWidth; r.classList.add('flash'); } }
   function batchView(){
