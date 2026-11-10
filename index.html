@@ -38016,6 +38016,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
 #tab-pricing .pp-prevs small{ display:block; font-size:12px; color:var(--ab-muted,#6b7280); margin-bottom:4px; font-weight:700; }
 #tab-pricing .pp-prevs > div:nth-child(3) .pp-prev{ max-width:70%; }
 #tab-pricing .pp-prevs > div:nth-child(4) .pp-prev{ max-width:55%; }
+#tab-pricing .pp-prevs > div:nth-child(5) .pp-prev{ max-width:62%; }
 #tab-pricing .pp-ex{ margin:0; padding:0 18px; font-size:14px; line-height:2; }
 /* preview: the real mm tag, scaled to the box */
 #tab-pricing .pp-prev{ position:relative; width:100%; overflow:hidden; border-radius:4px; box-shadow:0 1px 6px rgba(0,0,0,.18); background:#fff; }
@@ -38149,7 +38150,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
 
   /* ---------------- settings ---------------- */
   var DEF={
-    design:{ title:'عرض خاص جدا من علوش', showTitle:true, underline:true, showQr:true, qrMode:'barcode', qrLink:'', qrLabel:'SCAN ME', currency:'ج', oldLabel:'بدل', qtyWord:'بـ', border:1.2, borderColor:'#111111', ink:'#111111', defaultSize:'large', showBarcode:false, style:'logo', badge:'عرض خاص', slogan:'علوش اسم متنساهوش' },
+    design:{ title:'عرض خاص جدا من علوش', showTitle:true, underline:true, showQr:true, qrMode:'barcode', qrLink:'', qrLabel:'SCAN ME', currency:'ج', oldLabel:'بدل', qtyWord:'بـ', border:1.2, borderColor:'#111111', ink:'#111111', defaultSize:'large', showBarcode:false, style:'logo', badge:'عرض خاص', slogan:'علوش اسم متنساهوش', tableTitle:'قائمة أسعار — علوش', tableRows:15 },
     fonts:{ family:'Cairo', titleW:900, nameW:800, priceW:900, title:100, name:100, price:100, old:100, qty:100 },
     rules:{ adjust:'none', adjustValue:0, round:'none', qtyMode:'unit', hideZeroDecimals:true }
   };
@@ -38192,7 +38193,9 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   function qrSvg(text){ try{ if(!window.qrcode||!text) return ''; var qr=window.qrcode(0,'M'); qr.addData(String(text)); qr.make(); return qr.createSvgTag({ cellSize:4, margin:0, scalable:true }); }catch(e){ return ''; } }
 
   /* ---------------- the tag (same markup for preview and print) ---------------- */
-  var SIZES={ large:{ l:'كبير — A4 (واحدة في الورقة)', page:'A4 landscape', per:1, w:281, h:194, fs:9.6 }, half:{ l:'نص — A5 (اتنين في الورقة)', page:'A4 portrait', per:2, w:196, h:136, fs:6.7 }, quad:{ l:'ربع — A4 عرضي (4 في الورقة)', page:'A4 landscape', per:4, w:138, h:95.3, fs:4.72 }, shelf:{ l:'شيلف — صغيرة (8 في الورقة)', page:'A4 portrait', per:8, w:96, h:66, fs:3.25 } };
+  var SIZES={ large:{ l:'كبير — A4 (واحدة في الورقة)', page:'A4 landscape', per:1, w:281, h:194, fs:9.6 }, half:{ l:'نص — A5 (اتنين في الورقة)', page:'A4 portrait', per:2, w:196, h:136, fs:6.7 }, quad:{ l:'ربع — A4 عرضي (4 في الورقة)', page:'A4 landscape', per:4, w:138, h:95.3, fs:4.72 }, shelf:{ l:'شيلف — صغيرة (8 في الورقة)', page:'A4 portrait', per:8, w:96, h:66, fs:3.25 }, table:{ l:'جدول — A4 (15 سطر في الورقة)', page:'A4 portrait', per:15, w:198, h:285, fs:4, table:true } };
+  function tableRows(){ var n=Math.round(num(settings&&settings.design&&settings.design.tableRows)||15); return Math.min(25,Math.max(8,n)); }
+  function syncTableSize(){ var n=tableRows(); SIZES.table.per=n; SIZES.table.l='جدول — A4 ('+n+' سطر في الورقة)'; }
   /* ---------- tag designs (black line art; «بـ» after the quantity, «ج» after every price) ---------- */
   var ST={
     logo:{ n:'علوش — اسم متنساهوش', title:'logo', qr:'bl' },
@@ -38238,7 +38241,25 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     cornerC:'<svg viewBox="0 0 40 40" fill="none" stroke="currentColor"><path d="M2 38V11Q2 2 11 2H38" stroke-width="2.4"/><path d="M8 38V15Q8 8 15 8H38" stroke-width="1"/><circle cx="15" cy="15" r="2.4" fill="currentColor" stroke="none"/><path d="M26 2l3 3l-3 3l-3-3z M2 26l3 3l-3 3l-3-3z" fill="currentColor" stroke="none"/></svg>',
     seal:'<svg viewBox="0 0 100 100"><polygon points="'+burstPts(50,50,50,42,18)+'" fill="currentColor"/></svg>'
   };
+  /* «جدول»: page of N rows — الباركود | الصنف | السعر | البدل */
+  function tableHtml(list){
+    syncTableSize(); var d=settings.design, f=settings.fonts, n=tableRows(), cur=esc(d.currency||'ج'), bi=esc(d.qtyWord||'بـ');
+    var rh=(285-27-9)/n, fsz=Math.min(5.6, rh*0.34);
+    var rows='';
+    for(var i=0;i<n;i++){ var t=list[i];
+      if(!t){ rows+='<tr><td></td><td></td><td></td><td></td></tr>'; continue; }
+      var qty=Math.max(1, Math.round(num(t.qty)||1)), old=num(t.oldPrice), nl=String(t.name||'').length;
+      rows+='<tr><td class="c-bc"><bdi>'+esc(t.barcode||'')+'</bdi></td><td class="c-nm'+(nl>40?' xs':nl>28?' s':'')+'"><span>'+esc(t.name||'—')+'</span></td>'+
+        '<td class="c-pr">'+(qty>1?'<b>'+qty+'</b> ':'')+bi+' <b>'+esc(money(t.price))+'</b> '+cur+'</td><td class="c-old">'+(old>0?'<b>'+esc(money(old))+'</b> '+cur:'')+'</td></tr>';
+    }
+    var dt=''; try{ dt=new Date().toLocaleDateString('ar-EG',{ day:'numeric', month:'long', year:'numeric' }); }catch(_){}
+    return '<div class="pp-tbpg" style="--pp-rh:'+rh.toFixed(2)+'mm;--pp-tf:'+fsz.toFixed(2)+'mm;--pp-ink:'+esc(d.ink||'#111')+';font-family:\''+esc(f.family)+'\',Cairo,Tahoma,sans-serif">'+
+      '<div class="pp-tbhd"><img class="pp-logo" src="'+LOGO+'" alt="علوش"><b>'+esc(d.tableTitle||'قائمة أسعار — علوش')+'</b><small>'+esc(dt)+'</small></div>'+
+      '<table><colgroup><col style="width:24%"><col style="width:44%"><col style="width:19%"><col style="width:13%"></colgroup>'+
+      '<thead><tr><th>الباركود</th><th>الصنف</th><th>السعر</th><th>'+esc(d.oldLabel||'بدل')+'</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
   function tagHtml(t, size){
+    if(size==='table') return tableHtml([t]);
     var d=settings.design, f=settings.fonts, z=SIZES[size]||SIZES.large, sk=styleOf(t), S=ST[sk];
     var qty=Math.max(1, Math.round(num(t.qty)||1)), old=num(t.oldPrice), cur=esc(d.currency||'ج');
     var qrText=d.qrMode==='link'?(d.qrLink||''):String(t.barcode||'');
@@ -38266,6 +38287,12 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   }
   var TAG_CSS=[
     '.pp-tag{box-sizing:border-box;position:relative;width:calc(var(--pp-w)*1mm);height:calc(var(--pp-h)*1mm);font-size:var(--pp-fs);color:var(--pp-ink);background:#fff;display:flex;flex-direction:column;direction:rtl;overflow:hidden;line-height:1.15;-webkit-print-color-adjust:exact;print-color-adjust:exact}',
+    '.pp-tbpg{box-sizing:border-box;width:198mm;height:285mm;color:var(--pp-ink);background:#fff;direction:rtl;display:flex;flex-direction:column;overflow:hidden}',
+    '.pp-tbhd{height:22mm;display:flex;align-items:center;gap:5mm;border-bottom:.7mm solid currentColor;margin-bottom:5mm;padding:0 2mm}.pp-tbhd .pp-logo{height:16mm;width:auto}.pp-tbhd b{font-size:7.5mm;font-weight:900;flex:1}.pp-tbhd small{font-size:3.8mm;font-weight:700}',
+    '.pp-tbpg table{width:100%;border-collapse:collapse;table-layout:fixed}.pp-tbpg th,.pp-tbpg td{border:.35mm solid currentColor;padding:0 2.2mm;text-align:center;vertical-align:middle}',
+    '.pp-tbpg th{height:9mm;font-size:4.4mm;font-weight:900;background:#111 !important;color:#fff !important;border-color:#111 !important}.pp-tbpg td{height:var(--pp-rh);font-size:var(--pp-tf)}.pp-tbpg tbody tr:nth-child(even) td{background:#f1f1f1}',
+    '.pp-tbpg .c-bc{font-family:Arial,sans-serif;font-size:calc(var(--pp-tf)*.78);font-weight:700;letter-spacing:.15mm}.pp-tbpg .c-nm{text-align:right;font-weight:800;line-height:1.2}.pp-tbpg .c-nm span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.pp-tbpg .c-nm.s{font-size:calc(var(--pp-tf)*.88)}.pp-tbpg .c-nm.xs{font-size:calc(var(--pp-tf)*.76)}',
+    '.pp-tbpg .c-pr{font-weight:800;white-space:nowrap}.pp-tbpg .c-pr b{font-family:Arial,sans-serif;font-size:1.3em;font-weight:900}.pp-tbpg .c-old{white-space:nowrap;font-weight:700}.pp-tbpg .c-old b{font-family:Arial,sans-serif;font-size:1.1em}',
     '.pp-tag.sz-large{--pp-w:281;--pp-h:194}.pp-tag.sz-half{--pp-w:196;--pp-h:136}.pp-tag.sz-quad{--pp-w:138;--pp-h:95.3}.pp-tag.sz-shelf{--pp-w:96;--pp-h:66}',
     '.pp-tag>div{position:relative;z-index:1}.pp-tag>.pp-fr,.pp-tag>.pp-cn{position:absolute;z-index:0;pointer-events:none}.pp-fr{inset:0;width:100%;height:100%;overflow:visible}',
     '.pp-tag>.pp-qr,.pp-tag>.pp-bm,.pp-tag>.pp-seal,.pp-tag>.pp-bc{position:absolute;z-index:2}',
@@ -38439,7 +38466,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     paintSync(); loadSheet().then(function(d){ var i=q('#ppSheetInfo',root); if(i) i.innerHTML=d&&d.baz?('شيت الأسعار: '+esc(d.meta&&d.meta.fileName||'')+' • '+d.baz.size.toLocaleString('ar-EG')+' صنف (البازار)'):'<span class="pp-warn">مفيش شيت أسعار مرفوع — ارفعه من صفحة «الأسعار»</span>'; });
     var f=q('#ppScan',root); if(f && window.matchMedia('(pointer:fine)').matches) f.focus();
   }
-  function sizeSel(id, v, cls){ return '<select id="'+id+'" class="pp-in '+(cls||'')+'">'+Object.keys(SIZES).map(function(k){ return '<option value="'+k+'"'+(k===v?' selected':'')+'>'+SIZES[k].l+'</option>'; }).join('')+'</select>'; }
+  function sizeSel(id, v, cls){ syncTableSize(); return '<select id="'+id+'" class="pp-in '+(cls||'')+'">'+Object.keys(SIZES).map(function(k){ return '<option value="'+k+'"'+(k===v?' selected':'')+'>'+SIZES[k].l+'</option>'; }).join('')+'</select>'; }
   function scanBar(hint){ return '<div class="pp-scanbar"><input id="ppScan" class="pp-in pp-scan" dir="ltr" inputmode="numeric" autocomplete="off" placeholder="امسح بالسكانر أو اكتب الباركود ودوس Enter"><button type="button" class="pp-btn" data-act="lookup">بحث</button><button type="button" class="pp-btn ghost" data-act="cam">📷 مسح بالكاميرا</button></div>'+
     '<div class="pp-cam"><div id="ppReader"></div></div>'+(hint?'<p class="pp-hint">'+hint+'</p>':''); }
 
@@ -38574,14 +38601,16 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(!list.length) return;
     var groups={}; list.forEach(function(t){ var s=SIZES[t.size]?t.size:'large'; (groups[s]=groups[s]||[]).push(t); });
     var pages='';
-    ['large','half','quad','shelf'].forEach(function(s){ var g=groups[s]; if(!g) return; var per=SIZES[s].per;
+    syncTableSize();
+    ['large','half','quad','shelf','table'].forEach(function(s){ var g=groups[s]; if(!g) return; var per=SIZES[s].per;
+      if(s==='table'){ for(var j=0;j<g.length;j+=per) pages+='<div class="pg pg-table">'+tableHtml(g.slice(j,j+per))+'</div>'; return; }
       for(var i=0;i<g.length;i+=per){ pages+='<div class="pg pg-'+s+'">'+g.slice(i,i+per).map(function(t){ return '<div class="slot">'+tagHtml(t,s)+'</div>'; }).join('')+'</div>'; } });
     var fam=encodeURIComponent(settings.fonts.family||'Cairo').replace(/%20/g,'+');
     var html='<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تسعيرات</title>'+
       '<link href="https://fonts.googleapis.com/css2?family='+fam+':wght@400;700;800;900&display=swap" rel="stylesheet">'+
       '<style>@page large{size:A4 landscape;margin:8mm}@page tall{size:A4 portrait;margin:6mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}html,body{margin:0;background:#fff}'+
       '.pg{break-after:page;display:grid;justify-content:center;align-content:start}.pg:last-child{break-after:auto}'+
-      '.pg-large{page:large;grid-template-columns:281mm}.pg-half{page:tall;grid-template-columns:196mm;row-gap:6mm}.pg-quad{page:large;grid-template-columns:138mm 138mm;gap:3mm 4mm}.pg-shelf{page:tall;grid-template-columns:96mm 96mm;gap:4mm 4mm}'+
+      '.pg-large{page:large;grid-template-columns:281mm}.pg-half{page:tall;grid-template-columns:196mm;row-gap:6mm}.pg-quad{page:large;grid-template-columns:138mm 138mm;gap:3mm 4mm}.pg-shelf{page:tall;grid-template-columns:96mm 96mm;gap:4mm 4mm}.pg-table{page:tall;grid-template-columns:198mm}'+
       '@media screen{body{background:#e5e5ea;padding:10px}.pg{background:#fff;margin:0 auto 12px;padding:6mm;width:max-content;box-shadow:0 2px 10px rgba(0,0,0,.15)}}'+TAG_CSS+'</style></head><body>'+pages+
       '<script>function go(){ setTimeout(function(){ window.focus(); window.print(); }, 250); } (document.fonts&&document.fonts.ready?document.fonts.ready:Promise.resolve()).then(go); window.onafterprint=function(){ try{ window.opener&&window.opener.__ppAfterPrint&&window.opener.__ppAfterPrint(); }catch(e){} };<\/script></body></html>';
     window.__ppAfterPrint=function(){ window.__ppAfterPrint=null; if(after) setTimeout(after, 300); };
@@ -38617,7 +38646,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
       f('النص تحت الـ QR','<input id="dQrLabel" class="pp-in" dir="ltr" maxlength="16" value="'+esc(d.qrLabel)+'">')+
       f('كلمة الختم / العلامة','<input id="dBadge" class="pp-in" maxlength="16" value="'+esc(d.badge||'عرض خاص')+'">')+f('الجملة اللي تحت (شكل علوش)','<input id="dSlogan" class="pp-in" maxlength="40" value="'+esc(d.slogan||'علوش اسم متنساهوش')+'">')+f('العملة','<input id="dCur" class="pp-in" maxlength="6" value="'+esc(d.currency)+'">')+f('كلمة البدل','<input id="dOldL" class="pp-in" maxlength="10" value="'+esc(d.oldLabel)+'">')+f('كلمة الكمية','<input id="dQtyW" class="pp-in" maxlength="6" value="'+esc(d.qtyWord)+'">')+
       f('سُمك الإطار (مم)','<input id="dBorder" class="pp-in" type="number" min="0" max="4" step="0.1" value="'+esc(d.border)+'">')+f('لون الإطار','<input id="dBorderC" class="pp-in" type="color" value="'+esc(d.borderColor)+'">')+f('لون الكتابة','<input id="dInk" class="pp-in" type="color" value="'+esc(d.ink)+'">')+
-      f('المقاس الافتراضي',sizeSel('dSize', d.defaultSize))+
+      f('المقاس الافتراضي',sizeSel('dSize', d.defaultSize))+f('عنوان ورقة الجدول','<input id="dTblT" class="pp-in" maxlength="50" value="'+esc(d.tableTitle||'قائمة أسعار — علوش')+'">')+f('عدد سطور الجدول في الورقة','<input id="dTblN" class="pp-in" type="number" min="8" max="25" step="1" inputmode="numeric" value="'+tableRows()+'">')+
       '</div><div class="pp-actions"><button type="button" class="pp-btn ghost" data-act="reset" data-part="design">رجوع للأصل</button><button type="button" class="pp-btn primary" data-act="savepart" data-part="design">حفظ التصميم</button></div></div>'+
       '<div class="pp-card pp-prevcard"><h3>معاينة</h3>'+previews()+'</div></div>'; }
   function fontsView(){ var x=settings.fonts; var fam=['Cairo','Tajawal','Almarai','Readex Pro','Alexandria','Lalezar','Changa','El Messiri'];
@@ -38639,7 +38668,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
       '<div class="pp-card"><h3>مثال</h3><ul class="pp-ex" id="ppRuleEx">'+ex+'</ul></div></div>'; }
   function readPart(part){
     var v=function(id){ var e=q('#'+id,root); return e?e.value:''; }, c=function(id){ var e=q('#'+id,root); return !!(e&&e.checked); };
-    if(part==='design') return { title:v('dTitle'), showTitle:c('dShowTitle'), underline:c('dUnderline'), showQr:c('dShowQr'), showBarcode:c('dShowBc'), qrMode:v('dQrMode'), qrLink:v('dQrLink').trim(), qrLabel:v('dQrLabel'), currency:v('dCur'), oldLabel:v('dOldL'), qtyWord:v('dQtyW'), border:num(v('dBorder')), borderColor:v('dBorderC'), ink:v('dInk'), defaultSize:v('dSize'), style:((q('input[name="dStyle"]:checked',root)||{}).value)||'logo', badge:v('dBadge')||'عرض خاص', slogan:v('dSlogan')||'علوش اسم متنساهوش' };
+    if(part==='design') return { title:v('dTitle'), showTitle:c('dShowTitle'), underline:c('dUnderline'), showQr:c('dShowQr'), showBarcode:c('dShowBc'), qrMode:v('dQrMode'), qrLink:v('dQrLink').trim(), qrLabel:v('dQrLabel'), currency:v('dCur'), oldLabel:v('dOldL'), qtyWord:v('dQtyW'), border:num(v('dBorder')), borderColor:v('dBorderC'), ink:v('dInk'), defaultSize:v('dSize'), style:((q('input[name="dStyle"]:checked',root)||{}).value)||'logo', badge:v('dBadge')||'عرض خاص', slogan:v('dSlogan')||'علوش اسم متنساهوش', tableTitle:v('dTblT')||'قائمة أسعار — علوش', tableRows:Math.min(25,Math.max(8,Math.round(num(v('dTblN'))||15))) };
     if(part==='fonts') return { family:v('fFam'), title:num(v('fTitle')), name:num(v('fName')), price:num(v('fPrice')), old:num(v('fOld')), qty:num(v('fQty')), titleW:num(v('fTitleW')), nameW:num(v('fNameW')), priceW:num(v('fPriceW')) };
     return { adjust:v('rAdj'), adjustValue:num(v('rAdjV')), round:v('rRound'), roundDir:v('rDir'), qtyMode:v('rQty') };
   }
