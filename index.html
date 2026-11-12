@@ -3990,6 +3990,7 @@ body.no-bazar-salary-perm #bh-pane-penalties > .bhr-card:nth-child(3) .bhr-table
             <button class="tab-btn" data-tab="empdata"><span><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span> الموظفين</button>
             <button class="tab-btn" data-tab="users"><span><span class="ui-icon-slot" data-icon="gear" aria-hidden="true"></span></span> الإدارة</button>
             <button class="tab-btn" data-tab="user-journey"><span><span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span></span> خط سير المستخدمين</button>
+            <button class="tab-btn" data-tab="tracking"><span><span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span></span> تتبع الموظفين</button>
             <button class="tab-btn" data-tab="system"><span><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span> النظام</button>
             <button class="tab-btn" data-tab="archive"><span><span class="ui-icon-slot" data-icon="archive" aria-hidden="true"></span></span> الأرشيف</button>
         </div>
@@ -5202,7 +5203,7 @@ const fmt = v => {
 ===================================================== */
 const S = (() => {
   let baz = new Map(), cai = new Map();
-  let cmpData = [];
+  let cmpData = [], cmpEx = 0;
   let cf = 'diff', src = 'all';
   let stats = {s:0,f:0,n:0};
   let hist = [];
@@ -5221,16 +5222,17 @@ const S = (() => {
       baz = b; cai = c;
       // Build comparison — filter out implausible price ratios
       const all = new Set([...b.keys(), ...c.keys()]);
-      cmpData = [];
+      cmpData = []; cmpEx = 0;
       all.forEach(bc => {
         const pb = b.get(bc), pc = c.get(bc);
         if(!pb && !pc) return;
+        if((pb&&pb.unit==='box')||(pc&&pc.unit==='box')) return; // علبة (AX): مش بتتقارن بسعر القطعة
         const sb = pb ? pb.sellPrice : 0;
         const sc = pc ? pc.sellPrice : 0;
         // Filter: if both have prices and ratio is too large → skip comparison (علبه/قطعه)
         if(sb > 0 && sc > 0) {
           const ratio = Math.max(sb,sc) / Math.min(sb,sc);
-          if(ratio > MAX_RATIO) return; // skip these
+          if(ratio > MAX_RATIO){ cmpEx++; return; } // skip these
         }
         const diff = Math.abs(sb - sc);
         cmpData.push({
@@ -5256,7 +5258,7 @@ const S = (() => {
     total: () => new Set([...baz.keys(),...cai.keys()]).size,
     bazSz: () => baz.size, caiSz: () => cai.size,
     has: () => baz.size>0||cai.size>0,
-    cmp: () => cmpData,
+    cmp: () => cmpData, cmpEx: () => cmpEx,
     setCF: f=>{cf=f;}, getCF:()=>cf,
     setSrc: s=>{src=s;}, getSrc:()=>src,
     incS:()=>{stats.s++;ss();}, incF:()=>{stats.f++;ss();}, incN:()=>{stats.n++;ss();},
@@ -5591,6 +5593,7 @@ function _cmpIsLoss(p){
   return !!(p && p.sellPrice>0 && p.costPrice>0 && p.sellPrice < p.costPrice);
 }
 function renderCmp() {
+  if(window.CmpV2) return window.CmpV2.render();
   const rows = document.getElementById('crows');
   const cf   = S.getCF();
   const q    = (document.getElementById('fsrch')||{value:''}).value.trim().toLowerCase();
@@ -5683,10 +5686,24 @@ function toast(msg,type='',dur=3000){
 /* =====================================================
    SEARCH
 ===================================================== */
+/* «الأسعار»: لو الشيت لسه بيتحمّل من السيرفر استنّاه بدل رسالة «ارفع الملف» */
+window._prWaitSheet = window._prWaitSheet || function(bc, retry, say, go){
+  if(typeof PriceSheetService==='undefined' || typeof PriceSheetService.load!=='function') return false;
+  if(window._prWaitSheet.busy) return true;
+  window._prWaitSheet.busy = true;
+  try{ say('⏳ بحمّل شيت الأسعار… ثواني','ok'); }catch(_){}
+  PriceSheetService.load().catch(function(){ return null; }).then(function(){
+    window._prWaitSheet.busy = false;
+    if(window.S && window.S.has && window.S.has()) retry(bc);
+    else { try{ say('⚠ مفيش شيت أسعار مرفوع — ارفع ملف Excel أولاً','er'); }catch(_){} try{ go('upload'); }catch(_){} }
+  });
+  return true;
+};
 function doSearch(bcO) {
   const bc = String(bcO||document.getElementById('bci').value).trim();
   if(!bc){toast('أدخل رقم الباركود أولاً','er');return;}
   if(!S.has()){
+    if(window._prWaitSheet(bc, doSearch, toast, goPg)) return;
     toast('⚠ يرجى رفع ملف Excel أولاً','er');
     document.getElementById('upA').style.boxShadow='0 0 0 3px rgba(255,45,85,.4)';
     setTimeout(()=>document.getElementById('upA').style.boxShadow='',2200);
@@ -7251,6 +7268,8 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
   </div>
 </div>
 
+        <div id="tab-tracking" class="tab-content" style="display:none;"></div>
+
         <div id="tab-system" class="tab-content" style="display:none;">
   <section class="system-log-shell">
     <header class="system-log-header">
@@ -7679,6 +7698,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="whatsapp" hidden><span><span class="ui-icon-slot" data-icon="bell" aria-hidden="true"></span></span><span>واتساب</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="users" hidden><span><span class="ui-icon-slot" data-icon="gear" aria-hidden="true"></span></span><span>المستخدمين</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="user-journey" hidden><span><span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span></span><span>خط سير المستخدمين</span></label>
+                    <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="tracking" hidden><span><span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span></span><span>تتبع الموظفين (GPS)</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="system" hidden><span><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span></span><span>النظام</span></label>
                     <label class="permission-card"><input type="checkbox" class="perm-checkbox" value="excel" hidden><span><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></span><span>تصدير Excel</span></label>
                     
@@ -7743,7 +7763,7 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
         <div>
           <h2>خط سير المستخدمين</h2>
           <p>التسلسل الزمني لصفحات النظام والجلسات والإجراءات المسجلة للمستخدمين</p>
-          <small class="uj-privacy-note"><span class="ui-icon-slot" data-icon="shield-check" aria-hidden="true"></span> التتبع داخل النظام فقط — لا يجمع موقع GPS جديدًا</small>
+          <small class="uj-privacy-note"><span class="ui-icon-slot" data-icon="shield-check" aria-hidden="true"></span> تتبع الصفحات والإجراءات داخل النظام فقط — مسار الموقع (GPS) في صفحة «تتبع الموظفين»</small>
         </div>
       </div>
       <div class="uj-header-actions">
@@ -8458,6 +8478,7 @@ style="position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items
         <div id="fingerprintSabahSubPermsEdit" style="display:none" aria-hidden="true"></div>
         <label><input type="checkbox" value="users"> المستخدمين</label>
         <label><input type="checkbox" value="user-journey"> <span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span> خط سير المستخدمين</label>
+        <label><input type="checkbox" value="tracking"> <span class="ui-icon-slot" data-icon="route" aria-hidden="true"></span> تتبع الموظفين (GPS)</label>
         <label><input type="checkbox" value="notifications"> الإشعارات</label>
         <label><input type="checkbox" value="employeeNotify"> تنبيهات الموظفين</label>
         <label><input type="checkbox" value="broadcast"> الرسائل الجماعية</label>
@@ -12556,7 +12577,7 @@ return firebase.database.ServerValue.TIMESTAMP
         attendance:'الحضور', breaks:'الاستئذانات', products:'التواريخ', vehicles:'العربيات', prices:'الأسعار', pricing:'التسعيرات',
         companies:'الشركات', transfers:'التحويلات', inventory:'المخازن', shortages:'النواقص', 'transfer-analytics':'تحليل التحويلات',
         'fingerprint-bazar':'بصمة البازار', 'fingerprint-sabah':'بصمة الصباح', penalties:'الجزاءات', incentives:'الحوافز',
-        leaves:'الإجازات', empdata:'الموظفون', users:'الإدارة', system:'سجل النظام', archive:'الأرشيف', 'user-journey':'خط سير المستخدمين'
+        leaves:'الإجازات', empdata:'الموظفون', users:'الإدارة', system:'سجل النظام', archive:'الأرشيف', 'user-journey':'خط سير المستخدمين', tracking:'تتبع الموظفين'
       },
       events: [], sessions: [], sessionId: null, sessionRef: null, startedAt: 0, currentPage: null,
       currentPageEventKey: null, pageSegmentStartedAt: 0, heartbeatTimer: null, listenersBound: false,
@@ -16254,6 +16275,7 @@ window.addEventListener('resize', () => {
         async logout() {
             const username = State.currentUser ? State.currentUser.username : "-";
             SystemLog.add("Logout", username, "تسجيل خروج");
+            try { if (window.AlloshAndroidTracking) window.AlloshAndroidTracking.onLogout(); } catch (_) {}
             try { await UserJourneyService.stop("logout"); } catch (journeyErr) { console.warn("[UserJourney] session close failed", journeyErr); }
             try { await NotificationService.unbindCurrentUser(); } catch (_) {}
             try { await PresenceService.stop(); } catch (_) {}
@@ -16280,6 +16302,8 @@ window.addEventListener('resize', () => {
             State.securePermissions = Object.freeze([...(user.permissions || [])]);
             try { UserJourneyService.start(user, options); } catch (journeyErr) { console.warn("[UserJourney] session start failed", journeyErr); }
             try { NotificationService.bindUser(user); } catch (_) {}
+            // تطبيق الأندرويد: ربط الهاتف بالمستخدم (التتبع يفضل شغال حتى بعد تسجيل الخروج)
+            try { if (window.AlloshAndroidTracking && user && user.id) window.AlloshAndroidTracking.setUser(String(user.id), String(user.username || ""), String(user.branch || "")); } catch (_) {}
 
             // لا نسجل استعادة الجلسة باعتبارها تسجيل دخول جديدًا، ولا نغيّر بيانات
             // آخر دخول في كل مرة يتم فيها تحديث الصفحة.
@@ -21317,6 +21341,11 @@ const PriceSheetService = (() => {
     publishInProgress: false
   };
 
+  /* local cache (IndexedDB): the sheet version is immutable, so it is downloaded once per version and the live overlay once per sync */
+  const idbOpen = () => new Promise((res,rej)=>{ try{ const r=indexedDB.open('allosh_pricesheet',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } });
+  const idbGet = async k => { try{ const d=await idbOpen(); return await new Promise((res)=>{ const q=d.transaction('kv').objectStore('kv').get(k); q.onsuccess=()=>res(q.result||null); q.onerror=()=>res(null); }); }catch(_){ return null; } };
+  const idbSet = async (k,v) => { try{ const d=await idbOpen(); await new Promise((res)=>{ const t=d.transaction('kv','readwrite'); t.objectStore('kv').put(v,k); t.oncomplete=()=>res(); t.onerror=()=>res(); t.onabort=()=>res(); }); }catch(_){} };
+
   const safeKey = k => String(k).replace(/[.#$\[\]]/g,'_');
   const parseDate = v => {
     if(!v) return null;
@@ -21409,9 +21438,14 @@ const PriceSheetService = (() => {
      automatically supersedes older live data. Cairo is never touched. */
   async function applyLive(data){
     try{
-      const [m,o] = await Promise.all([db.ref('priceLive/meta').once('value'), db.ref('priceLive/baz').once('value')]);
-      const meta = m.val(), obj = o.val();
-      if(!meta || !obj || !data || !data.baz) return;
+      const m = await db.ref('priceLive/meta').once('value');
+      const meta = m.val();
+      if(!meta || !data || !data.baz) return;
+      let obj = null;
+      const cl = await idbGet('live');
+      if(cl && cl.s && cl.s === meta.syncedAt && cl.obj) obj = cl.obj;
+      else { const o = await db.ref('priceLive/baz').once('value'); obj = o.val(); if(obj) idbSet('live',{ s:meta.syncedAt, obj }); }
+      if(!obj) return;
       const upAt = Number(data.meta && data.meta.uploadedAt) || 0;
       let applied = 0;
       Object.keys(obj).forEach(k=>{
@@ -21451,10 +21485,15 @@ const PriceSheetService = (() => {
 
       let raw = null;
       if(versionId){
+        const cs = await idbGet('sheet');
+        if(cs && cs.v === versionId && cs.raw) raw = cs.raw;
+      }
+      if(!raw && versionId){
         try{
           const snap = await db.ref('priceSheetVersions/'+versionId).once('value');
           raw = snap.val();
           if(!raw || (raw.meta && raw.meta.ready === false)) raw = null;
+          else idbSet('sheet',{ v:versionId, raw });
         }catch(_){ raw = null; }
       }
       if(!raw){
@@ -26794,7 +26833,7 @@ body.innerHTML = html
                 pricing: "التسعيرات", viewPrices: "رؤية الأسعار", inventory: "المخازن",
                 companies: "الشركات", incentives: "الحوافز", permit: "إذن (إعفاء من الخصم)",
                 leaveApprove: "طلبات الإجازة", empdata: "بيانات الموظفين", archive: "الأرشيف",
-                "user-journey": "خط سير المستخدمين", notifications: "الإشعارات", employeeNotify: "تنبيهات الموظفين", broadcast: "الرسائل الجماعية", whatsapp: "واتساب",
+                "user-journey": "خط سير المستخدمين", tracking: "تتبع الموظفين", notifications: "الإشعارات", employeeNotify: "تنبيهات الموظفين", broadcast: "الرسائل الجماعية", whatsapp: "واتساب",
                 all: "كل الصلاحيات"
             };
             const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
@@ -26943,7 +26982,7 @@ function exportAdminUsersExcel() {
   if (!hasPermission("users") && !hasPermission("all")) { UI.toast("ليس لديك صلاحية تصدير بيانات المستخدمين", "error"); return; }
   if (!window.XLSX) { UI.toast("مكتبة Excel غير جاهزة؛ أعد فتح الصفحة وحاول مرة أخرى", "error"); return; }
   const users = Array.isArray(State.users) ? State.users : [];
-  const permissionLabels = { notifications:"الإشعارات", employeeNotify:"تنبيهات الموظفين", broadcast:"الرسائل الجماعية", whatsapp:"واتساب", attendance:"الحضور", vehicles:"العربيات", penalties:"الجزاءات", leaves:"الإجازات", employees:"الموظفين", users:"المستخدمين", "user-journey":"خط سير المستخدمين", breaks:"الاستئذانات", products:"التواريخ", system:"النظام", transfers:"التحويلات", shortages:"النواقص", "transfer-analytics":"تحليل التحويلات", fingerprint:"بصمة البازار", "fingerprint-sabah":"بصمة الصباح", excel:"تصدير Excel", edit:"التعديل", delete:"الحذف", prices:"الأسعار", pricing:"التسعيرات", viewPrices:"رؤية الأسعار", inventory:"المخازن", companies:"الشركات", incentives:"الحوافز", permit:"إذن (إعفاء من الخصم)", leaveApprove:"طلبات الإجازة", empdata:"بيانات الموظفين", archive:"الأرشيف", all:"كل الصلاحيات" };
+  const permissionLabels = { notifications:"الإشعارات", employeeNotify:"تنبيهات الموظفين", broadcast:"الرسائل الجماعية", whatsapp:"واتساب", attendance:"الحضور", vehicles:"العربيات", penalties:"الجزاءات", leaves:"الإجازات", employees:"الموظفين", users:"المستخدمين", "user-journey":"خط سير المستخدمين", tracking:"تتبع الموظفين", breaks:"الاستئذانات", products:"التواريخ", system:"النظام", transfers:"التحويلات", shortages:"النواقص", "transfer-analytics":"تحليل التحويلات", fingerprint:"بصمة البازار", "fingerprint-sabah":"بصمة الصباح", excel:"تصدير Excel", edit:"التعديل", delete:"الحذف", prices:"الأسعار", pricing:"التسعيرات", viewPrices:"رؤية الأسعار", inventory:"المخازن", companies:"الشركات", incentives:"الحوافز", permit:"إذن (إعفاء من الخصم)", leaveApprove:"طلبات الإجازة", empdata:"بيانات الموظفين", archive:"الأرشيف", all:"كل الصلاحيات" };
   const rows = users.map(u => {
     const p = (typeof PresenceService !== "undefined" && PresenceService.getStatus) ? PresenceService.getStatus(u.id) : { online:false };
     return {
@@ -27101,6 +27140,7 @@ tabEl.style.display = "block"
 btn.classList.add("active")
 try{ localStorage.setItem("activeTab", tab); }catch(e){}
 try { if(tab !== "pricing" && window.PricingPro) PricingPro.stop(); } catch(_ppErr) {}
+try { if(tab !== "tracking" && window.TrackingView) TrackingView.close(); } catch(_trkClose) {}
 try { UserJourneyService.trackPage(tab); } catch (journeyErr) { console.warn("[UserJourney] page tracking failed", journeyErr); }
 
 if(tab === "pricing"){
@@ -27136,6 +27176,9 @@ if(tab === "users"){
 }
 if(tab === "user-journey"){
   UserJourneyService.refresh();
+}
+if(tab === "tracking"){
+  try { TrackingView.open(); } catch (_trkErr) { console.warn("[Tracking] open failed", _trkErr); }
 }
 if(tab === "transfer-analytics"){
   TransferAnalytics.renderAll();
@@ -28360,7 +28403,7 @@ const fmt = v => {
 ===================================================== */
 const S = (() => {
   let baz = new Map(), cai = new Map();
-  let cmpData = [];
+  let cmpData = [], cmpEx = 0;
   let cf = 'diff', src = 'all';
   let stats = {s:0,f:0,n:0};
   let hist = [];
@@ -28379,16 +28422,17 @@ const S = (() => {
       baz = b; cai = c;
       // Build comparison — filter out implausible price ratios
       const all = new Set([...b.keys(), ...c.keys()]);
-      cmpData = [];
+      cmpData = []; cmpEx = 0;
       all.forEach(bc => {
         const pb = b.get(bc), pc = c.get(bc);
         if(!pb && !pc) return;
+        if((pb&&pb.unit==='box')||(pc&&pc.unit==='box')) return; // علبة (AX): مش بتتقارن بسعر القطعة
         const sb = pb ? pb.sellPrice : 0;
         const sc = pc ? pc.sellPrice : 0;
         // Filter: if both have prices and ratio is too large → skip comparison (علبه/قطعه)
         if(sb > 0 && sc > 0) {
           const ratio = Math.max(sb,sc) / Math.min(sb,sc);
-          if(ratio > MAX_RATIO) return; // skip these
+          if(ratio > MAX_RATIO){ cmpEx++; return; } // skip these
         }
         const diff = Math.abs(sb - sc);
         cmpData.push({
@@ -28414,7 +28458,7 @@ const S = (() => {
     total: () => new Set([...baz.keys(),...cai.keys()]).size,
     bazSz: () => baz.size, caiSz: () => cai.size,
     has: () => baz.size>0||cai.size>0,
-    cmp: () => cmpData,
+    cmp: () => cmpData, cmpEx: () => cmpEx,
     setCF: f=>{cf=f;}, getCF:()=>cf,
     setSrc: s=>{src=s;}, getSrc:()=>src,
     incS:()=>{stats.s++;ss();}, incF:()=>{stats.f++;ss();}, incN:()=>{stats.n++;ss();},
@@ -28718,6 +28762,7 @@ function _cmpIsLoss(p){
   return !!(p && p.sellPrice>0 && p.costPrice>0 && p.sellPrice < p.costPrice);
 }
 function renderCmp() {
+  if(window.CmpV2) return window.CmpV2.render();
   const rows = document.getElementById('crows');
   const cf   = window.S.getCF();
   const q    = (document.getElementById('fsrch')||{value:''}).value.trim().toLowerCase();
@@ -28824,6 +28869,7 @@ function doSearch(bcO) {
   const bc = String(bcO||document.getElementById('bci').value).trim();
   if(!bc){prToast('أدخل رقم الباركود أولاً','er');return;}
   if(!window.S.has()){
+    if(window._prWaitSheet(bc, doSearch, prToast, goPg)) return;
     prToast('⚠ يرجى رفع ملف Excel أولاً','er');
     document.getElementById('upA').style.boxShadow='0 0 0 3px rgba(255,45,85,.4)';
     setTimeout(()=>document.getElementById('upA').style.boxShadow='',2200);
@@ -33450,6 +33496,7 @@ var ABSFX=(function(){
     penalties:'<path d="M12 4v16M5 20h14M6 7h12M8 7l-3 6h6l-3-6ZM16 7l-3 6h6l-3-6Z"/>',
     incentives:'<path d="M7 4h10v4a5 5 0 0 1-10 0V4ZM7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4M12 13v4M8 20h8"/>',
     users:'<path d="M12 3 20 6v5c0 5-3.4 8.2-8 10-4.6-1.8-8-5-8-10V6l8-3Z"/><path d="m9 12 2 2 4-4"/>',
+    tracking:'<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11Z"/><circle cx="12" cy="10" r="2.4"/>',
     'user-journey':'<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
     system:'<path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/>',
     archive:'<path d="M4 7h16v13H4zM3 4h18v3H3zM9 11h6"/>',
@@ -33479,7 +33526,7 @@ var ABSFX=(function(){
     {g:'ops',label:'التشغيل اليومي',tabs:['attendance','breaks','fingerprint-bazar','fingerprint-sabah','vehicles','companies']},
     {g:'stock',label:'المخزون والأسعار',tabs:['products','inventory','transfers','transfer-analytics','prices','pricing']},
     {g:'hr',label:'الموارد البشرية',tabs:['empdata','leaves','penalties','incentives']},
-    {g:'admin',label:'الإدارة والنظام',tabs:['users','user-journey','system','archive']}
+    {g:'admin',label:'الإدارة والنظام',tabs:['users','user-journey','tracking','system','archive']}
   ];
 
   /* ---------- read-only access to app state ---------- */
@@ -38774,5 +38821,490 @@ html:root body.light-mode #tab-archive .archive-log-table thead th{ color:#7a091
 html:root body.light-mode #tab-archive .archive-log-table td[colspan]{ color:#52525b !important; }
 html:root body.light-mode .tab-btn:hover{ color:#18181b; }
 </style>
+<style id="cmp-v97-css">
+#tab-prices .fbar .ff .ffn{ display:inline-block; margin-inline-start:.35rem; min-width:1.5em; padding:0 .4em; border-radius:50px; background:rgba(128,128,128,.2); font-size:.68rem; font-weight:800; line-height:1.55; text-align:center; }
+#tab-prices .fbar .ff.on .ffn{ background:rgba(255,255,255,.28); }
+#tab-prices .fbar .cmp-sort{ padding:.4rem .7rem; border-radius:50px; border:1px solid var(--bdr); background:var(--card); color:var(--txt); font-family:var(--font); font-size:.74rem; font-weight:700; outline:none; cursor:pointer; }
+#tab-prices .fbar .cmp-sort:focus{ border-color:var(--blue); }
+#tab-prices #cmpNote{ flex-basis:100%; font-size:.7rem; color:var(--muted); line-height:1.6; }
+#tab-prices .cmp-more{ display:block; width:calc(100% - 1.6rem); margin:.8rem auto; padding:.7rem; border-radius:12px; border:1px dashed var(--bdrg,var(--bdr)); background:none; color:var(--txt2,var(--txt)); font-family:var(--font); font-size:.8rem; font-weight:700; cursor:pointer; }
+#tab-prices .cmp-more:hover{ border-style:solid; }
+#tab-prices .crow .nm1 mark, #tab-prices .crow .nm2 mark{ background:rgba(255,214,10,.35); color:inherit; border-radius:3px; }
+</style>
+<script id="cmp-v97">
+/* مقارنة الأسعار V97: ترقيم تدريجي (60 صف) + فهرس مخزّن + بحث عربي مرن + فلاتر بأعداد دقيقة + ترتيب */
+(function(){
+  'use strict';
+  var PAGE=60, cache={ rows:null, counts:null, key:'', list:null }, shown=0, curList=[], sortBy='recent', deb=null, io=null, inited=false;
+  try{ sortBy=localStorage.getItem('cmp_sort2')||'recent'; }catch(_){}
+  var AR_DIG={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+  function nrm(s){ return String(s==null?'':s).toLowerCase().replace(/[ً-ٰٟـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي').replace(/[٠-٩]/g,function(c){ return AR_DIG[c]; }).replace(/\s+/g,' ').trim(); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function dayKey(v){ if(!v) return null; var d=(v instanceof Date)?v:new Date(v); return isNaN(d.getTime())?null:(d.getFullYear()+'-'+d.getMonth()); }
+  function isLoss(p){ return !!(p && p.sellPrice>0 && p.costPrice>0 && p.sellPrice < p.costPrice); }
+  var FILTERS=[ ['diff','مختلفة','warning'],['baz_hi','البازار أعلى','box'],['cai_hi','القاهرة أعلى','building'],['same','متطابقة','check'],['date_match','نفس شهر التعديل','calendar'],['loss','بيع بخسارة','warning'],['only_baz','في البازار فقط','box'],['only_cai','في القاهرة فقط','building'],['all','الكل','wifi'] ];
+
+  function build(rows){
+    var cn={ common:0, diff:0, same:0, baz_hi:0, cai_hi:0, date_match:0, loss:0, only_baz:0, only_cai:0, all:rows.length };
+    rows.forEach(function(r){
+      r._h = nrm(r.name+' '+r.bc+' '+(r.vB||'')+' '+(r.vC||''));
+      var both = r.sb>0 && r.sc>0; r._both=both;
+      r._f={ diff: both && r.diff>0, same: both && r.diff===0, baz_hi: both && r.sb>r.sc, cai_hi: both && r.sc>r.sb,
+             date_match: false, loss: isLoss(r.pb)||isLoss(r.pc), only_baz: r.sb>0 && !(r.sc>0), only_cai: r.sc>0 && !(r.sb>0), all:true };
+      if(both){ var a=dayKey(r.pb&&r.pb.modifiedAt), b=dayKey(r.pc&&r.pc.modifiedAt); r._f.date_match = !!(a&&b&&a===b); cn.common++; }
+      Object.keys(r._f).forEach(function(k){ if(r._f[k] && k!=='all') cn[k]++; });
+    });
+    cache.rows=rows; cache.counts=cn; cache.key=''; cache.list=null;
+  }
+  function ts(p){ if(!p) return 0; var v=p.modifiedAt||p.dateOfPrice; if(!v) return 0; var t=(v instanceof Date)?v.getTime():new Date(v).getTime(); return isNaN(t)?0:t; }
+  function lastTs(r){ if(r._ts===undefined) r._ts=Math.max(ts(r.pb),ts(r.pc)); return r._ts; }
+  function sorter(){ 
+    if(sortBy==='recent') return function(a,b){ return lastTs(b)-lastTs(a) || b.diff-a.diff; };
+    if(sortBy==='pct') return function(a,b){ return (b.diffPct||0)-(a.diffPct||0) || b.diff-a.diff; };
+    if(sortBy==='small') return function(a,b){ return a.diff-b.diff; };
+    if(sortBy==='name') return function(a,b){ return String(a.name).localeCompare(String(b.name),'ar'); };
+    return function(a,b){ return b.diff-a.diff; };
+  }
+  function filtered(cf,q){
+    var key=cf+'|'+q+'|'+sortBy; if(cache.key===key && cache.list) return cache.list;
+    var toks=q?q.split(' ').filter(Boolean):[], out=[], rows=cache.rows;
+    for(var i=0;i<rows.length;i++){ var r=rows[i]; if(!r._f[cf]) continue; if(toks.length){ var ok=true; for(var t=0;t<toks.length;t++){ if(r._h.indexOf(toks[t])<0){ ok=false; break; } } if(!ok) continue; } out.push(r); }
+    out.sort(sorter()); cache.key=key; cache.list=out; return out;
+  }
+  function fmtN(v){ return (typeof fmt==='function')?fmt(v):String(v); }
+  function rowHtml(r){
+    var vend=(r.vB&&r.vB!=='غير معلوم'&&r.vB!=='—')?r.vB:(r.vC&&r.vC!=='غير معلوم'&&r.vC!=='—')?r.vC:'—'; if(vend.length>32) vend=vend.substring(0,32)+'…';
+    var nm=String(r.name||''); if(nm.length>38) nm=nm.substring(0,38)+'…';
+    var pill;
+    if(!r._both) pill='<span style="color:var(--muted);font-size:.76rem">—</span>';
+    else if(r.diff===0) pill='<span class="dpill dps">متطابق</span>';
+    else if(r.sb>r.sc) pill='<span class="dpill dpb"><span class="ui-icon-slot" data-icon="box" aria-hidden="true"></span> +'+fmtN(r.diff)+'</span>';
+    else pill='<span class="dpill dpc"><span class="ui-icon-slot" data-icon="building" aria-hidden="true"></span> +'+fmtN(r.diff)+'</span>';
+    var dash='<span style="color:var(--muted)">—</span>';
+    return '<div class="crow" onclick="jumpS(\''+esc(r.bc)+'\')"><div class="ctd nm"><span class="nm1">'+esc(nm)+'</span><span class="nm2">'+esc(r.bc)+'</span></div><div class="ctd num nb">'+(r.sb?fmtN(r.sb):dash)+'</div><div class="ctd num nc">'+(r.sc?fmtN(r.sc):dash)+'</div><div class="ctd">'+pill+(r._both&&r.diff>0&&r.diffPct?'<span style="display:block;font-size:.62rem;color:var(--muted);margin-top:2px">'+r.diffPct+'%</span>':'')+'</div><div class="ctd"><div style="display:flex;flex-direction:column;gap:.15rem"><span class="vchip">'+esc(vend)+'</span></div></div></div>';
+  }
+  function paint(append){
+    var host=document.getElementById('crows'); if(!host) return;
+    var old=host.querySelector('.cmp-more'); if(old) old.remove();
+    if(io){ try{ io.disconnect(); }catch(_){} }
+    var from=append?shown:0, to=Math.min(curList.length, from+PAGE);
+    var html=''; for(var i=from;i<to;i++) html+=rowHtml(curList[i]);
+    if(append) host.insertAdjacentHTML('beforeend',html); else host.innerHTML=html;
+    shown=to;
+    if(shown<curList.length){
+      var b=document.createElement('button'); b.type='button'; b.className='cmp-more'; b.textContent='عرض المزيد ('+(curList.length-shown).toLocaleString('ar-EG')+' متبقي)';
+      b.onclick=function(){ paint(true); }; host.appendChild(b);
+      if('IntersectionObserver' in window){ io=new IntersectionObserver(function(es){ if(es[0].isIntersecting) paint(true); },{ rootMargin:'400px' }); io.observe(b); }
+    }
+  }
+  function ensureUi(){
+    var bar=document.querySelector('#pg-compare .fbar'); if(!bar) return;
+    var anchor=bar.querySelector('[data-cf="all"]');
+    FILTERS.forEach(function(f){ if(!bar.querySelector('[data-cf="'+f[0]+'"]')){ var b=document.createElement('button'); b.className='ff'; b.dataset.cf=f[0]; b.setAttribute('onclick',"setCF('"+f[0]+"')"); b.innerHTML='<span class="ui-icon-slot" data-icon="'+f[2]+'" aria-hidden="true"></span> '+f[1]; bar.insertBefore(b,anchor||bar.querySelector('.fsrch')); } });
+    // keep "الكل" after the new ones
+    var all=bar.querySelector('[data-cf="all"]'); if(all) bar.insertBefore(all, bar.querySelector('.fsrch'));
+    bar.querySelectorAll('.ff').forEach(function(b){ if(!b.querySelector('.ffn')){ var s=document.createElement('span'); s.className='ffn'; s.textContent='—'; b.appendChild(s); } });
+    if(!bar.querySelector('.cmp-sort')){ var sel=document.createElement('select'); sel.className='cmp-sort'; sel.title='الترتيب';
+      sel.innerHTML='<option value="recent">ترتيب: الأحدث تعديلاً</option><option value="diff">ترتيب: الأكبر فرقاً</option><option value="pct">ترتيب: الأكبر نسبة %</option><option value="small">ترتيب: الأقل فرقاً</option><option value="name">ترتيب: الاسم</option>';
+      sel.value=sortBy; sel.addEventListener('change',function(){ sortBy=sel.value; try{ localStorage.setItem('cmp_sort2',sortBy); }catch(_){} render(); }); bar.insertBefore(sel, bar.querySelector('.fsrch')); }
+    if(!document.getElementById('cmpNote')){ var n=document.createElement('div'); n.id='cmpNote'; bar.appendChild(n); }
+    var fs=document.getElementById('fsrch'); if(fs && !fs._v97){ fs._v97=true; fs.removeAttribute('oninput'); fs.addEventListener('input',function(){ clearTimeout(deb); deb=setTimeout(render,220); }); fs.setAttribute('placeholder','🔍 ابحث بالاسم أو الباركود أو الشركة...'); }
+    inited=true;
+  }
+  function render(){
+    ensureUi();
+    var host=document.getElementById('crows'); if(!host||!window.S) return;
+    var rows=window.S.cmp(); 
+    if(!rows||!rows.length){ host.innerHTML='<div class="cempty"><i><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></i>يرجى رفع ملف Excel أولاً لعرض المقارنة</div>'; ['smCommon','smDiff','smSame'].forEach(function(i){ var e=document.getElementById(i); if(e) e.textContent='—'; }); var fc=document.getElementById('fcnt'); if(fc) fc.textContent=''; return; }
+    if(cache.rows!==rows) build(rows);
+    var cf=window.S.getCF(); if(!cache.counts.hasOwnProperty(cf)) cf='diff';
+    var q=nrm((document.getElementById('fsrch')||{value:''}).value);
+    curList=filtered(cf,q);
+    var cn=cache.counts;
+    document.getElementById('smCommon').textContent=cn.common.toLocaleString('ar-EG');
+    document.getElementById('smDiff').textContent=cn.diff.toLocaleString('ar-EG');
+    document.getElementById('smSame').textContent=cn.same.toLocaleString('ar-EG');
+    document.querySelectorAll('#pg-compare .ff').forEach(function(b){ var k=b.dataset.cf; b.classList.toggle('on',k===cf); var n=b.querySelector('.ffn'); if(n&&cn.hasOwnProperty(k)) n.textContent=cn[k].toLocaleString('ar-EG'); });
+    var fc=document.getElementById('fcnt'); if(fc) fc.textContent=curList.length.toLocaleString('ar-EG')+' منتج';
+    var ex=(window.S.cmpEx&&window.S.cmpEx())||0, note=document.getElementById('cmpNote');
+    if(note) note.textContent=ex?('ملحوظة: '+ex.toLocaleString('ar-EG')+' صنف اتستبعد من المقارنة لأن فرق السعر بين الفرعين أكبر من 4 أضعاف (غالباً علبة في فرع وقطعة في فرع).'):'';
+    if(!curList.length){ host.innerHTML='<div class="cempty"><i><span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span></i>'+(q?'مفيش نتايج للبحث ده':'مفيش أصناف في الفلتر ده')+'</div>'; return; }
+    paint(false);
+  }
+  window.CmpV2={ render:render, _state:function(){ return { shown:shown, total:curList.length, counts:cache.counts }; } };
+  window.renderCmp=render;
+  window.setCF=function(f){ window.S.setCF(f); var c=document.getElementById('crows'); render(); try{ if(c) c.scrollIntoView({block:'nearest'}); }catch(_){} };
+})();
+</script>
+<style id="allosh-tracking-style">
+#tab-tracking{padding:0 0 28px;box-sizing:border-box}
+.trk-shell{max-width:1500px;margin:0 auto;display:flex;flex-direction:column;gap:14px;min-width:0;color:var(--ab-ink,#e4e4e7);font-family:var(--ab-font,inherit)}
+.trk-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.trk-title{display:flex;align-items:center;gap:12px}
+.trk-ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:22px;background:var(--ab-red-50,#FCEEF0)}
+.trk-title h2{margin:0;font-size:20px}
+.trk-title p{margin:3px 0 0;font-size:12.5px;color:var(--ab-muted,#979BA6)}
+.trk-chips{display:flex;gap:6px;flex-wrap:wrap}
+.trk-chip{padding:5px 11px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--ab-line,#262830);background:var(--ab-subtle,#1B1C21)}
+.trk-chip.g{color:var(--ab-green,#0F7A4A);background:var(--ab-green-50,#E8F6EE);border-color:var(--ab-green-200,#B4E2C8)}
+.trk-chip.o,.trk-chip.y{color:var(--ab-orange,#B4530A);background:var(--ab-orange-50,#FDF1E6);border-color:var(--ab-orange-200,#F6CFA8)}
+.trk-chip.r{color:var(--ab-danger,#C81E1E);background:var(--ab-danger-50,#FDECEC)}
+.trk-chip.n{color:var(--ab-muted,#6A6F7C)}
+.trk-admin{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;border:1px solid var(--ab-line,#262830);border-radius:var(--ab-r-md,14px);background:var(--ab-surface,#16171B)}
+.trk-switch{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.trk-switch input{width:18px;height:18px;accent-color:var(--ab-red,#C8102E)}
+.trk-small{font-size:12px;color:var(--ab-muted,#979BA6)}
+.trk-grid{display:grid;grid-template-columns:340px minmax(0,1fr);gap:14px;align-items:start}
+.trk-side{display:flex;flex-direction:column;gap:9px;border:1px solid var(--ab-line,#262830);border-radius:var(--ab-r-md,14px);background:var(--ab-surface,#16171B);padding:12px;max-height:78vh}
+.trk-list{display:flex;flex-direction:column;gap:8px;overflow:auto;min-height:60px}
+.trk-input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:var(--ab-r,10px);border:1px solid var(--ab-line-2,#32353E);background:var(--ab-subtle,#1B1C21);color:var(--ab-ink,#F2F3F5);font:inherit;font-size:14px}
+.trk-date{width:auto;min-width:150px}
+.trk-card{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--ab-line,#262830);border-radius:var(--ab-r,10px);background:var(--ab-subtle,#1B1C21);cursor:pointer;transition:border-color .15s,background .15s}
+.trk-card:hover{border-color:var(--ab-line-2,#32353E);background:var(--ab-hover,#212329)}
+.trk-card.sel{border-color:var(--ab-red,#C8102E);box-shadow:var(--ab-ring,0 0 0 3px rgba(200,16,46,.18))}
+.trk-dot{width:11px;height:11px;border-radius:50%;margin-top:6px;flex:0 0 auto}
+.trk-cinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.trk-cinfo b{font-size:14px}.trk-cinfo small{color:var(--ab-muted,#979BA6);font-size:11.5px}
+.trk-stat{font-size:12.5px;font-weight:700}
+.trk-meta{font-size:11.5px;color:var(--ab-muted,#979BA6)}
+.trk-issue{font-size:12px;color:var(--ab-danger,#C81E1E);font-weight:600}
+.trk-tg{position:relative;flex:0 0 auto;width:40px;height:23px;margin-top:2px}
+.trk-tg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:2}
+.trk-tg i{position:absolute;inset:0;border-radius:999px;background:var(--ab-line-2,#32353E);transition:background .15s}
+.trk-tg i::after{content:"";position:absolute;top:3px;inset-inline-start:3px;width:17px;height:17px;border-radius:50%;background:#fff;transition:transform .15s}
+.trk-tg input:checked+i{background:var(--ab-green-solid,#13955B)}
+.trk-tg input:checked+i::after{transform:translateX(-17px)}
+.trk-main{display:flex;flex-direction:column;gap:10px;min-width:0}
+.trk-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.trk-btn{padding:9px 14px;border-radius:var(--ab-r,10px);border:1px solid var(--ab-line-2,#32353E);background:var(--ab-subtle,#1B1C21);color:var(--ab-ink,#F2F3F5);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.trk-btn:hover{background:var(--ab-hover,#212329)}
+.trk-primary{background:var(--ab-red,#C8102E);border-color:var(--ab-red,#C8102E);color:#fff}
+.trk-primary:hover{background:var(--ab-red-600,#B30E29)}
+.trk-selname{font-weight:700;font-size:14px;margin-inline-start:auto}
+.trk-mapbox{position:relative;border-radius:var(--ab-r-md,14px);overflow:hidden;border:1px solid var(--ab-line,#262830);background:var(--ab-subtle,#1B1C21)}
+#trkMap{width:100%;height:min(62vh,560px);min-height:340px;direction:ltr}
+.trk-mapmsg{position:absolute;inset:0;display:grid;place-items:center;color:var(--ab-muted,#979BA6);font-size:14px;pointer-events:none}
+.trk-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.trk-stat-box{padding:9px 12px;border:1px solid var(--ab-line,#262830);border-radius:var(--ab-r,10px);background:var(--ab-surface,#16171B);display:flex;flex-direction:column;gap:2px}
+.trk-stat-box span{font-size:11.5px;color:var(--ab-muted,#979BA6)}.trk-stat-box b{font-size:15px}
+.trk-replay{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--ab-line,#262830);border-radius:var(--ab-r,10px);background:var(--ab-surface,#16171B)}
+.trk-replay input{flex:1;accent-color:var(--ab-red,#C8102E);direction:ltr}
+.trk-replay span{font-size:12.5px;min-width:150px;text-align:end}
+.trk-events{border:1px solid var(--ab-line,#262830);border-radius:var(--ab-r-md,14px);background:var(--ab-surface,#16171B);padding:12px 14px}
+.trk-events h3{margin:0 0 8px;font-size:15px}
+.trk-evlist{display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}
+.trk-ev{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--ab-r-sm,8px);background:var(--ab-subtle,#1B1C21);font-size:13px}
+.trk-ev.bad{background:var(--ab-danger-50,#FDECEC)}
+.trk-ev div{flex:1;display:flex;flex-direction:column}.trk-ev small{color:var(--ab-muted,#979BA6)}
+.trk-ev time{font-size:11.5px;color:var(--ab-muted,#979BA6);white-space:nowrap}
+.trk-muted{color:var(--ab-muted,#979BA6);font-size:13px;margin:6px 0}.trk-err{color:var(--ab-danger,#C81E1E);font-size:13px}
+.trk-note{font-size:12px;color:var(--ab-muted,#979BA6);margin:0}
+.trk-pin span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;color:#fff;font-weight:800;font-size:15px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.trk-pin.sel span{transform:scale(1.2);box-shadow:0 0 0 4px rgba(200,16,46,.35),0 2px 8px rgba(0,0,0,.45)}
+@media(max-width:900px){.trk-grid{grid-template-columns:1fr}.trk-side{max-height:none}.trk-list{max-height:340px}.trk-selname{margin-inline-start:0;width:100%}#trkMap{height:52vh}}
+
+html:root body .tab-btn[data-tab="tracking"]{order:45}
+</style>
+<script id="allosh-tracking-view">
+(function(){
+  'use strict';
+  var LF_JS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+  var LF_CSS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+  var DAY_MS=86400000, RETENTION_DAYS=30;
+  var live={}, cfg={users:{},enforce:false}, selId=null, map=null, liveLayer=null, routeLayer=null, replayMk=null;
+  var markers={}, built=false, active=false, refs=[], renderT=null, route=null, mapReady=false, fitted=false, day=null, search='', showAll=false;
+
+  function q(s,r){ return (r||document).querySelector(s); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pad(n){ return n<10?'0'+n:''+n; }
+  function dayKey(ms){ var d=new Date(ms); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function hhmm(ms){ var d=new Date(ms); var h=d.getHours(), m=d.getMinutes(); return (h%12||12)+':'+pad(m)+' '+(h<12?'ص':'م'); }
+  function dtime(ms){ return dayKey(ms)+' '+hhmm(ms); }
+  function dur(ms){ var m=Math.round(ms/60000); if(m<1) return 'أقل من دقيقة'; if(m<60) return m+' د'; var h=Math.floor(m/60); return h+' س'+(m%60?' '+(m%60)+' د':''); }
+  function ago(ms){ return ms==null||!isFinite(ms)?'—':(ms<60000?'الآن':'منذ '+dur(ms)); }
+  function S(){ try{ return State; }catch(_){ return null; } }
+  function users(){ var s=S(); return (s&&Array.isArray(s.users))?s.users:[]; }
+  function perms(){ var s=S(); return (s&&s.currentUser&&s.currentUser.permissions)||[]; }
+  function isAdmin(){ var p=perms(); return p.indexOf('all')>-1||p.indexOf('users')>-1; }
+  function toast(m,t){ try{ UI.toast(m,t||'success'); }catch(_){} }
+  function hav(a,b){ var R=6371000, r=Math.PI/180, dLa=(b.la-a.la)*r, dLo=(b.lo-a.lo)*r;
+    var x=Math.sin(dLa/2)*Math.sin(dLa/2)+Math.cos(a.la*r)*Math.cos(b.la*r)*Math.sin(dLo/2)*Math.sin(dLo/2);
+    return 2*R*Math.asin(Math.min(1,Math.sqrt(x))); }
+
+  // ------------------------------------------------------------ status model
+  function statusOf(u){
+    var on=!!cfg.users[u.id], r=live[u.id];
+    if(!on) return {k:'off',label:'غير مفعّل',color:'#9A9FAB',issues:[],age:null};
+    if(!r) return {k:'none',label:'لم يتصل بعد',color:'#9A9FAB',issues:[],age:null};
+    var t=r.srv||r.t, age=t?Date.now()-t:Infinity, issues=[], hard=false;
+    if(r.gps===false){ issues.push('الموقع مقفول من الهاتف'); hard=true; }
+    if(r.perm&&r.perm!=='all'){ issues.push(r.perm==='none'?'صلاحية الموقع مسحوبة':'صلاحية الموقع «أثناء الاستخدام» فقط'); hard=true; }
+    if(r.sn===false){ issues.push('خدمة التتبع واقفة'); hard=true; }
+    if(typeof r.bat==='number'&&r.bat>=0&&r.bat<=15&&!r.chg) issues.push('بطارية ضعيفة '+r.bat+'%');
+    if(age<=3*60000) return hard?{k:'warn',label:'متصل — فيه مشكلة',color:'#E07012',issues:issues,age:age}:{k:'ok',label:'متصل',color:'#13955B',issues:issues,age:age};
+    if(age<=20*60000) return {k:'weak',label:'إشارة ضعيفة',color:'#D9A400',issues:issues,age:age};
+    return {k:'lost',label:'منقطع',color:'#C81E1E',issues:issues,age:age};
+  }
+
+  // ------------------------------------------------------------ UI skeleton
+  function build(){
+    if(built) return; built=true;
+    var el=q('#tab-tracking'); if(!el) return;
+    el.innerHTML=
+    '<section class="trk-shell">'+
+      '<header class="trk-head">'+
+        '<div class="trk-title"><span class="trk-ico">📍</span><div><h2>تتبع الموظفين</h2>'+
+        '<p>مواقع هواتف الشركة المفعّل عليها التتبع، ومسار كل موظف في أي يوم (محفوظ '+RETENTION_DAYS+' يومًا)</p></div></div>'+
+        '<div class="trk-chips" id="trkChips"></div>'+
+      '</header>'+
+      '<div class="trk-admin" id="trkAdmin" style="display:none">'+
+        '<label class="trk-switch"><input type="checkbox" id="trkEnforce"><span>إجبار الموظف على تفعيل كل صلاحيات الهاتف (التطبيق لا يعمل بدونها)</span></label>'+
+        '<button type="button" class="trk-btn" id="trkPurge">حذف بيانات أقدم من '+RETENTION_DAYS+' يومًا</button>'+
+      '</div>'+
+      '<div class="trk-grid">'+
+        '<aside class="trk-side">'+
+          '<input id="trkSearch" class="trk-input" type="search" placeholder="🔍 بحث باسم الموظف أو الفرع">'+
+          '<label class="trk-switch trk-small"><input type="checkbox" id="trkAll"><span>عرض كل المستخدمين (وليس المفعّلين فقط)</span></label>'+
+          '<div id="trkList" class="trk-list"></div>'+
+        '</aside>'+
+        '<div class="trk-main">'+
+          '<div class="trk-bar">'+
+            '<button type="button" class="trk-btn" id="trkPrev" title="اليوم السابق">›</button>'+
+            '<input type="date" id="trkDay" class="trk-input trk-date">'+
+            '<button type="button" class="trk-btn" id="trkNext" title="اليوم التالي">‹</button>'+
+            '<button type="button" class="trk-btn trk-primary" id="trkToday">اليوم</button>'+
+            '<button type="button" class="trk-btn" id="trkFit">عرض الكل</button>'+
+            '<span class="trk-selname" id="trkSelName">اختر موظفًا من القائمة</span>'+
+          '</div>'+
+          '<div class="trk-mapbox"><div id="trkMap"></div><div id="trkMapMsg" class="trk-mapmsg">جارٍ تحميل الخريطة…</div></div>'+
+          '<div class="trk-stats" id="trkStats"></div>'+
+          '<div class="trk-replay" id="trkReplay" style="display:none"><input type="range" id="trkRange" min="0" max="0" value="0"><span id="trkRangeLbl"></span></div>'+
+        '</div>'+
+      '</div>'+
+      '<section class="trk-events"><h3>سجل الأحداث للموظف المحدد</h3><div id="trkEvents" class="trk-evlist"><p class="trk-muted">اختر موظفًا لعرض أحداثه.</p></div></section>'+
+      '<p class="trk-note">🔒 التتبع يعمل فقط على هواتف الشركة التي فعّلت عليها الإدارة التتبع، ويظهر للموظف إشعار ثابت بذلك. البيانات للإدارة فقط.</p>'+
+    '</section>';
+
+    day=dayKey(Date.now());
+    q('#trkDay').value=day; q('#trkDay').max=day;
+    q('#trkSearch').addEventListener('input',function(){ search=this.value.trim().toLowerCase(); renderList(); });
+    q('#trkAll').addEventListener('change',function(){ showAll=this.checked; renderList(); });
+    q('#trkDay').addEventListener('change',function(){ day=this.value||dayKey(Date.now()); loadRoute(); });
+    q('#trkToday').addEventListener('click',function(){ setDay(dayKey(Date.now())); });
+    q('#trkPrev').addEventListener('click',function(){ shiftDay(-1); });
+    q('#trkNext').addEventListener('click',function(){ shiftDay(1); });
+    q('#trkFit').addEventListener('click',function(){ selId=null; clearRoute(); fitAll(); renderList(); q('#trkSelName').textContent='اختر موظفًا من القائمة'; q('#trkStats').innerHTML=''; q('#trkReplay').style.display='none'; q('#trkEvents').innerHTML='<p class="trk-muted">اختر موظفًا لعرض أحداثه.</p>'; });
+    q('#trkRange').addEventListener('input',function(){ replayTo(+this.value); });
+    q('#trkEnforce').addEventListener('change',function(){
+      if(!isAdmin()) return; var v=this.checked;
+      db.ref('tracking/config/enforce').set(v?true:null).then(function(){ toast(v?'تم إجبار الصلاحيات على كل الهواتف':'الصلاحيات أصبحت اختيارية'); }).catch(function(){ toast('تعذر الحفظ — راجع قواعد Firebase','error'); });
+    });
+    q('#trkPurge').addEventListener('click',function(){ if(isAdmin()) purge(true); });
+    q('#trkList').addEventListener('click',function(e){
+      var tg=e.target.closest('[data-trk-toggle]');
+      if(tg){ e.stopPropagation(); toggleUser(tg.getAttribute('data-trk-toggle'), tg.checked); return; }
+      var card=e.target.closest('[data-trk-id]'); if(card) select(card.getAttribute('data-trk-id'));
+    });
+  }
+
+  function setDay(d){ day=d; var i=q('#trkDay'); if(i) i.value=d; loadRoute(); }
+  function shiftDay(n){ var p=day.split('-'); var d=new Date(+p[0],+p[1]-1,+p[2]+n); var k=dayKey(d.getTime()); if(k>dayKey(Date.now())) return; setDay(k); }
+
+  // ------------------------------------------------------------ Leaflet
+  function loadLeaflet(cb){
+    if(window.L&&window.L.map){ cb(true); return; }
+    if(!q('link[data-trk-leaflet]')){ var l=document.createElement('link'); l.rel='stylesheet'; l.href=LF_CSS; l.setAttribute('data-trk-leaflet','1'); document.head.appendChild(l); }
+    var s=document.createElement('script'); s.src=LF_JS; s.onload=function(){ cb(!!(window.L&&window.L.map)); }; s.onerror=function(){ cb(false); };
+    document.head.appendChild(s);
+  }
+  function initMap(){
+    var msg=q('#trkMapMsg');
+    loadLeaflet(function(ok){
+      if(!ok){ if(msg) msg.textContent='تعذر تحميل الخريطة — تحتاج اتصال إنترنت'; return; }
+      if(msg) msg.style.display='none';
+      if(!map){
+        map=L.map('trkMap',{zoomControl:true}).setView([30.0444,31.2357],6);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+        liveLayer=L.layerGroup().addTo(map); routeLayer=L.layerGroup().addTo(map);
+      }
+      mapReady=true; setTimeout(function(){ try{ map.invalidateSize(); }catch(_){} },60);
+      paintMarkers(); if(selId) loadRoute();
+    });
+  }
+  function pinIcon(u,color,selected){
+    var ch=(u.username||'?').trim().charAt(0).toUpperCase();
+    return L.divIcon({className:'trk-pin'+(selected?' sel':''),html:'<span style="background:'+color+'">'+esc(ch)+'</span>',iconSize:[36,36],iconAnchor:[18,18]});
+  }
+  function paintMarkers(){
+    if(!mapReady) return;
+    liveLayer.clearLayers(); markers={};
+    users().forEach(function(u){
+      var r=live[u.id]; if(!cfg.users[u.id]||!r||typeof r.la!=='number'||typeof r.lo!=='number') return;
+      var s=statusOf(u);
+      var m=L.marker([r.la,r.lo],{icon:pinIcon(u,s.color,u.id===selId),title:u.username});
+      m.bindPopup('<b>'+esc(u.username)+'</b><br>'+esc(s.label)+' — '+ago(s.age)+(typeof r.s==='number'?'<br>السرعة: '+Math.round(r.s*3.6)+' كم/س':'')+(r.lt?'<br>آخر نقطة: '+hhmm(r.lt):''));
+      m.on('click',function(){ select(u.id,true); });
+      m.addTo(liveLayer); markers[u.id]=m;
+    });
+    if(!fitted&&Object.keys(markers).length){ fitAll(); fitted=true; }
+  }
+  function fitAll(){
+    if(!mapReady) return; var pts=Object.keys(markers).map(function(k){ return markers[k].getLatLng(); });
+    if(!pts.length) return; try{ map.fitBounds(L.latLngBounds(pts).pad(0.25),{maxZoom:16}); }catch(_){}
+  }
+
+  // ------------------------------------------------------------ list
+  function renderChips(){
+    var c={ok:0,warn:0,weak:0,lost:0,none:0}, on=0;
+    users().forEach(function(u){ if(!cfg.users[u.id]) return; on++; var k=statusOf(u).k; if(k==='ok') c.ok++; else if(k==='warn') c.warn++; else if(k==='weak') c.weak++; else if(k==='lost') c.lost++; else c.none++; });
+    var el=q('#trkChips'); if(!el) return;
+    el.innerHTML='<span class="trk-chip g">متصل '+c.ok+'</span>'+(c.warn?'<span class="trk-chip o">مشكلة '+c.warn+'</span>':'')+(c.weak?'<span class="trk-chip y">ضعيف '+c.weak+'</span>':'')+'<span class="trk-chip r">منقطع '+c.lost+'</span>'+(c.none?'<span class="trk-chip n">لم يتصل '+c.none+'</span>':'')+'<span class="trk-chip n">مفعّل '+on+'</span>';
+  }
+  function renderList(){
+    clearTimeout(renderT); renderT=null;
+    renderChips(); var el=q('#trkList'); if(!el) return;
+    var admin=isAdmin(), order={warn:0,lost:1,weak:2,ok:3,none:4,off:5};
+    var rows=users().filter(function(u){
+      if(!showAll&&!cfg.users[u.id]) return false;
+      if(!search) return true;
+      return (String(u.username||'')+' '+String(u.branch||'')).toLowerCase().indexOf(search)>-1;
+    }).map(function(u){ return {u:u,s:statusOf(u)}; });
+    rows.sort(function(a,b){ return order[a.s.k]-order[b.s.k]||String(a.u.username).localeCompare(String(b.u.username),'ar'); });
+    if(!rows.length){ el.innerHTML='<p class="trk-muted">'+(showAll?'لا نتائج.':'لا يوجد موظفون مفعّل عليهم التتبع. فعّل «عرض كل المستخدمين» ثم شغّل التتبع للموظف.')+'</p>'; return; }
+    el.innerHTML=rows.map(function(x){
+      var u=x.u, s=x.s, r=live[u.id]||{};
+      var meta=[]; if(r.bat>=0&&typeof r.bat==='number') meta.push('🔋 '+r.bat+'%'+(r.chg?'⚡':'')); if(typeof r.s==='number'&&r.s>0.8) meta.push('🚗 '+Math.round(r.s*3.6)+' كم/س'); if(r.dev) meta.push(esc(r.dev));
+      return '<div class="trk-card'+(u.id===selId?' sel':'')+'" data-trk-id="'+esc(u.id)+'">'+
+        '<span class="trk-dot" style="background:'+s.color+'"></span>'+
+        '<div class="trk-cinfo"><b>'+esc(u.username)+'</b><small>'+esc(u.branch||'')+'</small>'+
+        '<div class="trk-stat" style="color:'+s.color+'">'+esc(s.label)+(s.age!=null&&s.k!=='ok'?' — '+ago(s.age):'')+'</div>'+
+        (meta.length?'<div class="trk-meta">'+meta.join(' · ')+'</div>':'')+
+        s.issues.map(function(i){ return '<div class="trk-issue">⚠ '+esc(i)+'</div>'; }).join('')+
+        '</div>'+
+        (admin?'<label class="trk-tg" title="تشغيل/إيقاف التتبع لهذا الموظف"><input type="checkbox" data-trk-toggle="'+esc(u.id)+'"'+(cfg.users[u.id]?' checked':'')+'><i></i></label>':'')+
+      '</div>';
+    }).join('');
+  }
+  function scheduleRender(){ if(renderT) return; renderT=setTimeout(function(){ renderList(); paintMarkers(); },250); }
+
+  function toggleUser(id,on){
+    if(!isAdmin()) return;
+    db.ref('tracking/config/users/'+id).set(on?true:null).then(function(){
+      toast(on?'تم تفعيل التتبع — يبدأ عند فتح الموظف للتطبيق':'تم إيقاف التتبع لهذا الموظف');
+    }).catch(function(){ toast('تعذر الحفظ — راجع قواعد Firebase','error'); renderList(); });
+  }
+
+  // ------------------------------------------------------------ route
+  function clearRoute(){ route=null; if(routeLayer) routeLayer.clearLayers(); replayMk=null; }
+  function select(id,fromMap){
+    selId=id; var u=users().filter(function(x){ return x.id===id; })[0];
+    q('#trkSelName').textContent=u?u.username:'';
+    renderList(); paintMarkers();
+    var m=markers[id]; if(m&&mapReady&&!fromMap){ try{ map.setView(m.getLatLng(),Math.max(map.getZoom(),15)); }catch(_){} }
+    loadRoute(); loadEvents();
+  }
+  function loadRoute(){
+    if(!selId){ return; }
+    var id=selId, d=day;
+    q('#trkStats').innerHTML='<span class="trk-muted">جارٍ تحميل المسار…</span>';
+    db.ref('tracking/trips/'+id+'/'+d).once('value').then(function(snap){
+      if(id!==selId||d!==day) return;
+      var pts=[]; snap.forEach(function(c){ var v=c.val(); if(v&&typeof v.la==='number'&&typeof v.lo==='number'&&typeof v.t==='number') pts.push(v); });
+      pts.sort(function(a,b){ return a.t-b.t; });
+      drawRoute(pts);
+    }).catch(function(){ q('#trkStats').innerHTML='<span class="trk-err">تعذر تحميل المسار — راجع قواعد Firebase</span>'; });
+  }
+  function analyze(pts){
+    var dist=0, maxS=0, i;
+    for(i=1;i<pts.length;i++){ var d=hav(pts[i-1],pts[i]); if(d>=8) dist+=d; }
+    pts.forEach(function(p){ if(typeof p.s==='number'&&p.s>maxS) maxS=p.s; });
+    var stops=[]; i=0;
+    while(i<pts.length){ var j=i; while(j+1<pts.length&&hav(pts[i],pts[j+1])<=45) j++;
+      var dt=pts[j].t-pts[i].t; if(dt>=5*60000){ stops.push({la:pts[i].la,lo:pts[i].lo,from:pts[i].t,to:pts[j].t,dur:dt}); } i=j+1; }
+    return {dist:dist,maxS:maxS,stops:stops};
+  }
+  function drawRoute(pts){
+    clearRoute(); route=pts;
+    var st=q('#trkStats'), rp=q('#trkReplay');
+    if(!pts.length){ st.innerHTML='<span class="trk-muted">لا توجد نقاط مسجلة لهذا الموظف في '+esc(day)+'</span>'; rp.style.display='none'; return; }
+    var a=analyze(pts), first=pts[0], last=pts[pts.length-1];
+    st.innerHTML='<div class="trk-stat-box"><span>المسافة</span><b>'+(a.dist/1000).toFixed(a.dist<10000?2:1)+' كم</b></div>'+
+      '<div class="trk-stat-box"><span>من — إلى</span><b>'+hhmm(first.t)+' → '+hhmm(last.t)+'</b></div>'+
+      '<div class="trk-stat-box"><span>المدة</span><b>'+dur(last.t-first.t)+'</b></div>'+
+      '<div class="trk-stat-box"><span>الوقفات (5 د+)</span><b>'+a.stops.length+'</b></div>'+
+      '<div class="trk-stat-box"><span>أعلى سرعة</span><b>'+Math.round(a.maxS*3.6)+' كم/س</b></div>'+
+      '<div class="trk-stat-box"><span>النقاط</span><b>'+pts.length+'</b></div>';
+    if(mapReady){
+      var ll=pts.map(function(p){ return [p.la,p.lo]; });
+      L.polyline(ll,{color:'#2563EB',weight:5,opacity:.85}).addTo(routeLayer);
+      L.circleMarker(ll[0],{radius:9,color:'#fff',weight:3,fillColor:'#13955B',fillOpacity:1}).bindPopup('البداية '+hhmm(first.t)).addTo(routeLayer);
+      L.circleMarker(ll[ll.length-1],{radius:9,color:'#fff',weight:3,fillColor:'#C81E1E',fillOpacity:1}).bindPopup('آخر نقطة '+hhmm(last.t)).addTo(routeLayer);
+      a.stops.forEach(function(s){ L.circleMarker([s.la,s.lo],{radius:8,color:'#fff',weight:2,fillColor:'#E07012',fillOpacity:1}).bindPopup('وقفة '+dur(s.dur)+'<br>'+hhmm(s.from)+' → '+hhmm(s.to)).addTo(routeLayer); });
+      replayMk=L.circleMarker(ll[0],{radius:7,color:'#111',weight:2,fillColor:'#fff',fillOpacity:1}).addTo(routeLayer);
+      try{ map.fitBounds(L.latLngBounds(ll).pad(0.2),{maxZoom:17}); }catch(_){}
+    }
+    var rg=q('#trkRange'); rg.max=pts.length-1; rg.value=0; rp.style.display=pts.length>1?'flex':'none'; replayTo(0);
+  }
+  function replayTo(i){
+    if(!route||!route.length) return; var p=route[Math.min(i,route.length-1)];
+    if(replayMk){ replayMk.setLatLng([p.la,p.lo]); }
+    var l=q('#trkRangeLbl'); if(l) l.textContent=hhmm(p.t)+(typeof p.s==='number'?' · '+Math.round(p.s*3.6)+' كم/س':'')+(typeof p.b==='number'&&p.b>=0?' · 🔋'+p.b+'%':'');
+  }
+
+  // ------------------------------------------------------------ events
+  var EV={login:['🔓','سجّل دخول على الهاتف'],logout:['🚪','سجّل خروج من الموقع — التتبع مستمر'],gps_off:['🛰️','أوقف الموقع (GPS) من الهاتف'],gps_on:['✅','أعاد تشغيل الموقع'],
+    perm_revoked:['⚠️','صلاحية الموقع ناقصة أو مسحوبة'],perm_granted:['✅','صلاحية الموقع كاملة'],boot:['🔄','أُعيد تشغيل الهاتف'],gap:['⏱️','انقطاع في التتبع'],
+    tracking_on:['📍','تم تفعيل التتبع'],service_start:['▶️','بدأت خدمة التتبع'],user_changed:['👤','تغيّر المستخدم على الهاتف'],service_blocked:['⛔','النظام منع تشغيل الخدمة'],app_updated:['⬆️','تم تحديث التطبيق']};
+  function loadEvents(){
+    var id=selId, el=q('#trkEvents'); if(!id||!el) return;
+    el.innerHTML='<p class="trk-muted">جارٍ التحميل…</p>';
+    db.ref('tracking/events/'+id).limitToLast(80).once('value').then(function(snap){
+      if(id!==selId) return;
+      var a=[]; snap.forEach(function(c){ var v=c.val(); if(v&&v.t) a.push(v); });
+      a.sort(function(x,y){ return y.t-x.t; });
+      if(!a.length){ el.innerHTML='<p class="trk-muted">لا توجد أحداث مسجلة.</p>'; return; }
+      el.innerHTML=a.map(function(v){ var m=EV[v.type]||['•',v.type||'حدث'];
+        return '<div class="trk-ev '+(/gps_off|perm_revoked|gap|service_blocked/.test(v.type)?'bad':'')+'"><span>'+m[0]+'</span><div><b>'+esc(m[1])+'</b>'+(v.note&&v.type!=='logout'?'<small>'+esc(v.note)+'</small>':'')+'</div><time>'+esc(dtime(v.t))+'</time></div>'; }).join('');
+    }).catch(function(){ el.innerHTML='<p class="trk-err">تعذر تحميل الأحداث.</p>'; });
+  }
+
+  // ------------------------------------------------------------ retention
+  function purge(manual){
+    var cutoff=Date.now()-RETENTION_DAYS*DAY_MS, ck=dayKey(cutoff), n=0;
+    var jobs=users().map(function(u){
+      var a=db.ref('tracking/trips/'+u.id).orderByKey().endAt(ck).once('value').then(function(s){ var p=[]; s.forEach(function(c){ p.push(c.ref.remove()); n++; }); return Promise.all(p); });
+      var b=db.ref('tracking/events/'+u.id).orderByKey().limitToFirst(300).once('value').then(function(s){ var p=[]; s.forEach(function(c){ var v=c.val(); if(v&&v.t&&v.t<cutoff){ p.push(c.ref.remove()); n++; } }); return Promise.all(p); });
+      return Promise.all([a,b]).catch(function(){});
+    });
+    Promise.all(jobs).then(function(){ try{ localStorage.setItem('trk_purge_day',dayKey(Date.now())); }catch(_){} if(manual) toast(n?('تم حذف '+n+' سجل قديم'):'لا توجد بيانات أقدم من '+RETENTION_DAYS+' يومًا'); });
+  }
+
+  // ------------------------------------------------------------ lifecycle
+  function open(){
+    var el=q('#tab-tracking'); if(!el) return;
+    build(); active=true;
+    var admin=isAdmin(); q('#trkAdmin').style.display=admin?'flex':'none';
+    if(!refs.length){
+      var rl=db.ref('tracking/live'), rc=db.ref('tracking/config');
+      var fl=function(s){ live=s.val()||{}; scheduleRender(); }, fc=function(s){ var v=s.val()||{}; cfg={users:v.users||{},enforce:!!v.enforce}; var cb=q('#trkEnforce'); if(cb) cb.checked=cfg.enforce; scheduleRender(); };
+      rl.on('value',fl,function(){ toast('تعذر قراءة المواقع — راجع قواعد Firebase','error'); });
+      rc.on('value',fc,function(){});
+      refs=[[rl,fl],[rc,fc]];
+    }
+    renderList();
+    if(!map) initMap(); else { setTimeout(function(){ try{ map.invalidateSize(); }catch(_){} },80); paintMarkers(); }
+    if(admin){ var last=null; try{ last=localStorage.getItem('trk_purge_day'); }catch(_){} if(last!==dayKey(Date.now())) purge(false); }
+  }
+  function close(){
+    if(!active) return; active=false;
+    refs.forEach(function(p){ try{ p[0].off('value',p[1]); }catch(_){} }); refs=[];
+  }
+  // keep the "x minutes ago" text fresh while the tab is open
+  setInterval(function(){ if(active) renderList(); },30000);
+
+  window.TrackingView={open:open,close:close,statusOf:statusOf,_analyze:analyze,_state:function(){ return {live:live,cfg:cfg,selId:selId}; }};
+})();
+
+</script>
 </body>
 </html>
