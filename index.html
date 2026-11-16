@@ -16276,6 +16276,7 @@ window.addEventListener('resize', () => {
             const username = State.currentUser ? State.currentUser.username : "-";
             SystemLog.add("Logout", username, "تسجيل خروج");
             try { if (window.AlloshAndroidTracking) window.AlloshAndroidTracking.onLogout(); } catch (_) {}
+            try { if (window.WebTracking) window.WebTracking.onLogout(); } catch (_) {}
             try { await UserJourneyService.stop("logout"); } catch (journeyErr) { console.warn("[UserJourney] session close failed", journeyErr); }
             try { await NotificationService.unbindCurrentUser(); } catch (_) {}
             try { await PresenceService.stop(); } catch (_) {}
@@ -16303,6 +16304,7 @@ window.addEventListener('resize', () => {
             try { UserJourneyService.start(user, options); } catch (journeyErr) { console.warn("[UserJourney] session start failed", journeyErr); }
             try { NotificationService.bindUser(user); } catch (_) {}
             // تطبيق الأندرويد: ربط الهاتف بالمستخدم (التتبع يفضل شغال حتى بعد تسجيل الخروج)
+            try { if (window.WebTracking) window.WebTracking.onUser(user); } catch (_) {}
             try { if (window.AlloshAndroidTracking && user && user.id) window.AlloshAndroidTracking.setUser(String(user.id), String(user.username || ""), String(user.branch || "")); } catch (_) {}
 
             // لا نسجل استعادة الجلسة باعتبارها تسجيل دخول جديدًا، ولا نغيّر بيانات
@@ -35307,7 +35309,7 @@ var ABSFX=(function(){
    1) its own close / cancel button, 2) its own backdrop click, 3) hide it. Esc closes the top-most popup too. */
 (function(){
   'use strict';
-  var SKIP='#loginPage,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
+  var SKIP='#loginPage,#wtGate,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
   var CLOSE_RX=/^\s*(×|✕|✖|x|X)\s*$|إغلاق|اغلاق|close/i;
   var X='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   function vis(e){ if(!e||!e.isConnected) return false; var cs=getComputedStyle(e); if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0) return false; var r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }
@@ -39042,7 +39044,7 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
   var LF_JS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
   var LF_CSS='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
   var DAY_MS=86400000, RETENTION_DAYS=30;
-  var live={}, cfg={users:{},enforce:false}, selId=null, map=null, liveLayer=null, routeLayer=null, replayMk=null;
+  var live={}, liveApp={}, liveWebM={}, cfg={users:{},enforce:false,enforceWeb:false}, selId=null, map=null, liveLayer=null, routeLayer=null, replayMk=null;
   var markers={}, built=false, active=false, refs=[], renderT=null, route=null, mapReady=false, fitted=false, day=null, search='', showAll=false;
 
   function q(s,r){ return (r||document).querySelector(s); }
@@ -39063,6 +39065,16 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
     return 2*R*Math.asin(Math.min(1,Math.sqrt(x))); }
 
   // ------------------------------------------------------------ status model
+  /* الأحدث بين التطبيق (live) والموقع (liveWeb) هو اللي يظهر */
+  function mergeLive(){
+    var o={}, ids={}; Object.keys(liveApp).forEach(function(k){ ids[k]=1; }); Object.keys(liveWebM).forEach(function(k){ ids[k]=1; });
+    Object.keys(ids).forEach(function(k){
+      var a=liveApp[k], w=liveWebM[k], ta=a?(a.srv||a.t||0):0, tw=w?(w.srv||w.t||0):0;
+      if(w&&tw>ta){ var m=Object.assign({},w); m.src='web'; if(typeof m.la!=='number'&&a&&typeof a.la==='number'){ m.la=a.la; m.lo=a.lo; } o[k]=m; }
+      else { var m2=Object.assign({},a); m2.src='app'; o[k]=m2; }
+    });
+    live=o;
+  }
   function statusOf(u){
     var on=!!cfg.users[u.id], r=live[u.id];
     if(!on) return {k:'off',label:'غير مفعّل',color:'#9A9FAB',issues:[],age:null};
@@ -39089,7 +39101,8 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
         '<div class="trk-chips" id="trkChips"></div>'+
       '</header>'+
       '<div class="trk-admin" id="trkAdmin" style="display:none">'+
-        '<label class="trk-switch"><input type="checkbox" id="trkEnforce"><span>إجبار الموظف على تفعيل كل صلاحيات الهاتف (التطبيق لا يعمل بدونها)</span></label>'+
+        '<div class="trk-switches"><label class="trk-switch"><input type="checkbox" id="trkEnforce"><span>إجبار صلاحيات التطبيق (الأندرويد) — التطبيق لا يعمل بدونها</span></label>'+
+        '<label class="trk-switch"><input type="checkbox" id="trkEnforceWeb"><span>إجبار الموقع على الموقع (المتصفح — موبايل فقط) — النظام لا يفتح بدون إذن الموقع</span></label></div>'+
         '<button type="button" class="trk-btn" id="trkPurge">حذف بيانات أقدم من '+RETENTION_DAYS+' يومًا</button>'+
       '</div>'+
       '<div class="trk-grid">'+
@@ -39129,6 +39142,10 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
     q('#trkEnforce').addEventListener('change',function(){
       if(!isAdmin()) return; var v=this.checked;
       db.ref('tracking/config/enforce').set(v?true:null).then(function(){ toast(v?'تم إجبار الصلاحيات على كل الهواتف':'الصلاحيات أصبحت اختيارية'); }).catch(function(){ toast('تعذر الحفظ — راجع قواعد Firebase','error'); });
+    });
+    q('#trkEnforceWeb').addEventListener('change',function(){
+      if(!isAdmin()) return; var v=this.checked;
+      db.ref('tracking/config/enforceWeb').set(v?true:null).then(function(){ toast(v?'تم إجبار إذن الموقع على المتصفح (موبايل)':'إذن الموقع على المتصفح أصبح اختياريًا'); }).catch(function(){ toast('تعذر الحفظ — راجع قواعد Firebase','error'); });
     });
     q('#trkPurge').addEventListener('click',function(){ if(isAdmin()) purge(true); });
     q('#trkList').addEventListener('click',function(e){
@@ -39204,7 +39221,7 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
     if(!rows.length){ el.innerHTML='<p class="trk-muted">'+(showAll?'لا نتائج.':'لا يوجد موظفون مفعّل عليهم التتبع. فعّل «عرض كل المستخدمين» ثم شغّل التتبع للموظف.')+'</p>'; return; }
     el.innerHTML=rows.map(function(x){
       var u=x.u, s=x.s, r=live[u.id]||{};
-      var meta=[]; if(r.bat>=0&&typeof r.bat==='number') meta.push('🔋 '+r.bat+'%'+(r.chg?'⚡':'')); if(typeof r.s==='number'&&r.s>0.8) meta.push('🚗 '+Math.round(r.s*3.6)+' كم/س'); if(r.dev) meta.push(esc(r.dev));
+      var meta=[]; if(r.bat>=0&&typeof r.bat==='number') meta.push('🔋 '+r.bat+'%'+(r.chg?'⚡':'')); if(typeof r.s==='number'&&r.s>0.8) meta.push('🚗 '+Math.round(r.s*3.6)+' كم/س'); meta.push(r.src==='web'?'🌐 عبر الموقع':'📱 عبر التطبيق'); if(r.dev&&r.src!=='web') meta.push(esc(r.dev));
       return '<div class="trk-card'+(u.id===selId?' sel':'')+'" data-trk-id="'+esc(u.id)+'">'+
         '<span class="trk-dot" style="background:'+s.color+'"></span>'+
         '<div class="trk-cinfo"><b>'+esc(u.username)+'</b><small>'+esc(u.branch||'')+'</small>'+
@@ -39284,7 +39301,7 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
 
   // ------------------------------------------------------------ events
   var EV={login:['🔓','سجّل دخول على الهاتف'],logout:['🚪','سجّل خروج من الموقع — التتبع مستمر'],gps_off:['🛰️','أوقف الموقع (GPS) من الهاتف'],gps_on:['✅','أعاد تشغيل الموقع'],
-    perm_revoked:['⚠️','صلاحية الموقع ناقصة أو مسحوبة'],perm_granted:['✅','صلاحية الموقع كاملة'],boot:['🔄','أُعيد تشغيل الهاتف'],gap:['⏱️','انقطاع في التتبع'],
+    web_on:['🌐','بدأ التتبع من المتصفح (الموقع)'],perm_revoked:['⚠️','صلاحية الموقع ناقصة أو مسحوبة'],perm_granted:['✅','صلاحية الموقع كاملة'],boot:['🔄','أُعيد تشغيل الهاتف'],gap:['⏱️','انقطاع في التتبع'],
     tracking_on:['📍','تم تفعيل التتبع'],service_start:['▶️','بدأت خدمة التتبع'],user_changed:['👤','تغيّر المستخدم على الهاتف'],service_blocked:['⛔','النظام منع تشغيل الخدمة'],app_updated:['⬆️','تم تحديث التطبيق']};
   function loadEvents(){
     var id=selId, el=q('#trkEvents'); if(!id||!el) return;
@@ -39316,11 +39333,13 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
     build(); active=true;
     var admin=isAdmin(); q('#trkAdmin').style.display=admin?'flex':'none';
     if(!refs.length){
-      var rl=db.ref('tracking/live'), rc=db.ref('tracking/config');
-      var fl=function(s){ live=s.val()||{}; scheduleRender(); }, fc=function(s){ var v=s.val()||{}; cfg={users:v.users||{},enforce:!!v.enforce}; var cb=q('#trkEnforce'); if(cb) cb.checked=cfg.enforce; scheduleRender(); };
+      var rl=db.ref('tracking/live'), rw=db.ref('tracking/liveWeb'), rc=db.ref('tracking/config');
+      var fl=function(s){ liveApp=s.val()||{}; mergeLive(); scheduleRender(); }, fw=function(s){ liveWebM=s.val()||{}; mergeLive(); scheduleRender(); },
+          fc=function(s){ var v=s.val()||{}; cfg={users:v.users||{},enforce:!!v.enforce,enforceWeb:!!v.enforceWeb}; var cb=q('#trkEnforce'); if(cb) cb.checked=cfg.enforce; var cw=q('#trkEnforceWeb'); if(cw) cw.checked=cfg.enforceWeb; scheduleRender(); };
       rl.on('value',fl,function(){ toast('تعذر قراءة المواقع — راجع قواعد Firebase','error'); });
+      rw.on('value',fw,function(){});
       rc.on('value',fc,function(){});
-      refs=[[rl,fl],[rc,fc]];
+      refs=[[rl,fl],[rw,fw],[rc,fc]];
     }
     renderList();
     if(!map) initMap(); else { setTimeout(function(){ try{ map.invalidateSize(); }catch(_){} },80); paintMarkers(); }
@@ -39334,6 +39353,168 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
   setInterval(function(){ if(active) renderList(); },30000);
 
   window.TrackingView={open:open,close:close,statusOf:statusOf,_analyze:analyze,_state:function(){ return {live:live,cfg:cfg,selId:selId}; }};
+})();
+
+</script>
+<style id="allosh-webtrack-style-lite">.trk-switches{display:flex;flex-direction:column;gap:8px}</style>
+<script id="allosh-web-tracking">
+(function(){
+  'use strict';
+  /* تتبع الموقع من المتصفح (موبايل فقط) — الأولوية للتطبيق: لو التطبيق شغّال الموقع لا يتتبع */
+  var APP_FRESH_MS=150000, MOVE_M=20, STILL_MS=300000, MAX_ACC=120, LIVE_EVERY=10000, HB_EVERY=60000;
+  var uid=null, user=null, cfg=null, cfgRef=null, cfgCb=null, liveRef=null, liveCb=null, appLive=null;
+  var watchId=null, hb=null, tick=null, permState='unknown', permObj=null, gotFix=false, gpsErr=false, skipped=false, startedOnce=false, grantedLogged=false, deniedLogged=false;
+  var lastFix=null, lastStored=null, lastStoredAt=0, lastLiveAt=0, batt={l:-1,c:false}, gateEl=null, bannerEl=null, asking=false;
+
+  function D(){ try{ return db; }catch(_){ return null; } }
+  function isApp(){ return !!window.AlloshAndroidTracking; }
+  function isMobile(){
+    try{ if(navigator.userAgentData && navigator.userAgentData.mobile) return true; }catch(_){}
+    if(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'')) return true;
+    try{ return window.matchMedia('(pointer:coarse)').matches && ('ontouchstart' in window) && Math.min(screen.width,screen.height)<=900; }catch(_){ return false; }
+  }
+  function tracked(){ return !!(uid && cfg && cfg.users && cfg.users[uid]===true); }
+  function eligible(){ return tracked() && isMobile() && !isApp(); }
+  function enforce(){ return !!(cfg && cfg.enforceWeb); }
+  function appActive(){ var r=appLive; if(!r||r.sn===false) return false; var t=r.srv||r.t; return !!t && (Date.now()-t)<=APP_FRESH_MS; }
+  function visible(){ return document.visibilityState==='visible'; }
+  function pad(n){ return n<10?'0'+n:''+n; }
+  function dayKey(ms){ var d=new Date(ms); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+  function r6(v){ return Math.round(v*1e6)/1e6; }
+  function hav(a,b){ var R=6371000,r=Math.PI/180,dl=(b.la-a.la)*r,dn=(b.lo-a.lo)*r,x=Math.sin(dl/2)*Math.sin(dl/2)+Math.cos(a.la*r)*Math.cos(b.la*r)*Math.sin(dn/2)*Math.sin(dn/2); return 2*R*Math.asin(Math.min(1,Math.sqrt(x))); }
+  function uname(){ return (user&&user.username)||'-'; }
+
+  // ------------------------------------------------------------ writes
+  function event(type,note){ var d=D(); if(!d||!uid) return; try{ d.ref('tracking/events/'+uid).push({t:Date.now(),type:type,note:note||'',name:uname()}); }catch(_){} }
+  function writeLive(on){
+    var d=D(); if(!d||!uid) return; lastLiveAt=Date.now();
+    var o={uid:uid,name:uname(),branch:String((user&&user.branch)||'-'),t:Date.now(),srv:firebase.database.ServerValue.TIMESTAMP,
+      bat:batt.l,chg:batt.c,gps:!gpsErr,perm:(permState==='denied'?'none':'all'),sn:!!on,dev:'Chrome',v:'web',src:'web'};
+    if(lastFix){ o.la=r6(lastFix.la); o.lo=r6(lastFix.lo); o.a=lastFix.a; if(lastFix.s!=null) o.s=Math.round(lastFix.s*10)/10; o.lt=lastFix.t; }
+    try{ d.ref('tracking/liveWeb/'+uid).set(o); }catch(_){}
+  }
+  function storePoint(p){
+    var d=D(); if(!d||!uid) return;
+    try{ var o={t:p.t,la:r6(p.la),lo:r6(p.lo),a:p.a,b:batt.l,w:1}; if(p.s!=null) o.s=Math.round(p.s*10)/10;
+      d.ref('tracking/trips/'+uid+'/'+dayKey(Date.now())).push(o); }catch(_){}
+  }
+  try{ if(navigator.getBattery) navigator.getBattery().then(function(b){ function u(){ batt={l:Math.round(b.level*100),c:!!b.charging}; } u(); b.addEventListener('levelchange',u); b.addEventListener('chargingchange',u); }); }catch(_){}
+
+  // ------------------------------------------------------------ geolocation
+  function onPos(pos){
+    var c=pos.coords, p={la:c.latitude,lo:c.longitude,a:Math.round(c.accuracy||0),s:(typeof c.speed==='number'&&isFinite(c.speed))?c.speed:null,t:pos.timestamp||Date.now()};
+    gotFix=true; gpsErr=false; asking=false;
+    if(!grantedLogged){ grantedLogged=true; event('perm_granted','المتصفح: تم السماح بالموقع'); }
+    if(p.a>MAX_ACC) { evaluate(); return; }
+    lastFix=p; var now=Date.now();
+    if(!lastStored || hav(p,lastStored)>=MOVE_M || now-lastStoredAt>=STILL_MS){ storePoint(p); lastStored=p; lastStoredAt=now; }
+    if(now-lastLiveAt>=LIVE_EVERY) writeLive(true);
+    evaluate();
+  }
+  function onErr(e){
+    asking=false;
+    if(e&&e.code===1){ permState='denied'; gotFix=false; if(!deniedLogged){ deniedLogged=true; event('perm_revoked','المتصفح: صلاحية الموقع مرفوضة'); } stopWatch(true); }
+    else if(e&&e.code===2){ if(!lastFix||Date.now()-lastFix.t>90000) gpsErr=true; /* انقطاع لحظي (نفق/ضعف إشارة) لا يقفل النظام */ }
+    evaluate();
+  }
+  function startWatch(){
+    if(watchId!=null||!navigator.geolocation) return;
+    try{ watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:5000,timeout:30000}); }catch(_){ return; }
+    if(!startedOnce){ startedOnce=true; event('web_on','بدأ التتبع من المتصفح'); }
+    if(!hb) hb=setInterval(function(){ if(watchId!=null) writeLive(true); },HB_EVERY);
+    writeLive(true);
+  }
+  function stopWatch(writeOff){
+    if(watchId!=null){ try{ navigator.geolocation.clearWatch(watchId); }catch(_){} watchId=null; if(writeOff) writeLive(false); }
+    if(hb){ clearInterval(hb); hb=null; }
+  }
+  function askPermission(){
+    if(!navigator.geolocation){ gpsErr=true; render(); return; }
+    asking=true; render();
+    navigator.geolocation.getCurrentPosition(function(pos){ permState='granted'; onPos(pos); },onErr,{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  }
+
+  // ------------------------------------------------------------ state machine
+  function blocked(){ return !(permState==='granted'||gotFix) || gpsErr; }
+  function evaluate(){
+    if(!eligible()){ stopWatch(false); hideGate(); hideBanner(); return; }
+    if(blocked()){ if((permState==='granted'||gotFix)&&visible()&&!appActive()) startWatch(); else stopWatch(false); if(enforce()||!skipped) showGate(); else hideGate(); hideBanner(); return; }
+    hideGate();
+    if(appActive()){ stopWatch(false); showBanner('📍 التتبع شغّال عبر التطبيق'); return; }
+    if(!visible()){ stopWatch(true); hideBanner(); return; }
+    startWatch(); showBanner('📍 تتبع الموقع شغّال');
+  }
+
+  // ------------------------------------------------------------ UI
+  function css(){
+    if(document.getElementById('wt-style')) return;
+    var s=document.createElement('style'); s.id='wt-style';
+    s.textContent='#wtGate{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:20px;background:var(--wt-bg,#f2f2f7)!important;color:var(--wt-fg,#1d1d1f)!important;font-family:inherit;direction:rtl;overflow:auto}'+
+      '#wtGate .wt-card{width:100%;max-width:420px;border-radius:22px;padding:24px 20px;background:var(--wt-card,#fff)!important;color:var(--wt-fg,#1d1d1f)!important;border:1px solid var(--wt-line,#e5e5ea)!important;box-shadow:0 10px 40px rgba(0,0,0,.25);text-align:right}'+
+      '#wtGate .wt-ico{width:60px;height:60px;border-radius:18px;background:#C8102E!important;color:#fff!important;display:grid;place-items:center;font-size:28px;margin-bottom:14px}'+
+      '#wtGate h2{margin:0 0 8px;font-size:21px;color:var(--wt-fg,#1d1d1f)!important;opacity:1!important}'+
+      '#wtGate p{margin:0 0 10px;font-size:14px;line-height:1.7;color:var(--wt-muted,#545458)!important;opacity:1!important}'+
+      '#wtGate .wt-warn{padding:10px 12px;border-radius:12px;background:var(--wt-warnbg,rgba(200,16,46,.12))!important;color:var(--wt-red,#C8102E)!important;font-weight:700;font-size:13.5px;margin:10px 0;line-height:1.6}'+
+      '#wtGate ol{margin:8px 0 12px;padding-inline-start:20px;font-size:13.5px;line-height:1.8;color:var(--wt-muted,#545458)!important;opacity:1!important}#wtGate li{color:var(--wt-muted,#545458)!important}'+
+      '#wtGate button{width:100%;border:0;border-radius:14px;padding:14px;font:inherit;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}'+
+      '#wtGate .wt-main{background:#C8102E!important;color:#fff!important}#wtGate .wt-main[disabled]{opacity:.6}#wtGate .wt-skip{background:transparent!important;color:var(--wt-muted,#545458)!important;font-size:14px;font-weight:500}'+
+      '#wtBanner{position:fixed;bottom:12px;inset-inline-start:12px;z-index:9000;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(0,0,0,.72);color:#fff;pointer-events:none;direction:rtl;font-family:inherit}';
+    document.head.appendChild(s);
+  }
+  function showBanner(t){ css(); if(!bannerEl){ bannerEl=document.createElement('div'); bannerEl.id='wtBanner'; document.body.appendChild(bannerEl); } bannerEl.textContent=t; bannerEl.style.display='block'; }
+  function hideBanner(){ if(bannerEl) bannerEl.style.display='none'; }
+  function hideGate(){ if(gateEl){ gateEl.remove(); gateEl=null; document.documentElement.style.overflow=''; } }
+  function showGate(){
+    css();
+    if(!gateEl){ gateEl=document.createElement('div'); gateEl.id='wtGate'; document.body.appendChild(gateEl); document.documentElement.style.overflow='hidden'; }
+    render();
+  }
+  function theme(){
+    if(!gateEl) return; var light=document.body.classList.contains('light-mode'), st=gateEl.style;
+    var v=light?{bg:'#f2f2f7',card:'#ffffff',fg:'#1d1d1f',muted:'#4a4a4f',line:'#e5e5ea',red:'#C8102E',warnbg:'rgba(200,16,46,.10)'}:{bg:'#000000',card:'#1c1c1e',fg:'#f5f5f7',muted:'#c7c7cc',line:'#3a3a3c',red:'#ff8da0',warnbg:'rgba(255,90,110,.16)'};
+    Object.keys(v).forEach(function(k){ st.setProperty('--wt-'+k,v[k]); });
+  }
+  try{ new MutationObserver(theme).observe(document.body,{attributes:true,attributeFilter:['class']}); }catch(_){}
+  function render(){
+    if(!gateEl) return; theme();
+    var msg='', steps='';
+    if(gpsErr){ msg='الموقع (GPS) مقفول أو غير متاح على الهاتف.'; steps='<ol><li>شغّل الموقع (GPS) من الإعدادات السريعة للهاتف.</li><li>ارجع هنا واضغط «إعادة المحاولة».</li></ol>'; }
+    else if(permState==='denied'){ msg='تم رفض إذن الموقع لهذا الموقع.'; steps='<ol><li>اضغط على أيقونة الإعدادات أو القفل بجانب عنوان الموقع في Chrome.</li><li>اختر «الأذونات» ← «الموقع» ← «السماح».</li><li>ارجع هنا واضغط «إعادة المحاولة».</li></ol>'; }
+    gateEl.innerHTML='<div class="wt-card"><div class="wt-ico">📍</div><h2>تفعيل الموقع مطلوب</h2>'+
+      '<p>هذا الحساب مفعّل عليه تتبع الموقع أثناء العمل. اسمح للموقع بالوصول إلى موقعك لتتمكن من استخدام النظام.</p>'+
+      (msg?'<div class="wt-warn">'+msg+'</div>'+steps:'')+
+      '<button type="button" class="wt-main" id="wtAllow"'+(asking?' disabled':'')+'>'+(asking?'جارٍ الطلب…':(msg?'إعادة المحاولة':'السماح بالموقع'))+'</button>'+
+      (enforce()?'':'<button type="button" class="wt-skip" id="wtSkip">تخطي الآن</button>')+'</div>';
+    var a=gateEl.querySelector('#wtAllow'); if(a) a.onclick=askPermission;
+    var s=gateEl.querySelector('#wtSkip'); if(s) s.onclick=function(){ skipped=true; evaluate(); };
+  }
+
+  // ------------------------------------------------------------ lifecycle
+  function watchPerm(){
+    try{ if(!navigator.permissions||!navigator.permissions.query) return;
+      navigator.permissions.query({name:'geolocation'}).then(function(p){ permObj=p; permState=p.state; if(p.state!=='granted') gotFix=false; evaluate();
+        p.onchange=function(){ permState=p.state; if(p.state==='granted'){ gpsErr=false; } else { gotFix=false; if(p.state==='denied'&&!deniedLogged){ deniedLogged=true; event('perm_revoked','المتصفح: صلاحية الموقع مسحوبة'); } } evaluate(); }; }).catch(function(){}); }catch(_){}
+  }
+  function onUser(u){
+    if(!u||!u.id) return; var nid=String(u.id);
+    if(uid===nid){ user=u; return; }
+    onLogout(); uid=nid; user=u; skipped=false; startedOnce=false; grantedLogged=false; deniedLogged=false; gotFix=false; gpsErr=false; lastStored=null; lastFix=null;
+    var d=D(); if(!d||!isMobile()||isApp()) return;
+    cfgRef=d.ref('tracking/config'); cfgCb=function(s){ var v=s.val()||{}; cfg={users:v.users||{},enforceWeb:!!v.enforceWeb}; evaluate(); }; cfgRef.on('value',cfgCb,function(){});
+    liveRef=d.ref('tracking/live/'+uid); liveCb=function(s){ appLive=s.val(); evaluate(); }; liveRef.on('value',liveCb,function(){});
+    watchPerm();
+    tick=setInterval(evaluate,20000);
+  }
+  function onLogout(){
+    if(tick){ clearInterval(tick); tick=null; }
+    try{ if(cfgRef&&cfgCb) cfgRef.off('value',cfgCb); if(liveRef&&liveCb) liveRef.off('value',liveCb); }catch(_){}
+    cfgRef=cfgCb=liveRef=liveCb=null; cfg=null; appLive=null;
+    if(watchId!=null){ stopWatch(true); } else stopWatch(false);
+    hideGate(); hideBanner(); uid=null; user=null;
+  }
+  document.addEventListener('visibilitychange',function(){ if(uid) evaluate(); });
+  window.addEventListener('pagehide',function(){ if(uid&&watchId!=null) stopWatch(true); });
+  window.WebTracking={onUser:onUser,onLogout:onLogout,_s:function(){ return {uid:uid,tracked:tracked(),eligible:eligible(),blocked:blocked(),permState:permState,appActive:appActive(),watching:watchId!=null,gate:!!gateEl,skipped:skipped}; }};
 })();
 
 </script>
