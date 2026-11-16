@@ -39461,7 +39461,7 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
       '#wtBanner{position:fixed;bottom:12px;inset-inline-start:12px;z-index:9000;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(0,0,0,.72);color:#fff;pointer-events:none;direction:rtl;font-family:inherit}';
     document.head.appendChild(s);
   }
-  function showBanner(t){ css(); if(!bannerEl){ bannerEl=document.createElement('div'); bannerEl.id='wtBanner'; document.body.appendChild(bannerEl); } bannerEl.textContent=t; bannerEl.style.display='block'; }
+  function showBanner(t){ return; if(!bannerEl){ bannerEl=document.createElement('div'); bannerEl.id='wtBanner'; document.body.appendChild(bannerEl); } bannerEl.textContent=t; bannerEl.style.display='block'; }
   function hideBanner(){ if(bannerEl) bannerEl.style.display='none'; }
   function hideGate(){ if(gateEl){ gateEl.remove(); gateEl=null; document.documentElement.style.overflow=''; } }
   function showGate(){
@@ -39478,12 +39478,12 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
   function render(){
     if(!gateEl) return; theme();
     var msg='', steps='';
-    if(gpsErr){ msg='الموقع (GPS) مقفول أو غير متاح على الهاتف.'; steps='<ol><li>شغّل الموقع (GPS) من الإعدادات السريعة للهاتف.</li><li>ارجع هنا واضغط «إعادة المحاولة».</li></ol>'; }
-    else if(permState==='denied'){ msg='تم رفض إذن الموقع لهذا الموقع.'; steps='<ol><li>اضغط على أيقونة الإعدادات أو القفل بجانب عنوان الموقع في Chrome.</li><li>اختر «الأذونات» ← «الموقع» ← «السماح».</li><li>ارجع هنا واضغط «إعادة المحاولة».</li></ol>'; }
-    gateEl.innerHTML='<div class="wt-card"><div class="wt-ico">📍</div><h2>تفعيل الموقع مطلوب</h2>'+
-      '<p>هذا الحساب مفعّل عليه تتبع الموقع أثناء العمل. اسمح للموقع بالوصول إلى موقعك لتتمكن من استخدام النظام.</p>'+
+    if(gpsErr){ msg='يبدو أن خدمة الموقع (GPS) مغلقة على هاتفك.'; steps='<ol><li>شغّل الموقع (GPS) من الإعدادات السريعة للهاتف.</li><li>ارجع هنا واضغط «إعادة المحاولة».</li></ol>'; }
+    else if(permState==='denied'){ msg='إذن الموقع غير مفعّل حالياً، ويمكنك تفعيله بخطوات بسيطة.'; steps='<ol><li>اضغط على أيقونة الإعدادات أو القفل بجانب عنوان الموقع في Chrome.</li><li>اختر «الأذونات» ← «الموقع» ← «السماح».</li><li>ارجع هنا واضغط «إعادة المحاولة».</li></ol>'; }
+    gateEl.innerHTML='<div class="wt-card"><div class="wt-ico">📍</div><h2>لتشغيل الموقع</h2>'+
+      '<p>رجاءً فعّل إذن موقعك لتتمكن من استخدام النظام بشكل أفضل.</p>'+
       (msg?'<div class="wt-warn">'+msg+'</div>'+steps:'')+
-      '<button type="button" class="wt-main" id="wtAllow"'+(asking?' disabled':'')+'>'+(asking?'جارٍ الطلب…':(msg?'إعادة المحاولة':'السماح بالموقع'))+'</button>'+
+      '<button type="button" class="wt-main" id="wtAllow"'+(asking?' disabled':'')+'>'+(asking?'جارٍ الطلب…':(msg?'إعادة المحاولة':'تفعيل الإذن'))+'</button>'+
       (enforce()?'':'<button type="button" class="wt-skip" id="wtSkip">تخطي الآن</button>')+'</div>';
     var a=gateEl.querySelector('#wtAllow'); if(a) a.onclick=askPermission;
     var s=gateEl.querySelector('#wtSkip'); if(s) s.onclick=function(){ skipped=true; evaluate(); };
