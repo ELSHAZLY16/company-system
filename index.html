@@ -5498,8 +5498,8 @@ function renderResult(result, bc) {
         <div class="mi"><div class="mi-l">👤 بواسطة</div><div class="mi-v">${p.modifiedBy||'—'}</div></div>
         <div class="mi"><div class="mi-l">🏷 كود الشركة</div><div class="mi-v">${p.vendorCode||'—'}</div></div>
       </div>
-      <div class="ract"><button class="ra" onclick="cpAll()">📋 نسخ جميع البيانات</button><button class="ra del" onclick="clrRes()">🗑 مسح</button></div>`;
-    window._lp=p; window._lpd=null;
+      <div class="ract"><button class="ra" onclick="cpAll()">📋 نسخ جميع البيانات</button><button class="ra mkt" onclick="mktOpen()">🔎 قارن بالسوق</button><button class="ra del" onclick="clrRes()">🗑 مسح</button></div>`;
+    window._lp=p; window._lpd=null; window._mk={name:p.name,bc:p.barcode,sell:p.sellPrice};
     return;
   }
 
@@ -5564,19 +5564,22 @@ function renderResult(result, bc) {
       ${brCol(pb,'📦 علوش البازار')}
       ${brCol(pc,'🏙 علوش القاهرة')}
     </div>
-    <div class="mgrid">
-      ${pb?`<div class="mi"><div class="mi-l">📅 تاريخ سعر البازار</div><div class="mi-v">${fmtDate(pb.dateOfPrice)}</div></div>`:''}
-      ${pc?`<div class="mi"><div class="mi-l">📅 تاريخ سعر القاهرة</div><div class="mi-v">${fmtDate(pc.dateOfPrice)}</div></div>`:''}
-      ${pb?`<div class="mi"><div class="mi-l">🕐 آخر تعديل البازار</div><div class="mi-v">${fmtDT(pb.modifiedAt)}</div></div>`:''}
-      ${pb&&pb.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة (ب)</div><div class="mi-v">${pb.modifiedBy}</div></div>`:''}
-      ${pc?`<div class="mi"><div class="mi-l">🕐 آخر تعديل القاهرة</div><div class="mi-v">${fmtDT(pc.modifiedAt)}</div></div>`:''}
-      ${pc&&pc.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة (ق)</div><div class="mi-v">${pc.modifiedBy}</div></div>`:''}
+    <div class="mgrid mg-dual">
+      <div class="mcol">${pb?`<div class="mcol-h">📦 البازار</div>
+        <div class="mi"><div class="mi-l">📅 تاريخ السعر</div><div class="mi-v">${fmtDate(pb.dateOfPrice)}</div></div>
+        <div class="mi"><div class="mi-l">🕐 آخر تعديل</div><div class="mi-v">${fmtDT(pb.modifiedAt)}</div></div>
+        ${pb.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة</div><div class="mi-v">${pb.modifiedBy}</div></div>`:''}`:''}</div>
+      <div class="mcol">${pc?`<div class="mcol-h">🏙 القاهرة</div>
+        <div class="mi"><div class="mi-l">📅 تاريخ السعر</div><div class="mi-v">${fmtDate(pc.dateOfPrice)}</div></div>
+        <div class="mi"><div class="mi-l">🕐 آخر تعديل</div><div class="mi-v">${fmtDT(pc.modifiedAt)}</div></div>
+        ${pc.modifiedBy?`<div class="mi"><div class="mi-l">👤 بواسطة</div><div class="mi-v">${pc.modifiedBy}</div></div>`:''}`:''}</div>
     </div>
     <div class="ract">
       <button class="ra" onclick="cpAllDual()">📋 نسخ جميع البيانات</button>
+      <button class="ra mkt" onclick="mktOpen()">🔎 قارن بالسوق</button>
       <button class="ra del" onclick="clrRes()">🗑 مسح</button>
     </div>`;
-  window._lp=null; window._lpd={pb,pc};
+  window._lp=null; window._lpd={pb,pc}; window._mk={name:(pb||pc).name,bc:(pb||pc).barcode,sell:(pb&&pc)?Math.min(pb.sellPrice||1e9,pc.sellPrice||1e9):(pb||pc).sellPrice,b:pb?pb.sellPrice:null,c:pc?pc.sellPrice:null};
 }
 
 /* =====================================================
@@ -28669,8 +28672,8 @@ function renderResult(result, bc) {
         <div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> بواسطة</div><div class="mi-v">${p.modifiedBy||'—'}</div></div>
         <div class="mi"><div class="mi-l">🏷 كود الشركة</div><div class="mi-v">${p.vendorCode||'—'}</div></div>
       </div>
-      <div class="ract"><button class="ra" onclick="cpAll()"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> نسخ جميع البيانات</button><button class="ra del" onclick="clrRes()">🗑 مسح</button></div>`;
-    window._lp=p; window._lpd=null;
+      <div class="ract"><button class="ra" onclick="cpAll()"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> نسخ جميع البيانات</button><button class="ra mkt" onclick="mktOpen()">🔎 قارن بالسوق</button><button class="ra del" onclick="clrRes()">🗑 مسح</button></div>`;
+    window._lp=p; window._lpd=null; window._mk={name:p.name,bc:p.barcode,sell:p.sellPrice};
     return;
   }
 
@@ -28735,19 +28738,21 @@ function renderResult(result, bc) {
       ${brCol(pb,'📦 علوش البازار')}
       ${brCol(pc,'🏙 علوش القاهرة')}
     </div>
-    <div class="mgrid">
-      ${pb?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="calendar" aria-hidden="true"></span> تاريخ سعر البازار</div><div class="mi-v">${fmtDate(pb.dateOfPrice)}</div></div>`:''}
-      ${pc?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="calendar" aria-hidden="true"></span> تاريخ سعر القاهرة</div><div class="mi-v">${fmtDate(pc.dateOfPrice)}</div></div>`:''}
-      ${pb?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="clock" aria-hidden="true"></span> آخر تعديل البازار</div><div class="mi-v">${fmtDT(pb.modifiedAt)}</div></div>`:''}
-      ${pb&&pb.modifiedBy?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> بواسطة (ب)</div><div class="mi-v">${pb.modifiedBy}</div></div>`:''}
-      ${pc?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="clock" aria-hidden="true"></span> آخر تعديل القاهرة</div><div class="mi-v">${fmtDT(pc.modifiedAt)}</div></div>`:''}
-      ${pc&&pc.modifiedBy?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> بواسطة (ق)</div><div class="mi-v">${pc.modifiedBy}</div></div>`:''}
+    <div class="mgrid mg-dual">
+      <div class="mcol">${pb?`<div class="mcol-h">📦 البازار</div>
+        <div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="calendar" aria-hidden="true"></span> تاريخ السعر</div><div class="mi-v">${fmtDate(pb.dateOfPrice)}</div></div>
+        <div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="clock" aria-hidden="true"></span> آخر تعديل</div><div class="mi-v">${fmtDT(pb.modifiedAt)}</div></div>
+        ${pb.modifiedBy?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> بواسطة</div><div class="mi-v">${pb.modifiedBy}</div></div>`:''}`:''}</div>
+      <div class="mcol">${pc?`<div class="mcol-h">🏙 القاهرة</div>
+        <div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="calendar" aria-hidden="true"></span> تاريخ السعر</div><div class="mi-v">${fmtDate(pc.dateOfPrice)}</div></div>
+        <div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="clock" aria-hidden="true"></span> آخر تعديل</div><div class="mi-v">${fmtDT(pc.modifiedAt)}</div></div>
+        ${pc.modifiedBy?`<div class="mi"><div class="mi-l"><span class="ui-icon-slot" data-icon="user" aria-hidden="true"></span> بواسطة</div><div class="mi-v">${pc.modifiedBy}</div></div>`:''}`:''}</div>
     </div>
     <div class="ract">
       <button class="ra" onclick="cpAllDual()"><span class="ui-icon-slot" data-icon="clipboard" aria-hidden="true"></span> نسخ جميع البيانات</button>
-      <button class="ra del" onclick="clrRes()">🗑 مسح</button>
+      <button class="ra mkt" onclick="mktOpen()">🔎 قارن بالسوق</button><button class="ra del" onclick="clrRes()">🗑 مسح</button>
     </div>`;
-  window._lp=null; window._lpd={pb,pc};
+  window._lp=null; window._lpd={pb,pc}; window._mk={name:(pb||pc).name,bc:(pb||pc).barcode,sell:(pb&&pc)?Math.min(pb.sellPrice||1e9,pc.sellPrice||1e9):(pb||pc).sellPrice,b:pb?pb.sellPrice:null,c:pc?pc.sellPrice:null};
 }
 
 /* =====================================================
@@ -35309,7 +35314,7 @@ var ABSFX=(function(){
    1) its own close / cancel button, 2) its own backdrop click, 3) hide it. Esc closes the top-most popup too. */
 (function(){
   'use strict';
-  var SKIP='#loginPage,#wtGate,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
+  var SKIP='#loginPage,#wtGate,#mktSheet,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
   var CLOSE_RX=/^\s*(×|✕|✖|x|X)\s*$|إغلاق|اغلاق|close/i;
   var X='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   function vis(e){ if(!e||!e.isConnected) return false; var cs=getComputedStyle(e); if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0) return false; var r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }
@@ -39517,6 +39522,95 @@ html:root body .tab-btn[data-tab="tracking"]{order:45}
   window.WebTracking={onUser:onUser,onLogout:onLogout,_s:function(){ return {uid:uid,tracked:tracked(),eligible:eligible(),blocked:blocked(),permState:permState,appActive:appActive(),watching:watchId!=null,gate:!!gateEl,skipped:skipped}; }};
 })();
 
+</script>
+<style id="allosh-prices-v102">
+#tab-prices .ra.mkt{color:var(--blue,#0a84ff)}
+html:root body #tab-prices .ra.mkt{background:rgba(10,132,255,.14)!important;color:#0a84ff!important}
+.mcol{min-width:0}.mcol-h{font-weight:800;font-size:13px;padding:10px 12px 4px;opacity:.85}
+@media (max-width:640px){
+ html:root body #tab-prices .bcols{grid-template-columns:1fr 1fr!important;gap:8px!important;padding:10px 10px!important}
+ html:root body #tab-prices .bcols .bcol-h{padding:9px 10px!important;flex-direction:column!important;align-items:flex-start!important;gap:4px!important}
+ html:root body #tab-prices .bcols .bcol-hl{font-size:12.5px!important}
+ html:root body #tab-prices .bcols .bsts{font-size:11px!important}
+ html:root body #tab-prices .bcols .bcol-b{padding:10px 10px 12px!important}
+ html:root body #tab-prices .bcols .pr-lbl{font-size:11.5px!important}
+ html:root body #tab-prices .bcols .pr-val.sell{font-size:24px!important}
+ html:root body #tab-prices .bcols .pr-val.cost{font-size:17px!important}
+ html:root body #tab-prices .bcols .pr-cur{font-size:11px!important}
+ html:root body #tab-prices .bcols .prt{font-size:10.5px!important;padding:3px 6px!important;margin-top:6px!important}
+ html:root body #tab-prices .bcols .co-mini{font-size:11px!important;margin-top:10px!important;padding-top:8px!important}
+ html:root body #tab-prices .bcols .co-mini strong{font-size:10.5px!important}
+ html:root body #tab-prices .bcols .cp-s{padding:8px 6px!important}
+ html:root body #tab-prices .bcols .cpb{font-size:11.5px!important;padding:6px 8px!important}
+ html:root body #tab-prices .mg-dual{grid-template-columns:1fr 1fr!important;margin:4px 10px 12px!important;gap:8px!important;background:transparent!important;overflow:visible!important}
+ html:root body #tab-prices .mg-dual .mcol{background:var(--ab-subtle,rgba(127,127,127,.12));border-radius:14px;overflow:hidden;padding-bottom:4px}
+ html:root body #tab-prices .mg-dual .mi{display:block!important;border:0!important;border-bottom:1px solid var(--ab-hair,rgba(127,127,127,.2))!important;padding:7px 10px!important}
+ html:root body #tab-prices .mg-dual .mi:last-child{border-bottom:0!important}
+ html:root body #tab-prices .mg-dual .mi-l{font-size:11px!important;margin-bottom:2px!important;white-space:normal}
+ html:root body #tab-prices .mg-dual .mi-v{font-size:12px!important;text-align:right!important}
+}
+html:root body #tab-prices .mg-dual{background:transparent!important}
+html:root body #tab-prices .mg-dual .mi:nth-child(odd){border-left:0!important}
+#mktSheet{position:fixed;inset:0;z-index:2147482000;display:none;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.5);direction:rtl;font-family:inherit}
+#mktSheet.on{display:flex}
+#mktSheet .mk-box{width:100%;max-width:480px;max-height:88vh;overflow:auto;background:var(--wt-card,#fff);color:#1d1d1f;border-radius:22px 22px 0 0;padding:18px 16px 24px;box-shadow:0 -10px 40px rgba(0,0,0,.3)}
+body:not(.light-mode) #mktSheet .mk-box{background:#1c1c1e;color:#f5f5f7}
+#mktSheet h3{margin:0 0 4px;font-size:18px}
+#mktSheet .mk-sub{font-size:13px;opacity:.75;margin:0 0 10px;line-height:1.6}
+#mktSheet .mk-mine{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+#mktSheet .mk-mine span{background:rgba(127,127,127,.15);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700}
+#mktSheet .mk-seg{display:flex;gap:6px;margin-bottom:12px}
+#mktSheet .mk-seg button{flex:1;border:0;border-radius:10px;padding:9px;font:inherit;font-size:13px;font-weight:700;background:rgba(127,127,127,.15);color:inherit;cursor:pointer}
+#mktSheet .mk-seg button.on{background:#C8102E;color:#fff}
+#mktSheet .mk-links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#mktSheet .mk-links a{display:block;text-align:center;text-decoration:none;border-radius:12px;padding:12px 6px;font-size:13.5px;font-weight:700;background:rgba(10,132,255,.13);color:#0a84ff}
+#mktSheet .mk-links a.all{grid-column:1/-1;background:#0a84ff;color:#fff}
+#mktSheet .mk-x{width:100%;margin-top:12px;border:0;border-radius:12px;padding:12px;font:inherit;font-weight:700;background:rgba(127,127,127,.18);color:inherit;cursor:pointer}
+</style>
+<script id="allosh-market-compare">
+(function(){
+  var mode='name', el=null;
+  function enc(x){ return encodeURIComponent(x); }
+  function q(m){ var d=window._mk||{}; return (m==='bc'?(d.bc||d.name):d.name)||''; }
+  function links(){
+    var t=q(mode), e=enc(t);
+    var g=function(site){ return 'https://www.google.com/search?q='+enc(t+' site:'+site)+'&gl=eg&hl=ar'; };
+    return [
+      ['🛒 Google Shopping مصر','https://www.google.com/search?tbm=shop&q='+e+'&gl=eg&hl=ar'],
+      ['🔍 جوجل (مصر)','https://www.google.com/search?q='+enc(t+' سعر مصر')+'&gl=eg&hl=ar'],
+      ['📦 أمازون مصر','https://www.amazon.eg/s?k='+e],
+      ['🟡 نون مصر','https://www.noon.com/egypt-ar/search/?q='+e],
+      ['🟠 جوميا مصر','https://www.jumia.com.eg/catalog/?q='+e],
+      ['🛍 كارفور مصر',g('carrefouregypt.com')],
+      ['🥬 سعودي ماركت',g('seoudisupermarket.com')],
+      ['🍞 بريد فاست',g('breadfast.com')],
+      ['🛵 طلبات مارت',g('talabat.com/egypt')],
+      ['🏪 هايبر موسى',g('market.hypermousa.com')],
+      ['🏬 سبينيس مصر',g('spinneys-egypt.com')]
+    ];
+  }
+  function draw(){
+    if(!el) return; var d=window._mk||{};
+    var mine='';
+    if(d.b!=null||d.c!=null){ if(d.b!=null) mine+='<span>📦 البازار: '+d.b+' ج</span>'; if(d.c!=null) mine+='<span>🏙 القاهرة: '+d.c+' ج</span>'; }
+    else if(d.sell) mine='<span>سعرك: '+d.sell+' ج</span>';
+    var L=links().map(function(x){ return '<a href="'+x[1]+'" target="_blank" rel="noopener noreferrer">'+x[0]+'</a>'; }).join('');
+    el.innerHTML='<div class="mk-box"><h3>🔎 قارن بالسوق المصري</h3>'+
+      '<p class="mk-sub">'+(d.name||'')+'</p><div class="mk-mine">'+mine+'</div>'+
+      '<div class="mk-seg"><button type="button" data-m="name" class="'+(mode==='name'?'on':'')+'">بالاسم</button><button type="button" data-m="bc" class="'+(mode==='bc'?'on':'')+'">بالباركود</button></div>'+
+      '<div class="mk-links">'+L+'</div>'+
+      '<p class="mk-sub" style="margin-top:10px">الأسعار على المواقع تقديرية وقد تختلف في العبوة أو التاريخ، فتأكد قبل المقارنة.</p>'+
+      '<button type="button" class="mk-x">إغلاق</button></div>';
+    el.querySelector('.mk-x').onclick=close;
+    Array.prototype.forEach.call(el.querySelectorAll('.mk-seg button'),function(b){ b.onclick=function(){ mode=b.getAttribute('data-m'); draw(); }; });
+  }
+  function close(){ if(el) el.classList.remove('on'); }
+  window.mktOpen=function(){
+    if(!window._mk){ return; }
+    if(!el){ el=document.createElement('div'); el.id='mktSheet'; document.body.appendChild(el); el.addEventListener('click',function(e){ if(e.target===el) close(); }); }
+    draw(); el.classList.add('on');
+  };
+})();
 </script>
 </body>
 </html>
