@@ -16521,6 +16521,8 @@ const PricingPermissionPicker = {
     {key:'single',perm:'pricing:single',label:'تسعيرة واحدة',icon:'🏷️'},
     {key:'batch',perm:'pricing:batch',label:'تسعيرات متعددة',icon:'📚'},
     {key:'saved',perm:'pricing:saved',label:'المحفوظة والطباعة',icon:'🖨️'},
+    {key:'stale',perm:'pricing:stale',label:'محتاجة تحديث (سعر اتغيّر)',icon:'🔔'},
+    {key:'delete',perm:'pricing:delete',label:'حذف التسعيرات المطبوعة',icon:'🗑️'},
     {key:'design',perm:'pricing:design',label:'التصميم',icon:'🎨'},
     {key:'fonts',perm:'pricing:fonts',label:'الخطوط',icon:'🔤'},
     {key:'rules',perm:'pricing:rules',label:'قاعدة الحساب',icon:'🧮'}
@@ -26833,7 +26835,7 @@ body.innerHTML = html
                 "fingerprint-sabah:payroll":"بصمة الصباح — بيان المرتبات",
                 "fingerprint-sabah:payslip":"بصمة الصباح — شيك قبض الموظف",
                 excel: "تصدير Excel", edit: "التعديل", delete: "الحذف", prices: "الأسعار",
-                "pricing:single":"التسعيرات — تسعيرة واحدة", "pricing:batch":"التسعيرات — تسعيرات متعددة", "pricing:saved":"التسعيرات — المحفوظة والطباعة",
+                "pricing:single":"التسعيرات — تسعيرة واحدة", "pricing:batch":"التسعيرات — تسعيرات متعددة", "pricing:saved":"التسعيرات — المحفوظة والطباعة", "pricing:stale":"التسعيرات — محتاجة تحديث", "pricing:delete":"التسعيرات — حذف التسعيرات المطبوعة",
                 "pricing:design":"التسعيرات — التصميم", "pricing:fonts":"التسعيرات — الخطوط", "pricing:rules":"التسعيرات — قاعدة الحساب",
                 pricing: "التسعيرات", viewPrices: "رؤية الأسعار", inventory: "المخازن",
                 companies: "الشركات", incentives: "الحوافز", permit: "إذن (إعفاء من الخصم)",
@@ -35314,7 +35316,7 @@ var ABSFX=(function(){
    1) its own close / cancel button, 2) its own backdrop click, 3) hide it. Esc closes the top-most popup too. */
 (function(){
   'use strict';
-  var SKIP='#loginPage,#wtGate,#mktSheet,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
+  var SKIP='#loginPage,#wtGate,#mktSheet,#ppBrModal,#welcomeOverlay,#abSidebar,.tabs-wrapper,.ab-scrim,.ab-split,.ab-cmdk,.ab-en,#abNotifyPanel,.ab-ntf,.ab-more-menu,.user-menu,.tst-c,#prTstC,.ab-deck,.ab-prank-bubble';
   var CLOSE_RX=/^\s*(×|✕|✖|x|X)\s*$|إغلاق|اغلاق|close/i;
   var X='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
   function vis(e){ if(!e||!e.isConnected) return false; var cs=getComputedStyle(e); if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0) return false; var r=e.getBoundingClientRect(); return r.width>0&&r.height>0; }
@@ -38036,6 +38038,54 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
 #tab-pricing .pp-chk{ display:inline-flex; align-items:center; gap:6px; font-size:13.5px; font-weight:600; cursor:pointer; }
 #tab-pricing .pp-chk input{ width:18px; height:18px; accent-color:var(--ab-red,#c8102e); }
 #tab-pricing .pp-actions{ display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-top:14px; }
+#tab-pricing .pp-stale{ list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; }
+#tab-pricing .pp-stl{ display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-areas:"chk main" "price price" "act act"; gap:10px 12px; align-items:start; padding:14px; border:1px solid var(--ab-line,#e5e5ea); border-radius:16px; border-inline-start:4px solid #c8102e; background:var(--ab-card,transparent); }
+#tab-pricing .pp-stl.dn{ border-inline-start-color:#1a9b4b; }
+#tab-pricing .pp-stl.rdy{ opacity:.9; border-inline-start-color:#8e8e93; }
+#tab-pricing .stl-chk{ grid-area:chk; margin-top:2px; min-width:22px; }
+#tab-pricing .stl-main{ grid-area:main; min-width:0; display:flex; flex-direction:column; gap:6px; }
+#tab-pricing .stl-name{ font-size:15px; font-weight:800; line-height:1.5; overflow-wrap:anywhere; }
+#tab-pricing .stl-chips{ display:flex; flex-wrap:wrap; gap:6px; }
+#tab-pricing .stl-chip{ font-size:11.5px; padding:2px 9px; border-radius:999px; background:rgba(127,127,127,.14); color:var(--ab-muted,#6b7280); font-variant-numeric:tabular-nums; }
+#tab-pricing .stl-by{ font-size:11.5px; color:var(--ab-muted,#6b7280); }
+#tab-pricing .stl-price{ grid-area:price; display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px; padding:10px 12px; border-radius:12px; background:rgba(127,127,127,.09); }
+#tab-pricing .stl-old,#tab-pricing .stl-new{ display:flex; flex-direction:column; gap:1px; }
+#tab-pricing .stl-old span,#tab-pricing .stl-new span{ font-size:10.5px; color:var(--ab-muted,#6b7280); }
+#tab-pricing .stl-old s{ font-size:16px; font-weight:700; opacity:.6; }
+#tab-pricing .stl-arrow{ font-size:18px; opacity:.5; }
+#tab-pricing .stl-new strong{ font-size:24px; font-weight:900; line-height:1.1; color:#c8102e; }
+#tab-pricing .pp-stl.dn .stl-new strong{ color:#1a9b4b; }
+#tab-pricing .stl-pill{ margin-inline-start:auto; font-size:12.5px; font-weight:800; padding:5px 11px; border-radius:999px; background:rgba(200,16,46,.13); color:#c8102e; white-space:nowrap; }
+#tab-pricing .pp-stl.dn .stl-pill{ background:rgba(26,155,75,.15); color:#1a9b4b; }
+#tab-pricing .stl-brs{ grid-column:1/-1; display:flex; flex-direction:column; gap:6px; }
+#tab-pricing .stl-br{ display:flex; align-items:center; flex-wrap:wrap; gap:6px 10px; padding:8px 10px; border-radius:10px; background:rgba(127,127,127,.08); font-size:12.5px; }
+#tab-pricing .stl-br.ok{ background:rgba(26,155,75,.10); }
+#tab-pricing .stl-br.st{ background:rgba(200,16,46,.07); }
+#tab-pricing .stl-bn{ font-weight:800; }
+#tab-pricing .stl-bs{ flex:1; min-width:0; color:var(--ab-muted,#6b7280); }
+#tab-pricing .stl-br.ok .stl-bs{ color:#1a9b4b; font-weight:700; }
+#tab-pricing .stl-br .pp-btn{ padding:8px 14px; flex:none; width:auto; }
+#tab-pricing .stl-chip-ok{ background:rgba(26,155,75,.15); color:#1a9b4b; }
+#tab-pricing .stl-act{ grid-area:act; display:flex; flex-direction:column; gap:8px; }
+#tab-pricing .stl-act .pp-btn{ width:100%; justify-content:center; padding:12px; font-size:15px; }
+#tab-pricing .stl-ok{ font-size:12.5px; font-weight:700; color:#1a9b4b; text-align:center; }
+@media (min-width:760px){
+  #tab-pricing .pp-stl{ grid-template-columns:auto minmax(0,1.3fr) auto; grid-template-areas:"chk main price"; align-items:center; }
+  #tab-pricing .stl-pill{ margin-inline-start:0; }
+}
+#ppBrModal{ position:fixed; inset:0; z-index:2147482500; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.5); padding:16px; direction:rtl; font-family:inherit; }
+#ppBrModal .brm-box{ width:100%; max-width:420px; max-height:88vh; overflow:auto; border-radius:20px; padding:20px; background:#fff; color:#1d1d1f; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
+#ppBrModal h3{ margin:0 0 6px; font-size:19px; } #ppBrModal p{ margin:0 0 12px; font-size:13.5px; opacity:.8; }
+#ppBrModal .brm-opts{ display:flex; gap:10px; margin-bottom:14px; }
+#ppBrModal .brm-opt{ flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:14px 8px; border:2px solid rgba(127,127,127,.35); border-radius:14px; font-weight:800; font-size:15px; cursor:pointer; }
+#ppBrModal .brm-opt.on{ border-color:#c8102e; background:rgba(200,16,46,.10); }
+#ppBrModal .brm-opt input{ width:18px; height:18px; accent-color:#c8102e; }
+#ppBrModal .pp-btn{ border:0; border-radius:12px; font:inherit; font-weight:800; cursor:pointer; background:rgba(127,127,127,.18); color:inherit; }
+#ppBrModal .pp-btn.primary{ background:#c8102e; color:#fff; }
+#ppBrModal .brm-btns{ display:flex; flex-direction:column; gap:8px; } #ppBrModal .brm-btns .pp-btn{ width:100%; padding:13px; font-size:15px; }
+#ppBrModal .brm-dups{ list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:6px; }
+#ppBrModal .brm-dups li{ padding:8px 10px; border-radius:10px; background:rgba(127,127,127,.12); font-size:13px; } #ppBrModal .brm-dups small{ display:block; opacity:.7; font-size:11.5px; }
 #tab-pricing .pp-datesum{ display:flex; flex-direction:column; gap:4px; margin:4px 0 8px; padding:10px 12px; border-radius:12px; background:rgba(10,132,255,.10); font-size:13px; line-height:1.6; }
 #tab-pricing .pp-datesum span{ opacity:.85; font-size:12px; }
 #tab-pricing .pp-tools{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:12px 0 10px; }
@@ -38200,11 +38250,11 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   function uname(){ var u=me(); return u?String(u.username||u.name||''):''; }
   function perms(){ var s=St(), u=me(); var p=(s&&s.securePermissions&&s.securePermissions.length)?s.securePermissions:(u&&u.permissions)||[]; return [].slice.call(p).map(String); }
   function isAll(){ return perms().indexOf('all')>-1; }
-  var TABS=[['single','تسعيرة واحدة'],['batch','تسعيرات متعددة'],['saved','المحفوظة والطباعة'],['design','التصميم'],['fonts','الخطوط'],['rules','قاعدة الحساب']];
+  var TABS=[['single','تسعيرة واحدة'],['batch','تسعيرات متعددة'],['saved','المحفوظة والطباعة'],['stale','محتاجة تحديث'],['design','التصميم'],['fonts','الخطوط'],['rules','قاعدة الحساب']];
   function canTab(t){
     if(isAll()) return true; var p=perms(); if(p.indexOf('pricing')<0) return false;
     var kids=p.filter(function(x){ return x.indexOf('pricing:')===0; });
-    if(!kids.length) return ['single','batch','saved'].indexOf(t)>-1;   // older accounts: the daily work, not the settings
+    if(!kids.length) return ['single','batch','saved','stale'].indexOf(t)>-1;   // older accounts: the daily work, not the settings
     return kids.indexOf('pricing:'+t)>-1;
   }
   function q(s,r){ return (r||document).querySelector(s); }
@@ -38454,7 +38504,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   }
   function watchSync(){ var d=DB(); if(!d||syncOn) return; syncOn=true;
     try{
-      d.ref('priceLive/meta').on('value', function(s){ liveMeta=s.val()||null; var at=liveMeta&&liveMeta.syncedAt||null; if(lastLiveAt!==null && at!==lastLiveAt){ sheet=null; loadSheet(true).then(function(){ if(root&&!root.hidden) refreshPreview(); }); } lastLiveAt=at; paintSync(); });
+      d.ref('priceLive/meta').on('value', function(s){ liveMeta=s.val()||null; var at=liveMeta&&liveMeta.syncedAt||null; if(lastLiveAt!==null && at!==lastLiveAt){ sheet=null; loadSheet(true).then(function(){ if(root&&!root.hidden){ refreshPreview(); updateCount(); if(tab==='stale') renderStale(); } }); } lastLiveAt=at; paintSync(); });
       d.ref('priceSync/agents').on('value', function(s){ agentsRaw=s.val()||{}; paintSync(); });
       setInterval(paintSync, 30000);
     }catch(e){ syncOn=false; }
@@ -38478,7 +38528,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   /* ---------------- data: saved tags ---------------- */
   var tags={}, tagsOn=false;
   function watchTags(){ var d=DB(); if(!d||tagsOn) return; tagsOn=true;
-    try{ d.ref('pricingTags').limitToLast(1500).on('value', function(s){ tags=(s&&s.val&&s.val())||{}; Object.keys(tags).forEach(function(k){ if(tags[k]&&typeof tags[k]==='object') tags[k].id=k; else delete tags[k]; }); if(root && !root.hidden && tab==='saved') renderSaved(); updateCount(); checkIncoming(); }); }catch(e){ tagsOn=false; } }
+    try{ d.ref('pricingTags').limitToLast(1500).on('value', function(s){ tags=(s&&s.val&&s.val())||{}; Object.keys(tags).forEach(function(k){ if(tags[k]&&typeof tags[k]==='object') tags[k].id=k; else delete tags[k]; }); if(root && !root.hidden && tab==='saved') renderSaved(); if(root && !root.hidden && tab==='stale') renderStale(); updateCount(); checkIncoming(); }); }catch(e){ tagsOn=false; } }
   /* copies = how many times one tag is printed (1–50). A «جدول» row always prints once. */
   function cps(t){ var n=Math.round(num(t&&t.copies)); return n>=1?Math.min(50,n):1; }
   function printN(t){ return (t&&t.size==='table')?1:cps(t); }
@@ -38508,11 +38558,12 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   function paintCamBtn(){ var b=q('[data-act="cam"]',root); if(b){ b.classList.toggle('on',camOn); b.innerHTML=camOn?'■ إيقاف الكاميرا':'📷 مسح بالكاميرا'; } var box=q('.pp-cam',root); if(box) box.classList.toggle('on',camOn); }
 
   /* ---------------- UI ---------------- */
-  var root=null, tab='single', single=null, batch=[], savedF={ who:'mine', status:'ready', size:'', q:'', date:'', day:'', by:'created' }, sel={};
+  var root=null, tab='single', single=null, batch=[], savedF={ who:'mine', status:'ready', size:'', q:'', date:'', day:'', by:'created' }, sel={}, staleF={ dir:'', br:'', size:'', q:'' }, ssel={};
   var BKEY=function(){ return 'pp_batch_'+uid(); };
   function loadBatch(){ try{ batch=JSON.parse(ls(BKEY())||'[]')||[]; }catch(e){ batch=[]; } }
   function keepBatch(){ ls(BKEY(), JSON.stringify(batch)); }
-  function updateCount(){ var n=Object.keys(tags).map(function(k){ return tags[k]; }).filter(function(t){ return t.status!=='printed' && ((t.createdBy && String(t.createdBy.uid)===uid()) || sentToMe(t)); }).length; var b=q('[data-tab="saved"] .pp-badge',root); if(b){ b.hidden=!n; b.textContent=n; } }
+  function updateCount(){ var n=Object.keys(tags).map(function(k){ return tags[k]; }).filter(function(t){ return t.status!=='printed' && ((t.createdBy && String(t.createdBy.uid)===uid()) || sentToMe(t)); }).length; var b=q('[data-tab="saved"] .pp-badge',root); if(b){ b.hidden=!n; b.textContent=n; }
+    var sb=q('[data-tab="stale"] .pp-badge',root); if(sb){ var sn=0; try{ sn=staleList().length; }catch(_){} sb.hidden=!sn; sb.textContent=sn; } }
 
   function open(){
     root=document.getElementById('tab-pricing'); if(!root) return;
@@ -38527,17 +38578,18 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(!tabs.length){ root.innerHTML='<div class="pp-empty">مفيش صلاحية لأي جزء من التسعيرات.</div>'; return; }
     var info=sheet&&sheet.meta?('شيت الأسعار: '+esc(sheet.meta.fileName||'')+' • '+(sheet.baz?sheet.baz.size.toLocaleString('ar-EG'):0)+' صنف (البازار)'):'جاري تحميل شيت الأسعار…';
     root.innerHTML='<div class="pp-wrap"><header class="pp-head"><div><h2>التسعيرات</h2><p id="ppSheetInfo">'+info+'</p><div class="pp-sync"><button type="button" class="pp-btn ghost sm" data-act="sync">🔄 تحديث الأسعار من النظام</button><button type="button" class="pp-btn ghost sm" data-act="agents">🖥 الأجهزة</button>'+(isAll()?'<button type="button" class="pp-btn ghost sm" data-act="syncfull">مزامنة كاملة</button>':'')+'<small id="ppSyncInfo"></small></div></div></header>'+
-      '<nav class="pp-tabs" role="tablist">'+tabs.map(function(t){ return '<button type="button" role="tab" data-tab="'+t[0]+'" aria-selected="'+(tab===t[0])+'">'+t[1]+(t[0]==='saved'?'<span class="pp-badge" hidden></span>':'')+'</button>'; }).join('')+'</nav>'+
+      '<nav class="pp-tabs" role="tablist">'+tabs.map(function(t){ return '<button type="button" role="tab" data-tab="'+t[0]+'" aria-selected="'+(tab===t[0])+'">'+t[1]+(t[0]==='saved'||t[0]==='stale'?'<span class="pp-badge" hidden></span>':'')+'</button>'; }).join('')+'</nav>'+
       '<section class="pp-body" id="ppBody"></section></div>';
     var b=q('#ppBody',root);
     if(tab==='single') b.innerHTML=singleView();
     else if(tab==='batch'){ b.innerHTML=batchView(); paintBatch(); }
     else if(tab==='saved') renderSaved();
+    else if(tab==='stale') renderStale();
     else if(tab==='design') b.innerHTML=designView();
     else if(tab==='fonts') b.innerHTML=fontsView();
     else if(tab==='rules') b.innerHTML=rulesView();
     updateCount(); requestAnimationFrame(fitPreviews);
-    paintSync(); loadSheet().then(function(d){ var i=q('#ppSheetInfo',root); if(i) i.innerHTML=d&&d.baz?('شيت الأسعار: '+esc(d.meta&&d.meta.fileName||'')+' • '+d.baz.size.toLocaleString('ar-EG')+' صنف (البازار)'):'<span class="pp-warn">مفيش شيت أسعار مرفوع — ارفعه من صفحة «الأسعار»</span>'; });
+    paintSync(); loadSheet().then(function(d){ updateCount(); var i=q('#ppSheetInfo',root); if(i) i.innerHTML=d&&d.baz?('شيت الأسعار: '+esc(d.meta&&d.meta.fileName||'')+' • '+d.baz.size.toLocaleString('ar-EG')+' صنف (البازار)'):'<span class="pp-warn">مفيش شيت أسعار مرفوع — ارفعه من صفحة «الأسعار»</span>'; });
     var f=q('#ppScan',root); if(f && window.matchMedia('(pointer:fine)').matches) f.focus();
   }
   function sizeSel(id, v, cls){ syncTableSize(); return '<select id="'+id+'" class="pp-in '+(cls||'')+'">'+Object.keys(SIZES).map(function(k){ return '<option value="'+k+'"'+(k===v?' selected':'')+'>'+SIZES[k].l+'</option>'; }).join('')+'</select>'; }
@@ -38668,6 +38720,124 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
       if(savedF.q){ var s=savedF.q.toLowerCase(); if(String(t.name||'').toLowerCase().indexOf(s)<0 && String(t.barcode||'').indexOf(s)<0) return false; }
       return true; }).sort(function(a,b){ return dBy?((b.printedAt||0)-(a.printedAt||0)):((b.createdAt||0)-(a.createdAt||0)); });
   }
+
+  /* ----- «محتاجة تحديث»: per-branch (البازار / الصباح) check of the last PRINTED tag vs the price the system gives now (per piece, to the piastre) ----- */
+  var BR=[['bazar','البازار','🏬'],['sabah','الصباح','🏪']];
+  function brName(k){ for(var i=0;i<BR.length;i++) if(BR[i][0]===k) return BR[i][1]; return k; }
+  function myBr(){ var u=me(), b=String((u&&u.branch)||''); if(b.indexOf('بازار')>-1) return 'bazar'; if(b.indexOf('صباح')>-1) return 'sabah'; return ''; }
+  function r2(n){ return Math.round(Number(n||0)*100)/100; }
+  /* a tag printed with no branch info (older tags / normal printing) counts for BOTH branches */
+  function tagAt(t,b){ return t.printedFor?((t.printedFor[b]&&t.printedFor[b].at)||0):(t.printedAt||0); }
+  function tagBy(t,b){ return t.printedFor?((t.printedFor[b]&&t.printedFor[b].by)||''):(t.printedBy||''); }
+  function staleList(){
+    if(!sheet||!sheet.baz) return [];
+    var byBc={};
+    Object.keys(tags).forEach(function(k){ var t=tags[k]; if(!t||typeof t!=='object') return; var bc=bcNorm(t.barcode); if(!bc) return; (byBc[bc]=byBc[bc]||[]).push(t); });
+    var out=[];
+    Object.keys(byBc).forEach(function(bc){
+      var all=byBc[bc], printed=all.filter(function(t){ return t.status==='printed'; }); if(!printed.length) return;
+      var hit=lookup(bc); if(!hit) return; var cur=num(hit.sellPrice); if(!(cur>0)) return;
+      var item={ bc:bc, hit:hit, cur:cur, br:{}, stale:false }, base=null;
+      BR.forEach(function(B){ var k=B[0], last=null;
+        printed.forEach(function(t){ var at=tagAt(t,k); if(at>0 && (!last||at>tagAt(last,k))) last=t; });
+        if(!last){ item.br[k]={ state:'none' }; return; }
+        var qty=Math.max(1,Math.round(num(last.qty)||1)), exp=r2(applyRules(cur,qty)), pr=r2(num(last.price)), ok=Math.abs(exp-pr)<0.005;
+        item.br[k]={ state:ok?'ok':'stale', tag:last, qty:qty, exp:exp, printed:pr, uOld:r2(pr/qty), uNew:r2(exp/qty), at:tagAt(last,k), by:tagBy(last,k) };
+        if(!ok && !base){ base=item.br[k]; } });
+      if(!base) return;
+      item.t=base.tag; item.qty=base.qty; item.exp=base.exp; item.printed=base.printed; item.uOld=base.uOld; item.uNew=base.uNew; item.diff=r2(base.uNew-base.uOld); item.pct=base.uOld>0?((base.uNew-base.uOld)/base.uOld*100):0;
+      /* a tag that already carries the new price (printed for one branch, or still waiting) can be reused */
+      var cand=all.filter(function(t){ return Math.abs(r2(num(t.price))-item.exp)<0.005 && Math.max(1,Math.round(num(t.qty)||1))===item.qty; });
+      cand.sort(function(a,b){ return ((a.status==='printed')-(b.status==='printed')) || ((b.createdAt||0)-(a.createdAt||0)); });
+      item.newTag=cand[0]||null; item.ready=(item.newTag&&item.newTag.status!=='printed')?item.newTag:null;
+      out.push(item);
+    });
+    return out.sort(function(a,b){ return Math.abs(b.pct)-Math.abs(a.pct); });
+  }
+  function staleView(){
+    return staleList().filter(function(x){
+      if(staleF.dir==='up' && !(x.diff>0)) return false; if(staleF.dir==='down' && !(x.diff<0)) return false;
+      if(staleF.br && !(x.br[staleF.br]&&x.br[staleF.br].state==='stale')) return false;
+      if(staleF.size && x.t.size!==staleF.size) return false;
+      if(staleF.q){ var s=staleF.q.toLowerCase(); if(String(x.t.name||'').toLowerCase().indexOf(s)<0 && x.bc.indexOf(s)<0) return false; }
+      return true; });
+  }
+  function renderStale(){
+    var b=q('#ppBody',root); if(!b) return;
+    if(!sheet||!sheet.baz){ b.innerHTML='<div class="pp-card"><div class="pp-empty">جاري تحميل الأسعار…</div></div>'; loadSheet().then(function(){ if(root&&!root.hidden&&tab==='stale') renderStale(); }); return; }
+    var all=staleList(), list=staleView(), up=all.filter(function(x){ return x.diff>0; }).length, dn=all.filter(function(x){ return x.diff<0; }).length;
+    var waiting={}; BR.forEach(function(B){ waiting[B[0]]=all.filter(function(x){ return x.br[B[0]].state==='stale'; }).length; });
+    Object.keys(ssel).forEach(function(bc){ if(!list.some(function(x){ return x.bc===bc; })) delete ssel[bc]; });
+    var selN=Object.keys(ssel).length;
+    var seg=function(name,opts,cur){ return '<div class="pp-seg" data-sseg="'+name+'">'+opts.map(function(o){ return '<button type="button" data-v="'+o[0]+'" aria-pressed="'+(cur===o[0])+'">'+o[1]+'</button>'; }).join('')+'</div>'; };
+    b.innerHTML='<div class="pp-card"><div class="pp-datesum"><b>🔔 '+all.length+' صنف سعره اتغيّر في النظام بعد آخر تسعيرة مطبوعة</b><span>'+(all.length?BR.map(function(B){ return B[2]+' '+B[1]+': مستني '+waiting[B[0]]; }).join(' • ')+' • 🔺 '+up+' • 🔻 '+dn:'كل التسعيرات المطبوعة مطابقة لأسعار النظام ✅')+'</span></div>'+
+      '<div class="pp-tools wrap">'+seg('dir',[['','الكل'],['up','🔺 زيادة'],['down','🔻 نقص']],staleF.dir)+seg('br',[['','كل الفروع']].concat(BR.map(function(B){ return [B[0],'مستني '+B[1]]; })),staleF.br)+
+      '<select class="pp-in sm" id="ppSSize"><option value="">كل المقاسات</option>'+Object.keys(SIZES).map(function(k){ return '<option value="'+k+'"'+(staleF.size===k?' selected':'')+'>'+SIZES[k].l.split(' — ')[0]+'</option>'; }).join('')+'</select>'+
+      '<input class="pp-in sm" id="ppSQ" placeholder="بحث بالاسم أو الباركود" value="'+esc(staleF.q)+'"></div>'+
+      '<div class="pp-tools"><label class="pp-chk"><input type="checkbox" id="ppSSelAll"'+(list.length&&selN===list.length?' checked':'')+'> تحديد الكل ('+list.length+')</label><span class="pp-count">'+(selN?'محدد '+selN:'')+'</span>'+
+      '<button type="button" class="pp-btn ghost sm" data-act="repricesel"'+(selN?'':' disabled')+'>🏷 تسعير فقط</button>'+
+      '<button type="button" class="pp-btn primary" data-act="printstale"'+(selN?'':' disabled')+'>🖨 اطبع المحدد ('+selN+')</button></div>'+
+      (list.length?'<ul class="pp-stale">'+list.map(function(x){ var t=x.t, up2=x.diff>0, col=up2?'up':'dn', N=function(v){ return '<bdi dir="ltr">'+esc(v)+'</bdi>'; };
+        return '<li class="pp-stl '+col+'">'+
+          '<label class="pp-chk stl-chk"><input type="checkbox" data-ssel="'+esc(x.bc)+'"'+(ssel[x.bc]?' checked':'')+'></label>'+
+          '<div class="stl-main"><div class="stl-name">'+esc(t.name)+'</div>'+
+            '<div class="stl-chips"><span class="stl-chip" dir="ltr">'+esc(x.bc)+'</span><span class="stl-chip">'+esc((SIZES[t.size]||SIZES.large).l.split(' — ')[0])+'</span>'+(x.qty>1?'<span class="stl-chip">'+x.qty+' قطع • السعر لكل قطعة</span>':'')+(x.ready?'<span class="stl-chip stl-chip-ok">✓ فيه تسعيرة جاهزة</span>':'')+'</div></div>'+
+          '<div class="stl-price"><div class="stl-old"><span>المطبوع</span><s>'+N(money(x.uOld))+' ج</s></div><div class="stl-arrow">←</div><div class="stl-new"><span>الحالي</span><strong>'+N(money(x.uNew))+' ج</strong></div>'+
+            '<div class="stl-pill">'+(up2?'▲':'▼')+' '+N((up2?'+':'−')+money(Math.abs(x.diff)))+' ج • '+N(Math.abs(x.pct).toFixed(1)+'%')+'</div></div>'+
+          '<div class="stl-brs">'+BR.map(function(B){ var k=B[0], r=x.br[k];
+            if(r.state==='ok') return '<div class="stl-br ok"><span class="stl-bn">'+B[2]+' '+B[1]+'</span><span class="stl-bs">✓ اتطبع بالسعر الجديد • '+esc(fmtTs(r.at))+(r.by?' • '+esc(r.by):'')+'</span></div>';
+            if(r.state==='none') return '<div class="stl-br"><span class="stl-bn">'+B[2]+' '+B[1]+'</span><span class="stl-bs">لسه ما اتطبعش للفرع ده</span></div>';
+            return '<div class="stl-br st"><span class="stl-bn">'+B[2]+' '+B[1]+'</span><span class="stl-bs">⏳ مستني • مطبوع عنده '+N(money(r.uOld))+' ج</span><button type="button" class="pp-btn primary sm" data-pb="'+esc(x.bc)+'" data-b="'+k+'">🖨 اطبع</button></div>'; }).join('')+'</div></li>'; }).join('')+'</ul>'
+        :'<div class="pp-empty">'+(all.length?'مفيش نتايج بالفلتر ده.':'مفيش أصناف محتاجة تحديث دلوقتي.')+'</div>')+'</div>';
+  }
+  /* creates the missing «new price» tags (reusing a tag that already carries the new price) and resolves to the tag objects */
+  function ensureNewTags(items){
+    var need=items.filter(function(x){ return !x.newTag; });
+    var made=need.map(function(x){ var t=x.t; return { barcode:t.barcode, name:t.name, price:x.exp, oldPrice:null, qty:x.qty, copies:t.copies, size:t.size, style:t.style, sheetPrice:x.cur }; });
+    var p=made.length?saveTags(made):Promise.resolve([]);
+    return p.then(function(keys){ var res={}; items.forEach(function(x){ if(x.newTag) res[x.bc]=x.newTag; });
+      need.forEach(function(x,i){ var m=made[i]; res[x.bc]=Object.assign({}, m, { id:keys[i], status:'ready' }); }); return res; });
+  }
+  function repriceTags(bcs){
+    var items=staleList().filter(function(x){ return bcs.indexOf(x.bc)>-1 && !x.newTag; });
+    if(!items.length){ toast('مفيش حاجة تتسعّر — التسعيرات الجديدة موجودة فعلاً','info'); return Promise.resolve(); }
+    return ensureNewTags(items).then(function(){ ssel={}; toast('اتعملت '+items.length+' تسعيرة بالسعر الجديد — جاهزة للطباعة','success',6000); try{ SystemLog.add('PricingTagsRepriced', String(items.length), 'تسعيرة جديدة بعد تغيّر السعر: '+items.length, { count:items.length, notify:false }); }catch(_){} }).catch(function(e){ toast(e.message||String(e),'error'); });
+  }
+  /* branch picker (+ «already printed for this branch» warning) */
+  function branchModal(items, pre, done){
+    var old=document.getElementById('ppBrModal'); if(old) old.remove();
+    var el=document.createElement('div'); el.id='ppBrModal'; document.body.appendChild(el);
+    var chosen={}; (pre&&pre.length?pre:[myBr()].filter(Boolean)).forEach(function(k){ chosen[k]=1; });
+    function close(){ el.remove(); }
+    function step1(){
+      el.innerHTML='<div class="brm-box"><h3>اطبع لأي فرع؟</h3><p>'+items.length+' صنف</p><div class="brm-opts">'+BR.map(function(B){ return '<label class="brm-opt'+(chosen[B[0]]?' on':'')+'"><input type="checkbox" data-bk="'+B[0]+'"'+(chosen[B[0]]?' checked':'')+'><span>'+B[2]+' '+B[1]+'</span></label>'; }).join('')+'</div>'+
+        '<div class="brm-btns"><button type="button" class="pp-btn primary" data-brm="go">متابعة</button><button type="button" class="pp-btn ghost" data-brm="x">إلغاء</button></div></div>';
+    }
+    function step2(dups, brs){
+      el.innerHTML='<div class="brm-box"><h3>⚠️ اتطبعت قبل كده</h3><p>الأصناف دي اتطبعت فعلاً بنفس السعر الجديد للفرع المحدد:</p><ul class="brm-dups">'+dups.slice(0,12).map(function(d){ return '<li><b>'+esc(d.item.t.name)+'</b><small>'+esc(brName(d.b))+' • '+esc(fmtTs(d.r.at))+(d.r.by?' • '+esc(d.r.by):'')+'</small></li>'; }).join('')+(dups.length>12?'<li>… و'+(dups.length-12)+' كمان</li>':'')+'</ul>'+
+        '<div class="brm-btns"><button type="button" class="pp-btn primary" data-brm="skip">تخطّي المكرر</button><button type="button" class="pp-btn ghost" data-brm="all">اطبع برضه</button><button type="button" class="pp-btn ghost" data-brm="x">إلغاء</button></div></div>';
+      el.onclick=function(e){ var bt=e.target.closest('[data-brm]'); if(e.target===el){ close(); return; } if(!bt) return; var m=bt.dataset.brm; if(m==='x'){ close(); return; } var skip={}; if(m==='skip') dups.forEach(function(d){ skip[d.item.bc+'|'+d.b]=1; }); close(); done(brs, skip); };
+    }
+    el.onchange=function(e){ var c=e.target.closest('[data-bk]'); if(!c) return; if(c.checked) chosen[c.dataset.bk]=1; else delete chosen[c.dataset.bk]; var l=c.closest('.brm-opt'); if(l) l.classList.toggle('on',c.checked); };
+    el.onclick=function(e){ var bt=e.target.closest('[data-brm]'); if(e.target===el){ close(); return; } if(!bt) return; var m=bt.dataset.brm; if(m==='x'){ close(); return; }
+      var brs=Object.keys(chosen); if(!brs.length){ toast('اختار فرع واحد على الأقل','error'); return; }
+      var dups=[]; items.forEach(function(it){ brs.forEach(function(k){ var r=it.br[k]; if(r&&r.state==='ok') dups.push({ item:it, b:k, r:r }); }); });
+      if(dups.length){ step2(dups, brs); return; } close(); done(brs, {}); };
+    step1();
+  }
+  /* print the new-price tags for the chosen branches, then record «printed for <branch>» on each tag */
+  function printStale(bcs, branches, skip){
+    var items=staleList().filter(function(x){ return bcs.indexOf(x.bc)>-1; }); skip=skip||{};
+    var jobs=[]; items.forEach(function(x){ branches.forEach(function(k){ if(skip[x.bc+'|'+k]) return; jobs.push({ x:x, k:k }); }); });
+    if(!jobs.length){ toast('مفيش حاجة تتطبع','info'); return; }
+    var used={}; jobs.forEach(function(j){ used[j.x.bc]=j.x; });
+    ensureNewTags(Object.keys(used).map(function(k){ return used[k]; })).then(function(map){
+      var list=[], marks={}; jobs.forEach(function(j){ var t=map[j.x.bc]; list.push(t); (marks[t.id]=marks[t.id]||[]).push(j.k); });
+      var names=branches.map(brName).join(' و');
+      printTags(list, function(){ if(confirm('الطباعة تمت كويس؟ أعلّم '+Object.keys(marks).length+' صنف إنه اتطبع لـ'+names+'؟')) markPrinted(Object.keys(marks), marks); });
+    }).catch(function(e){ toast(e.message||String(e),'error'); });
+  }
+  function canDelPrinted(){ if(isAll()) return true; return perms().indexOf('pricing:delete')>-1; }
   function dateSummary(list){
     if(!dateTarget()) return ''; var dBy=savedF.by==='printed', by={}, copies=0;
     list.forEach(function(t){ var u=dBy?(t.printedBy||'—'):((t.createdBy&&t.createdBy.username)||'—'); by[u]=(by[u]||0)+1; copies+=printN(t); });
@@ -38691,7 +38861,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
       (list.length?'<ul class="pp-saved">'+list.map(function(t){ return '<li class="'+(t.status==='printed'?'printed':'')+'"><label class="pp-chk"><input type="checkbox" data-sel="'+esc(t.id)+'"'+(sel[t.id]?' checked':'')+'></label>'+
         '<div class="pp-mini">'+previewBox(t, t.size||'large')+'</div><div class="pp-sinfo"><b>'+esc(t.name)+'</b><span>'+(num(t.qty)>1?esc(t.qty)+' بـ ':'')+esc(money(t.price))+' ج'+(num(t.oldPrice)>0?' • بدل '+esc(money(t.oldPrice)):'')+(printN(t)>1?' <i class="pp-cp">'+esc(cpTxt(printN(t)))+'</i>':'')+'</span>'+
         '<small>'+esc((SIZES[t.size]||SIZES.large).l.split(' — ')[0])+' • '+esc(t.createdBy&&t.createdBy.username||'')+' • '+esc(fmtTs(t.createdAt))+(t.toUsers?' • أرسلها '+esc(t.sentBy&&t.sentBy.username||'')+' إلى '+esc(Object.keys(t.toUsers).map(function(k){ return t.toUsers[k]; }).join('، ')):'')+(t.status==='printed'?' • اتطبعت '+esc(fmtTs(t.printedAt))+(t.printedBy?' بواسطة '+esc(t.printedBy):''):'')+'</small></div>'+
-        '<div class="pp-sact"><button type="button" class="pp-btn ghost sm" data-edit="'+esc(t.id)+'">تعديل</button><button type="button" class="pp-x" data-del="'+esc(t.id)+'" aria-label="حذف">✕</button></div></li>'; }).join('')+'</ul>'
+        '<div class="pp-sact"><button type="button" class="pp-btn ghost sm" data-edit="'+esc(t.id)+'">تعديل</button>'+((t.status==='printed'&&!canDelPrinted())?'<span title="التسعيرة المطبوعة مش بتتحذف إلا بصلاحية الحذف" style="opacity:.5;font-size:15px">🔒</span>':'<button type="button" class="pp-x" data-del="'+esc(t.id)+'" aria-label="حذف">✕</button>')+'</div></li>'; }).join('')+'</ul>'
         :'<div class="pp-empty">'+(savedF.status==='ready'?'مفيش تسعيرات مستنية الطباعة.':'مفيش تسعيرات هنا.')+'</div>')+'</div>';
     requestAnimationFrame(fitPreviews);
   }
@@ -38718,7 +38888,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     var f=document.createElement('iframe'); f.style.cssText='position:fixed;left:-9999px;top:0;width:1200px;height:900px;border:0'; document.body.appendChild(f);
     f.contentWindow.opener=window; f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close(); setTimeout(function(){ f.remove(); }, 120000);
   }
-  function markPrinted(ids){ var d=DB(); if(!d||!ids.length) return; var u={}, now=Date.now(); ids.forEach(function(id){ u[id+'/status']='printed'; u[id+'/printedAt']=now; u[id+'/printedBy']=uname(); }); d.ref('pricingTags').update(u).then(function(){ toast('اتعلّموا «اتطبعت» ('+ids.length+')','success'); sel={};
+  function markPrinted(ids, marks){ var d=DB(); if(!d||!ids.length) return; var u={}, now=Date.now(); ids.forEach(function(id){ u[id+'/status']='printed'; u[id+'/printedAt']=now; u[id+'/printedBy']=uname(); if(marks&&marks[id]) marks[id].forEach(function(k){ u[id+'/printedFor/'+k]={ at:now, by:uname() }; }); }); d.ref('pricingTags').update(u).then(function(){ toast('اتعلّموا «اتطبعت» ('+ids.length+')','success'); sel={};
       var by={}; ids.forEach(function(id){ var t=tags[id]; if(t&&t.sentBy&&String(t.sentBy.uid)!==uid()) (by[t.sentBy.uid]=by[t.sentBy.uid]||[]).push(id); });
       Object.keys(by).forEach(function(su){ pushNote([su],'تسعيرات اتطبعت', uname()+' طبع '+by[su].length+' تسعيرة من اللي بعتّها'); });
       try{ SystemLog.add('PricingTagsPrinted', String(ids.length), 'طباعة تسعيرات: '+ids.length, { count:ids.length, notify:false }); }catch(_){} }).catch(function(e){ toast(e.message||String(e),'error'); }); }
@@ -38794,6 +38964,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
       readSingle(); var pv=q('.pp-prevcard .pp-prev',root); if(pv){ pv.outerHTML=previewBox(single, single.size); fitPreviews(); } return; }
     if(tab==='batch'){ var tr=t.closest('tr[data-i]'); if(tr && t.dataset.k){ var x=batch[+tr.dataset.i]; if(!x) return; x[t.dataset.k]=t.value;
       if(t.dataset.k==='qty' && x.sheetPrice!=null && settings.rules.qtyMode==='unit'){ x.price=applyRules(x.sheetPrice, x.qty); var pi=q('[data-k="price"]',tr); if(pi) pi.value=x.price; } if(t.dataset.k==='copies') setBatchCount(); keepBatch(); } return; }
+    if(tab==='stale' && t.id==='ppSQ'){ staleF.q=t.value; clearTimeout(onInput.t); onInput.t=setTimeout(function(){ renderStale(); var i=q('#ppSQ',root); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }, 250); return; }
     if(tab==='saved' && t.id==='ppFQ'){ savedF.q=t.value; clearTimeout(onInput.t); onInput.t=setTimeout(function(){ renderSaved(); var i=q('#ppFQ',root); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }, 250); return; }
     if(['design','fonts','rules'].indexOf(tab)>-1){ if(t.type==='range'){ var l=q('#'+t.id+'V',root); if(l) l.textContent=t.value+'%'; } livePreview(tab); }
   }
@@ -38803,6 +38974,7 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(tab==='single' && (t.id==='ppSize'||t.id==='ppStyle')){ readSingle(); syncCopies(); var pv=q('.pp-prevcard .pp-prev',root); if(pv){ pv.outerHTML=previewBox(single, single.size); fitPreviews(); } return; }
     if(tab==='batch'){ if(t.id==='ppBatchSize'){ batch.forEach(function(x){ x.size=t.value; }); keepBatch(); paintBatch(); return; } if(t.id==='ppBatchStyle'){ batch.forEach(function(x){ x.style=t.value; }); keepBatch(); return; } if(t.classList.contains('pp-rowsize')){ var tr=t.closest('tr[data-i]'); if(tr&&batch[+tr.dataset.i]){ batch[+tr.dataset.i].size=t.value; keepBatch(); var ci=q('[data-k="copies"]',tr); if(ci) ci.disabled=(t.value==='table'); setBatchCount(); } }
       if(t.dataset.k==='copies'){ var tr2=t.closest('tr[data-i]'), x2=tr2&&batch[+tr2.dataset.i]; if(x2){ var rb=Math.round(num(t.value)); x2.copies=cps({ copies:t.value }); t.value=x2.copies; if(rb>50) toast('أقصى عدد 50 نسخة للتسعيرة الواحدة','info'); keepBatch(); setBatchCount(); } } return; }
+    if(tab==='stale'){ if(t.id==='ppSSize'){ staleF.size=t.value; ssel={}; renderStale(); return; } if(t.id==='ppSSelAll'){ ssel={}; if(t.checked) staleView().forEach(function(x){ ssel[x.bc]=1; }); renderStale(); return; } if(t.dataset.ssel){ if(t.checked) ssel[t.dataset.ssel]=1; else delete ssel[t.dataset.ssel]; renderStale(); return; } }
     if(tab==='saved'){ if(t.id==='ppFSize'){ savedF.size=t.value; renderSaved(); return; }
       if(t.id==='ppFDate'){ savedF.date=t.value; if(!t.value){ savedF.day=''; } else { if(savedF.by==='printed') savedF.status='printed'; else if(savedF.status==='ready') savedF.status=''; if(t.value==='day'&&!savedF.day) savedF.day=dayAgo(0); } sel={}; renderSaved(); return; }
       if(t.id==='ppFDay'){ savedF.day=t.value; sel={}; renderSaved(); return; }
@@ -38814,6 +38986,11 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
   function onClick(e){
     var b=e.target.closest('button,[data-act]'); if(!b||!root.contains(b)) return; var act=b.dataset.act;
     if(b.dataset.tab){ if(liveBackup){ settings=liveBackup; liveBackup=null; } readSingle(); tab=b.dataset.tab; sel={}; return render(); }
+    if(b.closest('[data-sseg]')){ staleF[b.closest('[data-sseg]').dataset.sseg]=b.dataset.v; ssel={}; return renderStale(); }
+    if(b.dataset.pb){ return printStale([b.dataset.pb],[b.dataset.b]); }
+    if(act==='repricesel'){ var rids=Object.keys(ssel); if(!rids.length) return; b.disabled=true; return repriceTags(rids).then(function(){ if(tab==='stale') renderStale(); }); }
+    if(act==='printstale'){ var pids=Object.keys(ssel); if(!pids.length) return; var pitems=staleList().filter(function(x){ return pids.indexOf(x.bc)>-1; }); return branchModal(pitems, null, function(brs, skip){ printStale(pids, brs, skip); }); }
+    if(act==='goready'){ savedF={ who:'all', status:'ready', size:'', q:b.dataset.bc||'', date:'', day:'', by:'created' }; tab='saved'; sel={}; return render(); }
     if(b.closest('[data-seg]')){ var sg=b.closest('[data-seg]').dataset.seg; savedF[sg]=b.dataset.v; sel={}; return renderSaved(); }
     if(act==='cam'){ if(camOn) return stopCam(); var box=q('.pp-cam',root); if(box) box.classList.add('on'); return startCam('ppReader', function(c){ loadSheet().then(function(){ onScan(c); }); }).then(function(ok){ if(!ok && box) box.classList.remove('on'); }); }
     if(act==='lookup'){ var s=q('#ppScan',root); if(s){ lookupAndScan(s.value); s.value=''; } return; }
@@ -38829,14 +39006,25 @@ body:not(.light-mode) #tab-pricing .pp-found.ok{ color:#4ade80; } body:not(.ligh
     if(act==='bsave'){ if(!batch.length){ toast('القايمة فاضية','info'); return; } var er=checkTags(batch); if(er){ toast(er,'error',6000); return; } b.disabled=true;
       return saveTags(batch.slice().reverse()).then(function(){ toast('اتحفظ '+batch.length+' تسعيرة','success'); batch=[]; keepBatch(); paintBatch(); b.disabled=false; }).catch(function(x){ b.disabled=false; toast(x.message||String(x),'error'); }); }
     if(act==='printsel'){ var list=savedList().filter(function(t){ return sel[t.id]; }); var ids=list.map(function(t){ return t.id; });
+      var stl={}; try{ staleList().forEach(function(x){ stl[x.bc]=x; }); }catch(_){}
+      var rel=list.filter(function(t){ var x=stl[bcNorm(t.barcode)]; return x && Math.abs(r2(num(t.price))-x.exp)<0.005; });
+      if(rel.length){
+        var relItems=[], seen={}; rel.forEach(function(t){ var x=stl[bcNorm(t.barcode)]; if(!seen[x.bc]){ seen[x.bc]=1; relItems.push(x); } });
+        return branchModal(relItems, null, function(brs, skip){
+          var out=[], marks={}, relIds={}; rel.forEach(function(t){ relIds[t.id]=1; });
+          list.forEach(function(t){ if(!relIds[t.id]){ out.push(t); return; } var bc=bcNorm(t.barcode); brs.forEach(function(k){ if(skip[bc+'|'+k]) return; out.push(t); (marks[t.id]=marks[t.id]||[]).push(k); }); });
+          if(!out.length){ toast('مفيش حاجة تتطبع','info'); return; }
+          printTags(out, function(){ var ready=list.filter(function(t){ return t.status!=='printed'||marks[t.id]; }).map(function(t){ return t.id; }); if(ready.length && confirm('الطباعة تمت كويس؟ أعلّم '+ready.length+' تسعيرة إنها «اتطبعت»؟')) markPrinted(ready, marks); });
+        });
+      }
       return printTags(list, function(){ var ready=list.filter(function(t){ return t.status!=='printed'; }).map(function(t){ return t.id; }); if(ready.length && confirm('الطباعة تمت كويس؟ أعلّم '+ready.length+' تسعيرة إنها «اتطبعت»؟')) markPrinted(ready); }); }
     if(act==='agents') return openAgents();
     if(act==='sync') return requestSync('incremental');
     if(act==='syncfull'){ if(confirm('مزامنة كاملة لكل أصناف البازار؟ ممكن تاخد كام دقيقة.')) requestSync('full'); return; }
     if(act==='sendsel'){ return openSend(Object.keys(sel).filter(function(i){ return sel[i]; })); }
     if(act==='xls') return exportXls(savedList());
-    if(act==='delsel'){ var ids2=Object.keys(sel); if(!ids2.length||!confirm('هتحذف '+ids2.length+' تسعيرة؟')) return; var u={}; ids2.forEach(function(id){ u[id]=null; }); DB().ref('pricingTags').update(u).then(function(){ sel={}; toast('اتحذفت','success'); }); return; }
-    if(b.dataset.del){ if(!confirm('حذف التسعيرة دي؟')) return; DB().ref('pricingTags/'+b.dataset.del).remove(); delete sel[b.dataset.del]; return; }
+    if(act==='delsel'){ var ids2=Object.keys(sel); if(!canDelPrinted()){ var blocked=ids2.filter(function(id){ return tags[id]&&tags[id].status==='printed'; }); if(blocked.length){ ids2=ids2.filter(function(id){ return blocked.indexOf(id)<0; }); blocked.forEach(function(id){ delete sel[id]; }); toast('التسعيرات المطبوعة ('+blocked.length+') مش بتتحذف إلا بصلاحية الحذف','error',5000); } } if(!ids2.length||!confirm('هتحذف '+ids2.length+' تسعيرة؟')) return; var u={}; ids2.forEach(function(id){ u[id]=null; }); DB().ref('pricingTags').update(u).then(function(){ sel={}; toast('اتحذفت','success'); }); return; }
+    if(b.dataset.del){ var dt=tags[b.dataset.del]; if(dt&&dt.status==='printed'&&!canDelPrinted()){ toast('التسعيرة المطبوعة مش بتتحذف إلا بصلاحية الحذف','error',5000); return; } if(!confirm('حذف التسعيرة دي؟')) return; DB().ref('pricingTags/'+b.dataset.del).remove(); delete sel[b.dataset.del]; return; }
     if(b.dataset.edit){ var t=tags[b.dataset.edit]; if(!t) return; if(!canTab('single') && !sentToMe(t)){ toast('التعديل من «تسعيرة واحدة» — ملكش صلاحية عليها','info'); return; }
       single={ id:t.id, barcode:t.barcode, name:t.name, sheetPrice:t.sheetPrice, qty:t.qty||1, copies:cps(t), price:t.price, oldPrice:num(t.oldPrice)>0?t.oldPrice:'', oldOn:num(t.oldPrice)>0, size:t.size||'large', style:styleOf(t), found:t.sheetPrice!=null, createdAt:t.createdAt, createdBy:t.createdBy, toUsers:t.toUsers, sentBy:t.sentBy, sentAt:t.sentAt }; tab='single'; return render(); }
     if(act==='savepart'){ var part=b.dataset.part; b.disabled=true; liveBackup=null; return saveSettings(part, readPart(part)).then(function(){ toast('اتحفظ — كل الأجهزة هتطبع بالشكل ده','success'); b.disabled=false; }).catch(function(x){ b.disabled=false; toast(x.message||String(x),'error'); }); }
