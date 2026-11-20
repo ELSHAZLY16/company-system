@@ -7175,22 +7175,26 @@ oninput="this.value=this.value.replace(/[^0-9.]/g,'').replace(/(\..*)\./g,'$1')"
                     <div><label>&nbsp;</label><button class="btn-primary" style="width:100%" onclick="LeaveService.add()">تقديم الطلب</button></div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; margin-bottom:10px; flex-wrap:wrap; gap:10px;"><h3><span><span class="ui-icon-slot" data-icon="calendar" aria-hidden="true"></span></span> سجل طلبات الإجازات</h3><button style="background:rgba(22,163,74,0.2);border:1px solid rgba(22,163,74,0.4);color:#15803d;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;font-size:13px" onclick="LeaveService.exportExcel()"><span><span class="ui-icon-slot" data-icon="chart" aria-hidden="true"></span></span> تصدير Excel</button></div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
-                  <input id="leavesSearch" placeholder="🔍 بحث بالاسم أو الكود" oninput="UI.renderLeaves()"
-                    style="flex:2;min-width:140px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit">
-                  <select id="leavesStatusFilter" onchange="UI.renderLeaves()"
-                    style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid var(--border-light);background:var(--bg-input);color:var(--text-main);font-family:inherit;font-size:13px">
+                <div class="lv-today" id="leavesTodayStrip" onclick="leavesQuick('day')" title="اضغط لعرض إجازات اليوم"></div>
+                <div class="lv-box">
+                  <div class="lv-field lv-wide"><span class="lv-lbl">بحث</span><input id="leavesSearch" class="lv-in" placeholder="🔍 الاسم أو الكود" oninput="UI.renderLeaves()"></div>
+                  <div class="lv-field lv-wide"><span class="lv-lbl">الفترة</span>
+                    <div class="lv-seg" id="leavesRangeBtns">
+                      <button type="button" class="filter-btn" onclick="setLeavesFilter(this,'day')">اليوم</button>
+                      <button type="button" class="filter-btn" onclick="setLeavesFilter(this,'tomorrow')">غداً</button>
+                      <button type="button" class="filter-btn" onclick="setLeavesFilter(this,'yesterday')">أمس</button>
+                      <button type="button" class="filter-btn" onclick="setLeavesFilter(this,'week')">أسبوع</button>
+                      <button type="button" class="filter-btn" onclick="setLeavesFilter(this,'month')">شهر</button>
+                      <button type="button" class="filter-btn active" onclick="setLeavesFilter(this,'all')">الكل</button>
+                    </div></div>
+                  <div class="lv-field"><span class="lv-lbl">يوم معين</span><input type="date" id="leavesDay" class="lv-in" onchange="leavesPickDay()"></div>
+                  <div class="lv-field"><span class="lv-lbl">الفلتر على</span><select id="leavesBasis" class="lv-in" onchange="UI.renderLeaves()"><option value="leave">📅 تاريخ الإجازة</option><option value="request">📝 تاريخ الطلب</option></select></div>
+                  <div class="lv-field"><span class="lv-lbl">الحالة</span><select id="leavesStatusFilter" class="lv-in" onchange="UI.renderLeaves()">
                     <option value="">📋 كل الحالات</option>
                     <option value="قيد المراجعة">⏳ قيد المراجعة</option>
                     <option value="موافق">✅ موافق</option>
                     <option value="مرفوض">❌ مرفوض</option>
-                  </select>
-                  <div class="attendance-filters" id="leavesRangeBtns">
-                    <button class="filter-btn" onclick="setLeavesFilter(this,'day')">اليوم</button>
-                    <button class="filter-btn" onclick="setLeavesFilter(this,'week')">أسبوع</button>
-                    <button class="filter-btn" onclick="setLeavesFilter(this,'month')">شهر</button>
-                    <button class="filter-btn active" onclick="setLeavesFilter(this,'all')">الكل</button>
-                  </div>
+                  </select></div>
                 </div>
                 <div class="table-container"><table>
                     
@@ -10994,11 +10998,51 @@ function setPenaltiesFilter(btn,range){
 
 function setLeavesFilter(btn,range){
   document.querySelectorAll("#leavesRangeBtns .filter-btn").forEach(b=>b.classList.remove("active"))
-  btn.classList.add("active")
+  if(btn) btn.classList.add("active")
   State.leavesRange = range
+  const d=document.getElementById("leavesDay"); if(d) d.value=""
   UI.renderLeaves()
 }
-
+function leavesQuick(range){
+  const btn=[...document.querySelectorAll("#leavesRangeBtns .filter-btn")].find(b=>(b.getAttribute("onclick")||"").indexOf("'"+range+"'")>-1)
+  const bs=document.getElementById("leavesBasis"); if(bs) bs.value="leave"
+  const st=document.getElementById("leavesStatusFilter"); if(st) st.value=""
+  setLeavesFilter(btn,range)
+}
+function leavesPickDay(){
+  const d=document.getElementById("leavesDay"); if(!d||!d.value) return setLeavesFilter(document.querySelector('#leavesRangeBtns .filter-btn:last-child'),"all")
+  document.querySelectorAll("#leavesRangeBtns .filter-btn").forEach(b=>b.classList.remove("active"))
+  State.leavesRange="custom"
+  UI.renderLeaves()
+}
+function _lvShift(key,n){ const p=String(key).split("-").map(Number); if(p.length<3||!p[0]) return ""; const d=new Date(Date.UTC(p[0],p[1]-1,p[2]+n)); return d.toISOString().slice(0,10) }
+function leaveKey(l,basis){
+  if(basis==="request"){ return EgyptClock.dateKey(Number(l.timestamp)||0)||"" }
+  try{ return AbsenceService._normalizeDate(l.leaveDate||l.date)||"" }catch(_){ return "" }
+}
+function leaveMatchesRange(l){
+  const range=State.leavesRange||"all", basis=(document.getElementById("leavesBasis")||{}).value||"leave";
+  if(range==="all") return true;
+  const key=leaveKey(l,basis); if(!key) return false;
+  const nowTs=TimeUtils.now(), today=EgyptClock.dateKey(nowTs);
+  if(range==="custom"){ const d=(document.getElementById("leavesDay")||{}).value||""; return !d||key===d }
+  if(range==="day") return key===today;
+  if(range==="tomorrow") return key===_lvShift(today,1);
+  if(range==="yesterday") return key===_lvShift(today,-1);
+  if(range==="week"){ if(basis==="leave"){ const dw=new Date(today+'T12:00:00Z').getUTCDay(); const st=_lvShift(today,-((dw+1)%7)); return key>=st && key<=_lvShift(st,6) } return key>=EgyptClock.rangeStartKey(nowTs,'week') }
+  if(range==="month"){ return basis==="leave" ? key.slice(0,7)===today.slice(0,7) : key>=EgyptClock.rangeStartKey(nowTs,'month') }
+  return true;
+}
+function leavesTodayStrip(){
+  const el=document.getElementById("leavesTodayStrip"); if(!el) return;
+  const today=EgyptClock.dateKey(TimeUtils.now());
+  const list=(State.leaves||[]).filter(l=>leaveKey(l,"leave")===today);
+  const ok=list.filter(l=>l.status==="موافق"), pend=list.filter(l=>l.status==="قيد المراجعة");
+  const esc=v=>String(v==null?"":v).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  if(!ok.length&&!pend.length){ el.innerHTML='<div class="lv-today-h"><b>🏖 إجازة اليوم</b><span class="lv-today-n zero">لا أحد</span></div>'; return; }
+  const chips=ok.slice(0,10).map(l=>'<span class="lv-chip">'+esc(l.name)+'</span>').join("")+(ok.length>10?'<span class="lv-chip more">+'+(ok.length-10)+'</span>':"");
+  el.innerHTML='<div class="lv-today-h"><b>🏖 إجازة اليوم</b><span class="lv-today-n">'+ok.length+' موظف</span>'+(pend.length?'<span class="lv-today-p">⏳ '+pend.length+' قيد المراجعة</span>':"")+'</div>'+(chips?'<div class="lv-chips">'+chips+'</div>':"");
+}
 function _inRange(ts, range){
   if(range === "all") return true;
   const nowTs=TimeUtils.now(), nowKey=EgyptClock.dateKey(nowTs), key=EgyptClock.dateKey(Number(ts)||0);
@@ -26492,9 +26536,9 @@ this.renderVehiclesInsideNow();
               .filter(l =>
                 (!lSearch || (l.name||"").toLowerCase().includes(lSearch) || String(l.code||"").includes(lSearch)) &&
                 (!lStatus || l.status === lStatus) &&
-                _inRange(l.timestamp, lRange)
+                leaveMatchesRange(l)
               )
-              .sort((a, b) => (Number(b.timestamp)||0) - (Number(a.timestamp)||0));
+              .sort((a, b) => (State.leavesRange&&State.leavesRange!=="all"&&((document.getElementById("leavesBasis")||{}).value||"leave")==="leave") ? ((leaveKey(a,"leave")<leaveKey(b,"leave"))?1:(leaveKey(a,"leave")>leaveKey(b,"leave"))?-1:(Number(b.timestamp)||0)-(Number(a.timestamp)||0)) : ((Number(b.timestamp)||0) - (Number(a.timestamp)||0)));
             scoped
               .forEach(l => {
                 const statusColor = l.status==="موافق"?"#15803d":l.status==="مرفوض"?"#dc2626":"#c2410c";
@@ -26522,6 +26566,7 @@ this.renderVehiclesInsideNow();
             body.innerHTML = html || '<tr><td colspan="12" style="text-align:center;padding:20px;color:#71717a"><span class="ui-icon-slot" data-icon="search" aria-hidden="true"></span> لا توجد نتائج مطابقة</td></tr>';
             applyEditColVisibility();
             document.getElementById("leavesCount").innerText = State.leaves.length;
+            try{ leavesTodayStrip(); }catch(_){}
             this.renderLeavesSummary(scoped);
         },
 
@@ -26529,7 +26574,7 @@ this.renderVehiclesInsideNow();
           const body = document.getElementById("leavesSummaryBody");
           const foot = document.getElementById("leavesSummaryFoot");
           if(!body) return;
-          const list = scoped || State.leaves.filter(l => _inRange(l.timestamp, State.leavesRange||"all"));
+          const list = scoped || State.leaves.filter(l => leaveMatchesRange(l));
           const map = {};
           list.forEach(l=>{
             const code = String(l.code);
@@ -39846,5 +39891,25 @@ body:not(.light-mode) #mktSheet .mk-box{background:#1c1c1e;color:#f5f5f7}
   };
 })();
 </script>
+<style id="allosh-leaves-filters">
+.lv-today{ cursor:pointer; margin:0 0 12px; padding:12px 14px; border-radius:16px; border:1px solid rgba(200,16,46,.28); background:linear-gradient(135deg,rgba(200,16,46,.14),rgba(200,16,46,.05)); }
+.lv-today-h{ display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; font-size:15px; }
+.lv-today-n{ margin-inline-start:auto; font-weight:900; font-size:14px; padding:3px 12px; border-radius:999px; background:#c8102e; color:#fff; }
+.lv-today-n.zero{ background:rgba(127,127,127,.25); color:inherit; font-weight:700; }
+.lv-today-p{ font-size:12.5px; opacity:.85; }
+.lv-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.lv-chip{ font-size:12.5px; font-weight:700; padding:4px 11px; border-radius:999px; background:rgba(127,127,127,.18); }
+.lv-chip.more{ opacity:.7; }
+.lv-box{ display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px; margin-bottom:14px; border:1px solid var(--border-light); border-radius:18px; background:rgba(127,127,127,.06); }
+.lv-field{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+.lv-wide{ grid-column:1/-1; }
+.lv-lbl{ font-size:12px; font-weight:700; opacity:.7; }
+.lv-in{ width:100%; height:44px; box-sizing:border-box; padding:0 12px; border-radius:12px; border:1px solid var(--border-light); background:var(--bg-input); color:var(--text-main); font-family:inherit; font-size:14px; }
+.lv-in:focus{ outline:none; border-color:#c8102e; box-shadow:0 0 0 3px rgba(200,16,46,.15); }
+.lv-seg{ display:flex; gap:6px; overflow-x:auto; padding:2px; scrollbar-width:none; }
+.lv-seg::-webkit-scrollbar{ display:none; }
+.lv-seg .filter-btn{ flex:1 0 auto; margin:0; padding:9px 16px; font-size:13px; white-space:nowrap; }
+@media (min-width:900px){ .lv-box{ grid-template-columns:2fr 3fr 1.2fr 1.2fr 1.2fr; align-items:end; } .lv-wide{ grid-column:auto; } }
+</style>
 </body>
 </html>
