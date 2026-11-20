@@ -38741,13 +38741,13 @@ body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
       BR.forEach(function(B){ var k=B[0], last=null;
         printed.forEach(function(t){ var at=tagAt(t,k); if(at>0 && (!last||at>tagAt(last,k))) last=t; });
         if(!last){ item.br[k]={ state:'none' }; return; }
-        var qty=Math.max(1,Math.round(num(last.qty)||1)), exp=r2(applyRules(cur,qty)), pr=r2(num(last.price)), ok=Math.abs(exp-pr)<0.005;
+        var qty=Math.max(1,Math.round(num(last.qty)||1)), exp=r2(applyRules(cur,qty)), pr=r2(num(last.price)), ok=Math.abs(r2(exp/qty)-r2(pr/qty))<0.005;
         item.br[k]={ state:ok?'ok':'stale', tag:last, qty:qty, exp:exp, printed:pr, uOld:r2(pr/qty), uNew:r2(exp/qty), at:tagAt(last,k), by:tagBy(last,k) };
         if(!ok && !base){ base=item.br[k]; } });
       if(!base) return;
       item.t=base.tag; item.qty=base.qty; item.exp=base.exp; item.printed=base.printed; item.uOld=base.uOld; item.uNew=base.uNew; item.diff=r2(base.uNew-base.uOld); item.pct=base.uOld>0?((base.uNew-base.uOld)/base.uOld*100):0;
       /* a tag that already carries the new price (printed for one branch, or still waiting) can be reused */
-      var cand=all.filter(function(t){ return Math.abs(r2(num(t.price))-item.exp)<0.005 && Math.max(1,Math.round(num(t.qty)||1))===item.qty; });
+      var cand=all.filter(function(t){ var tq=Math.max(1,Math.round(num(t.qty)||1)); return tq===item.qty && Math.abs(r2(num(t.price)/tq)-item.uNew)<0.005; });
       cand.sort(function(a,b){ return ((a.status==='printed')-(b.status==='printed')) || ((b.createdAt||0)-(a.createdAt||0)); });
       item.newTag=cand[0]||null; item.ready=(item.newTag&&item.newTag.status!=='printed')?item.newTag:null;
       out.push(item);
@@ -39007,7 +39007,7 @@ body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
       return saveTags(batch.slice().reverse()).then(function(){ toast('اتحفظ '+batch.length+' تسعيرة','success'); batch=[]; keepBatch(); paintBatch(); b.disabled=false; }).catch(function(x){ b.disabled=false; toast(x.message||String(x),'error'); }); }
     if(act==='printsel'){ var list=savedList().filter(function(t){ return sel[t.id]; }); var ids=list.map(function(t){ return t.id; });
       var stl={}; try{ staleList().forEach(function(x){ stl[x.bc]=x; }); }catch(_){}
-      var rel=list.filter(function(t){ var x=stl[bcNorm(t.barcode)]; return x && Math.abs(r2(num(t.price))-x.exp)<0.005; });
+      var rel=list.filter(function(t){ var x=stl[bcNorm(t.barcode)]; var tq=Math.max(1,Math.round(num(t.qty)||1)); return x && tq===x.qty && Math.abs(r2(num(t.price)/tq)-x.uNew)<0.005; });
       if(rel.length){
         var relItems=[], seen={}; rel.forEach(function(t){ var x=stl[bcNorm(t.barcode)]; if(!seen[x.bc]){ seen[x.bc]=1; relItems.push(x); } });
         return branchModal(relItems, null, function(brs, skip){
