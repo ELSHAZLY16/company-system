@@ -29297,7 +29297,7 @@ window.requestBazarFingerprintSync = async function(options={}){
      ═══════════════════════════════════════════════════ -->
 <style id="universal-picker-style">
   .universal-picker-modal{
-    position:fixed;inset:0;z-index:32000;
+    position:fixed;inset:0;z-index:2147483200;
     background:rgba(2,6,23,.76);
     display:flex;align-items:center;justify-content:center;
     padding:14px;
@@ -38573,7 +38573,7 @@ body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
   /* ---------------- data: saved tags ---------------- */
   var tags={}, tagsOn=false;
   function watchTags(){ var d=DB(); if(!d||tagsOn) return; tagsOn=true;
-    try{ d.ref('pricingTags').limitToLast(1500).on('value', function(s){ tags=(s&&s.val&&s.val())||{}; Object.keys(tags).forEach(function(k){ if(tags[k]&&typeof tags[k]==='object') tags[k].id=k; else delete tags[k]; }); if(root && !root.hidden && tab==='saved') renderSaved(); if(root && !root.hidden && tab==='stale') renderStale(); updateCount(); checkIncoming(); }); }catch(e){ tagsOn=false; } }
+    try{ d.ref('pricingTags').on('value', function(s){ tags=(s&&s.val&&s.val())||{}; Object.keys(tags).forEach(function(k){ if(tags[k]&&typeof tags[k]==='object') tags[k].id=k; else delete tags[k]; }); if(root && !root.hidden && tab==='saved') renderSaved(); if(root && !root.hidden && tab==='stale') renderStale(); updateCount(); checkIncoming(); }); }catch(e){ tagsOn=false; } }
   /* copies = how many times one tag is printed (1–50). A «جدول» row always prints once. */
   function cps(t){ var n=Math.round(num(t&&t.copies)); return n>=1?Math.min(50,n):1; }
   function printN(t){ return (t&&t.size==='table')?1:cps(t); }
@@ -38889,8 +38889,9 @@ body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
     var parts=Object.keys(by).sort(function(a,b){ return by[b]-by[a]; }).map(function(u){ return esc(u)+' ('+by[u]+')'; });
     return '<div class="pp-datesum"><b>📅 '+esc(dateLabel())+' — '+(dBy?'اتطبع':'اتعمل')+': '+list.length+' تسعيرة'+(copies>list.length?' • '+esc(cpTxt(copies)):'')+'</b>'+(parts.length?'<span>'+parts.join(' • ')+'</span>':'')+'</div>';
   }
+  var savedLimit=200, savedLimitKey='';
   function renderSaved(){
-    var b=q('#ppBody',root); if(!b) return; var list=savedList(); var selN=list.filter(function(t){ return sel[t.id]; }).length;
+    var b=q('#ppBody',root); if(!b) return; var list=savedList(); var fk=JSON.stringify(savedF); if(fk!==savedLimitKey){ savedLimitKey=fk; savedLimit=200; } var selN=list.filter(function(t){ return sel[t.id]; }).length;
     var selTot=list.filter(function(t){ return sel[t.id]; }).reduce(function(a,t){ return a+printN(t); },0);
     var seg=function(name,opts){ return '<div class="pp-seg" data-seg="'+name+'">'+opts.map(function(o){ return '<button type="button" data-v="'+o[0]+'" aria-pressed="'+(savedF[name]===o[0])+'">'+o[1]+'</button>'; }).join('')+'</div>'; };
     b.innerHTML='<div class="pp-card"><div class="pp-tools wrap">'+seg('who',[['mine','تسعيراتي'],['recv','مرسلة لي'+(recvCount()?' ('+recvCount()+')':'')],['all','الكل']])+seg('status',[['ready','جاهزة للطباعة'],['printed','اتطبعت'],['','الكل']])+
@@ -38903,10 +38904,10 @@ body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
       '<div class="pp-tools"><label class="pp-chk"><input type="checkbox" id="ppSelAll"'+(list.length&&selN===list.length?' checked':'')+'> تحديد الكل ('+list.length+')</label><span class="pp-count">'+(selN?'محدد '+selN:'')+'</span>'+
       '<button type="button" class="pp-btn ghost sm" data-act="xls"'+(list.length?'':' disabled')+'>Excel</button><button type="button" class="pp-btn ghost danger sm" data-act="delsel"'+(selN?'':' disabled')+'>حذف المحدد</button>'+
       '<button type="button" class="pp-btn ghost sm" data-act="sendsel"'+(selN?'':' disabled')+'>📤 إرسال للطباعة</button><button type="button" class="pp-btn primary" data-act="printsel"'+(selN?'':' disabled')+'>🖨 طباعة المحدد ('+selN+')'+(selTot>selN?' • '+cpTxt(selTot):'')+'</button></div>'+
-      (list.length?'<ul class="pp-saved">'+list.map(function(t){ return '<li class="'+(t.status==='printed'?'printed':'')+'"><label class="pp-chk"><input type="checkbox" data-sel="'+esc(t.id)+'"'+(sel[t.id]?' checked':'')+'></label>'+
+      (list.length?'<ul class="pp-saved">'+list.slice(0,savedLimit).map(function(t){ return '<li class="'+(t.status==='printed'?'printed':'')+'"><label class="pp-chk"><input type="checkbox" data-sel="'+esc(t.id)+'"'+(sel[t.id]?' checked':'')+'></label>'+
         '<div class="pp-mini">'+previewBox(t, t.size||'large')+'</div><div class="pp-sinfo"><b>'+esc(t.name)+'</b><span>'+(num(t.qty)>1?esc(t.qty)+' بـ ':'')+esc(money(t.price))+' ج'+(num(t.oldPrice)>0?' • بدل '+esc(money(t.oldPrice)):'')+(printN(t)>1?' <i class="pp-cp">'+esc(cpTxt(printN(t)))+'</i>':'')+'</span>'+
         '<small>'+esc((SIZES[t.size]||SIZES.large).l.split(' — ')[0])+' • '+esc(t.createdBy&&t.createdBy.username||'')+' • '+esc(fmtTs(t.createdAt))+(t.toUsers?' • أرسلها '+esc(t.sentBy&&t.sentBy.username||'')+' إلى '+esc(Object.keys(t.toUsers).map(function(k){ return t.toUsers[k]; }).join('، ')):'')+(t.status==='printed'?' • اتطبعت '+esc(fmtTs(t.printedAt))+(t.printedBy?' بواسطة '+esc(t.printedBy):''):'')+'</small></div>'+
-        '<div class="pp-sact"><button type="button" class="pp-btn ghost sm" data-edit="'+esc(t.id)+'">تعديل</button>'+((t.status==='printed'&&!canDelPrinted())?'<span title="التسعيرة المطبوعة مش بتتحذف إلا بصلاحية الحذف" style="opacity:.5;font-size:15px">🔒</span>':'<button type="button" class="pp-x" data-del="'+esc(t.id)+'" aria-label="حذف">✕</button>')+'</div></li>'; }).join('')+'</ul>'
+        '<div class="pp-sact"><button type="button" class="pp-btn ghost sm" data-edit="'+esc(t.id)+'">تعديل</button>'+((t.status==='printed'&&!canDelPrinted())?'<span title="التسعيرة المطبوعة مش بتتحذف إلا بصلاحية الحذف" style="opacity:.5;font-size:15px">🔒</span>':'<button type="button" class="pp-x" data-del="'+esc(t.id)+'" aria-label="حذف">✕</button>')+'</div></li>'; }).join('')+'</ul>'+(list.length>savedLimit?'<div class="pp-more"><button type="button" class="pp-btn ghost" data-act="moresaved">عرض '+Math.min(200,list.length-savedLimit)+' تسعيرة أخرى <small>(معروض '+savedLimit+' من '+list.length+')</small></button></div>':'')
         :'<div class="pp-empty">'+(savedF.status==='ready'?'مفيش تسعيرات مستنية الطباعة.':'مفيش تسعيرات هنا.')+'</div>')+'</div>';
     requestAnimationFrame(fitPreviews);
   }
@@ -39038,6 +39039,7 @@ body:not(.light-mode) #ppBrModal .brm-box{ background:#1c1c1e; color:#f5f5f7; }
     if(act==='goready'){ savedF={ who:'all', status:'ready', size:'', q:b.dataset.bc||'', date:'', day:'', by:'created' }; tab='saved'; sel={}; return render(); }
     if(b.closest('[data-seg]')){ var sg=b.closest('[data-seg]').dataset.seg; savedF[sg]=b.dataset.v; sel={}; return renderSaved(); }
     if(act==='cam'){ if(camOn) return stopCam(); var box=q('.pp-cam',root); if(box) box.classList.add('on'); return startCam('ppReader', function(c){ loadSheet().then(function(){ onScan(c); }); }).then(function(ok){ if(!ok && box) box.classList.remove('on'); }); }
+    if(act==='moresaved'){ var old=savedLimit; savedLimit+=200; renderSaved(); var nx=q('.pp-saved li:nth-child('+(old+1)+')',root); if(nx){ nx.style.scrollMarginTop='90px'; nx.scrollIntoView({block:'start'}); } return; }
     if(act==='lookup'){ var s=q('#ppScan',root); if(s){ lookupAndScan(s.value); s.value=''; } return; }
     if(act==='oldon'){ readSingle(); single.oldOn=true; render(); var o=q('#ppOld',root); if(o) o.focus(); return; }
     if(act==='oldoff'){ readSingle(); single.oldOn=false; single.oldPrice=''; render(); return; }
@@ -39911,5 +39913,90 @@ body:not(.light-mode) #mktSheet .mk-box{background:#1c1c1e;color:#f5f5f7}
 .lv-seg .filter-btn{ flex:1 0 auto; margin:0; padding:9px 16px; font-size:13px; white-space:nowrap; }
 @media (min-width:900px){ .lv-box{ grid-template-columns:2fr 3fr 1.2fr 1.2fr 1.2fr; align-items:end; } .lv-wide{ grid-column:auto; } }
 </style>
+<style id="allosh-name-search">
+#tab-prices .nm-wrap{margin:10px 0 0;border-radius:16px;border:1px solid var(--ab-line-2,rgba(127,127,127,.25));background:var(--ab-surface,rgba(127,127,127,.08));overflow:hidden}
+#tab-prices .nm-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;font-size:13px;font-weight:700;border-bottom:1px solid var(--ab-hair,rgba(127,127,127,.2))}
+#tab-prices .nm-h small{font-weight:500;opacity:.65;font-size:11px}
+#tab-prices .nm-x{border:0;background:transparent;color:inherit;font-size:18px;opacity:.6;cursor:pointer;padding:0 4px}
+#tab-prices .nm-row{display:block;width:100%;text-align:right;border:0;border-bottom:1px solid var(--ab-hair,rgba(127,127,127,.18));background:transparent;color:inherit;font-family:inherit;padding:10px 14px;cursor:pointer}
+#tab-prices .nm-row:last-child{border-bottom:0}
+#tab-prices .nm-row:active,#tab-prices .nm-row:hover{background:rgba(127,127,127,.12)}
+#tab-prices .nm-n{font-size:14px;font-weight:700;line-height:1.5;margin-bottom:2px}
+#tab-prices .nm-b{font-size:11px;opacity:.6;direction:ltr;text-align:right;font-family:var(--ab-mono,monospace);margin-bottom:6px}
+#tab-prices .nm-p{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#tab-prices .nm-c{border-radius:10px;padding:6px 9px;background:rgba(127,127,127,.12);font-size:11px;line-height:1.6}
+#tab-prices .nm-c b{display:block;font-size:11px;opacity:.7;font-weight:600}
+#tab-prices .nm-c .v{font-size:15px;font-weight:800}
+#tab-prices .nm-c .k{opacity:.65}
+#tab-prices .nm-c.no{opacity:.45}
+#tab-prices .nm-m{padding:10px 14px;font-size:12px;opacity:.65;text-align:center}
+#tab-prices .nm-mode{flex:0 0 auto;min-width:44px;min-height:50px;border-radius:14px;border:1px solid var(--ab-line-2,rgba(127,127,127,.3));background:var(--ab-surface,transparent);color:inherit;font-family:inherit;font-weight:700;font-size:13px;cursor:pointer;padding:0 10px}
+#tab-pricing .pp-more{text-align:center;padding:14px 0}
+#tab-pricing .pp-more small{opacity:.65}
+</style>
+<script id="allosh-name-search">
+(function(){
+  function norm(s){return String(s==null?'':s).toLowerCase().replace(/[ً-ْـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)}).replace(/\s+/g,' ').trim();}
+  function esc(v){return String(v==null?'':v).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+  function fm(n){n=Number(n);return isFinite(n)&&n>0?(Math.round(n*100)/100).toLocaleString('en-US',{maximumFractionDigits:2}):'—'}
+  var idx=null, idxKey='';
+  function build(){
+    var S=window.S; if(!S||!S.has()) return null;
+    var b=S.getBaz(), c=S.getCai(), key=b.size+'|'+c.size+'|'+(b===build._b)+(c===build._c);
+    if(idx&&idxKey===key) return idx;
+    var seen=new Set(), out=[];
+    function add(m){ m.forEach(function(p,bc){ if(seen.has(bc)) return; seen.add(bc); var pp=(b.get(bc)||c.get(bc)); out.push({bc:bc,n:norm(pp.name),nm:pp.name,pb:b.get(bc),pc:c.get(bc)}); }); }
+    add(b); add(c); idx=out; idxKey=key; build._b=b; build._c=c; return idx;
+  }
+  function find(q){
+    var toks=norm(q).split(' ').filter(Boolean); if(!toks.length) return {list:[],total:0};
+    var ix=build(); if(!ix) return {list:[],total:0};
+    var res=[]; 
+    for(var i=0;i<ix.length;i++){ var e=ix[i], ok=true, sc=0;
+      for(var t=0;t<toks.length;t++){ var p=e.n.indexOf(toks[t]); if(p<0){ok=false;break} sc+= p===0?0:(e.n.charAt(p-1)===' '?1:3); }
+      if(ok) res.push({e:e,s:sc*100+Math.min(e.n.length,99)}); }
+    res.sort(function(a,b){return a.s-b.s});
+    return {list:res.slice(0,30).map(function(r){return r.e}),total:res.length};
+  }
+  function cell(lbl,p){ if(!p) return '<div class="nm-c no"><b>'+lbl+'</b><span class="v">غير موجود</span></div>';
+    return '<div class="nm-c"><b>'+lbl+(p.unit==='box'?' · علبة':'')+'</b><span class="v">'+fm(p.sellPrice)+' ج</span>'+(p.costPrice>0?'<span class="k">التكلفة '+fm(p.costPrice)+' ج</span>':'')+'</div>'; }
+  function show(q){
+    var rc=document.getElementById('rc'); if(!rc) return;
+    var r=find(q);
+    if(!r.total){ if(window.prToast) prToast('❌ مفيش صنف بالاسم ده','er'); if(window.Au) try{Au.no()}catch(_){} rc.className='rc'; rc.innerHTML=''; return; }
+    rc.className='rc on';
+    rc.innerHTML='<div class="nm-wrap"><div class="nm-h"><span>🔎 نتائج «'+esc(q)+'» <small>'+r.total+' صنف</small></span><button type="button" class="nm-x" data-nm-close aria-label="إغلاق">✕</button></div>'+
+      r.list.map(function(e){return '<button type="button" class="nm-row" data-bc="'+esc(e.bc)+'"><div class="nm-n">'+esc(e.nm)+'</div><div class="nm-b">'+esc(e.bc)+'</div><div class="nm-p">'+cell('البازار',e.pb)+cell('القاهرة',e.pc)+'</div></button>'}).join('')+
+      (r.total>r.list.length?'<div class="nm-m">معروض أول '+r.list.length+' — اكتب حروف أكتر لتضييق البحث</div>':'')+'</div>';
+    rc.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  var orig=window.doSearch;
+  function wrapped(bcO){
+    var inp=document.getElementById('bci'), raw=String(bcO||(inp&&inp.value)||'').trim();
+    if(raw && window.S && window.S.has() && !bcO){
+      var clean=raw.replace(/^\*+|\*+$/g,'');
+      var isCode=/^[0-9]+$/.test(clean) || !!window.S.getProduct(clean,'all');
+      if(!isCode){ show(raw); return; }
+    }
+    return orig.apply(this,arguments);
+  }
+  function install(){
+    if(typeof window.doSearch!=='function'||window.doSearch===wrapped) return;
+    orig=window.doSearch; window.doSearch=wrapped;
+    var inp=document.getElementById('bci'); if(!inp||inp.dataset.nm) return; inp.dataset.nm='1';
+    inp.placeholder='باركود أو اسم الصنف...'; inp.setAttribute('enterkeyhint','search');
+    var btn=document.createElement('button'); btn.type='button'; btn.className='nm-mode'; btn.title='تبديل لوحة المفاتيح'; btn.textContent='أ بـ'; 
+    btn.addEventListener('click',function(){ var num=inp.getAttribute('inputmode')==='numeric'; inp.setAttribute('inputmode',num?'text':'numeric'); btn.textContent=num?'١٢٣':'أ بـ'; inp.blur(); setTimeout(function(){inp.focus()},50); });
+    inp.parentNode.insertBefore(btn,inp.nextSibling);
+    inp.setAttribute('inputmode','text'); btn.textContent='١٢٣';
+  }
+  document.addEventListener('click',function(e){
+    var t=e.target.closest&&e.target.closest('#tab-prices .nm-row,#tab-prices [data-nm-close]'); if(!t) return;
+    if(t.hasAttribute('data-nm-close')){ var rc=document.getElementById('rc'); rc.className='rc'; rc.innerHTML=''; return; }
+    var bc=t.getAttribute('data-bc'); var o=orig||window.doSearch; o.call(window,bc);
+  });
+  install(); document.addEventListener('DOMContentLoaded',install); setTimeout(install,1500); setTimeout(install,4000);
+})();
+</script>
 </body>
 </html>
